@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { broadcastToStaff } from '../../core/websocket';
 import { notifyMember } from '../../core/notificationService';
 import { isStaffOrAdmin } from '../../core/middleware';
@@ -111,8 +111,8 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
     let payload: Record<string, unknown>;
     try {
       payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
-    } catch {
-      return res.status(400).json({ error: 'Event has corrupted payload data' });
+    } catch (parseErr: unknown) {
+      return logAndRespond(req, res, 400, 'Event has corrupted payload data', parseErr);
     }
     
     await db.execute(sql`UPDATE trackman_webhook_events 
@@ -164,8 +164,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
     
     res.json({ success, message, matchedBookingId });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to retry event', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to retry event' });
+    logAndRespond(req, res, 500, 'Failed to retry event', error);
   }
 });
 
@@ -203,8 +202,8 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     let payload: Record<string, unknown>;
     try {
       payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
-    } catch {
-      return res.status(400).json({ error: 'Event has corrupted payload data' });
+    } catch (parseErr: unknown) {
+      return logAndRespond(req, res, 400, 'Event has corrupted payload data', parseErr);
     }
     const trackmanBookingId = event.trackman_booking_id;
     

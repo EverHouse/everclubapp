@@ -11,7 +11,7 @@ import {
   text,
   serial,
 } from "drizzle-orm/pg-core";
-import type { FeeSnapshotStatus, DayPassStatus, ConferencePrepaymentStatus, TerminalPaymentStatus } from "../constants/statuses";
+import type { FeeSnapshotStatus, DayPassStatus, ConferencePrepaymentStatus, TerminalPaymentStatus, DisputeStatus } from "../constants/statuses";
 // FK constraints for booking_fee_snapshots are managed by db-init.ts (not schema .references())
 // to avoid deployment migration conflicts with orphaned production data
 
@@ -240,7 +240,7 @@ export const terminalPayments = pgTable(
     refundAmountCents: integer("refund_amount_cents"),
     disputedAt: timestamp("disputed_at", { withTimezone: true }),
     disputeId: varchar("dispute_id", { length: 255 }),
-    disputeStatus: varchar("dispute_status", { length: 50 }),
+    disputeStatus: varchar("dispute_status", { length: 50 }).$type<DisputeStatus>(),
     processedBy: varchar("processed_by", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

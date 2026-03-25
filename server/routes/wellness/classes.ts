@@ -11,7 +11,7 @@ import { broadcastToStaff, broadcastWaitlistUpdate } from '../../core/websocket'
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import {
   WellnessClassRow,
   WellnessRecurringRow,
@@ -968,7 +968,7 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
     } catch (txErr: unknown) {
       if (String(txErr).includes('wellness_enrollments_unique_active')) {
         logger.info('[Wellness] Duplicate enrollment caught by unique constraint', { extra: { classId: class_id, userEmail: user_email } });
-        return res.status(409).json({ error: 'Already enrolled in this class' });
+        return logAndRespond(req, res, 409, 'Already enrolled in this class');
       }
       throw txErr;
     }

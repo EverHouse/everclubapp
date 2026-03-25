@@ -9,7 +9,7 @@ import { broadcastToStaff } from '../../core/websocket';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { getMemberDisplayName } from './shared';
 
 const router = Router();
@@ -200,10 +200,9 @@ router.post('/api/rsvps', isAuthenticated, async (req, res) => {
     res.status(201).json(result);
   } catch (error: unknown) {
     if (getErrorMessage(error) === 'Event is at capacity') {
-      return res.status(400).json({ error: 'Event is at capacity' });
+      return logAndRespond(req, res, 400, 'Event is at capacity');
     }
-    logger.error('RSVP creation error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to create RSVP. Staff notification is required.' });
+    logAndRespond(req, res, 500, 'Failed to create RSVP. Staff notification is required.', error);
   }
 });
 

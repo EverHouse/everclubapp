@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { getStripeClient } from '../../core/stripe/client';
@@ -1557,7 +1557,7 @@ router.post('/api/stripe/terminal/confirm-save-card', isStaffOrAdmin, async (req
       });
     } catch (attachErr: unknown) {
       if (!getErrorMessage(attachErr)?.includes('already been attached')) {
-        return res.status(500).json({ error: `Failed to attach payment method: ${getErrorMessage(attachErr)}` });
+        return logAndRespond(req, res, 500, 'Failed to attach payment method', attachErr);
       }
     }
 

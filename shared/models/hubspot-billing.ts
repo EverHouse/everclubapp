@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, integer, numeric } from "drizzle-orm/pg-core";
-import type { HubspotPaymentStatus, HubspotLineItemStatus, HubspotSyncQueueStatus, LegacyImportJobStatus, StripePaymentIntentStatus } from "../constants/statuses";
+import type { HubspotPaymentStatus, HubspotLineItemStatus, HubspotSyncQueueStatus, LegacyImportJobStatus, StripePaymentIntentStatus, MindbodyStatus } from "../constants/statuses";
 
 export const hubspotProductMappings = pgTable("hubspot_product_mappings", {
   id: serial("id").primaryKey(),
@@ -35,7 +35,7 @@ export const hubspotDeals = pgTable("hubspot_deals", {
   pipelineId: varchar("pipeline_id"),
   pipelineStage: varchar("pipeline_stage"), // HubSpot stage IDs: 'closedwon', '2825519820', 'closedlost'
   isPrimary: boolean("is_primary").default(true), // for members with multiple deals
-  lastKnownMindbodyStatus: varchar("last_known_mindbody_status"),
+  lastKnownMindbodyStatus: varchar("last_known_mindbody_status").$type<MindbodyStatus>(),
   lastPaymentStatus: varchar("last_payment_status").$type<HubspotPaymentStatus>(),
   lastPaymentCheck: timestamp("last_payment_check"),
   lastStageSyncAt: timestamp("last_stage_sync_at"),

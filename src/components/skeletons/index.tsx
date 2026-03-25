@@ -37,9 +37,11 @@ export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({
       const timer = setTimeout(() => {
         setShowSkeleton(false);
         setIsTransitioning(false);
-        setLockedHeight(null);
       }, duration);
-      return () => clearTimeout(timer);
+      const heightTimer = setTimeout(() => {
+        setLockedHeight(null);
+      }, duration * 2);
+      return () => { clearTimeout(timer); clearTimeout(heightTimer); };
     } else if (loading) {
       setShowSkeleton(true);
       setLockedHeight(null);

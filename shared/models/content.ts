@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
 import { users } from "./auth-session";
-import type { RSVPStatus, FormSubmissionStatus, BugReportStatus, WellnessEnrollmentStatus } from "../constants/statuses";
+import type { RSVPStatus, FormSubmissionStatus, BugReportStatus, WellnessEnrollmentStatus, WellnessClassStatus } from "../constants/statuses";
 
 // Events table - club events
 export const events = pgTable("events", {
@@ -74,7 +74,7 @@ export const wellnessClasses = pgTable("wellness_classes", {
   duration: varchar("duration").notNull(),
   category: varchar("category").notNull(),
   spots: varchar("spots").notNull(),
-  status: varchar("status"),
+  status: varchar("status").$type<WellnessClassStatus>(),
   description: text("description"),
   date: date("date").notNull(),
   isActive: boolean("is_active").default(true),

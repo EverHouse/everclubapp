@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router } from 'express';
 import { isProduction } from '../../core/db';
 import { db } from '../../db';
@@ -106,10 +106,9 @@ router.put('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
     res.json(result);
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
-      return res.status(400).json({ error: 'A notice type with this name already exists' });
+      return logAndRespond(req, res, 400, 'A notice type with this name already exists');
     }
-    if (!isProduction) logger.error('Notice type update error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to update notice type' });
+    logAndRespond(req, res, 500, 'Failed to update notice type', error);
   }
 });
 
@@ -139,8 +138,7 @@ router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'delete_notice_type', 'notice_type', String(id), undefined, {});
     res.json({ success: true, message: 'Notice type deleted' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Notice type delete error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to delete notice type' });
+    logAndRespond(req, res, 500, 'Failed to delete notice type', error);
   }
 });
 
@@ -163,8 +161,7 @@ router.get('/api/closure-reasons', async (req, res) => {
     
     res.json(results);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Closure reasons fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch closure reasons' });
+    logAndRespond(req, res, 500, 'Failed to fetch closure reasons', error);
   }
 });
 
@@ -188,10 +185,9 @@ router.post('/api/closure-reasons', isStaffOrAdmin, async (req, res) => {
     res.status(201).json(result);
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
-      return res.status(400).json({ error: 'A closure reason with this label already exists' });
+      return logAndRespond(req, res, 400, 'A closure reason with this label already exists');
     }
-    if (!isProduction) logger.error('Closure reason creation error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to create closure reason' });
+    logAndRespond(req, res, 500, 'Failed to create closure reason', error);
   }
 });
 
@@ -225,10 +221,9 @@ router.put('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
     res.json(result);
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
-      return res.status(400).json({ error: 'A closure reason with this label already exists' });
+      return logAndRespond(req, res, 400, 'A closure reason with this label already exists');
     }
-    if (!isProduction) logger.error('Closure reason update error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to update closure reason' });
+    logAndRespond(req, res, 500, 'Failed to update closure reason', error);
   }
 });
 

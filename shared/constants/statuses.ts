@@ -277,6 +277,14 @@ export const BUG_REPORT_STATUS = {
 
 export type BugReportStatus = typeof BUG_REPORT_STATUS[keyof typeof BUG_REPORT_STATUS];
 
+export const WELLNESS_CLASS_STATUS = {
+  CONFIRMED: 'confirmed',
+  CANCELLED: 'cancelled',
+  TENTATIVE: 'tentative',
+} as const;
+
+export type WellnessClassStatus = typeof WELLNESS_CLASS_STATUS[keyof typeof WELLNESS_CLASS_STATUS];
+
 export const WELLNESS_ENROLLMENT_STATUS = {
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
@@ -321,3 +329,62 @@ export const TRACKMAN_UNMATCHED_STATUS = {
 } as const;
 
 export type TrackmanUnmatchedStatus = typeof TRACKMAN_UNMATCHED_STATUS[keyof typeof TRACKMAN_UNMATCHED_STATUS];
+
+export const DISPUTE_STATUS = {
+  WARNING_NEEDS_RESPONSE: 'warning_needs_response',
+  WARNING_UNDER_REVIEW: 'warning_under_review',
+  WARNING_CLOSED: 'warning_closed',
+  NEEDS_RESPONSE: 'needs_response',
+  UNDER_REVIEW: 'under_review',
+  WON: 'won',
+  LOST: 'lost',
+  CHARGE_REFUNDED: 'charge_refunded',
+} as const;
+
+export type DisputeStatus = typeof DISPUTE_STATUS[keyof typeof DISPUTE_STATUS];
+
+export const MINDBODY_STATUS = {
+  ACTIVE: 'Active',
+  SUSPENDED: 'Suspended',
+  TERMINATED: 'Terminated',
+  EXPIRED: 'Expired',
+  DECLINED: 'Declined',
+  NON_MEMBER: 'Non Member',
+} as const;
+
+export type MindbodyStatus = typeof MINDBODY_STATUS[keyof typeof MINDBODY_STATUS];
+
+export const ACCOUNT_DELETION_STATUS = {
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+  REJECTED: 'rejected',
+} as const;
+
+export type AccountDeletionStatus = typeof ACCOUNT_DELETION_STATUS[keyof typeof ACCOUNT_DELETION_STATUS];
+
+export const DATA_EXPORT_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const;
+
+export type DataExportStatus = typeof DATA_EXPORT_STATUS[keyof typeof DATA_EXPORT_STATUS];
+
+export const JOB_QUEUE_STATUS = {
+  PENDING: 'pending',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  DEAD: 'dead',
+} as const;
+
+export type JobQueueStatus = typeof JOB_QUEUE_STATUS[keyof typeof JOB_QUEUE_STATUS];
+
+export const BACKGROUND_JOB_STATUS = {
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const;
+
+export type BackgroundJobStatus = typeof BACKGROUND_JOB_STATUS[keyof typeof BACKGROUND_JOB_STATUS];

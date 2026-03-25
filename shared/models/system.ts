@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, integer } from "drizzle-orm/pg-core";
+import type { AccountDeletionStatus, DataExportStatus, JobQueueStatus, BackgroundJobStatus } from "../constants/statuses";
 
 // System settings table - for storing app configuration like last reminder date
 export const systemSettings = pgTable("system_settings", {
@@ -92,7 +93,7 @@ export const accountDeletionRequests = pgTable("account_deletion_requests", {
   email: varchar("email", { length: 255 }).notNull(),
   requestedAt: timestamp("requested_at").defaultNow().notNull(),
   processedAt: timestamp("processed_at"),
-  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  status: varchar("status", { length: 50 }).$type<AccountDeletionStatus>().notNull().default('pending'),
   processedBy: varchar("processed_by", { length: 255 }),
   notes: text("notes"),
 }, (table) => ({
@@ -141,7 +142,7 @@ export const dataExportRequests = pgTable("data_export_requests", {
   userEmail: varchar("user_email", { length: 255 }).notNull(),
   requestedAt: timestamp("requested_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
-  status: varchar("status", { length: 50 }).notNull().default('pending'), // 'pending', 'processing', 'completed', 'failed'
+  status: varchar("status", { length: 50 }).$type<DataExportStatus>().notNull().default('pending'),
   downloadUrl: text("download_url"),
   expiresAt: timestamp("expires_at"),
   errorMessage: text("error_message"),
@@ -175,7 +176,7 @@ export const jobQueue = pgTable("job_queue", {
   id: serial("id").primaryKey(),
   jobType: varchar("job_type", { length: 100 }).notNull(),
   payload: jsonb("payload").notNull(),
-  status: varchar("status", { length: 50 }).notNull().default('pending'),
+  status: varchar("status", { length: 50 }).$type<JobQueueStatus>().notNull().default('pending'),
   priority: integer("priority").notNull().default(0),
   maxRetries: integer("max_retries").notNull().default(3),
   retryCount: integer("retry_count").notNull().default(0),
@@ -200,7 +201,7 @@ export type InsertJobQueue = typeof jobQueue.$inferInsert;
 export const backgroundJobs = pgTable("background_jobs", {
   id: varchar("id", { length: 100 }).primaryKey(),
   jobType: varchar("job_type", { length: 100 }).notNull(),
-  status: varchar("status", { length: 50 }).notNull().default('running'),
+  status: varchar("status", { length: 50 }).$type<BackgroundJobStatus>().notNull().default('running'),
   dryRun: boolean("dry_run").default(false),
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),

@@ -260,7 +260,7 @@ router.get('/api/kiosk/verify-staff', isStaffOrAdmin, async (req: Request, res: 
     }
     res.json({ authenticated: true, staffName: sessionUser.name || sessionUser.email });
   } catch (error: unknown) {
-    res.status(500).json({ authenticated: false, error: getErrorMessage(error) });
+    logAndRespond(req, res, 500, 'Failed to verify staff authentication', error);
   }
 });
 

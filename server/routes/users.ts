@@ -6,7 +6,7 @@ import { isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { normalizeEmail, getAlternateDomainEmail } from '../core/utils/emailNormalization';
 import { getErrorCode } from '../utils/errorUtils';
 import { logFromRequest } from '../core/auditLog';
-import { logger } from '../core/logger';
+import { logger, logAndRespond } from '../core/logger';
 
 const router = Router();
 
@@ -114,10 +114,9 @@ router.post('/api/staff-users', isAdmin, async (req, res) => {
     });
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
-      return res.status(400).json({ error: 'This email is already a team member' });
+      return logAndRespond(req, res, 400, 'This email is already a team member');
     }
-    logger.error('API error adding staff user', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to add staff user' });
+    logAndRespond(req, res, 500, 'Failed to add staff user', error);
   }
 });
 
@@ -353,10 +352,9 @@ router.post('/api/admin-users', isAdmin, async (req, res) => {
     });
   } catch (error: unknown) {
     if (getErrorCode(error) === '23505') {
-      return res.status(400).json({ error: 'This email is already an admin' });
+      return logAndRespond(req, res, 400, 'This email is already an admin');
     }
-    logger.error('API error adding admin user', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to add admin user' });
+    logAndRespond(req, res, 500, 'Failed to add admin user', error);
   }
 });
 
