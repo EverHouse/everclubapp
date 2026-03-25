@@ -33,7 +33,7 @@ interface IncomingMessageWithExpressProps extends http.IncomingMessage {
 
 process.on('uncaughtException', (error) => {
   logger.error('[Process] Uncaught Exception - shutting down:', { error: error as Error });
-  setTimeout(() => process.exit(1), 3000);
+  process.exit(1);
 });
 
 let unhandledRejectionCount = 0;
@@ -454,10 +454,27 @@ async function initializeApp() {
       return next();
     }
     const timeout = req.path.startsWith('/api/admin/') ? 120000 : 60000;
+    const originalJson = res.json.bind(res);
+    const originalSend = res.send.bind(res);
+    res.json = function guardedJson(body?: unknown) {
+      if (res.locals.timedOut) {
+        return res;
+      }
+      return originalJson(body);
+    } as typeof res.json;
+    res.send = function guardedSend(body?: unknown) {
+      if (res.locals.timedOut) {
+        return res;
+      }
+      return originalSend(body);
+    } as typeof res.send;
+
     req.setTimeout(timeout, () => {
       if (!res.headersSent) {
         logger.warn(`[Timeout] Request timed out after ${timeout}ms`, { extra: { method: req.method, path: req.path } });
-        res.status(504).json({ error: 'Request timed out' });
+        res.locals.timedOut = true;
+        res.status(504);
+        originalJson({ error: 'Request timed out' });
       }
     });
     next();
@@ -1274,8 +1291,8 @@ ${FOOTER_BLOCK}
 
     const injectCspNonce = (html: string, nonce: string): string => {
       return html
-        .replace(/<script(?=[\s>])/g, `<script nonce="${nonce}"`)
-        .replace(/<style(?=[\s>])/g, `<style nonce="${nonce}"`);
+        .replace(/<script(?![^>]*type\s*=\s*["']application\/ld\+json["'])(?=[\s>])/gi, `<script nonce="${nonce}"`)
+        .replace(/<style(?=[\s>])/gi, `<style nonce="${nonce}"`);
     };
 
     app.use((req, res, next) => {

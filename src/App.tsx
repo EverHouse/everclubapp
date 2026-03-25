@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, ErrorInfo, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, useNavigationType, Navigate } from 'react-router-dom';
 import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query';
 import { queryClient } from './lib/queryClient';
 import { DataProvider, useAuthData, useAnnouncementData } from './contexts/DataContext';
@@ -445,6 +445,11 @@ const AnimatedRoutes: React.FC = () => {
   const { user } = useAuthData();
   const prevEmailRef = useRef(user?.email);
 
+  const navigationType = useNavigationType();
+  const scrollPositions = useRef<Map<string, number>>(new Map());
+  const historyIndexRef = useRef<number>(window.history.state?.idx ?? 0);
+  const prevLocationKeyRef = useRef<string>(location.key || location.pathname);
+
   useEffect(() => {
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
@@ -452,10 +457,31 @@ const AnimatedRoutes: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    window.scrollTo(0, 0);
-  }, [displayLocation.pathname]);
+    const prevKey = prevLocationKeyRef.current;
+    const currentKey = location.key || location.pathname;
+    const currentIdx: number = window.history.state?.idx ?? 0;
+    const prevIdx = historyIndexRef.current;
+
+    if (prevKey !== currentKey) {
+      scrollPositions.current.set(prevKey, window.scrollY);
+    }
+
+    const isBack = navigationType === 'POP' && currentIdx < prevIdx;
+
+    if (isBack) {
+      const saved = scrollPositions.current.get(currentKey);
+      if (saved != null) {
+        requestAnimationFrame(() => window.scrollTo(0, saved));
+      } else {
+        window.scrollTo(0, 0);
+      }
+    } else {
+      window.scrollTo(0, 0);
+    }
+
+    historyIndexRef.current = currentIdx;
+    prevLocationKeyRef.current = currentKey;
+  }, [displayLocation.pathname, navigationType, location.key]);
   
   useEffect(() => {
     if (prevEmailRef.current && prevEmailRef.current !== user?.email) {
