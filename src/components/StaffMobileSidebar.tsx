@@ -147,6 +147,8 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
             src="/assets/logos/mascot-white.webp" 
             alt="Ever Club logo" 
             className="h-8 w-auto object-contain"
+            width={32}
+            height={32}
           />
           <div>
             <h1 className="text-[10px] text-white/40 uppercase tracking-[0.4em] leading-none" style={{ fontFamily: 'var(--font-label)' }}>Staff Portal</h1>

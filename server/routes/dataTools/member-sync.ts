@@ -133,7 +133,8 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
     if (props.phone) updateData.phone = props.phone;
     const normalizedTier = props.membership_tier ? normalizeTierName(props.membership_tier) : null;
     if (normalizedTier) updateData.tier = normalizedTier;
-    if (props.membership_status) updateData.membershipStatus = props.membership_status;
+    const normalizedStatus = props.membership_status ? props.membership_status.toLowerCase().trim() : null;
+    if (normalizedStatus) updateData.membershipStatus = normalizedStatus;
     
     await db.execute(sql`UPDATE users SET 
         hubspot_id = ${hubspotContactId},
@@ -142,7 +143,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
         phone = COALESCE(${props.phone || null}, phone),
         tier = COALESCE(${normalizedTier}, tier),
         tier_id = COALESCE((SELECT id FROM membership_tiers WHERE LOWER(name) = LOWER(${normalizedTier}) LIMIT 1), tier_id),
-        membership_status = COALESCE(${props.membership_status || null}, membership_status),
+        membership_status = COALESCE(${normalizedStatus}, membership_status),
         updated_at = NOW()
       WHERE id = ${user.id}`);
     

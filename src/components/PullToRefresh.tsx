@@ -420,6 +420,8 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
               src="/assets/logos/walking-mascot-white.gif" 
               alt="" 
               className="ptr-pull-mascot"
+              width={48}
+              height={48}
             />
             {pullProgress >= 1 && (
               <span className="ptr-release-text">Release to refresh</span>
@@ -442,6 +444,8 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             src="/assets/logos/walking-mascot-white.gif"
             alt=""
             className="ptr-refresh-mascot"
+            width={48}
+            height={48}
           />
           <span className="ptr-refresh-text">{isDismissing ? 'Done' : 'Refreshing...'}</span>
         </div>,
