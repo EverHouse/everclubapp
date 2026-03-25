@@ -105,6 +105,7 @@ export async function acquireBookingLocks(
     const pendingCheck = await tx.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM booking_requests
       WHERE LOWER(user_email) = ${normalizedEmail} AND status IN ('pending', 'pending_approval')
+      AND resource_id IN (SELECT id FROM resources WHERE type = ${resourceType})
     `);
     if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number >= pendingLimit) {
       throw new BookingConflictError(409, {
@@ -118,19 +119,21 @@ export async function acquireBookingLocks(
 
 export async function checkResourceOverlap(
   tx: { execute: (query: unknown) => Promise<{ rows: Record<string, unknown>[] }> },
-  params: Pick<BookingCreationGuardParams, 'resourceId' | 'requestDate' | 'startTime' | 'endTime'>
+  params: Pick<BookingCreationGuardParams, 'resourceId' | 'requestDate' | 'startTime' | 'endTime'> & { excludeBookingId?: number }
 ): Promise<void> {
-  const { resourceId, requestDate, startTime, endTime } = params;
+  const { resourceId, requestDate, startTime, endTime, excludeBookingId } = params;
 
   if (!resourceId) return;
 
   try {
+    const excludeClause = excludeBookingId ? sql`AND id != ${excludeBookingId}` : sql``;
     const overlapCheck = await tx.execute(sql`
       SELECT id, start_time, end_time FROM booking_requests 
       WHERE resource_id = ${resourceId} 
       AND request_date = ${requestDate} 
       AND status = ANY(${OCCUPIED_STATUS_ARRAY}::text[])
       AND start_time < ${endTime} AND end_time > ${startTime}
+      ${excludeClause}
       ORDER BY id ASC
       FOR UPDATE
     `);

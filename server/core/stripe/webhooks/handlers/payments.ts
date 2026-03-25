@@ -672,12 +672,16 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
         ? 'Dispute Won - Membership Reactivated'
         : membershipAction === 'blocked_manual_review'
           ? 'Dispute Won - Reactivation Blocked (Review Required)'
-          : 'Dispute Lost - Membership Remains Suspended';
+          : membershipAction === 'skipped_non_stripe'
+            ? 'Dispute Won - Non-Stripe Member (No Action Taken)'
+            : 'Dispute Lost - Membership Remains Suspended';
       const disputeStaffMessage = membershipAction === 'reactivated'
         ? `Payment dispute for ${terminalPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership has been reactivated.`
         : membershipAction === 'blocked_manual_review'
           ? `Payment dispute for ${terminalPayment.user_email} has been closed (won). Amount: $${(amount / 100).toFixed(2)}. Auto-reactivation was blocked — manual review required.`
-          : `Payment dispute for ${terminalPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership remains suspended.`;
+          : membershipAction === 'skipped_non_stripe'
+            ? `Payment dispute for ${terminalPayment.user_email} has been closed (won). Amount: $${(amount / 100).toFixed(2)}. Member uses a non-Stripe billing provider — no automatic action taken.`
+            : `Payment dispute for ${terminalPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership remains suspended.`;
       
       deferredActions.push(async () => {
         await notifyAllStaff(
@@ -803,12 +807,16 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
           ? 'Dispute Won - Membership Reactivated'
           : webMembershipAction === 'blocked_manual_review'
             ? 'Dispute Won - Reactivation Blocked (Review Required)'
-            : 'Dispute Lost - Membership Remains Suspended';
+            : webMembershipAction === 'skipped_non_stripe'
+              ? 'Dispute Won - Non-Stripe Member (No Action Taken)'
+              : 'Dispute Lost - Membership Remains Suspended';
         const webDisputeMessage = webMembershipAction === 'reactivated'
           ? `Web payment dispute for ${webPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership has been reactivated.`
           : webMembershipAction === 'blocked_manual_review'
             ? `Web payment dispute for ${webPayment.user_email} has been closed (won). Amount: $${(amount / 100).toFixed(2)}. Auto-reactivation was blocked — manual review required.`
-            : `Web payment dispute for ${webPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership remains suspended.`;
+            : webMembershipAction === 'skipped_non_stripe'
+              ? `Web payment dispute for ${webPayment.user_email} has been closed (won). Amount: $${(amount / 100).toFixed(2)}. Member uses a non-Stripe billing provider — no automatic action taken.`
+              : `Web payment dispute for ${webPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership remains suspended.`;
 
         deferredActions.push(async () => {
           await notifyAllStaff(
@@ -1110,9 +1118,12 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     }
     
     const unpaidTotal = participantFees.reduce((sum, pf) => sum + pf.amountCents, 0);
-    if (amount > unpaidTotal + 1 && participantFees.length < snapshotFees.length) {
+    if (amount > unpaidTotal + 1) {
       const alreadyPaidCount = snapshotFees.length - participantFees.length;
       const overpaymentCents = amount - unpaidTotal;
+      const overpaymentReason = participantFees.length < snapshotFees.length
+        ? `${alreadyPaidCount} participant(s) already paid separately.`
+        : `All ${participantFees.length} participant(s) were unpaid — possible price mismatch or Stripe misconfiguration.`;
       logger.error(`[Stripe Webhook] CRITICAL: Overpayment detected — auto-refunding`, { extra: { detail: {
         sessionId: snapshot.session_id,
         paymentIntentId: id,
@@ -1120,7 +1131,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
         unpaidTotal,
         overpaymentCents,
         alreadyPaidCount,
-        message: `Payment of ${amount} cents received but only ${unpaidTotal} cents was owed. ${alreadyPaidCount} participant(s) already paid separately.`
+        message: `Payment of ${amount} cents received but only ${unpaidTotal} cents was owed. ${overpaymentReason}`
       } } });
 
       if (validatedParticipantIds.length === 0) {
