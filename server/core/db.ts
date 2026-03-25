@@ -108,13 +108,9 @@ basePool.on('connect', () => {
   }
 });
 
-if (needsSsl) {
-  basePool.on('connect', (client) => {
-    client.query("SET search_path TO public").catch((err) => {
-      logger.warn('[Database] Failed to set search_path on new connection:', { extra: { errorMessage: getErrorMessage(err) } });
-    });
-  });
-}
+// search_path is set via the connection string's `options` parameter (appendSearchPath).
+// A previous `SET search_path` listener here was race-prone: pg doesn't await event
+// listeners before returning the client, so business queries could run before the SET completed.
 
 export const pool = basePool;
 
@@ -134,13 +130,7 @@ const directPoolInstance = usingPooler
     })
   : pool;
 
-if (usingPooler && directPoolInstance !== pool && !isLocalDatabase(directConnectionUrl)) {
-  directPoolInstance.on('connect', (client) => {
-    client.query("SET search_path TO public").catch((err) => {
-      logger.warn('[Database] Failed to set search_path on direct pool connection:', { extra: { errorMessage: getErrorMessage(err) } });
-    });
-  });
-}
+// Direct pool also uses appendSearchPath in the connection string — no SET listener needed.
 
 export const directPool = directPoolInstance;
 
@@ -223,28 +213,17 @@ export async function queryWithRetry<T extends QueryResultRow = Record<string, u
   maxRetries: number = 3
 ): Promise<QueryResult<T>> {
   let lastError: unknown = null;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      if (attempt === 1) {
-        return await pool.query(queryText, params);
-      }
-      const client = await pool.connect();
-      try {
-        const result = await client.query<T>(queryText, params);
-        client.release();
-        return result;
-      } catch (queryError: unknown) {
-        client.release(isConnectionError(queryError));
-        throw queryError;
-      }
+      return await pool.query<T>(queryText, params);
     } catch (error: unknown) {
       lastError = error;
-      
+
       if (!isRetryableError(error) || attempt === maxRetries) {
         throw error;
       }
-      
+
       const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000);
       logger.warn(`[Database] Retrying query (attempt ${attempt}/${maxRetries}) after ${delay}ms`, {
         extra: {
@@ -255,7 +234,7 @@ export async function queryWithRetry<T extends QueryResultRow = Record<string, u
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
+
   throw lastError;
 }
 

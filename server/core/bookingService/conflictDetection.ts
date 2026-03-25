@@ -40,9 +40,20 @@ export interface ConflictCheckResult {
 }
 
 function timeToMinutes(timeStr: string): number {
-  const parts = timeStr.split(':');
-  const hours = parseInt(parts[0], 10);
-  const minutes = parseInt(parts[1] || '0', 10);
+  if (!timeStr || typeof timeStr !== 'string') {
+    throw new Error(`Invalid time string provided: ${timeStr}`);
+  }
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) {
+    throw new Error(`Invalid time format (expected HH:MM): ${timeStr}`);
+  }
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    throw new Error(`Time out of range (expected 00:00–23:59): ${timeStr}`);
+  }
+
   return hours * 60 + minutes;
 }
 
@@ -96,8 +107,6 @@ export async function findConflictingBookings(
     const memberRows = memberResult.rows as unknown as UserIdRow[];
     const memberId = memberRows[0]?.id;
 
-    const statusArray = `{${OCCUPIED_STATUSES.map(s => `"${s}"`).join(',')}}`;
-
     const [ownerResult, participantResult] = await Promise.all([
       db.execute(sql`
         SELECT 
@@ -112,7 +121,7 @@ export async function findConflictingBookings(
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
           AND br.request_date = ${date}
-          AND br.status = ANY(${statusArray}::text[])
+          AND br.status = ANY(${OCCUPIED_STATUSES})
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `),
 
@@ -133,7 +142,7 @@ export async function findConflictingBookings(
         WHERE bp.user_id = ${memberId}
           AND bs.session_date = ${date}
           AND bp.invite_status = 'accepted'
-          AND br.status = ANY(${statusArray}::text[])
+          AND br.status = ANY(${OCCUPIED_STATUSES})
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `) : Promise.resolve({ rows: [] }),
     ]);
