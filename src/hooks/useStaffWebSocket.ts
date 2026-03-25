@@ -37,6 +37,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
   const initTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isConnectingRef = useRef(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingEventsRef = useRef<BookingEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState<BookingEvent | null>(null);
@@ -162,7 +163,9 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         }));
 
         if (wasReconnect) {
-          setTimeout(() => {
+          if (reconnectRefreshTimerRef.current) clearTimeout(reconnectRefreshTimerRef.current);
+          reconnectRefreshTimerRef.current = setTimeout(() => {
+            reconnectRefreshTimerRef.current = null;
             window.dispatchEvent(new CustomEvent('booking-action-completed', { detail: { eventType: 'reconnect_refresh' } }));
           }, 500);
         }
@@ -510,6 +513,10 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+    if (reconnectRefreshTimerRef.current) {
+      clearTimeout(reconnectRefreshTimerRef.current);
+      reconnectRefreshTimerRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close();

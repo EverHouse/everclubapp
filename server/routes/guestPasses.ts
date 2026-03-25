@@ -272,6 +272,24 @@ export async function useGuestPass(
     const normalizedEmail = memberEmail.toLowerCase();
     
     const { data: _data, remaining, notificationMessage } = await db.transaction(async (tx) => {
+      const lockResult = await tx.execute(
+        sql`SELECT id, passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = ${normalizedEmail} ORDER BY id ASC FOR UPDATE`
+      );
+      if (lockResult.rows.length === 0) {
+        throw new Error('No guest passes remaining');
+      }
+      const row = lockResult.rows[0] as { id: number; passes_used: number; passes_total: number };
+
+      const holdsResult = await tx.execute(
+        sql`SELECT COALESCE(SUM(passes_held), 0) as total_held FROM guest_pass_holds WHERE LOWER(member_email) = ${normalizedEmail} AND (expires_at IS NULL OR expires_at > NOW())`
+      );
+      const passesHeld = parseInt(String((holdsResult.rows[0] as Record<string, unknown>)?.total_held || '0'), 10);
+      const available = row.passes_total - row.passes_used - passesHeld;
+
+      if (available <= 0) {
+        throw new Error('No guest passes remaining');
+      }
+
       const result = await tx.update(guestPasses)
         .set({ passesUsed: sql`${guestPasses.passesUsed} + 1` })
         .where(and(
@@ -285,7 +303,7 @@ export async function useGuestPass(
       }
       
       const data = result[0];
-      const remaining = data.passesTotal - data.passesUsed;
+      const remaining = Math.max(0, data.passesTotal - data.passesUsed - passesHeld);
       
       let notificationMessage: string | null = null;
       if (sendNotification) {

@@ -54,6 +54,8 @@ const clients: Map<string, ClientConnection[]> = new Map();
 const staffEmails: Set<string> = new Set();
 
 let wss: WebSocketServer | null = null;
+let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
+let sessionRevalidationIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getSessionPool() {
   return sharedPool;
@@ -267,13 +269,21 @@ function isAllowedOrigin(origin: string | undefined): boolean {
 }
 
 export function closeWebSocketServer(): void {
+  if (heartbeatIntervalId) {
+    clearInterval(heartbeatIntervalId);
+    heartbeatIntervalId = null;
+  }
+  if (sessionRevalidationIntervalId) {
+    clearInterval(sessionRevalidationIntervalId);
+    sessionRevalidationIntervalId = null;
+  }
+
   if (wss) {
     clients.forEach((connections, _email) => {
       connections.forEach(conn => {
         try {
           conn.ws.close(1001, 'Server shutting down');
         } catch (_err: unknown) {
-          // Ignore close errors during shutdown
         }
       });
     });
@@ -559,7 +569,7 @@ export function initWebSocketServer(server: Server) {
     });
   });
 
-  const heartbeatInterval = setInterval(() => {
+  heartbeatIntervalId = setInterval(() => {
     clients.forEach((connections, email) => {
       const alive: ClientConnection[] = [];
       connections.forEach((conn) => {
@@ -580,7 +590,7 @@ export function initWebSocketServer(server: Server) {
     });
   }, 30000);
 
-  const sessionRevalidationInterval = setInterval(async () => {
+  sessionRevalidationIntervalId = setInterval(async () => {
     const pool = getSessionPool();
     if (!pool) return;
 
@@ -619,8 +629,8 @@ export function initWebSocketServer(server: Server) {
   }, 5 * 60 * 1000);
 
   wss.on('close', () => {
-    clearInterval(heartbeatInterval);
-    clearInterval(sessionRevalidationInterval);
+    if (heartbeatIntervalId) { clearInterval(heartbeatIntervalId); heartbeatIntervalId = null; }
+    if (sessionRevalidationIntervalId) { clearInterval(sessionRevalidationIntervalId); sessionRevalidationIntervalId = null; }
   });
 
   logger.info('[WebSocket] Server initialized on /ws with session-based authentication');
