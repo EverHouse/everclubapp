@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.18",
+    date: "2026-03-25",
+    title: "Terminal Payment Bug Fixes",
+    changes: [
+      "Fixed: Card saving on the terminal reader now works correctly",
+      "Fixed: Canceled terminal payments are now properly recorded in the system",
+    ]
+  },
+  {
     version: "8.97.17",
     date: "2026-03-24",
     title: "Performance & Stability Fixes",

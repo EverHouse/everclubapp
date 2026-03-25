@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.18] - 2026-03-25
+
+### Terminal Payment Bug Fixes
+- **Terminal save-card fix**: Moved `allow_redisplay: 'always'` from nested `process_config` to top-level param in `processSetupIntent` call — Stripe SDK v20+ requires it at the top level, causing 500 errors when staff tried to save cards on the terminal reader.
+- **Canceled payment webhook fix**: Changed `handlePaymentIntentCanceled` to use UPDATE-first approach instead of `ON CONFLICT` upsert — the previous approach failed because `terminal_payments.stripe_payment_intent_id` had a non-unique index. The fallback in the catch block also failed because it ran in the same aborted transaction. Applied migration 0059 to add unique constraint.
+- **Files changed**: `server/routes/stripe/terminal.ts`, `server/core/stripe/webhooks/handlers/payments.ts`
+
 ## [8.97.17] - 2026-03-24
 
 ### Performance & Stability Fixes (Task #221/#223 gap-fills)
