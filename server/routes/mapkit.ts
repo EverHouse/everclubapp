@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as jose from 'jose';
 import rateLimit from 'express-rate-limit';
-import { logger } from '../core/logger';
+import { logAndRespond } from '../core/logger';
 
 const router = Router();
 
@@ -21,10 +21,10 @@ const mapkitTokenLimiter = rateLimit({
 let cachedToken: { jwt: string; expiresAt: number } | null = null;
 
 // PUBLIC ROUTE - MapKit JS token endpoint (rate-limited, no auth required)
-router.get('/api/mapkit-token', mapkitTokenLimiter, async (_req, res) => {
+router.get('/api/mapkit-token', mapkitTokenLimiter, async (req, res) => {
   try {
     if (!APPLE_TEAM_ID || !MAPKIT_KEY_ID || !MAPKIT_PRIVATE_KEY) {
-      return res.status(503).json({ error: 'MapKit JS is not configured' });
+      return logAndRespond(req, res, 503, 'MapKit JS is not configured');
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -51,8 +51,7 @@ router.get('/api/mapkit-token', mapkitTokenLimiter, async (_req, res) => {
     cachedToken = { jwt: token, expiresAt };
     res.json({ token });
   } catch (error: unknown) {
-    logger.error('Failed to generate MapKit token', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to generate MapKit token' });
+    logAndRespond(req, res, 500, 'Failed to generate MapKit token', error);
   }
 });
 

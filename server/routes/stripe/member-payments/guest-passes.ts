@@ -9,7 +9,7 @@ import {
   createBalanceAwarePayment,
 } from '../../../core/stripe';
 import { alertOnExternalServiceError } from '../../../core/errorAlerts';
-import { logger } from '../../../core/logger';
+import { logger, logAndRespond } from '../../../core/logger';
 import { UserRow } from './shared';
 
 const router = Router();
@@ -118,12 +118,8 @@ router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Re
       remainingCents: result.remainingCents
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating guest pass payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
     await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create guest pass payment intent');
-    res.status(500).json({ 
-      error: 'Payment initialization failed. Please try again.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Payment initialization failed. Please try again.', error);
   }
 });
 
@@ -199,12 +195,8 @@ router.post('/api/member/guest-passes/confirm', isAuthenticated, async (req: Req
 
     res.json({ success: true, passesAdded: quantity });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error confirming guest pass purchase', { error: error instanceof Error ? error : new Error(String(error)) });
     await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm guest pass purchase');
-    res.status(500).json({ 
-      error: 'Payment confirmation failed. Please try again.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Payment confirmation failed. Please try again.', error);
   }
 });
 

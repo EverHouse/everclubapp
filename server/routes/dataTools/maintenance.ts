@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { db } from '../../db';
 import { isProduction } from '../../core/db';
@@ -10,7 +10,7 @@ import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { logFromRequest, logBillingAudit } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
 import { broadcastToStaff } from '../../core/websocket';
-import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { getStripeClient } from '../../core/stripe/client';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 
@@ -129,8 +129,7 @@ router.post('/api/data-tools/mindbody-reimport', isAdmin, async (req: Request, r
       note: 'This feature requires manual file upload. Please use the legacy purchases import with updated CSV files for the date range.'
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Mindbody reimport error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to queue mindbody reimport', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to queue mindbody reimport', error);
   }
 });
 
@@ -252,8 +251,7 @@ router.post('/api/data-tools/cleanup-mindbody-ids', isAdmin, async (req: Request
       errors: errors.slice(0, 10)
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Cleanup mindbody IDs error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to cleanup mindbody IDs', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to cleanup mindbody IDs', error);
   }
 });
 
@@ -473,8 +471,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
       dryRun
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Sync visit counts error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to sync visit counts', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to sync visit counts', error);
   }
 });
 
@@ -603,8 +600,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
       errors: hubspotErrors.slice(0, 20)
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Detect duplicates error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to detect duplicates', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to detect duplicates', error);
   }
 });
 
@@ -882,8 +878,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
       dryRun: false
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Fix Trackman ghost bookings error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to fix Trackman ghost bookings', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to fix Trackman ghost bookings', error);
   }
 });
 
@@ -925,8 +920,7 @@ router.post('/api/data-tools/archive-stale-visitors', isAdmin, async (req: Reque
 
     res.json({ success: true, jobId, message: 'Delete job started' });
   } catch (error: unknown) {
-    logger.error('[DataTools] Stale visitor deletion error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to start deletion job', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to start deletion job', error);
   }
 });
 
@@ -1209,8 +1203,7 @@ router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, 
       },
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Ghost fee cleanup error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to clean up ghost fees' });
+    logAndRespond(req, res, 500, 'Failed to clean up ghost fees', error);
   }
 });
 

@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router, Request } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { pool, safeRelease } from '../../core/db';
@@ -12,6 +12,7 @@ import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 
 import { getErrorMessage } from '../../utils/errorUtils';
+
 
 import adminResolutionRouter from './admin-resolution';
 import adminRosterRouter from './admin-roster';
@@ -55,8 +56,7 @@ router.delete('/api/admin/trackman/linked-email', isStaffOrAdmin, async (req, re
       manuallyLinkedEmails: (result.rows[0] as DbRow).manually_linked_emails || []
     });
   } catch (error: unknown) {
-    logger.error('Remove linked email error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to remove linked email' });
+    logAndRespond(req, res, 500, 'Failed to remove linked email', error);
   }
 });
 
@@ -177,8 +177,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, validateQuery(paginate
     
     res.json({ data, totalCount });
   } catch (error: unknown) {
-    logger.error('Fetch matched bookings error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch matched bookings' });
+    logAndRespond(req, res, 500, 'Failed to fetch matched bookings', error);
   }
 });
 
@@ -333,8 +332,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     });
   } catch (error: unknown) {
     await client.query('ROLLBACK');
-    logger.error('Reassign matched booking error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to reassign booking' });
+    logAndRespond(req, res, 500, 'Failed to reassign booking', error);
   } finally {
     safeRelease(client);
   }
@@ -414,8 +412,7 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
         : 'No bookings found to unmatch'
     });
   } catch (error: unknown) {
-    logger.error('Unmatch member error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to unmatch member bookings' });
+    logAndRespond(req, res, 500, 'Failed to unmatch member bookings', error);
   }
 });
 
@@ -489,8 +486,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, validateQuer
     
     res.json({ data: potentialMatches, totalCount });
   } catch (error: unknown) {
-    logger.error('Fetch potential-matches error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch potential matches' });
+    logAndRespond(req, res, 500, 'Failed to fetch potential matches', error);
   }
 });
 
@@ -537,8 +533,7 @@ router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, validateQuery(
       totalCount: parseInt((countResult.rows[0] as DbRow).total as string, 10)
     });
   } catch (error: unknown) {
-    logger.error('Fetch requires-review error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch bookings requiring review' });
+    logAndRespond(req, res, 500, 'Failed to fetch bookings requiring review', error);
   }
 });
 
@@ -574,10 +569,7 @@ router.post('/api/admin/trackman/auto-match-visitors', isStaffOrAdmin, async (re
       message: `Auto-matched ${results.matched} booking(s), ${results.failed} could not be matched`
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Auto-Match] Error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ 
-      error: 'Failed to auto-match visitors: ' + (getErrorMessage(error) || 'Unknown error') 
-    });
+    logAndRespond(req, res, 500, 'Failed to auto-match visitors', error);
   }
 });
 
@@ -756,10 +748,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
       logs
     });
   } catch (error: unknown) {
-    logger.error('[Lesson Cleanup] Error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ 
-      error: 'Failed to cleanup lessons: ' + (getErrorMessage(error) || 'Unknown error') 
-    });
+    logAndRespond(req, res, 500, 'Failed to cleanup lessons', error);
   }
 });
 

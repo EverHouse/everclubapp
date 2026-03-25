@@ -5,7 +5,9 @@ import { mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { syncPush, syncPull, runDataCleanup } from '../../core/dataIntegrity';
 import { syncAllCustomerMetadata } from '../../core/stripe/customers';
 import { getSystemHealth } from '../../core/healthCheck';
-import { logger, isAdmin, validateBody, broadcastDataIntegrityUpdate, logFromRequest, sendFixError, getErrorMessage } from './shared';
+import { logger, isAdmin, validateBody, broadcastDataIntegrityUpdate, logFromRequest, getErrorMessage } from './shared';
+import { logAndRespond } from '../../core/logger';
+import { parseConstraintError } from '../../utils/errorUtils';
 import type { Request } from 'express';
 import { syncPushPullSchema } from '../../../shared/validators/dataIntegrity';
 
@@ -33,8 +35,11 @@ router.post('/api/data-integrity/sync-push', isAdmin, validateBody(syncPushPullS
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Sync push error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error, 'Failed to push sync');
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return logAndRespond(req, res, 409, parsed.message, error);
+    }
+    logAndRespond(req, res, 500, 'Failed to push sync', error);
   }
 });
 
@@ -58,8 +63,11 @@ router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullS
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Sync pull error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error, 'Failed to pull sync');
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return logAndRespond(req, res, 409, parsed.message, error);
+    }
+    logAndRespond(req, res, 500, 'Failed to pull sync', error);
   }
 });
 
@@ -75,8 +83,11 @@ router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res
       failed: result.failed
     });
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Stripe metadata sync error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error, 'Failed to sync Stripe metadata');
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return logAndRespond(req, res, 409, parsed.message, error);
+    }
+    logAndRespond(req, res, 500, 'Failed to sync Stripe metadata', error);
   }
 });
 
@@ -91,8 +102,11 @@ router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {
       ...result
     });
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Data cleanup error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error, 'Failed to run data cleanup');
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return logAndRespond(req, res, 409, parsed.message, error);
+    }
+    logAndRespond(req, res, 500, 'Failed to run data cleanup', error);
   }
 });
 
@@ -111,8 +125,11 @@ router.get('/api/data-integrity/health', isAdmin, async (req, res) => {
     
     res.json({ success: true, health });
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Health check error', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error, 'Failed to check system health');
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return logAndRespond(req, res, 409, parsed.message, error);
+    }
+    logAndRespond(req, res, 500, 'Failed to check system health', error);
   }
 });
 
@@ -380,8 +397,11 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
       staff: parseInt(staffCount.trim(), 10),
     });
   } catch (error: unknown) {
-    logger.error('[DevSync] Resync failed', { error: error instanceof Error ? error : new Error(String(error)) });
-    sendFixError(res, error, 'Failed to resync from production');
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return logAndRespond(req, res, 409, parsed.message, error);
+    }
+    logAndRespond(req, res, 500, 'Failed to resync from production', error);
   }
 });
 

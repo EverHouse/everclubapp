@@ -5,7 +5,7 @@ import fs from 'fs';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { importTrackmanBookings, getImportRuns, rescanUnmatchedBookings } from '../../core/trackmanImport';
 import { logFromRequest } from '../../core/auditLog';
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getSessionUser } from '../../types/session';
 
@@ -44,8 +44,7 @@ router.get('/api/admin/trackman/import-runs', isStaffOrAdmin, async (req, res) =
     const runs = await getImportRuns();
     res.json(runs);
   } catch (error: unknown) {
-    logger.error('Error fetching import runs', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch import runs' });
+    logAndRespond(req, res, 500, 'Failed to fetch import runs', error);
   }
 });
 
@@ -56,7 +55,7 @@ router.post('/api/admin/trackman/import', isStaffOrAdmin, async (req, res) => {
     
     const safeFilename = path.basename(filename || 'trackman_bookings_1767009308200.csv');
     if (!safeFilename.endsWith('.csv') || !/^[a-zA-Z0-9_\-.]+$/.test(safeFilename)) {
-      return res.status(400).json({ error: 'Invalid filename format' });
+      return logAndRespond(req, res, 400, 'Invalid filename format');
     }
     
     const csvPath = path.join(process.cwd(), 'uploads', 'trackman', safeFilename);
@@ -74,8 +73,7 @@ router.post('/api/admin/trackman/import', isStaffOrAdmin, async (req, res) => {
       ...result
     });
   } catch (error: unknown) {
-    logger.error('Import error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to import bookings' });
+    logAndRespond(req, res, 500, 'Failed to import bookings', error);
   }
 });
 
@@ -83,7 +81,7 @@ router.post('/api/admin/trackman/upload', isStaffOrAdmin, upload.single('file'),
   let csvPath: string | undefined;
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return logAndRespond(req, res, 400, 'No file uploaded');
     }
     
     const user = getSessionUser(req)?.email || 'admin';
@@ -97,8 +95,7 @@ router.post('/api/admin/trackman/upload', isStaffOrAdmin, upload.single('file'),
       ...result
     });
   } catch (error: unknown) {
-    logger.error('Upload/Import error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to upload and import bookings' });
+    logAndRespond(req, res, 500, 'Failed to upload and import bookings', error);
   } finally {
     if (csvPath && fs.existsSync(csvPath)) {
       try {
@@ -122,7 +119,6 @@ router.post('/api/admin/trackman/rescan', isStaffOrAdmin, async (req, res) => {
       details: { matched: result.matched, lessonsConverted: result.lessonsConverted, scanned: result.scanned }
     });
     
-    // Build message based on what happened
     const parts: string[] = [];
     if (result.matched > 0) parts.push(`Matched ${result.matched} booking(s) to members`);
     if (result.lessonsConverted > 0) parts.push(`Converted ${result.lessonsConverted} lesson(s) to availability blocks`);
@@ -134,8 +130,7 @@ router.post('/api/admin/trackman/rescan', isStaffOrAdmin, async (req, res) => {
       ...result
     });
   } catch (error: unknown) {
-    logger.error('Rescan error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to rescan unmatched bookings' });
+    logAndRespond(req, res, 500, 'Failed to rescan unmatched bookings', error);
   }
 });
 

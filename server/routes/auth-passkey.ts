@@ -17,7 +17,7 @@ import { users, passkeys } from '../../shared/schema';
 import { normalizeEmail } from '../core/utils/emailNormalization';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import { getSessionUser } from '../types/session';
-import { logger } from '../core/logger';
+import { logger, logAndRespond } from '../core/logger';
 import { isProduction } from '../core/db';
 import { isAuthenticated } from '../replit_integrations/auth';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
@@ -54,11 +54,11 @@ router.post('/api/auth/passkey/register/options', async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.id || !sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to register a passkey' });
+      return logAndRespond(req, res, 401, 'You must be logged in to register a passkey');
     }
 
     if (String(sessionUser.id).startsWith('staff-')) {
-      return res.status(403).json({ error: 'Passkey registration is only available for members' });
+      return logAndRespond(req, res, 403, 'Passkey registration is only available for members');
     }
 
     const normalizedEmail = normalizeEmail(sessionUser.email);
@@ -93,14 +93,12 @@ router.post('/api/auth/passkey/register/options', async (req, res) => {
     req.session.webauthnChallenge = options.challenge;
     req.session.save((err) => {
       if (err) {
-        logger.error('[Passkey] Session save error during registration options', { error: err as Error });
-        return res.status(500).json({ error: 'Failed to save challenge' });
+        return logAndRespond(req, res, 500, 'Failed to save challenge', err);
       }
       res.json(options);
     });
   } catch (error: unknown) {
-    logger.error('[Passkey] Registration options error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to generate registration options' });
+    logAndRespond(req, res, 500, 'Failed to generate registration options', error);
   }
 });
 
@@ -108,16 +106,16 @@ router.post('/api/auth/passkey/register/verify', async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.id || !sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to register a passkey' });
+      return logAndRespond(req, res, 401, 'You must be logged in to register a passkey');
     }
 
     if (String(sessionUser.id).startsWith('staff-')) {
-      return res.status(403).json({ error: 'Passkey registration is only available for members' });
+      return logAndRespond(req, res, 403, 'Passkey registration is only available for members');
     }
 
     const challenge = req.session.webauthnChallenge;
     if (!challenge) {
-      return res.status(400).json({ error: 'No registration challenge found. Please try again.' });
+      return logAndRespond(req, res, 400, 'No registration challenge found. Please try again.');
     }
 
     const body = req.body as RegistrationResponseJSON;
@@ -136,7 +134,7 @@ router.post('/api/auth/passkey/register/verify', async (req, res) => {
       req.session.save((err) => {
         if (err) logger.warn('[Passkey] Session save error after failed registration verify', { error: err as Error });
       });
-      return res.status(400).json({ error: 'Passkey registration failed verification' });
+      return logAndRespond(req, res, 400, 'Passkey registration failed verification');
     }
 
     const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
@@ -170,8 +168,7 @@ router.post('/api/auth/passkey/register/verify', async (req, res) => {
 
     res.json({ success: true, credentialId: credential.id });
   } catch (error: unknown) {
-    logger.error('[Passkey] Registration verify error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to verify passkey registration' });
+    logAndRespond(req, res, 500, 'Failed to verify passkey registration', error);
   }
 });
 
@@ -186,14 +183,12 @@ router.post('/api/auth/passkey/authenticate/options', authRateLimiterByIp, async
     req.session.webauthnChallenge = options.challenge;
     req.session.save((err) => {
       if (err) {
-        logger.error('[Passkey] Session save error during auth options', { error: err as Error });
-        return res.status(500).json({ error: 'Failed to save challenge' });
+        return logAndRespond(req, res, 500, 'Failed to save challenge', err);
       }
       res.json(options);
     });
   } catch (error: unknown) {
-    logger.error('[Passkey] Auth options error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to generate authentication options' });
+    logAndRespond(req, res, 500, 'Failed to generate authentication options', error);
   }
 });
 
@@ -202,7 +197,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
   try {
     const challenge = req.session.webauthnChallenge;
     if (!challenge) {
-      return res.status(400).json({ error: 'No authentication challenge found. Please try again.' });
+      return logAndRespond(req, res, 400, 'No authentication challenge found. Please try again.');
     }
 
     const body = req.body as AuthenticationResponseJSON;
@@ -218,7 +213,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
       req.session.save((err) => {
         if (err) logger.warn('[Passkey] Session save error after passkey not found', { error: err as Error });
       });
-      return res.status(404).json({ error: 'Passkey not found. It may have been removed.' });
+      return logAndRespond(req, res, 404, 'Passkey not found. It may have been removed.');
     }
 
     const storedPasskey = passkeyRecord[0];
@@ -240,7 +235,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
       req.session.save((err) => {
         if (err) logger.warn('[Passkey] Session save error after failed authentication verify', { error: err as Error });
       });
-      return res.status(400).json({ error: 'Passkey authentication failed' });
+      return logAndRespond(req, res, 400, 'Passkey authentication failed');
     }
 
     await db.update(passkeys)
@@ -271,7 +266,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
       .limit(1);
 
     if (dbUser.length === 0) {
-      return res.status(404).json({ error: 'User account not found' });
+      return logAndRespond(req, res, 404, 'User account not found');
     }
 
     const user = dbUser[0];
@@ -281,7 +276,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
     const activeStatuses = ['active', 'trialing', 'past_due'];
 
     if (role === 'member' && !activeStatuses.includes(dbMemberStatus)) {
-      return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+      return logAndRespond(req, res, 403, 'Your membership is not active. Please contact us for assistance.');
     }
 
     const statusMap: Record<string, string> = {
@@ -315,15 +310,13 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
 
     req.session.save((err) => {
       if (err) {
-        logger.error('[Passkey] Session save error after authentication', { error: err as Error });
-        return res.status(500).json({ error: 'Failed to create session' });
+        return logAndRespond(req, res, 500, 'Failed to create session', err);
       }
       logger.info('[Passkey] Authenticated successfully', { extra: { userId: user.id, email: user.email } });
       res.json({ success: true, member, supabaseToken });
     });
   } catch (error: unknown) {
-    logger.error('[Passkey] Auth verify error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to verify passkey authentication' });
+    logAndRespond(req, res, 500, 'Failed to verify passkey authentication', error);
   }
 });
 
@@ -331,7 +324,7 @@ router.get('/api/auth/passkey/list', async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.id) {
-      return res.status(401).json({ error: 'You must be logged in' });
+      return logAndRespond(req, res, 401, 'You must be logged in');
     }
 
     const userPasskeys = await db.select({
@@ -346,8 +339,7 @@ router.get('/api/auth/passkey/list', async (req, res) => {
 
     res.json({ passkeys: userPasskeys });
   } catch (error: unknown) {
-    logger.error('[Passkey] List error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to list passkeys' });
+    logAndRespond(req, res, 500, 'Failed to list passkeys', error);
   }
 });
 
@@ -357,7 +349,7 @@ router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) 
 
     const passkeyId = parseInt(req.params.passkeyId, 10);
     if (isNaN(passkeyId)) {
-      return res.status(400).json({ error: 'Invalid passkey ID' });
+      return logAndRespond(req, res, 400, 'Invalid passkey ID');
     }
 
     const deleted = await db.delete(passkeys)
@@ -365,7 +357,7 @@ router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) 
       .returning({ id: passkeys.id });
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Passkey not found' });
+      return logAndRespond(req, res, 404, 'Passkey not found');
     }
 
     logMemberAction({
@@ -380,8 +372,7 @@ router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) 
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Passkey] Delete error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to remove passkey' });
+    logAndRespond(req, res, 500, 'Failed to remove passkey', error);
   }
 });
 

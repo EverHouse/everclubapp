@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
@@ -46,8 +46,7 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
     
     res.json({ coupons: formattedCoupons, count: formattedCoupons.length });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error listing coupons', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to list coupons' });
+    logAndRespond(req, res, 500, 'Failed to list coupons', error);
   }
 });
 
@@ -160,11 +159,10 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
       },
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating coupon', { error: error instanceof Error ? error : new Error(String(error)) });
     if (getErrorCode(error) === 'resource_already_exists') {
-      return res.status(400).json({ error: 'A coupon with this ID already exists.' });
+      return logAndRespond(req, res, 400, 'A coupon with this ID already exists.', error);
     }
-    res.status(500).json({ error: 'Failed to create coupon' });
+    logAndRespond(req, res, 500, 'Failed to create coupon', error);
   }
 });
 
@@ -202,11 +200,10 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
       },
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error updating coupon', { error: error instanceof Error ? error : new Error(String(error)) });
     if (isStripeResourceMissing(error)) {
-      return res.status(404).json({ error: 'Coupon not found.' });
+      return logAndRespond(req, res, 404, 'Coupon not found.', error);
     }
-    res.status(500).json({ error: 'Failed to update coupon' });
+    logAndRespond(req, res, 500, 'Failed to update coupon', error);
   }
 });
 
@@ -228,11 +225,10 @@ router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Resp
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error deleting coupon', { error: error instanceof Error ? error : new Error(String(error)) });
     if (isStripeResourceMissing(error)) {
-      return res.status(404).json({ error: 'Coupon not found.' });
+      return logAndRespond(req, res, 404, 'Coupon not found.', error);
     }
-    res.status(500).json({ error: 'Failed to delete coupon' });
+    logAndRespond(req, res, 500, 'Failed to delete coupon', error);
   }
 });
 
@@ -247,8 +243,7 @@ router.post('/api/stripe/promo-codes/seed-welcome', isAdmin, async (req: Request
       res.status(500).json(result);
     }
   } catch (error: unknown) {
-    logger.error('[Stripe] Error seeding welcome promo code', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to seed welcome promo code' });
+    logAndRespond(req, res, 500, 'Failed to seed welcome promo code', error);
   }
 });
 

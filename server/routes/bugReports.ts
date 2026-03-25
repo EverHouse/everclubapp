@@ -6,7 +6,7 @@ import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { notifyAllStaff, notifyMember } from '../core/notificationService';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
-import { logger } from '../core/logger';
+import { logAndRespond } from '../core/logger';
 
 const router = Router();
 
@@ -16,11 +16,11 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
     const user = getSessionUser(req);
     
     if (!user?.email) {
-      return res.status(401).json({ error: 'Please log in to submit a bug report' });
+      return logAndRespond(req, res, 401, 'Please log in to submit a bug report');
     }
     
     if (!description || typeof description !== 'string' || description.trim().length === 0) {
-      return res.status(400).json({ error: 'Description is required' });
+      return logAndRespond(req, res, 400, 'Description is required');
     }
     
     const [report] = await db.insert(bugReports).values({
@@ -36,7 +36,6 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
       status: 'open',
     }).returning();
     
-    // Notify staff about new bug report
     await notifyAllStaff(
       'New Bug Report',
       `${report.userName || report.userEmail} submitted a bug report: "${description.substring(0, 100)}${description.length > 100 ? '...' : ''}"`,
@@ -46,8 +45,7 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
     
     res.status(201).json(report);
   } catch (error: unknown) {
-    logger.error('Bug report creation error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to submit bug report' });
+    logAndRespond(req, res, 500, 'Failed to submit bug report', error);
   }
 });
 
@@ -71,8 +69,7 @@ router.get('/api/admin/bug-reports', isStaffOrAdmin, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Bug reports fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch bug reports' });
+    logAndRespond(req, res, 500, 'Failed to fetch bug reports', error);
   }
 });
 
@@ -80,19 +77,18 @@ router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const parsedId = parseInt(id as string, 10);
-    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid bug report ID' });
+    if (isNaN(parsedId)) return logAndRespond(req, res, 400, 'Invalid bug report ID');
     
     const [report] = await db.select().from(bugReports)
       .where(eq(bugReports.id, parsedId));
     
     if (!report) {
-      return res.status(404).json({ error: 'Bug report not found' });
+      return logAndRespond(req, res, 404, 'Bug report not found');
     }
     
     res.json(report);
   } catch (error: unknown) {
-    logger.error('Bug report fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch bug report' });
+    logAndRespond(req, res, 500, 'Failed to fetch bug report', error);
   }
 });
 
@@ -100,7 +96,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const parsedId = parseInt(id as string, 10);
-    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid bug report ID' });
+    if (isNaN(parsedId)) return logAndRespond(req, res, 400, 'Invalid bug report ID');
     const { status, staffNotes } = req.body;
     const user = getSessionUser(req);
     
@@ -120,9 +116,7 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
       updateData.staffNotes = staffNotes;
     }
     
-    // Notify the member when their bug report is resolved
     if (status === 'resolved') {
-      // Need to fetch the original report to get the user email
       const [original] = await db.select().from(bugReports).where(eq(bugReports.id, parsedId));
       if (original?.userEmail) {
         await notifyMember({
@@ -143,14 +137,13 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
       .returning();
     
     if (!updated) {
-      return res.status(404).json({ error: 'Bug report not found' });
+      return logAndRespond(req, res, 404, 'Bug report not found');
     }
     
     logFromRequest(req, 'update_bug_report', 'bug_report', String(id), undefined, { status: req.body.status });
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('Bug report update error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to update bug report' });
+    logAndRespond(req, res, 500, 'Failed to update bug report', error);
   }
 });
 
@@ -158,21 +151,20 @@ router.delete('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => 
   try {
     const { id } = req.params;
     const parsedId = parseInt(id as string, 10);
-    if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid bug report ID' });
+    if (isNaN(parsedId)) return logAndRespond(req, res, 400, 'Invalid bug report ID');
     
     const [deleted] = await db.delete(bugReports)
       .where(eq(bugReports.id, parsedId))
       .returning();
     
     if (!deleted) {
-      return res.status(404).json({ error: 'Bug report not found' });
+      return logAndRespond(req, res, 404, 'Bug report not found');
     }
     
     logFromRequest(req, 'delete_bug_report', 'bug_report', String(id), undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Bug report delete error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to delete bug report' });
+    logAndRespond(req, res, 500, 'Failed to delete bug report', error);
   }
 });
 

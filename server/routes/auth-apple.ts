@@ -7,7 +7,7 @@ import { normalizeTierName } from '../../shared/constants/tiers';
 import { normalizeEmail } from '../core/utils/emailNormalization';
 import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
-import { logger } from '../core/logger';
+import { logger, logAndRespond } from '../core/logger';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
 
 const router = Router();
@@ -18,9 +18,9 @@ if (!APPLE_CLIENT_ID) {
   logger.warn('APPLE_SERVICE_ID is not set — Apple auth routes will return 503');
 }
 
-function requireAppleConfig(_req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
+function requireAppleConfig(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
   if (!APPLE_CLIENT_ID) {
-    return res.status(503).json({ error: 'Apple authentication is not configured' });
+    return logAndRespond(req, res, 503, 'Apple authentication is not configured');
   }
   next();
 }
@@ -87,7 +87,7 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
   try {
     const { identityToken, user: appleUser } = req.body;
     if (!identityToken) {
-      return res.status(400).json({ error: 'Apple identity token is required' });
+      return logAndRespond(req, res, 400, 'Apple identity token is required');
     }
 
     const appleData = await verifyAppleToken(identityToken);
@@ -125,7 +125,7 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
     }
 
     if (dbUser.length === 0) {
-      return res.status(404).json({ error: 'No membership found for this email. Please sign up or use the email associated with your membership.' });
+      return logAndRespond(req, res, 404, 'No membership found for this email. Please sign up or use the email associated with your membership.');
     }
 
     const user = dbUser[0];
@@ -136,7 +136,7 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
     const activeStatuses = ['active', 'trialing', 'past_due'];
 
     if (role === 'member' && !activeStatuses.includes(dbMemberStatus)) {
-      return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+      return logAndRespond(req, res, 403, 'Your membership is not active. Please contact us for assistance.');
     }
 
     const statusMap: { [key: string]: string } = {
@@ -199,18 +199,16 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
 
     req.session.save((err) => {
       if (err) {
-        logger.error('[Apple Auth] Session save error', { extra: { error: getErrorMessage(err) } });
-        return res.status(500).json({ error: 'Failed to create session' });
+        return logAndRespond(req, res, 500, 'Failed to create session', err);
       }
       res.json({ success: true, member });
     });
   } catch (error: unknown) {
-    logger.error('[Apple Auth] Verify error', { error: new Error(getErrorMessage(error)) });
     const msg = getErrorMessage(error);
     if (msg?.includes('expired') || msg?.includes('invalid')) {
-      return res.status(401).json({ error: 'Apple sign-in expired. Please try again.' });
+      return logAndRespond(req, res, 401, 'Apple sign-in expired. Please try again.', error);
     }
-    res.status(500).json({ error: 'Failed to verify Apple sign-in' });
+    logAndRespond(req, res, 500, 'Failed to verify Apple sign-in', error);
   }
 });
 
@@ -240,20 +238,19 @@ router.post('/api/auth/apple/link', requireAppleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to link an Apple account' });
+      return logAndRespond(req, res, 401, 'You must be logged in to link an Apple account');
     }
 
     const { identityToken } = req.body;
     if (!identityToken) {
-      return res.status(400).json({ error: 'Apple identity token is required' });
+      return logAndRespond(req, res, 400, 'Apple identity token is required');
     }
 
     const appleData = await verifyAppleToken(identityToken);
 
     const dbUserId = await resolveDbUserId(sessionUser);
     if (!dbUserId) {
-      logger.error('[Apple Auth] Link: user not found by id or email', { extra: { sessionUserId: sessionUser.id, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     const existing = await db.select({ id: users.id, email: users.email })
@@ -262,7 +259,7 @@ router.post('/api/auth/apple/link', requireAppleConfig, async (req, res) => {
       .limit(1);
 
     if (existing.length > 0 && existing[0].id !== dbUserId) {
-      return res.status(409).json({ error: 'This Apple account is already linked to a different member account.' });
+      return logAndRespond(req, res, 409, 'This Apple account is already linked to a different member account.');
     }
 
     const updated = await db.update(users)
@@ -276,8 +273,7 @@ router.post('/api/auth/apple/link', requireAppleConfig, async (req, res) => {
       .returning({ id: users.id });
 
     if (updated.length === 0) {
-      logger.error('[Apple Auth] Link update affected 0 rows', { extra: { dbUserId, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     logMemberAction({
@@ -294,10 +290,9 @@ router.post('/api/auth/apple/link', requireAppleConfig, async (req, res) => {
   } catch (error: unknown) {
     const dbError = error as { code?: string };
     if (dbError.code === '23505') {
-      return res.status(409).json({ error: 'This Apple account is already linked to another member.' });
+      return logAndRespond(req, res, 409, 'This Apple account is already linked to another member.', error);
     }
-    logger.error('[Apple Auth] Link error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to link Apple account' });
+    logAndRespond(req, res, 500, 'Failed to link Apple account', error);
   }
 });
 
@@ -305,13 +300,12 @@ router.post('/api/auth/apple/unlink', requireAppleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to unlink an Apple account' });
+      return logAndRespond(req, res, 401, 'You must be logged in to unlink an Apple account');
     }
 
     const dbUserId = await resolveDbUserId(sessionUser);
     if (!dbUserId) {
-      logger.error('[Apple Auth] Unlink: user not found by id or email', { extra: { sessionUserId: sessionUser.id, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     const updated = await db.update(users)
@@ -325,8 +319,7 @@ router.post('/api/auth/apple/unlink', requireAppleConfig, async (req, res) => {
       .returning({ id: users.id });
 
     if (updated.length === 0) {
-      logger.error('[Apple Auth] Unlink update affected 0 rows', { extra: { dbUserId, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     logMemberAction({
@@ -341,8 +334,7 @@ router.post('/api/auth/apple/unlink', requireAppleConfig, async (req, res) => {
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Apple Auth] Unlink error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to unlink Apple account' });
+    logAndRespond(req, res, 500, 'Failed to unlink Apple account', error);
   }
 });
 
@@ -350,7 +342,7 @@ router.get('/api/auth/apple/status', requireAppleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id) {
-      return res.status(401).json({ error: 'You must be logged in to check Apple link status' });
+      return logAndRespond(req, res, 401, 'You must be logged in to check Apple link status');
     }
 
     const dbUserId = await resolveDbUserId({ id: sessionUser.id, email: sessionUser.email || '' });
@@ -375,8 +367,7 @@ router.get('/api/auth/apple/status', requireAppleConfig, async (req, res) => {
       linkedAt: appleLinkedAt ? appleLinkedAt.toISOString() : null,
     });
   } catch (error: unknown) {
-    logger.error('[Apple Auth] Status error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to check Apple link status' });
+    logAndRespond(req, res, 500, 'Failed to check Apple link status', error);
   }
 });
 

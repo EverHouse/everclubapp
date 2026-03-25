@@ -17,9 +17,9 @@ import { sendNotificationToUser, broadcastBillingUpdate, broadcastBookingInvoice
 import { logPaymentAudit } from '../../../core/auditLog';
 import { alertOnExternalServiceError } from '../../../core/errorAlerts';
 import { getErrorMessage } from '../../../utils/errorUtils';
+import { logger, logAndRespond } from '../../../core/logger';
 import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
 import { createDraftInvoiceForBooking, buildInvoiceDescription } from '../../../core/billing/bookingInvoiceService';
-import { logger } from '../../../core/logger';
 import {
   BookingRow,
   ParticipantRow,
@@ -79,8 +79,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
       });
       await applyFeeBreakdownToParticipants(booking.session_id, breakdown);
     } catch (feeError: unknown) {
-      logger.error('[Stripe] Failed to compute fees', { extra: { error: getErrorMessage(feeError) } });
-      return res.status(500).json({ error: 'Failed to calculate fees' });
+      return logAndRespond(req, res, 500, 'Failed to calculate fees', feeError);
     }
 
     const pendingParticipants = await db.execute(sql`
@@ -507,10 +506,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create member payment intent');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
-    res.status(statusCode).json({ 
-      error: friendlyMessage || 'Payment processing failed. Please try again.',
-      retryable: !friendlyMessage,
-    });
+    logAndRespond(req, res, statusCode, friendlyMessage || 'Payment processing failed. Please try again.', error);
   }
 });
 
@@ -687,10 +683,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
     await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm member payment');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
-    res.status(statusCode).json({ 
-      error: friendlyMessage || 'Payment confirmation failed. Please try again.',
-      retryable: !friendlyMessage,
-    });
+    logAndRespond(req, res, statusCode, friendlyMessage || 'Payment confirmation failed. Please try again.', error);
   }
 });
 
@@ -765,8 +758,7 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, a
 
     res.json({ success: result.success });
   } catch (error: unknown) {
-    logger.error('[Member Payment] Error cancelling payment', { error: getErrorMessage(error) });
-    res.status(500).json({ success: false, error: 'Failed to cancel payment' });
+    logAndRespond(req, res, 500, 'Failed to cancel payment', error);
   }
 });
 

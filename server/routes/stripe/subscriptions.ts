@@ -29,7 +29,8 @@ import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { randomUUID } from 'crypto';
 import { checkSyncCooldown } from './helpers';
 import { sensitiveActionRateLimiter, subscriptionCreationRateLimiter, acquireSubscriptionLock, releaseSubscriptionLock } from '../../middleware/rateLimiting';
-import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage } from '../../utils/errorUtils';
+import { logAndRespond } from '../../core/logger';
 import { getAppBaseUrl } from '../../utils/urlUtils';
 
 const router = Router();
@@ -53,8 +54,7 @@ router.get('/api/stripe/subscriptions/:customerId', isStaffOrAdmin, async (req: 
       count: result.subscriptions?.length || 0
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error listing subscriptions', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to list subscriptions' });
+    logAndRespond(req, res, 500, 'Failed to list subscriptions', error);
   }
 });
 
@@ -119,8 +119,7 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, validateBody(createSubs
       subscription: result.subscription
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating subscription', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to create subscription' });
+    logAndRespond(req, res, 500, 'Failed to create subscription', error);
   }
 });
 
@@ -153,8 +152,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error canceling subscription', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to cancel subscription' });
+    logAndRespond(req, res, 500, 'Failed to cancel subscription', error);
   }
 });
 
@@ -178,8 +176,7 @@ router.post('/api/stripe/sync-subscriptions', isStaffOrAdmin, sensitiveActionRat
       errors: result.errors
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error syncing subscriptions', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to sync subscriptions' });
+    logAndRespond(req, res, 500, 'Failed to sync subscriptions', error);
   }
 });
 
@@ -415,8 +412,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
       message: statusMessage
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating subscription for member', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to create subscription', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to create subscription', error);
   } finally {
     const emailToRelease = req.body?.memberEmail?.trim()?.toLowerCase();
     if (emailToRelease) await releaseSubscriptionLock(emailToRelease);
@@ -594,9 +590,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
           } catch (cleanupErr: unknown) {
             logger.error('[Stripe] Failed to clean up user record after subscription rollback — user preserved for manual cleanup', { extra: { userId, error: getErrorMessage(cleanupErr) } });
           }
-          return res.status(500).json({ 
-            error: 'System error during activation. Payment has been voided. Please try again.' 
-          });
+          return logAndRespond(req, res, 500, 'System error during activation. Payment has been voided. Please try again.', dbError);
         } catch (cancelError: unknown) {
           logger.error('[Stripe] CRITICAL: Failed to cancel subscription during rollback — notifying staff for manual cleanup', { extra: { subscriptionId: subscriptionResult.subscription.subscriptionId, error: getErrorMessage(cancelError) } });
           try {
@@ -609,9 +603,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
           } catch {
             logger.error('[Stripe] Failed to send staff notification for rollback failure');
           }
-          return res.status(500).json({ 
-            error: 'CRITICAL: Account setup failed but the payment could not be automatically reversed. Please contact support immediately so we can issue a refund.' 
-          });
+          return logAndRespond(req, res, 500, 'CRITICAL: Account setup failed but the payment could not be automatically reversed. Please contact support immediately so we can issue a refund.', cancelError);
         }
       }
       try {
@@ -626,9 +618,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
       } catch (cleanupErr: unknown) {
         logger.error('[Stripe] Failed to clean up user record during rollback — user preserved for manual cleanup', { extra: { userId, error: getErrorMessage(cleanupErr) } });
       }
-      return res.status(500).json({ 
-        error: 'System error during activation. Please try again.' 
-      });
+      return logAndRespond(req, res, 500, 'System error during activation. Please try again.', dbError);
     }
     
     if (couponId) {
@@ -712,8 +702,7 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
       logger.error('[Subscriptions] Background HubSpot contact sync failed:', { extra: { error: getErrorMessage(err), email } });
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating new member subscription', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to create subscription', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to create subscription', error);
   } finally {
     const emailToRelease = req.body?.email?.trim()?.toLowerCase();
     if (emailToRelease) await releaseSubscriptionLock(emailToRelease);
@@ -772,8 +761,7 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
 
     res.json({ url: invoice.hosted_invoice_url, invoiceId: invoice.id, invoiceStatus: invoice.status });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error fetching invoice link', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to get invoice link' });
+    logAndRespond(req, res, 500, 'Failed to get invoice link', error);
   }
 });
 
@@ -814,8 +802,7 @@ router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOr
       status: paymentIntent.status
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error refreshing subscription intent', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to refresh payment intent' });
+    logAndRespond(req, res, 500, 'Failed to refresh payment intent', error);
   }
 });
 
@@ -866,8 +853,7 @@ router.post('/api/stripe/subscriptions/confirm-trial-setup', isStaffOrAdmin, val
     
     res.json({ success: true, subscriptionId });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error confirming trial setup', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to confirm trial setup' });
+    logAndRespond(req, res, 500, 'Failed to confirm trial setup', error);
   }
 });
 
@@ -1033,8 +1019,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
       memberEmail: userEmail
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Subscriptions] Error confirming inline payment', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to confirm payment', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to confirm payment', error);
   }
 });
 
@@ -1216,7 +1201,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
           logger.error('[Activation Link] Failed to clean up pending user after Stripe failure', { extra: { userId, email, error: getErrorMessage(cleanupErr) } });
         }
       }
-      return res.status(500).json({ error: 'Failed to create checkout session. Please try again.' });
+      return logAndRespond(req, res, 500, 'Failed to create checkout session. Please try again.', stripeErr);
     }
     
     logger.info('[Activation Link] Created checkout session for', { extra: { checkoutSessionId: checkoutSession.id, email } });
@@ -1276,8 +1261,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       logger.error('[Subscriptions] Background HubSpot contact sync failed:', { extra: { error: getErrorMessage(err), email } });
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error sending activation link', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to send activation link', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to send activation link', error);
   }
 });
 
@@ -1380,7 +1364,7 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
       await db.delete(users).where(eq(users.id, userId));
     } catch (deleteErr: unknown) {
       logger.error('[Stripe] Failed to delete pending user — likely remaining FK constraint', { extra: { userId, failedTables, error: getErrorMessage(deleteErr) } });
-      return res.status(500).json({ error: `Failed to delete user. Related records in [${failedTables.join(', ')}] could not be cleared. Please resolve manually.` });
+      return logAndRespond(req, res, 500, `Failed to delete user. Related records in [${failedTables.join(', ')}] could not be cleared. Please resolve manually.`, deleteErr);
     }
     
     const userName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
@@ -1395,8 +1379,7 @@ router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmi
       email: user.email
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error cleaning up pending user', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to cleanup pending user' });
+    logAndRespond(req, res, 500, 'Failed to cleanup pending user', error);
   } finally {
     if (res.locals._cleanupEmail) await releaseSubscriptionLock(res.locals._cleanupEmail);
   }

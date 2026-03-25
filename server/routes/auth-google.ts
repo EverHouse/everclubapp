@@ -7,7 +7,7 @@ import { normalizeTierName } from '../../shared/constants/tiers';
 import { normalizeEmail, getAlternateDomainEmail } from '../core/utils/emailNormalization';
 import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
-import { logger } from '../core/logger';
+import { logger, logAndRespond } from '../core/logger';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
 import { isStaffOrAdmin } from '../replit_integrations/auth';
 
@@ -21,9 +21,9 @@ if (!GOOGLE_CLIENT_ID) {
 
 const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-function requireGoogleConfig(_req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
+function requireGoogleConfig(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
   if (!GOOGLE_CLIENT_ID) {
-    return res.status(503).json({ error: 'Google authentication is not configured' });
+    return logAndRespond(req, res, 503, 'Google authentication is not configured');
   }
   next();
 }
@@ -51,7 +51,7 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
   try {
     const { credential } = req.body;
     if (!credential) {
-      return res.status(400).json({ error: 'Google credential is required' });
+      return logAndRespond(req, res, 400, 'Google credential is required');
     }
 
     const googleUser = await verifyGoogleToken(credential);
@@ -109,7 +109,7 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
     }
 
     if (dbUser.length === 0) {
-      return res.status(404).json({ error: 'No membership found for this email. Please sign up or use the email associated with your membership.' });
+      return logAndRespond(req, res, 404, 'No membership found for this email. Please sign up or use the email associated with your membership.');
     }
 
     const user = dbUser[0];
@@ -120,7 +120,7 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
     const activeStatuses = ['active', 'trialing', 'past_due'];
 
     if (role === 'member' && !activeStatuses.includes(dbMemberStatus)) {
-      return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
+      return logAndRespond(req, res, 403, 'Your membership is not active. Please contact us for assistance.');
     }
 
     const statusMap: { [key: string]: string } = {
@@ -182,17 +182,15 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
 
     req.session.save((err) => {
       if (err) {
-        logger.error('[Google Auth] Session save error', { extra: { error: getErrorMessage(err) } });
-        return res.status(500).json({ error: 'Failed to create session' });
+        return logAndRespond(req, res, 500, 'Failed to create session', err);
       }
       res.json({ success: true, member });
     });
   } catch (error: unknown) {
-    logger.error('[Google Auth] Verify error', { error: new Error(getErrorMessage(error)) });
     if (getErrorMessage(error)?.includes('Token used too late') || getErrorMessage(error)?.includes('Invalid token')) {
-      return res.status(401).json({ error: 'Google sign-in expired. Please try again.' });
+      return logAndRespond(req, res, 401, 'Google sign-in expired. Please try again.', error);
     }
-    res.status(500).json({ error: 'Failed to verify Google sign-in' });
+    logAndRespond(req, res, 500, 'Failed to verify Google sign-in', error);
   }
 });
 
@@ -369,20 +367,19 @@ router.post('/api/auth/google/link', requireGoogleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to link a Google account' });
+      return logAndRespond(req, res, 401, 'You must be logged in to link a Google account');
     }
 
     const { credential } = req.body;
     if (!credential) {
-      return res.status(400).json({ error: 'Google credential is required' });
+      return logAndRespond(req, res, 400, 'Google credential is required');
     }
 
     const googleUser = await verifyGoogleToken(credential);
 
     const dbUserId = await resolveDbUserId(sessionUser);
     if (!dbUserId) {
-      logger.error('[Google Auth] Link: user not found by id or email', { extra: { sessionUserId: sessionUser.id, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     const existing = await db.select({ id: users.id, email: users.email })
@@ -391,7 +388,7 @@ router.post('/api/auth/google/link', requireGoogleConfig, async (req, res) => {
       .limit(1);
 
     if (existing.length > 0 && existing[0].id !== dbUserId) {
-      return res.status(409).json({ error: 'This Google account is already linked to a different member account.' });
+      return logAndRespond(req, res, 409, 'This Google account is already linked to a different member account.');
     }
 
     const updated = await db.update(users)
@@ -405,8 +402,7 @@ router.post('/api/auth/google/link', requireGoogleConfig, async (req, res) => {
       .returning({ id: users.id });
 
     if (updated.length === 0) {
-      logger.error('[Google Auth] Link update affected 0 rows', { extra: { dbUserId, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     logMemberAction({
@@ -423,10 +419,9 @@ router.post('/api/auth/google/link', requireGoogleConfig, async (req, res) => {
   } catch (error: unknown) {
     const dbError = error as { code?: string };
     if (dbError.code === '23505') {
-      return res.status(409).json({ error: 'This Google account is already linked to another member.' });
+      return logAndRespond(req, res, 409, 'This Google account is already linked to another member.', error);
     }
-    logger.error('[Google Auth] Link error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to link Google account' });
+    logAndRespond(req, res, 500, 'Failed to link Google account', error);
   }
 });
 
@@ -434,13 +429,12 @@ router.post('/api/auth/google/unlink', requireGoogleConfig, async (req, res) => 
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id || !sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to unlink a Google account' });
+      return logAndRespond(req, res, 401, 'You must be logged in to unlink a Google account');
     }
 
     const dbUserId = await resolveDbUserId(sessionUser);
     if (!dbUserId) {
-      logger.error('[Google Auth] Unlink: user not found by id or email', { extra: { sessionUserId: sessionUser.id, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     const updated = await db.update(users)
@@ -454,8 +448,7 @@ router.post('/api/auth/google/unlink', requireGoogleConfig, async (req, res) => 
       .returning({ id: users.id });
 
     if (updated.length === 0) {
-      logger.error('[Google Auth] Unlink update affected 0 rows', { extra: { dbUserId, sessionEmail: sessionUser.email } });
-      return res.status(404).json({ error: 'User account not found. Please log out and log in again.' });
+      return logAndRespond(req, res, 404, 'User account not found. Please log out and log in again.');
     }
 
     logMemberAction({
@@ -470,8 +463,7 @@ router.post('/api/auth/google/unlink', requireGoogleConfig, async (req, res) => 
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Google Auth] Unlink error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to unlink Google account' });
+    logAndRespond(req, res, 500, 'Failed to unlink Google account', error);
   }
 });
 
@@ -479,7 +471,7 @@ router.get('/api/auth/google/status', requireGoogleConfig, async (req, res) => {
   try {
     const sessionUser = req.session?.user;
     if (!sessionUser?.id) {
-      return res.status(401).json({ error: 'You must be logged in to check Google link status' });
+      return logAndRespond(req, res, 401, 'You must be logged in to check Google link status');
     }
 
     const dbUserId = await resolveDbUserId({ id: sessionUser.id, email: sessionUser.email || '' });
@@ -504,8 +496,7 @@ router.get('/api/auth/google/status', requireGoogleConfig, async (req, res) => {
       linkedAt: googleLinkedAt ? googleLinkedAt.toISOString() : null,
     });
   } catch (error: unknown) {
-    logger.error('[Google Auth] Status error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to check Google link status' });
+    logAndRespond(req, res, 500, 'Failed to check Google link status', error);
   }
 });
 
@@ -534,8 +525,7 @@ router.get('/api/auth/google/unlinked-report', isStaffOrAdmin, async (req, res) 
       members: result.rows,
     });
   } catch (error: unknown) {
-    logger.error('[Google Auth] Unlinked report error', { error: new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to generate unlinked report' });
+    logAndRespond(req, res, 500, 'Failed to generate unlinked report', error);
   }
 });
 

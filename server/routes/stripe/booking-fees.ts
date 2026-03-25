@@ -22,7 +22,8 @@ import { logFromRequest } from '../../core/auditLog';
 import { getStaffInfo, SAVED_CARD_APPROVAL_THRESHOLD_CENTS } from './helpers';
 import { broadcastBillingUpdate, broadcastBookingInvoiceUpdate } from '../../core/websocket';
 import { alertOnExternalServiceError } from '../../core/errorAlerts';
-import { getErrorMessage, getErrorCode, safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { logAndRespond } from '../../core/logger';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking, finalizeInvoicePaidOutOfBand, buildInvoiceDescription } from '../../core/billing/bookingInvoiceService';
 import { validateBody } from '../../middleware/validate';
@@ -95,8 +96,7 @@ router.get('/api/stripe/prices/recurring', isStaffOrAdmin, async (req: Request, 
     
     res.json({ prices: formattedPrices });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error fetching recurring prices', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch Stripe prices' });
+    logAndRespond(req, res, 500, 'Failed to fetch Stripe prices', error);
   }
 });
 
@@ -220,8 +220,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
         await applyFeeBreakdownToParticipants(sessionId, feeBreakdown);
         logger.info('[Stripe] Applied unified fees for session : $', { extra: { sessionId, feeBreakdownTotalsTotalCents_100_ToFixed_2: (feeBreakdown.totals.totalCents/100).toFixed(2) } });
       } catch (unifiedError: unknown) {
-        logger.error('[Stripe] Unified fee service error', { extra: { error: getErrorMessage(unifiedError) } });
-        return res.status(500).json({ error: 'Failed to calculate fees' });
+        return logAndRespond(req, res, 500, 'Failed to calculate fees', unifiedError);
       }
 
       pendingFees = feeBreakdown.participants.filter(p => 
@@ -434,12 +433,8 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
       customerId: result.customerId
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
     await alertOnExternalServiceError('Stripe', error as Error, 'create payment intent');
-    res.status(500).json({ 
-      error: 'Payment processing failed. Please try again.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Payment processing failed. Please try again.', error);
   }
 });
 
@@ -468,12 +463,8 @@ router.post('/api/stripe/confirm-payment', isStaffOrAdmin, validateBody(confirmP
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error confirming payment', { error: error instanceof Error ? error : new Error(String(error)) });
     await alertOnExternalServiceError('Stripe', error as Error, 'confirm payment');
-    res.status(500).json({ 
-      error: 'Payment confirmation failed. Please try again.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Payment confirmation failed. Please try again.', error);
   }
 });
 
@@ -488,8 +479,7 @@ router.get('/api/stripe/payment-intent/:id', isStaffOrAdmin, async (req: Request
 
     res.json(status);
   } catch (error: unknown) {
-    logger.error('[Stripe] Error getting payment intent', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to get payment intent status' });
+    logAndRespond(req, res, 500, 'Failed to get payment intent status', error);
   }
 });
 
@@ -518,12 +508,8 @@ router.post('/api/stripe/cancel-payment', isStaffOrAdmin, validateBody(cancelPay
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error canceling payment', { error: error instanceof Error ? error : new Error(String(error)) });
     await alertOnExternalServiceError('Stripe', error as Error, 'cancel payment');
-    res.status(500).json({ 
-      error: 'Payment cancellation failed. Please try again.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Payment cancellation failed. Please try again.', error);
   }
 });
 
@@ -539,12 +525,8 @@ router.post('/api/stripe/create-customer', isStaffOrAdmin, validateBody(createCu
       isNew: result.isNew
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating customer', { error: error instanceof Error ? error : new Error(String(error)) });
     await alertOnExternalServiceError('Stripe', error as Error, 'create customer');
-    res.status(500).json({ 
-      error: 'Customer creation failed. Please try again.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Customer creation failed. Please try again.', error);
   }
 });
 
@@ -591,8 +573,7 @@ router.get('/api/billing/members/search', isStaffOrAdmin, async (req: Request, r
     
     res.json({ members });
   } catch (error: unknown) {
-    logger.error('[Billing] Error searching members', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to search members' });
+    logAndRespond(req, res, 500, 'Failed to search members', error);
   }
 });
 
@@ -762,7 +743,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
           logger.error('[Stripe] Could not verify/cancel stale PI — blocking charge to prevent duplicate', {
             extra: { piId: row.stripe_payment_intent_id, error: getErrorMessage(cancelErr) }
           });
-          return res.status(503).json({ error: 'Could not verify existing payment status. Please try again or use a different payment method.' });
+          return logAndRespond(req, res, 503, 'Could not verify existing payment status. Please try again or use a different payment method.', cancelErr);
         }
       }
     }
@@ -911,25 +892,15 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
     logger.error('[Stripe] Error charging saved card', { error: error instanceof Error ? error : new Error(String(error)) });
     
     if ((error as StripeError).type === 'StripeCardError') {
-      return res.status(400).json({ 
-        error: `Card declined: ${safeErrorDetail(error)}`,
-        cardError: true,
-        declineCode: (error as StripeError).decline_code
-      });
+      return logAndRespond(req, res, 400, `Card declined: ${getErrorMessage(error)}`, error);
     }
     
     if (getErrorCode(error) === 'authentication_required') {
-      return res.status(400).json({ 
-        error: 'Card requires authentication. Please use the standard payment flow.',
-        requiresAction: true
-      });
+      return logAndRespond(req, res, 400, 'Card requires authentication. Please use the standard payment flow.', error);
     }
 
     await alertOnExternalServiceError('Stripe', error as Error, 'charge saved card');
-    res.status(500).json({ 
-      error: 'Failed to charge card. Please try again or use another payment method.',
-      retryable: true
-    });
+    logAndRespond(req, res, 500, 'Failed to charge card. Please try again or use another payment method.', error);
   }
 });
 
@@ -1001,8 +972,7 @@ router.post('/api/stripe/staff/mark-booking-paid', isStaffOrAdmin, validateBody(
       invoicePdf: oobResult.invoicePdf || null,
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error marking booking as paid', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to mark booking as paid' });
+    logAndRespond(req, res, 500, 'Failed to mark booking as paid', error);
   }
 });
 
@@ -1081,8 +1051,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
 
     res.json(futureBookings);
   } catch (error: unknown) {
-    logger.error('[Payments] Error fetching future bookings with fees', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch future bookings' });
+    logAndRespond(req, res, 500, 'Failed to fetch future bookings', error);
   }
 });
 

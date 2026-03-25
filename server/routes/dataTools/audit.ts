@@ -1,10 +1,9 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { db } from '../../db';
 import { adminAuditLog } from '@shared/schema';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import { isAdmin } from '../../core/middleware';
-import { safeErrorDetail } from '../../utils/errorUtils';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 
@@ -37,8 +36,7 @@ router.get('/api/data-tools/audit-log', isAdmin, validateQuery(auditLogQuerySche
       ['member_resynced_from_hubspot', 'guest_fee_manually_linked', 'attendance_manually_updated', 'mindbody_reimport_requested'].includes(log.action)
     ));
   } catch (error: unknown) {
-    logger.error('[DataTools] Get audit log error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to get audit log', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to get audit log', error);
   }
 });
 
@@ -91,8 +89,7 @@ router.get('/api/data-tools/staff-activity', isAdmin, validateQuery(staffActivit
     
     res.json({ logs: parsedLogs });
   } catch (error: unknown) {
-    logger.error('[DataTools] Get staff activity error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to get staff activity', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to get staff activity', error);
   }
 });
 

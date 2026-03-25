@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import { db } from '../../db';
 import { users } from '../../../shared/schema';
@@ -8,7 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { invalidateCache } from '../../core/queryCache';
 import { broadcastDirectoryUpdate } from '../../core/websocket';
-import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { denormalizeTierForHubSpotAsync } from '../../utils/tierUtils';
 import { syncRelevantMembersFromHubSpot, getLastMemberSyncTime, setLastMemberSyncTime } from '../../core/memberSync';
 import { getHubSpotClient } from '../../core/integrations';
@@ -164,8 +164,7 @@ router.post('/api/hubspot/sync-tiers', isStaffOrAdmin, async (req, res) => {
       updates: results.updates.slice(0, 50)
     });
   } catch (error: unknown) {
-    logger.error('[Tier Sync] Error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Tier sync failed', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Tier sync failed', error);
   }
 });
 
@@ -269,8 +268,7 @@ router.post('/api/hubspot/push-db-tiers', isStaffOrAdmin, async (req, res) => {
       sampleUpdates: results.updates.slice(0, 20)
     });
   } catch (error: unknown) {
-    logger.error('[DB Tier Push] Error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'DB tier push failed', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'DB tier push failed', error);
   }
 });
 
@@ -369,34 +367,31 @@ router.post('/api/hubspot/sync-billing-providers', isStaffOrAdmin, async (req, r
       sampleDetails: results.details.slice(0, 50)
     });
   } catch (error: unknown) {
-    logger.error('[HubSpot Sync] Error syncing billing providers', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Sync failed', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Sync failed', error);
   }
 });
 
-router.get('/api/hubspot/sync-status', isStaffOrAdmin, async (_req: Request, res: Response) => {
+router.get('/api/hubspot/sync-status', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const lastSync = getLastMemberSyncTime();
     res.json({ lastSyncTime: lastSync ? new Date(lastSync).toISOString() : null });
   } catch (error: unknown) {
-    logger.error('[HubSpot] Failed to get sync status', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to get sync status' });
+    logAndRespond(req, res, 500, 'Failed to get sync status', error);
   }
 });
 
-router.post('/api/hubspot/sync-all-members', isStaffOrAdmin, async (_req: Request, res: Response) => {
+router.post('/api/hubspot/sync-all-members', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const result = await syncRelevantMembersFromHubSpot();
     await setLastMemberSyncTime(Date.now());
     resetAllContactsCache();
     res.json({ synced: result.synced, errors: result.errors });
   } catch (error: unknown) {
-    logger.error('[HubSpot] Failed to sync all members', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to sync members from HubSpot', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to sync members from HubSpot', error);
   }
 });
 
-router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (_req: Request, res: Response) => {
+router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const membersResult = await db.execute(sql`
       SELECT email, membership_status, billing_provider, tier, hubspot_id, first_name, last_name
@@ -428,8 +423,7 @@ router.post('/api/hubspot/push-members-to-hubspot', isStaffOrAdmin, async (_req:
     resetAllContactsCache();
     res.json({ synced, errors });
   } catch (error: unknown) {
-    logger.error('[HubSpot] Failed to push members to HubSpot', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to push members to HubSpot', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to push members to HubSpot', error);
   }
 });
 

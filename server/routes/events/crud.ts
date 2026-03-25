@@ -7,8 +7,8 @@ import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent
 import { createPacificDate, getTodayPacific, getPacificDateParts } from '../../utils/dateUtils';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
-import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
-import { logger } from '../../core/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
+import { logger, logAndRespond } from '../../core/logger';
 import { createEventAvailabilityBlocks, removeEventAvailabilityBlocks, updateEventAvailabilityBlocks } from './shared';
 
 const router = Router();
@@ -37,8 +37,7 @@ router.get('/api/events/needs-review', isStaffOrAdmin, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch events needing review' });
+    logAndRespond(req, res, 500, 'Failed to fetch events needing review', error);
   }
 });
 
@@ -64,8 +63,7 @@ router.post('/api/events/:id/mark-reviewed', isStaffOrAdmin, async (req, res) =>
     
     res.json({ success: true, event: result[0] });
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to mark event as reviewed' });
+    logAndRespond(req, res, 500, 'Failed to mark event as reviewed', error);
   }
 });
 
@@ -133,8 +131,7 @@ router.get('/api/events', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Request failed' });
+    logAndRespond(req, res, 500, 'Request failed', error);
   }
 });
 
@@ -256,8 +253,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
     
     res.status(201).json(createdEvent);
   } catch (error: unknown) {
-    logger.error('Event creation error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to create event' });
+    logAndRespond(req, res, 500, 'Failed to create event', error);
   }
 });
 
@@ -440,9 +436,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(updatedEvent);
   } catch (error: unknown) {
-    const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
-    logger.error('Event update error', { error: cause instanceof Error ? cause : new Error(String(cause)) });
-    res.status(500).json({ error: 'Failed to update event' });
+    logAndRespond(req, res, 500, 'Failed to update event', error);
   }
 });
 
@@ -470,8 +464,7 @@ router.get('/api/events/:id/cascade-preview', isStaffOrAdmin, async (req, res) =
       hasRelatedData: rsvpsCount > 0
     });
   } catch (error: unknown) {
-    logger.error('Event cascade preview error', { error: error instanceof Error ? error : new Error(String(error)) });
-    res.status(500).json({ error: 'Failed to fetch cascade preview' });
+    logAndRespond(req, res, 500, 'Failed to fetch cascade preview', error);
   }
 });
 
@@ -539,8 +532,7 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, archived: true, archivedBy });
   } catch (error: unknown) {
-    logger.error('Event archive error', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
-    res.status(500).json({ error: 'Failed to archive event', details: safeErrorDetail(error) });
+    logAndRespond(req, res, 500, 'Failed to archive event', error);
   }
 });
 

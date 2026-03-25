@@ -1,4 +1,4 @@
-import { logger } from '../../core/logger';
+import { logger, logAndRespond } from '../../core/logger';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { eq, and, sql, isNotNull } from 'drizzle-orm';
@@ -27,8 +27,7 @@ export const sessionRouter = Router();
 sessionRouter.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      logger.error('Session destroy error', { extra: { error: getErrorMessage(err) } });
-      return res.status(500).json({ error: 'Failed to logout' });
+      return logAndRespond(req, res, 500, 'Failed to logout', err);
     }
     res.clearCookie('connect.sid');
     res.json({ success: true, message: 'Logged out successfully' });
@@ -40,11 +39,11 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
   const sessionUser = getSessionUser(req);
   
   if (!sessionUser?.email) {
-    return res.status(401).json({ error: 'No active session', authenticated: false });
+    return logAndRespond(req, res, 401, 'No active session');
   }
   
   if (sessionUser.expires_at && Date.now() > sessionUser.expires_at) {
-    return res.status(401).json({ error: 'Session expired', authenticated: false });
+    return logAndRespond(req, res, 401, 'Session expired');
   }
   
   const freshRole = await getUserRole(sessionUser.email);
@@ -118,15 +117,14 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
 sessionRouter.post('/api/auth/ws-token', authRateLimiterByIp, async (req, res) => {
   const sessionUser = getSessionUser(req);
   if (!sessionUser?.email) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    return logAndRespond(req, res, 401, 'Not authenticated');
   }
   try {
     const { createWsAuthToken } = await import('../../core/websocket');
     const token = createWsAuthToken(sessionUser.email, sessionUser.role || 'member');
     return res.json({ token });
   } catch (err) {
-    logger.error('[Auth] Failed to create WS auth token', { error: getErrorMessage(err) });
-    return res.status(500).json({ error: 'Failed to create token' });
+    return logAndRespond(req, res, 500, 'Failed to create token', err);
   }
 });
 
@@ -136,7 +134,7 @@ sessionRouter.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req
     const { email } = req.query;
     
     if (!email || typeof email !== 'string') {
-      return res.status(400).json({ error: 'Email is required' });
+      return logAndRespond(req, res, 400, 'Email is required');
     }
     
     const normalizedEmail = normalizeEmail(email);
@@ -165,8 +163,7 @@ sessionRouter.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req
     
     res.json({ isStaffOrAdmin: false, role: null, hasPassword: false });
   } catch (error: unknown) {
-    logger.error('Check staff/admin error', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to check user status' });
+    logAndRespond(req, res, 500, 'Failed to check user status', error);
   }
 });
 
@@ -176,7 +173,7 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     const { email, password } = req.body;
     
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return logAndRespond(req, res, 400, 'Email and password are required');
     }
     
     const normalizedEmail = normalizeEmail(email);
@@ -205,17 +202,17 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     }
     
     if (!userRecord) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return logAndRespond(req, res, 401, 'Invalid email or password');
     }
     
     if (!userRecord.passwordHash) {
-      return res.status(400).json({ error: 'Password not set. Please use magic link or contact an admin.' });
+      return logAndRespond(req, res, 400, 'Password not set. Please use magic link or contact an admin.');
     }
     
     const isValid = await bcrypt.compare(password, userRecord.passwordHash);
     
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return logAndRespond(req, res, 401, 'Invalid email or password');
     }
     
     const hubspot = await getHubSpotClient();
@@ -293,14 +290,12 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
 
     req.session.save((err) => {
       if (err) {
-        logger.error('Session save error', { extra: { error: getErrorMessage(err) } });
-        return res.status(500).json({ error: 'Failed to create session' });
+        return logAndRespond(req, res, 500, 'Failed to create session', err);
       }
       res.json({ success: true, member, supabaseToken });
     });
   } catch (error: unknown) {
-    logger.error('Password login error', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Login failed. Please try again.' });
+    logAndRespond(req, res, 500, 'Login failed. Please try again.', error);
   }
 });
 
@@ -308,17 +303,17 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {
-      return res.status(401).json({ error: 'You must be logged in to set a password' });
+      return logAndRespond(req, res, 401, 'You must be logged in to set a password');
     }
     
     const { password, currentPassword } = req.body;
     
     if (!password) {
-      return res.status(400).json({ error: 'Password is required' });
+      return logAndRespond(req, res, 400, 'Password is required');
     }
     
     if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return logAndRespond(req, res, 400, 'Password must be at least 8 characters');
     }
     
     const normalizedEmail = sessionUser.email.toLowerCase();
@@ -336,11 +331,11 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
     if (staffRecord.length > 0) {
       if (staffRecord[0].passwordHash) {
         if (!currentPassword) {
-          return res.status(400).json({ error: 'Current password is required' });
+          return logAndRespond(req, res, 400, 'Current password is required');
         }
         const isValid = await bcrypt.compare(currentPassword, staffRecord[0].passwordHash);
         if (!isValid) {
-          return res.status(400).json({ error: 'Current password is incorrect' });
+          return logAndRespond(req, res, 400, 'Current password is incorrect');
         }
       }
       
@@ -352,21 +347,20 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
       return res.json({ success: true, message: 'Password set successfully' });
     }
     
-    res.status(403).json({ error: 'Password can only be set for staff or admin accounts' });
+    logAndRespond(req, res, 403, 'Password can only be set for staff or admin accounts');
   } catch (error: unknown) {
-    logger.error('Set password error', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to set password' });
+    logAndRespond(req, res, 500, 'Failed to set password', error);
   }
 });
 
 // DEV ROUTE - bypass login for development (blocked in production)
 sessionRouter.post('/api/auth/dev-login', async (req, res) => {
   if (isProduction) {
-    return res.status(403).json({ error: 'Dev login not available in production' });
+    return logAndRespond(req, res, 403, 'Dev login not available in production');
   }
   
   if (process.env.DEV_LOGIN_ENABLED !== 'true') {
-    return res.status(403).json({ error: 'Dev login not enabled' });
+    return logAndRespond(req, res, 403, 'Dev login not enabled');
   }
   
   try {
@@ -377,7 +371,7 @@ sessionRouter.post('/api/auth/dev-login', async (req, res) => {
       .where(sql`LOWER(${users.email}) = LOWER(${devEmail})`);
     
     if (existingUser.length === 0) {
-      return res.status(404).json({ error: 'Dev user not found' });
+      return logAndRespond(req, res, 404, 'Dev user not found');
     }
     
     const user = existingUser[0];
@@ -402,25 +396,23 @@ sessionRouter.post('/api/auth/dev-login', async (req, res) => {
 
     req.session.save((err) => {
       if (err) {
-        logger.error('Session save error', { extra: { error: getErrorMessage(err) } });
-        return res.status(500).json({ error: 'Failed to create session' });
+        return logAndRespond(req, res, 500, 'Failed to create session', err);
       }
       res.json({ success: true, member, supabaseToken });
     });
   } catch (error: unknown) {
-    logger.error('Dev login error', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Dev login failed' });
+    logAndRespond(req, res, 500, 'Dev login failed', error);
   }
 });
 
 // DEV ROUTE - send welcome email for testing (blocked in production, admin role required)
 sessionRouter.post('/api/auth/test-welcome-email', async (req, res) => {
   if (isProduction) {
-    return res.status(404).json({ error: 'Not found' });
+    return logAndRespond(req, res, 404, 'Not found');
   }
   const sessionUser = getSessionUser(req);
   if (!sessionUser || sessionUser.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+    return logAndRespond(req, res, 403, 'Admin access required');
   }
   
   try {
@@ -433,10 +425,9 @@ sessionRouter.post('/api/auth/test-welcome-email', async (req, res) => {
     if (result.success) {
       res.json({ success: true, message: `Welcome email sent to ${targetEmail}` });
     } else {
-      res.status(500).json({ error: result.error || 'Failed to send welcome email' });
+      logAndRespond(req, res, 500, result.error || 'Failed to send welcome email');
     }
   } catch (error: unknown) {
-    logger.error('Test welcome email error', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to send test email' });
+    logAndRespond(req, res, 500, 'Failed to send test email', error);
   }
 });
