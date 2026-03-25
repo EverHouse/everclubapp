@@ -40,6 +40,14 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
   }, [onFadeComplete]);
 
   React.useEffect(() => {
+    const originalBg = document.body.style.backgroundColor;
+    document.body.style.backgroundColor = '#293515';
+    return () => {
+      document.body.style.backgroundColor = originalBg;
+    };
+  }, []);
+
+  React.useEffect(() => {
     if (!isVisible) {
       setIsExiting(true);
       
@@ -81,10 +89,7 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
       <style>{`
         .loader-overlay {
           position: fixed;
-          top: -env(safe-area-inset-top, 0px);
-          left: 0;
-          right: 0;
-          bottom: -env(safe-area-inset-bottom, 0px);
+          inset: 0;
           z-index: var(--z-modal);
           display: flex;
           justify-content: center;
