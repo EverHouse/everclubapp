@@ -396,10 +396,21 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
             (o: { value: string }) => !existingValues.has(o.value)
           );
           if (missingOptions.length > 0) {
-            const allOptions = [
-              ...(existingProp.options || []),
-              ...missingOptions,
-            ];
+            const sortedExisting = [...(existingProp.options || [])].sort(
+              (a: { displayOrder?: number }, b: { displayOrder?: number }) =>
+                (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
+            );
+            const maxExistingOrder = sortedExisting.reduce(
+              (max: number, o: { displayOrder?: number }) => Math.max(max, o.displayOrder ?? 0),
+              0
+            );
+            const numberedMissing = missingOptions.map(
+              (o: { value: string; label: string; displayOrder: number }, idx: number) => ({
+                ...o,
+                displayOrder: maxExistingOrder + idx + 1,
+              })
+            );
+            const allOptions = [...sortedExisting, ...numberedMissing];
             await retryableHubSpotRequest(() =>
               hubspot.crm.properties.coreApi.update('contacts', prop.name, {
                 options: allOptions,
