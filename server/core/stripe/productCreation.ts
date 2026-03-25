@@ -7,6 +7,21 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { markAppOriginated } from './appOriginTracker';
 import { findExistingStripeProduct } from './productHelpers';
+import type Stripe from 'stripe';
+
+async function archiveStalePrices(stripe: Stripe, productId: string, activePriceId: string, label: string): Promise<void> {
+  try {
+    const prices = await stripe.prices.list({ product: productId, active: true, limit: 50 });
+    const stale = prices.data.filter(p => p.id !== activePriceId);
+    if (stale.length === 0) return;
+    for (const p of stale) {
+      await stripe.prices.update(p.id, { active: false });
+    }
+    logger.info(`[${label}] Archived ${stale.length} stale price(s)`);
+  } catch (err: unknown) {
+    logger.warn(`[${label}] Failed to archive stale prices`, { error: getErrorMessage(err) });
+  }
+}
 
 export async function ensureSimulatorOverageProduct(): Promise<{
   success: boolean;
@@ -155,6 +170,8 @@ export async function ensureSimulatorOverageProduct(): Promise<{
       .where(eq(membershipTiers.id, tierId));
     
     logger.info(`[Overage Product] ${OVERAGE_NAME} ready (${stripePriceId})`);
+
+    await archiveStalePrices(stripe, stripeProductId, stripePriceId, 'Overage Product');
 
     try {
       const actualPrice = await stripe.prices.retrieve(stripePriceId);
@@ -330,6 +347,8 @@ export async function ensureGuestPassProduct(): Promise<{
     
     logger.info(`[Guest Pass Product] ${GUEST_PASS_NAME} ready (${stripePriceId})`);
 
+    await archiveStalePrices(stripe, stripeProductId, stripePriceId, 'Guest Pass Product');
+
     try {
       const actualPrice = await stripe.prices.retrieve(stripePriceId);
       if (actualPrice.unit_amount && actualPrice.unit_amount > 0) {
@@ -493,6 +512,9 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
       .where(eq(membershipTiers.id, tierId));
     
     logger.info(`[Day Pass Coworking Product] ${COWORKING_NAME} ready (${stripePriceId})`);
+
+    await archiveStalePrices(stripe, stripeProductId, stripePriceId, 'Day Pass Coworking Product');
+
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
   } catch (error: unknown) {
     logger.error('[Day Pass Coworking Product] Error:', { extra: { detail: getErrorMessage(error) } });
@@ -647,6 +669,9 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
       .where(eq(membershipTiers.id, tierId));
     
     logger.info(`[Day Pass Golf Sim Product] ${GOLF_SIM_NAME} ready (${stripePriceId})`);
+
+    await archiveStalePrices(stripe, stripeProductId, stripePriceId, 'Day Pass Golf Sim Product');
+
     return { success: true, stripeProductId, stripePriceId, action: existing.length > 0 && existing[0].stripePriceId ? 'exists' : 'created' };
   } catch (error: unknown) {
     logger.error('[Day Pass Golf Sim Product] Error:', { extra: { detail: getErrorMessage(error) } });

@@ -10,10 +10,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.97.18",
     date: "2026-03-25",
-    title: "Terminal Payment Bug Fixes",
+    title: "Terminal Payment & Stripe Cleanup Fixes",
     changes: [
       "Fixed: Card saving on the terminal reader now works correctly",
       "Fixed: Canceled terminal payments are now properly recorded in the system",
+      "Fixed: Stripe fee products (overage, guest pass, day passes) now automatically archive old prices when a new one is created",
     ]
   },
   {
