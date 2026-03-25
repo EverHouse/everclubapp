@@ -28,6 +28,7 @@ import {
   parseOptIn,
   getNameFromContact,
   retryDbOperation,
+  normalizeMembershipStatus,
 } from './memberSyncHelpers';
 
 export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number; errors: number }> {
@@ -175,7 +176,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             return null;
           }
           
-          const status = (contact.properties.membership_status || 'non-member').toLowerCase();
+          const status = normalizeMembershipStatus(contact.properties.membership_status || 'non-member');
           
           const rawTier = contact.properties.membership_tier;
           let normalizedTier: string | null = null;

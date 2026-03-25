@@ -208,6 +208,21 @@ export async function setLastMemberSyncTime(time: number): Promise<void> {
   }
 }
 
+const HUBSPOT_STATUS_NORMALIZATION: Record<string, string> = {
+  'froze': 'frozen',
+  'past due': 'past_due',
+  'pastdue': 'past_due',
+  'canceled': 'cancelled',
+  'churned': 'terminated',
+  'deleted': 'terminated',
+  'deactivated': 'inactive',
+};
+
+export function normalizeMembershipStatus(raw: string): string {
+  const lower = raw.toLowerCase().trim();
+  return HUBSPOT_STATUS_NORMALIZATION[lower] || lower;
+}
+
 export const parseOptIn = (val?: string): boolean | null => {
   if (!val) return null;
   const lower = val.toLowerCase();

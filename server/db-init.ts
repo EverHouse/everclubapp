@@ -1596,6 +1596,8 @@ export async function ensureDatabaseConstraints() {
               valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'pending', 'terminated');
             WHEN 'declined' THEN
               valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member');
+            WHEN 'visitor' THEN
+              valid := NEW.membership_status IN ('active', 'pending', 'non-member', 'archived', 'merged', 'trialing', 'terminated');
             WHEN 'non-member' THEN
               valid := NEW.membership_status IN ('active', 'pending', 'archived', 'merged', 'trialing', 'terminated');
             WHEN 'archived' THEN
