@@ -36,7 +36,7 @@ export async function handleSubscriptionResumed(client: PoolClient, subscription
     }
 
     const resumeResult = await client.query(
-      `UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1 AND (membership_status IS NULL OR membership_status IN ('frozen', 'suspended', 'past_due', 'paused', 'inactive', 'non-member', 'trialing'))`,
+      `UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end), archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1 AND (membership_status IS NULL OR membership_status IN ('frozen', 'suspended', 'past_due', 'paused', 'inactive', 'non-member', 'trialing', 'declined', 'cancelled', 'expired'))`,
       [userId, subscriptionPeriodEnd]
     );
     if (resumeResult.rowCount === 0) {

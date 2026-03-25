@@ -466,7 +466,7 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
             COUNT(*)::int AS lost_members
           FROM users
           WHERE role = 'member'
-            AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+            AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
             AND COALESCE(membership_status_changed_at, cancellation_effective_date::timestamp) IS NOT NULL
             AND COALESCE(membership_status_changed_at, cancellation_effective_date::timestamp) >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months')
           GROUP BY DATE_TRUNC('month', COALESCE(membership_status_changed_at, cancellation_effective_date::timestamp))

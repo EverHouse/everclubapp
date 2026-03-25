@@ -626,7 +626,7 @@ export async function ensureDatabaseConstraints() {
         SELECT TO_CHAR(DATE_TRUNC('month', membership_status_changed_at), 'YYYY-MM') AS month, COUNT(*)::int AS cnt
         FROM users
         WHERE role = 'member'
-          AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+          AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
           AND membership_status_changed_at IS NOT NULL
           AND membership_status_changed_at >= '2026-01-01'::timestamp
         GROUP BY DATE_TRUNC('month', membership_status_changed_at)
@@ -651,7 +651,7 @@ export async function ensureDatabaseConstraints() {
             ) sub
             WHERE LOWER(u.email) = sub.email
               AND u.role = 'member'
-              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
               AND u.membership_status_changed_at >= ${monthStart}::timestamp
               AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
           `);
@@ -661,7 +661,7 @@ export async function ensureDatabaseConstraints() {
             UPDATE users u
             SET membership_status_changed_at = NULL
             WHERE u.role = 'member'
-              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive')
+              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
               AND u.membership_status_changed_at >= ${monthStart}::timestamp
               AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
               AND cancellation_effective_date IS NULL
@@ -1567,7 +1567,7 @@ export async function ensureDatabaseConstraints() {
 
           CASE OLD.membership_status
             WHEN 'pending' THEN
-              valid := NEW.membership_status IN ('active', 'non-member', 'expired', 'cancelled', 'trialing', 'inactive', 'terminated', 'archived', 'merged');
+              valid := NEW.membership_status IN ('active', 'non-member', 'expired', 'cancelled', 'trialing', 'inactive', 'terminated', 'archived', 'merged', 'declined');
             WHEN 'active' THEN
               valid := NEW.membership_status IN ('past_due', 'suspended', 'cancelled', 'frozen', 'paused', 'terminated', 'archived', 'merged', 'grace_period', 'inactive', 'expired', 'unpaid', 'declined', 'non-member');
             WHEN 'trialing' THEN
@@ -1575,15 +1575,15 @@ export async function ensureDatabaseConstraints() {
             WHEN 'past_due' THEN
               valid := NEW.membership_status IN ('active', 'suspended', 'cancelled', 'terminated', 'frozen', 'grace_period', 'inactive', 'unpaid', 'declined', 'archived', 'merged', 'non-member');
             WHEN 'grace_period' THEN
-              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'inactive', 'archived', 'merged', 'non-member', 'declined');
             WHEN 'paused' THEN
-              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member', 'declined');
             WHEN 'suspended' THEN
-              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'frozen', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'frozen', 'archived', 'merged', 'inactive', 'non-member', 'declined');
             WHEN 'frozen' THEN
-              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'suspended', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'cancelled', 'terminated', 'suspended', 'archived', 'merged', 'inactive', 'non-member', 'declined');
             WHEN 'unpaid' THEN
-              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member');
+              valid := NEW.membership_status IN ('active', 'pending', 'suspended', 'cancelled', 'terminated', 'archived', 'merged', 'inactive', 'non-member', 'declined');
             WHEN 'cancelled' THEN
               valid := NEW.membership_status IN ('active', 'non-member', 'archived', 'merged', 'terminated', 'former_member', 'inactive', 'pending');
             WHEN 'inactive' THEN
