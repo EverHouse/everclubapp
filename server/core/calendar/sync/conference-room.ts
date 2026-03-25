@@ -11,6 +11,7 @@ import { ensureSessionForBooking } from '../../bookingService/sessionManager';
 import { getErrorMessage } from '../../../utils/errorUtils';
 import { broadcastAvailabilityUpdate } from '../../websocket';
 
+import { calendar_v3 } from 'googleapis';
 import { logger } from '../../logger';
 import { withCalendarRetry } from '../../retryUtils';
 export async function getConferenceRoomBookingsFromCalendar(
@@ -28,8 +29,7 @@ export async function getConferenceRoomBookingsFromCalendar(
     // Use Pacific midnight for consistent timezone handling
     const pacificMidnight = getPacificMidnightUTC();
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const events: any[] = [];
+    const events: calendar_v3.Schema$Event[] = [];
     let confPageToken: string | undefined;
     do {
       const response = await withCalendarRetry(() => calendar.events.list({
