@@ -493,6 +493,7 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
   }
   
   const paidTierLower = PAID_TIERS.map(t => t.toLowerCase());
+  const tierList = sql.join(paidTierLower.map(t => sql`${t}`), sql`, `);
 
   const orphanResult = await db.execute(sql`
     SELECT id, email, first_name, last_name, tier, membership_status,
@@ -501,7 +502,7 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
     WHERE role = 'member'
       AND archived_at IS NULL
       AND membership_status = 'active'
-      AND LOWER(tier) = ANY(${paidTierLower})
+      AND LOWER(tier) IN (${tierList})
       AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
       AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'comped', 'manual', 'family_addon'))
     ORDER BY
