@@ -823,14 +823,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </h1>
         ) : (
           <button 
-            className="cursor-pointer flex items-center justify-center focus:ring-2 focus:ring-accent focus:outline-none rounded-lg" 
+            className="cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center focus:ring-2 focus:ring-accent focus:outline-none rounded-lg" 
             onClick={() => navigate('/')}
             aria-label="Go to home"
           >
             <Logo 
               isMemberRoute={isMemberRoute} 
               isDarkBackground={true} 
-              className="h-10 sm:h-12 w-auto object-contain shrink-0"
+              className="h-11 sm:h-12 w-auto object-contain shrink-0"
             />
           </button>
         )}
