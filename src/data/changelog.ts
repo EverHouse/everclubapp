@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.45",
+    date: "2026-03-25",
+    title: "Background Sync Reliability",
+    changes: [
+      "Fixed: Wellness calendar sync now recovers automatically from temporary connection interruptions instead of failing repeatedly",
+      "Improved: HubSpot property sync no longer logs errors for missing permission scopes — shows a clear warning instead",
+    ]
+  },
+  {
     version: "8.97.44",
     date: "2026-03-25",
     title: "Visual Polish & Mobile Fixes",

@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.45] - 2026-03-25
+
+### Background Sync Reliability
+- **Wellness sync DB connection resilience**: The `syncWellnessCalendarEvents` batch lookup at line 161 used raw `pool.query()` which has no retry logic for transient connection errors. Changed to `queryWithRetry()` which retries up to 3 times with exponential backoff for retryable errors (connection resets, timeouts, auth failures). This was causing 17+ consecutive sync failures in production every 5 minutes, flooding logs with errors.
+- **HubSpot 403 scope error downgraded**: `ensureHubSpotPropertiesExist()` treated 403 (MISSING_SCOPES) errors from the HubSpot API as hard failures, logging them as ERROR and including the full HTTP response body. Now detects 403/MISSING_SCOPES errors and logs a concise WARN instead, avoiding noisy error logs for what is actually a HubSpot app configuration issue (missing `crm.schemas.contacts.write` scope).
+- **Files changed**: `server/core/calendar/sync/wellness.ts`, `server/core/hubspot/stages.ts`
+
 ## [8.97.44] - 2026-03-25
 
 ### Visual Polish & Mobile Fixes

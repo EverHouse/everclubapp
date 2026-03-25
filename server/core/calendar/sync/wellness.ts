@@ -1,5 +1,5 @@
 import { db } from '../../../db';
-import { pool } from '../../db';
+import { pool, queryWithRetry } from '../../db';
 import { sql, eq, isNull, gte, asc, and } from 'drizzle-orm';
 import { getErrorMessage } from '../../../utils/errorUtils';
 import { getGoogleCalendarClient } from '../../integrations';
@@ -158,7 +158,7 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
                   reviewed_at, last_synced_at, review_dismissed, needs_review,
                   block_simulators, block_conference_room
            FROM wellness_classes WHERE google_calendar_id = ANY($1::text[])`;
-        const existingResult = await pool.query(queryText, [batch]);
+        const existingResult = await queryWithRetry(queryText, [batch]);
         for (const row of existingResult.rows as unknown as WellnessDbRow[]) {
           existingClassesMap.set(row.google_calendar_id, row);
         }

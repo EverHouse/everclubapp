@@ -406,7 +406,11 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
           }
         }
       } catch (getError: unknown) {
-        if (getErrorCode(getError) === '404' || getErrorMessage(getError)?.includes('not exist')) {
+        const errMsg = getErrorMessage(getError);
+        const errCode = getErrorCode(getError);
+        if (errCode === '403' || errMsg.includes('MISSING_SCOPES')) {
+          logger.warn(`[HubSpot] Skipping property ${prop.name} — missing required HubSpot scopes (update app permissions in HubSpot)`);
+        } else if (errCode === '404' || errMsg.includes('not exist')) {
           try {
             await retryableHubSpotRequest(() =>
               hubspot.crm.properties.coreApi.create('contacts', prop as Parameters<typeof hubspot.crm.properties.coreApi.create>[1])
@@ -414,11 +418,16 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
             created.push(prop.name);
             logger.info(`[HubSpot] Created property ${prop.name}`);
           } catch (createError: unknown) {
-            errors.push(`${prop.name}: ${getErrorMessage(createError)}`);
-            logger.error(`[HubSpot] Failed to create property ${prop.name}:`, { extra: { detail: getErrorMessage(createError) } });
+            const createErrMsg = getErrorMessage(createError);
+            if (getErrorCode(createError) === '403' || createErrMsg.includes('MISSING_SCOPES')) {
+              logger.warn(`[HubSpot] Skipping property ${prop.name} creation — missing required HubSpot scopes`);
+            } else {
+              errors.push(`${prop.name}: ${createErrMsg}`);
+              logger.error(`[HubSpot] Failed to create property ${prop.name}:`, { extra: { detail: createErrMsg } });
+            }
           }
         } else {
-          errors.push(`${prop.name}: ${getErrorMessage(getError)}`);
+          errors.push(`${prop.name}: ${errMsg}`);
         }
       }
     }
