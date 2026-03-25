@@ -48,11 +48,10 @@ export async function isStaffOrAdminCheck(email: string): Promise<boolean> {
   try {
     const alt = getAlternateDomainEmail(email);
     const emails = alt ? [email, alt] : [email];
-    const placeholders = emails.map((_, i) => `LOWER($${i + 1})`).join(', ');
     const result = await queryWithRetry(
       pool,
-      `SELECT id FROM staff_users WHERE LOWER(email) IN (${placeholders}) AND is_active = true`,
-      emails
+      `SELECT id FROM staff_users WHERE LOWER(email) = ANY($1::text[]) AND is_active = true`,
+      [emails.map(e => e.toLowerCase())]
     );
     return (result as unknown as { rows: Array<Record<string, unknown>> }).rows.length > 0;
   } catch (error: unknown) {

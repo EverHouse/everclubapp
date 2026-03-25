@@ -88,11 +88,10 @@ export async function isAdminEmail(email: string): Promise<boolean> {
   try {
     const alternateEmail = getAlternateDomainEmail(email);
     const emailsToCheck = alternateEmail ? [email, alternateEmail] : [email];
-    const placeholders = emailsToCheck.map((_, i) => `LOWER($${i + 1})`).join(', ');
     const result = await queryWithRetry(
       pool,
-      `SELECT id FROM staff_users WHERE LOWER(email) IN (${placeholders}) AND role = $${emailsToCheck.length + 1} AND is_active = true`,
-      [...emailsToCheck, 'admin']
+      `SELECT id FROM staff_users WHERE LOWER(email) = ANY($1::text[]) AND role = $2 AND is_active = true`,
+      [emailsToCheck.map(e => e.toLowerCase()), 'admin']
     );
     return (result as unknown as { rows: unknown[] }).rows.length > 0;
   } catch (error: unknown) {
@@ -150,11 +149,10 @@ export const isStaffOrAdmin: RequestHandler = async (req, res, next) => {
   try {
     const alternateEmail = getAlternateDomainEmail(email);
     const emailsToCheck = alternateEmail ? [email, alternateEmail] : [email];
-    const placeholders = emailsToCheck.map((_, i) => `LOWER($${i + 1})`).join(', ');
     const result = await queryWithRetry(
       pool,
-      `SELECT id FROM staff_users WHERE LOWER(email) IN (${placeholders}) AND is_active = true`,
-      emailsToCheck
+      `SELECT id FROM staff_users WHERE LOWER(email) = ANY($1::text[]) AND is_active = true`,
+      [emailsToCheck.map(e => e.toLowerCase())]
     );
     if ((result as unknown as { rows: unknown[] }).rows.length > 0) {
       return next();
