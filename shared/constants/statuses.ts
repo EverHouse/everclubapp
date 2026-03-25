@@ -277,14 +277,6 @@ export const BUG_REPORT_STATUS = {
 
 export type BugReportStatus = typeof BUG_REPORT_STATUS[keyof typeof BUG_REPORT_STATUS];
 
-export const WELLNESS_CLASS_STATUS = {
-  CONFIRMED: 'confirmed',
-  CANCELLED: 'cancelled',
-  TENTATIVE: 'tentative',
-} as const;
-
-export type WellnessClassStatus = typeof WELLNESS_CLASS_STATUS[keyof typeof WELLNESS_CLASS_STATUS];
-
 export const WELLNESS_ENROLLMENT_STATUS = {
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
