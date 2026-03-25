@@ -15,7 +15,7 @@ import { useWebSocketQuerySync } from '../../hooks/useWebSocketQuerySync';
 import StaffMobileSidebar from '../../components/StaffMobileSidebar';
 import { useUndoAction } from '../../hooks/useUndoAction';
 import { TabTransition } from '../../components/motion';
-import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import PullToRefresh from '../../components/PullToRefresh';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
@@ -601,9 +601,7 @@ const StaffTrainingGuide: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-20">
-                <WalkingGolferSpinner size="sm" />
-            </div>
+            <PageLoadingSpinner />
         );
     }
 
