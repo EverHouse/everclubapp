@@ -117,9 +117,17 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
 
     let guestPassesRemaining = 0;
     if (ownerEmail) {
-      const passesResult = await db.execute(sql`SELECT passes_total - passes_used as remaining FROM guest_passes WHERE LOWER(member_email) = LOWER(${ownerEmail})`);
+      const ownerTierName = await getMemberTierByEmail(ownerEmail);
+      const { getTierLimits } = await import('../../core/tierService');
+      const ownerTierLimits = ownerTierName ? await getTierLimits(ownerTierName) : null;
+      const tierPassTotal = ownerTierLimits?.guest_passes_per_year ?? null;
+      const passesResult = await db.execute(sql`SELECT passes_total, passes_used FROM guest_passes WHERE LOWER(member_email) = LOWER(${ownerEmail})`);
       if (passesResult.rowCount && passesResult.rowCount > 0) {
-        guestPassesRemaining = Number((passesResult.rows[0] as DbRow).remaining) || 0;
+        const passRow = passesResult.rows[0] as { passes_total: number; passes_used: number };
+        const effectiveTotal = tierPassTotal ?? passRow.passes_total;
+        guestPassesRemaining = Math.max(0, effectiveTotal - passRow.passes_used);
+      } else {
+        guestPassesRemaining = tierPassTotal ?? 0;
       }
     }
 

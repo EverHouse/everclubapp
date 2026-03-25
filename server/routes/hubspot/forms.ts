@@ -70,15 +70,24 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
       
       guestCheckinMemberEmail = memberEmailField.value;
       
-      const passCheck = await db.execute(sql`SELECT passes_used, passes_total FROM guest_passes WHERE member_email = ${guestCheckinMemberEmail}`);
+      const [passCheck, memberTierCheck] = await Promise.all([
+        db.execute(sql`SELECT passes_used, passes_total FROM guest_passes WHERE member_email = ${guestCheckinMemberEmail}`),
+        db.execute(sql`SELECT mt.guest_passes_per_year FROM users u JOIN membership_tiers mt ON u.tier_id = mt.id WHERE LOWER(u.email) = LOWER(${guestCheckinMemberEmail})`)
+      ]);
+      const tierPassTotal = (memberTierCheck.rows[0] as { guest_passes_per_year: number } | undefined)?.guest_passes_per_year ?? null;
       
       if (passCheck.rows.length === 0) {
-        return res.status(400).json({ error: 'Guest pass record not found. Please contact staff.' });
-      }
-      
-      const passRow = passCheck.rows[0] as { passes_used: number; passes_total: number };
-      if (passRow.passes_used >= passRow.passes_total) {
-        return res.status(400).json({ error: 'No guest passes remaining. Please contact staff for assistance.' });
+        if (tierPassTotal !== null && tierPassTotal > 0) {
+          // No record yet but tier allows passes — let consumption flow create it
+        } else {
+          return res.status(400).json({ error: 'Guest pass record not found. Please contact staff.' });
+        }
+      } else {
+        const passRow = passCheck.rows[0] as { passes_used: number; passes_total: number };
+        const effectiveTotal = tierPassTotal ?? passRow.passes_total;
+        if (passRow.passes_used >= effectiveTotal) {
+          return res.status(400).json({ error: 'No guest passes remaining. Please contact staff for assistance.' });
+        }
       }
     }
     

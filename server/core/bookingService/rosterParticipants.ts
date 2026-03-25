@@ -328,10 +328,20 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
           .set({ paymentStatus: 'paid' as const, usedGuestPass: true })
           .where(eq(bookingParticipants.id, newParticipant.id));
 
+        const ownerTierForPass = await getMemberTierByEmail(booking.owner_email as string);
+        const { getTierLimits } = await import('../tierService');
+        const ownerLimits = ownerTierForPass ? await getTierLimits(ownerTierForPass) : null;
+        const tierPassAlloc = ownerLimits?.guest_passes_per_year ?? null;
         const passResult = await tx.execute(sql`
-          SELECT passes_total - passes_used as remaining FROM guest_passes WHERE LOWER(member_email) = LOWER(${booking.owner_email})
+          SELECT passes_total, passes_used FROM guest_passes WHERE LOWER(member_email) = LOWER(${booking.owner_email})
         `);
-        guestPassesRemaining = (passResult.rows[0] as Record<string, number>)?.remaining ?? 0;
+        if (passResult.rows.length > 0) {
+          const pr = passResult.rows[0] as { passes_total: number; passes_used: number };
+          const effTotal = tierPassAlloc ?? pr.passes_total;
+          guestPassesRemaining = Math.max(0, effTotal - pr.passes_used);
+        } else {
+          guestPassesRemaining = tierPassAlloc ?? 0;
+        }
       } else {
         await tx.update(bookingParticipants)
           .set({ paymentStatus: 'pending' as const, usedGuestPass: false })

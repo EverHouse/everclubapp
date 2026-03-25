@@ -244,13 +244,14 @@ export async function getGuestPassInfo(
     
     const result = await db.execute(sql`SELECT passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = LOWER(${memberEmail})`);
     
+    const yearlyAllocation = tierLimits?.guest_passes_per_year ?? 0;
     if (result.rows.length === 0) {
-      const yearlyAllocation = tierLimits?.guest_passes_per_year ?? 0;
       return { remaining: yearlyAllocation, hasGuestPassBenefit: true };
     }
     
     const row = result.rows[0] as { passes_total: number; passes_used: number };
-    const remaining = Math.max(0, row.passes_total - row.passes_used);
+    const effectiveTotal = tierLimits ? yearlyAllocation : row.passes_total;
+    const remaining = Math.max(0, effectiveTotal - row.passes_used);
     return { remaining, hasGuestPassBenefit: true };
   } catch (error: unknown) {
     logger.error('[getGuestPassInfo] Error:', { error: getErrorMessage(error) });

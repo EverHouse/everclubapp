@@ -142,19 +142,21 @@ export async function enforceSocialTierRules(
 
 export async function getGuestPassesRemaining(memberEmail: string): Promise<number> {
   try {
+    const tier = await getMemberTierByEmail(memberEmail);
+    const limits = tier ? await getTierLimits(tier) : null;
+    const tierTotal = limits?.guest_passes_per_year ?? null;
+    
     const result = await db.execute(
       sql`SELECT passes_total, passes_used FROM guest_passes WHERE LOWER(member_email) = LOWER(${memberEmail}) LIMIT 1`
     );
     
     if (result.rows.length > 0) {
       const row = result.rows[0] as { passes_total: number; passes_used: number };
-      return Math.max(0, row.passes_total - row.passes_used);
+      const effectiveTotal = tierTotal ?? row.passes_total;
+      return Math.max(0, effectiveTotal - row.passes_used);
     }
     
-    const tier = await getMemberTierByEmail(memberEmail);
-    if (!tier) return 0;
-    const limits = await getTierLimits(tier);
-    return limits.guest_passes_per_year;
+    return tierTotal ?? 0;
   } catch (error: unknown) {
     logger.error('[getGuestPassesRemaining] Error:', { error: getErrorMessage(error) });
     return 0;

@@ -680,11 +680,10 @@ async function deductGuestPassesInternal(
     if (lockResult.rows.length > 0) {
       const { passes_used, passes_total } = lockResult.rows[0];
       
-      const effectiveTotal = (!passes_total || passes_total === 0)
-        ? await resolveYearlyAllocation(tierName)
-        : passes_total;
+      const tierAllocation = await resolveYearlyAllocation(tierName);
+      const effectiveTotal = tierName ? tierAllocation : (passes_total || 0);
 
-      const needsBackfill = !passes_total || passes_total === 0;
+      const needsBackfill = effectiveTotal !== passes_total;
 
       if (passes_used + passCount > effectiveTotal) {
         if (manageTransaction) await client.query('ROLLBACK');
@@ -1003,7 +1002,8 @@ export async function createSessionWithUsageTracking(
               
               if (passCheck.rows && passCheck.rows.length > 0) {
                 const passRow = passCheck.rows[0] as { passes_total: number; passes_used: number };
-                const passes_total = passRow.passes_total as number;
+                const tierAlloc = ownerTier ? await resolveYearlyAllocation(ownerTier) : null;
+                const passes_total = tierAlloc ?? (passRow.passes_total as number);
                 const passes_used = passRow.passes_used as number;
                 if (passes_used + passesToConvert > passes_total) {
                   logger.warn('[createSessionWithUsageTracking] Insufficient guest passes for hold conversion, extra guests will be charged as paid', {
@@ -1089,7 +1089,8 @@ export async function createSessionWithUsageTracking(
             
             if (passCheck.rows && passCheck.rows.length > 0) {
               const passRow = passCheck.rows[0] as { id: number; passes_total: number; passes_used: number };
-              const passes_total = passRow.passes_total as number;
+              const tierAllocFallback = ownerTier ? await resolveYearlyAllocation(ownerTier) : null;
+              const passes_total = tierAllocFallback ?? (passRow.passes_total as number);
               const passes_used = passRow.passes_used as number;
               const available = passes_total - passes_used;
               
@@ -1158,7 +1159,8 @@ export async function createSessionWithUsageTracking(
           
           if (passCheck.rows && passCheck.rows.length > 0) {
             const passRow = passCheck.rows[0] as { id: number; passes_total: number; passes_used: number };
-            const passes_total = passRow.passes_total as number;
+            const tierAllocDirect = ownerTier ? await resolveYearlyAllocation(ownerTier) : null;
+            const passes_total = tierAllocDirect ?? (passRow.passes_total as number);
             const passes_used = passRow.passes_used as number;
             const available = passes_total - passes_used;
             
