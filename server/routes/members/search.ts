@@ -261,7 +261,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
 
     const allMembers = isPaginated
       ? await baseQuery.limit(limit).offset(offset)
-      : await baseQuery.limit(50);
+      : await baseQuery;
     
     const memberEmails = allMembers.map(m => m.email?.toLowerCase()).filter(Boolean) as string[];
     
