@@ -107,6 +107,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
     if (stripeProductId) {
       const updateParams: Stripe.ProductUpdateParams & { marketing_features?: Array<{ name: string }> } = {
         name: productName,
+        active: true,
         description: description || undefined,
         metadata: privilegeMetadata,
       };

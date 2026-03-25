@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.20",
+    date: "2026-03-25",
+    title: "Stripe Product Auto-Reactivation",
+    changes: [
+      "Fixed: Fee products (Guest Fee, Day Pass - Coworking, Day Pass - Golf Sim) that were archived in Stripe are now automatically reactivated on startup so they appear in the Stripe dashboard again",
+      "Fixed: All membership tier products are also ensured active in Stripe during sync — prevents products from silently going missing from the Stripe catalog",
+    ]
+  },
+  {
     version: "8.97.19",
     date: "2026-03-25",
     title: "Membership State Machine Fix",

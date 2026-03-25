@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.20] - 2026-03-25
+
+### Stripe Product Auto-Reactivation
+- **Archived fee products now auto-reactivate**: Guest Fee, Day Pass - Coworking, and Day Pass - Golf Sim products were archived/inactive in Stripe but the app didn't notice because `stripe.products.retrieve()` succeeds for archived products. Charges still worked (Stripe allows charges against archived products) but the products disappeared from the Stripe dashboard. All 5 `ensure*Product` functions now check `active === false` and reactivate the product.
+- **AutoPush always sets `active: true`**: The tier auto-push now explicitly sets `active: true` when updating products, ensuring any accidentally archived membership tier product gets reactivated on the next deploy.
+- **Files changed**: `server/core/stripe/productCreation.ts`, `server/core/stripe/autoPush.ts`
+
 ## [8.97.19] - 2026-03-25
 
 ### Membership State Machine Fix

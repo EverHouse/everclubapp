@@ -89,7 +89,12 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     
     if (stripeProductId) {
       try {
-        await stripe.products.retrieve(stripeProductId);
+        const existingProduct = await stripe.products.retrieve(stripeProductId);
+        if (!existingProduct.active) {
+          logger.warn(`[Overage Product] Stripe product ${stripeProductId} is archived, reactivating`);
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, { active: true });
+        }
       } catch (prodErr: unknown) {
         const errMsg = getErrorMessage(prodErr);
         if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
@@ -259,10 +264,19 @@ export async function ensureGuestPassProduct(): Promise<{
     if (stripeProductId) {
       try {
         const existingProduct = await stripe.products.retrieve(stripeProductId);
+        const updates: Record<string, unknown> = {};
+        if (!existingProduct.active) {
+          updates.active = true;
+          logger.warn(`[Guest Pass Product] Stripe product ${stripeProductId} is archived, reactivating`);
+        }
         if (existingProduct.name !== GUEST_PASS_NAME) {
+          updates.name = GUEST_PASS_NAME;
+          updates.description = GUEST_PASS_DESCRIPTION;
+        }
+        if (Object.keys(updates).length > 0) {
           markAppOriginated(stripeProductId);
-          await stripe.products.update(stripeProductId, { name: GUEST_PASS_NAME, description: GUEST_PASS_DESCRIPTION });
-          logger.info(`[Guest Pass Product] Renamed Stripe product: ${existingProduct.name} -> ${GUEST_PASS_NAME}`);
+          await stripe.products.update(stripeProductId, updates);
+          if (updates.name) logger.info(`[Guest Pass Product] Renamed Stripe product: ${existingProduct.name} -> ${GUEST_PASS_NAME}`);
         }
       } catch (renameErr: unknown) {
         const errMsg = getErrorMessage(renameErr);
@@ -431,7 +445,12 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
 
     if (stripeProductId) {
       try {
-        await stripe.products.retrieve(stripeProductId);
+        const existingProduct = await stripe.products.retrieve(stripeProductId);
+        if (!existingProduct.active) {
+          logger.warn(`[Day Pass Coworking Product] Stripe product ${stripeProductId} is archived, reactivating`);
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, { active: true });
+        }
       } catch (prodErr: unknown) {
         const errMsg = getErrorMessage(prodErr);
         if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
@@ -588,7 +607,12 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
 
     if (stripeProductId) {
       try {
-        await stripe.products.retrieve(stripeProductId);
+        const existingProduct = await stripe.products.retrieve(stripeProductId);
+        if (!existingProduct.active) {
+          logger.warn(`[Day Pass Golf Sim Product] Stripe product ${stripeProductId} is archived, reactivating`);
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, { active: true });
+        }
       } catch (prodErr: unknown) {
         const errMsg = getErrorMessage(prodErr);
         if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
@@ -735,7 +759,12 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
     
     if (stripeProductId) {
       try {
-        await stripe.products.retrieve(stripeProductId);
+        const existingProduct = await stripe.products.retrieve(stripeProductId);
+        if (!existingProduct.active) {
+          logger.warn(`[Corporate Pricing] Stripe product ${stripeProductId} is archived, reactivating`);
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, { active: true });
+        }
       } catch (prodErr: unknown) {
         const errMsg = getErrorMessage(prodErr);
         if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
