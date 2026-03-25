@@ -395,6 +395,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
   const hasUnpaidFees = showPayableUnpaidFees;
 
+  const hideConferenceRoomFeeCard = resourceType === 'conference_room' && !hasEstimatedFees && !hasPayableParticipantFees && !isPaid;
+
   const handlePaymentSuccess = useCallback(() => {
     setShowPaymentModal(false);
     showToast('Payment successful! Guest fees have been paid.', 'success');
@@ -415,6 +417,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
   return (
     <>
+      {!hideConferenceRoomFeeCard && (
       <div className={`glass-card rounded-xl overflow-hidden ${isDark ? 'border-white/10' : 'border-black/5'}`}>
         <div className={`px-5 py-4 border-b ${isDark ? 'border-white/10' : 'border-black/5'}`}>
           <div className="flex items-center justify-between">
@@ -705,6 +708,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           </div>
         )}
       </div>
+      )}
 
       <ModalShell
         isOpen={showAddMemberModal}
