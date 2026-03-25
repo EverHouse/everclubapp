@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.41] - 2026-03-25
+
+### Financial Safety & Security Fixes
+- **Webhook retry auto-refund**: When Stripe retries a `payment_intent.succeeded` webhook (which is expected behavior), the second delivery found the fee snapshot already completed and assumed it was an orphaned/duplicate payment, triggering an automatic refund of the valid payment. Added an idempotency check: if the snapshot is already 'completed'/'paid', the handler returns early without action instead of auto-refunding.
+- **Dispute wins reactivate cancelled members**: `handleChargeDisputeClosed` would reactivate users with status 'inactive' or 'non-member' when a dispute was won. These are intentionally ended memberships (voluntary cancellation, former members) and should not be auto-reactivated. Removed 'inactive' and 'non-member' from the eligible status list — only 'suspended', 'past_due', and 'frozen' (dispute-related statuses) trigger reactivation.
+- **Guest pass bleed across billing cycles**: When a refund was processed for a booking from a previous billing cycle, the system blindly decremented `passes_used` on the current cycle, effectively granting a free extra guest pass. Added a cycle check: the system now compares the session date against `last_reset_date` and only decrements if the booking falls within the current cycle.
+- **Advisory lock domain collision**: `pg_advisory_xact_lock(hashtext('user'), ...)` and `pg_advisory_xact_lock(hashtext('resource14'), ...)` used hashed strings as the first lock key, creating a theoretical collision risk where unrelated users and resources could share the same lock space. Changed to fixed domain integers (1 for users, 2 for resources) to guarantee domain isolation.
+- **Files changed**: `server/core/stripe/webhooks/handlers/payments.ts`, `server/core/bookingService/bookingCreationGuard.ts`
+
 ## [8.97.40] - 2026-03-25
 
 ### Payment Reliability & Dispute Handling Fixes

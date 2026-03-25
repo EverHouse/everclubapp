@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.41",
+    date: "2026-03-25",
+    title: "Financial Safety & Security Fixes",
+    changes: [
+      "Fixed: Stripe webhook retries no longer trigger accidental auto-refunds of valid payments",
+      "Fixed: Winning a payment dispute no longer reactivates members who voluntarily cancelled their membership",
+      "Fixed: Guest pass refunds from previous billing cycles no longer incorrectly grant extra passes in the current cycle",
+      "Improved: Booking lock system now uses isolated lock domains to prevent unrelated bookings from blocking each other",
+    ]
+  },
+  {
     version: "8.97.40",
     date: "2026-03-25",
     title: "Payment Reliability & Dispute Handling Fixes",

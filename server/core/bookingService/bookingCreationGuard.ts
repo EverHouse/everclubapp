@@ -91,12 +91,12 @@ export async function acquireBookingLocks(
   const needsUserLock = !isStaffRequest || isViewAsMode;
 
   if (resourceId) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('resource' || ${String(resourceId)}), hashtext(${requestDate}))`);
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(2, hashtext(${String(resourceId)} || '|' || ${requestDate}))`);
     logger.debug('[BookingGuard] Acquired resource lock', { extra: { resourceId, requestDate } });
   }
 
   if (needsUserLock) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('user'), hashtext(${normalizedEmail}))`);
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(1, hashtext(${normalizedEmail}))`);
     logger.debug('[BookingGuard] Acquired user lock', { extra: { email: normalizedEmail } });
   }
 

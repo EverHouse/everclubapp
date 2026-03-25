@@ -203,15 +203,31 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
         );
         if (guestPassCheck.rowCount && guestPassCheck.rowCount > 0 && bookingOwnerEmail) {
           const guestName = guestPassCheck.rows[0].display_name;
-          await client.query(
-            `UPDATE guest_passes SET passes_used = GREATEST(0, passes_used - 1) WHERE LOWER(member_email) = LOWER($1)`,
+          const sessionDateCheck = await client.query(
+            `SELECT bs.session_date FROM booking_sessions bs WHERE bs.id = $1`,
+            [row.session_id]
+          );
+          const sessionDate = sessionDateCheck.rows[0]?.session_date;
+          const guestPassRow = await client.query(
+            `SELECT last_reset_date FROM guest_passes WHERE LOWER(member_email) = LOWER($1)`,
             [bookingOwnerEmail]
           );
+          const lastReset = guestPassRow.rows[0]?.last_reset_date;
+          const isCurrentCycle = !lastReset || !sessionDate || new Date(sessionDate) >= new Date(lastReset);
+
+          if (isCurrentCycle) {
+            await client.query(
+              `UPDATE guest_passes SET passes_used = GREATEST(0, passes_used - 1) WHERE LOWER(member_email) = LOWER($1)`,
+              [bookingOwnerEmail]
+            );
+            logger.info(`[Stripe Webhook] Refunded guest pass for participant ${row.id} (guest: ${guestName}) back to ${bookingOwnerEmail} (current cycle)`);
+          } else {
+            logger.info(`[Stripe Webhook] Skipped guest pass refund for participant ${row.id} — booking was from a previous cycle (session: ${sessionDate}, last reset: ${lastReset})`);
+          }
           await client.query(
             `UPDATE booking_participants SET used_guest_pass = false WHERE id = $1`,
             [row.id]
           );
-          logger.info(`[Stripe Webhook] Refunded guest pass for participant ${row.id} (guest: ${guestName}) back to ${bookingOwnerEmail} (manual Stripe refund teardown)`);
         }
 
         const userIdLookup = row.user_id || (row.user_email ? (await client.query(
@@ -514,7 +530,7 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
           } else {
             membershipAction = 'reactivated';
             const disputeWonResult = await client.query(
-              `UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1 AND (membership_status IS NULL OR membership_status IN ('suspended', 'past_due', 'frozen', 'inactive', 'non-member'))`,
+              `UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1 AND membership_status IN ('suspended', 'past_due', 'frozen')`,
               [terminalPayment.user_id]
             );
             if (disputeWonResult.rowCount === 0) {
@@ -729,7 +745,15 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     );
     
     if (snapshotResult.rows.length === 0) {
-      logger.error(`[Stripe Webhook] Fee snapshot ${feeSnapshotId} not found, already used, or locked by another process — queueing auto-refund for orphaned payment`);
+      const completedCheck = await client.query(
+        `SELECT id, status FROM booking_fee_snapshots WHERE id = $1 AND stripe_payment_intent_id = $2 AND status IN ('completed', 'paid')`,
+        [feeSnapshotId, id]
+      );
+      if (completedCheck.rows.length > 0) {
+        logger.info(`[Stripe Webhook] Fee snapshot ${feeSnapshotId} already completed for PI ${id} — idempotent webhook retry, skipping`);
+        return deferredActions;
+      }
+      logger.error(`[Stripe Webhook] Fee snapshot ${feeSnapshotId} not found or locked by another process — queueing auto-refund for orphaned payment`);
       await queueJobInTransaction(client, 'stripe_auto_refund', {
         paymentIntentId: id,
         reason: 'duplicate',
