@@ -176,7 +176,7 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
       for (const row of participantUpdate.rows) {
         const bookingLookup = await client.query(
           `SELECT br.id, br.user_email AS booking_owner_email FROM booking_sessions bs 
-           JOIN booking_requests br ON br.trackman_booking_id = bs.trackman_booking_id 
+           JOIN booking_requests br ON br.session_id = bs.id 
            WHERE bs.id = $1 LIMIT 1`,
           [row.session_id]
         );
@@ -1009,14 +1009,21 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
   }
 
   if (validatedParticipantIds.length > 0) {
-    const updateResult = await client.query(
-      `UPDATE booking_participants
-       SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $2, cached_fee_cents = 0
-       WHERE id = ANY($1::int[])
-       RETURNING id`,
-      [validatedParticipantIds, id]
-    );
-    logger.info(`[Stripe Webhook] Updated ${updateResult.rowCount} participant(s) to paid and cleared cached fees with intent ${id}`);
+    const feeMap = new Map(participantFees.map(pf => [pf.id, pf.amountCents]));
+    let updatedCount = 0;
+    for (const pid of validatedParticipantIds) {
+      const paidAmount = feeMap.get(pid) ?? 0;
+      const result = await client.query(
+        `UPDATE booking_participants
+         SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $1,
+             cached_fee_cents = 0, amount_paid_cents = $2
+         WHERE id = $3
+         RETURNING id`,
+        [id, paidAmount, pid]
+      );
+      updatedCount += result.rowCount ?? 0;
+    }
+    logger.info(`[Stripe Webhook] Updated ${updatedCount} participant(s) to paid with persisted fee amounts for intent ${id}`);
     
     const localBookingId = bookingId;
     const localSessionId = sessionId;

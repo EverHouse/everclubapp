@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.39",
+    date: "2026-03-25",
+    title: "Critical Payment & Booking Fixes",
+    changes: [
+      "Fixed: Refund webhook now correctly links payments to bookings — previously could silently fail when bookings lacked a Trackman ID",
+      "Fixed: Booking conflict detection is now more accurate — removed a redundant database query and added robust time-overlap validation",
+      "Fixed: Actual payment amounts per participant are now saved permanently — previously the exact split was lost after payment was confirmed",
+      "Added: New 'amount paid' field on participant records for accurate refund and billing history",
+    ]
+  },
+  {
     version: "8.97.38",
     date: "2026-03-25",
     title: "Bug Fixes & Stability",

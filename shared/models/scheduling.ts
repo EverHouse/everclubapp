@@ -314,6 +314,7 @@ export const bookingParticipants = pgTable("booking_participants", {
   usedGuestPass: boolean("used_guest_pass"),
   waiverReviewedAt: timestamp("waiver_reviewed_at"),
   cachedFeeCents: integer("cached_fee_cents"),
+  amountPaidCents: integer("amount_paid_cents"),
   refundedAt: timestamp("refunded_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [

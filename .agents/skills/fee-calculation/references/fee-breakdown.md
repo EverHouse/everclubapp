@@ -210,7 +210,7 @@ This ensures holds are committed before the booking is created, preventing doubl
 2. Update `stripe_payment_intents` to `status = 'succeeded'`.
 3. If snapshot already marked `completed` or `paid`, exit early (idempotent).
 4. Otherwise, update snapshot to `status = 'completed'`, set `used_at = NOW()`.
-5. Bulk-update all participants in the snapshot to `payment_status = 'paid'`, `paid_at = NOW()`, `stripe_payment_intent_id = <intent>`, `cached_fee_cents = 0`.
+5. Update each participant individually to `payment_status = 'paid'`, `paid_at = NOW()`, `stripe_payment_intent_id = <intent>`, `cached_fee_cents = 0`, `amount_paid_cents = <actual paid amount>`. The `amount_paid_cents` preserves the exact amount charged (which may differ from `cached_fee_cents` if Stripe applied credits/discounts).
 6. Create audit log entries for each participant with action `payment_succeeded`.
 7. Entire operation wrapped in transaction — all-or-nothing.
 

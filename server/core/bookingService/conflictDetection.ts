@@ -98,7 +98,7 @@ export async function findConflictingBookings(
 
     const statusArray = `{${OCCUPIED_STATUSES.map(s => `"${s}"`).join(',')}}`;
 
-    const [ownerResult, participantResult, linkedMemberResult] = await Promise.all([
+    const [ownerResult, participantResult] = await Promise.all([
       db.execute(sql`
         SELECT 
           br.id as booking_id,
@@ -113,7 +113,6 @@ export async function findConflictingBookings(
         WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
           AND br.request_date = ${date}
           AND br.status = ANY(${statusArray}::text[])
-          AND br.start_time < ${endTime} AND br.end_time > ${startTime}
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `),
 
@@ -135,35 +134,13 @@ export async function findConflictingBookings(
           AND bs.session_date = ${date}
           AND bp.invite_status = 'accepted'
           AND br.status = ANY(${statusArray}::text[])
-          AND bs.start_time < ${endTime} AND bs.end_time > ${startTime}
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `) : Promise.resolve({ rows: [] }),
-
-      db.execute(sql`
-        SELECT 
-          br.id as booking_id,
-          COALESCE(r.name, 'Unknown Resource') as resource_name,
-          br.request_date,
-          br.start_time,
-          br.end_time,
-          br.user_name as owner_name,
-          br.user_email as owner_email
-        FROM booking_participants bp
-        JOIN booking_sessions bs ON bp.session_id = bs.id
-        JOIN booking_requests br ON br.session_id = bs.id
-        JOIN users u ON bp.user_id = u.id
-        LEFT JOIN resources r ON br.resource_id = r.id
-        WHERE LOWER(u.email) = LOWER(${normalizedEmail})
-          AND bp.invite_status = 'accepted'
-          AND br.request_date = ${date}
-          AND br.status = ANY(${statusArray}::text[])
-          AND br.start_time < ${endTime} AND br.end_time > ${startTime}
-          ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
-      `)
     ]);
 
     const ownerRows = ownerResult.rows as unknown as BookingConflictRow[];
     for (const row of ownerRows) {
+      if (!timePeriodsOverlap(String(row.start_time), String(row.end_time), startTime, endTime)) continue;
       conflicts.push({
         bookingId: row.booking_id,
         resourceName: row.resource_name,
@@ -178,23 +155,7 @@ export async function findConflictingBookings(
 
     const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
     for (const row of participantRows) {
-      const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
-      if (!isDuplicate) {
-        conflicts.push({
-          bookingId: row.booking_id,
-          resourceName: row.resource_name,
-          requestDate: String(row.request_date),
-          startTime: String(row.start_time),
-          endTime: String(row.end_time),
-          ownerName: row.owner_name,
-          ownerEmail: row.owner_email,
-          conflictType: 'participant'
-        });
-      }
-    }
-
-    const linkedRows = linkedMemberResult.rows as unknown as BookingConflictRow[];
-    for (const row of linkedRows) {
+      if (!timePeriodsOverlap(String(row.start_time), String(row.end_time), startTime, endTime)) continue;
       const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
       if (!isDuplicate) {
         conflicts.push({

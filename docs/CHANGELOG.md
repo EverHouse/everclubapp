@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.39] - 2026-03-25
+
+### Critical Payment & Booking Fixes
+- **NULL=NULL join in refund webhook**: `payments.ts` joined `booking_requests` to `booking_sessions` via `trackman_booking_id`, which silently fails when both sides are NULL (SQL `NULL != NULL`). Changed to join via the reliable FK `br.session_id = bs.id`. Impact: refund audit records could silently fail to be created for bookings without a Trackman integration ID.
+- **Duplicate conflict detection query removed**: `findConflictingBookings` ran three SQL queries — `ownerResult`, `participantResult` (by user_id), and `linkedMemberResult` (by email via users JOIN). The third query was functionally identical to the second. Removed `linkedMemberResult` to eliminate redundant DB load.
+- **Cross-midnight overlap safety**: SQL overlap checks used `start_time < end AND end_time > start` which is correct for normal hours but theoretically wrong for cross-midnight bookings. Added `timePeriodsOverlap()` post-filter on all conflict results as a safety net (club hours are 8:30AM–10PM so this is a defensive fix).
+- **Scaled fees not persisted**: When Stripe charged a different amount than the cached DB fees (e.g., credits applied at Stripe level), participant fees were proportionally scaled in memory but the UPDATE set `cached_fee_cents = 0`, discarding the actual paid amounts. Added `amount_paid_cents` column to `booking_participants` and now persists the actual paid amount per participant for accurate refund/billing history.
+- **Files changed**: `server/core/stripe/webhooks/handlers/payments.ts`, `server/core/bookingService/conflictDetection.ts`, `shared/models/scheduling.ts`
+
 ## [8.97.38] - 2026-03-25
 
 ### Bug Fixes & Stability Improvements
