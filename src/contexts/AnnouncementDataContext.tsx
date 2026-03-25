@@ -96,6 +96,7 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
     } catch (err: unknown) {
       console.error('Failed to add announcement:', err);
       setAnnouncements(prev => prev.filter(a => a.id !== tempId));
+      throw err;
     } finally {
       setTimeout(() => { mutatingRef.current = false; }, 1000);
     }
@@ -121,6 +122,7 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
     } catch (err: unknown) {
       console.error('Failed to update announcement:', err);
       refreshAnnouncements();
+      throw err;
     } finally {
       setTimeout(() => { mutatingRef.current = false; }, 1000);
     }
@@ -134,6 +136,7 @@ export const AnnouncementDataProvider: React.FC<{children: ReactNode}> = ({ chil
     } catch (err: unknown) {
       console.error('Failed to delete announcement:', err);
       refreshAnnouncements();
+      throw err;
     } finally {
       setTimeout(() => { mutatingRef.current = false; }, 1000);
     }

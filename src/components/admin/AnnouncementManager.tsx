@@ -94,11 +94,10 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
         try {
             if (editId) {
                 await updateAnnouncement(ann as Announcement);
-                showToast('Announcement updated', 'success');
             } else {
                 await addAnnouncement(ann as Announcement);
-                showToast('Announcement created', 'success');
             }
+            showToast(editId ? 'Announcement updated' : 'Announcement created', 'success');
         } catch (err: unknown) {
             console.error('Failed to save announcement:', err);
             showToast('Failed to save announcement', 'error');

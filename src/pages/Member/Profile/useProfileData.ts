@@ -10,6 +10,7 @@ import { isPushSupported, isSubscribedToPush, subscribeToPush, unsubscribeFromPu
 import { fetchWithCredentials, postWithCredentials, patchWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import type { AccountBalanceData, StaffDetailsData, WaiverStatusData, PreferencesData, StaffAdminCheckData } from './profileTypes';
 import { useProfileAuth } from './useProfileAuth';
+import { useUserStore } from '../../../stores/userStore';
 
 export function useProfileData() {
   const navigate = useNavigate();
@@ -224,18 +225,36 @@ export function useProfileData() {
     },
   });
 
-  const updateProfileMutation = useMutation<{ success: boolean; firstName: string; lastName: string; phone: string }, Error, { firstName: string; lastName: string; phone: string }>({
+  const updateProfileMutation = useMutation<{ success: boolean; firstName: string; lastName: string; phone: string }, Error, { firstName: string; lastName: string; phone: string }, { prevFirstName: string; prevLastName: string; prevPhone: string; prevUser: typeof user }>({
     mutationFn: (data) =>
       putWithCredentials<{ success: boolean; firstName: string; lastName: string; phone: string }>(
         '/api/member/profile',
         data
       ),
+    onMutate: (variables) => {
+      const prev = { prevFirstName: editFirstName, prevLastName: editLastName, prevPhone: editPhone, prevUser: user };
+      setEditingProfile(false);
+      if (user) {
+        const updatedName = [variables.firstName, variables.lastName].filter(Boolean).join(' ');
+        const optimisticUser = { ...user, firstName: variables.firstName, lastName: variables.lastName, phone: variables.phone, name: updatedName || user.name };
+        useUserStore.getState().setUser(optimisticUser);
+      }
+      return prev;
+    },
     onSuccess: async () => {
       showToast('Profile updated', 'success');
-      setEditingProfile(false);
       await refreshUser();
     },
-    onError: (err: Error) => {
+    onError: (err: Error, _variables, context) => {
+      if (context) {
+        setEditFirstName(context.prevFirstName);
+        setEditLastName(context.prevLastName);
+        setEditPhone(context.prevPhone);
+        setEditingProfile(true);
+        if (context.prevUser) {
+          useUserStore.getState().setUser(context.prevUser);
+        }
+      }
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update profile', 'error');
     },
     onSettled: () => {

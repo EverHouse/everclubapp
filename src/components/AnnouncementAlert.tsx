@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAnnouncementBadge } from '../stores/announcementBadgeStore';
 import { Announcement } from '../contexts/DataContext';
 import { haptic } from '../utils/haptics';
+import { useToast } from './Toast';
 import Icon from './icons/Icon';
 
 const EXIT_DURATION = 250;
@@ -13,6 +14,7 @@ const AnnouncementAlert: React.FC = () => {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
   const { unseenHighPriority, markSingleAsSeen, markAllAsSeen } = useAnnouncementBadge();
+  const { showToast } = useToast();
   const [isExiting, setIsExiting] = useState(false);
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -27,12 +29,16 @@ const AnnouncementAlert: React.FC = () => {
     if (exitTimer.current) clearTimeout(exitTimer.current);
     haptic.light();
     setIsExiting(true);
-    exitTimer.current = setTimeout(() => {
-      markSingleAsSeen(unseenHighPriority[0]?.id);
+    exitTimer.current = setTimeout(async () => {
+      try {
+        await markSingleAsSeen(unseenHighPriority[0]?.id);
+      } catch {
+        showToast('Failed to dismiss announcement', 'error');
+      }
       setIsExiting(false);
       exitTimer.current = null;
     }, EXIT_DURATION);
-  }, [markSingleAsSeen, unseenHighPriority]);
+  }, [markSingleAsSeen, unseenHighPriority, showToast]);
 
   if (unseenHighPriority.length === 0 && !isExiting) return null;
 

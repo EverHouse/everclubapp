@@ -222,13 +222,26 @@ const MemberUpdates: React.FC = () => {
   const { showToast } = useToast();
 
   const markNotificationRead = async (notificationId: number) => {
+    const wasAlreadyRead = notifications.find(n => n.id === notificationId)?.read;
+    if (wasAlreadyRead) return;
+
+    const prevNotifications = notifications;
+    const prevUnread = unreadCount;
+    const storeSnapshot = useNotificationStore.getState().notifications;
+    const storeUnreadSnapshot = useNotificationStore.getState().unreadCount;
+
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    useNotificationStore.getState().markAsRead(notificationId);
+    window.dispatchEvent(new CustomEvent('notifications-read'));
+
     try {
       await putWithCredentials(`/api/notifications/${notificationId}/read`, {});
-      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-      useNotificationStore.getState().markAsRead(notificationId);
-      window.dispatchEvent(new CustomEvent('notifications-read'));
     } catch {
+      setNotifications(prevNotifications);
+      setUnreadCount(prevUnread);
+      useNotificationStore.getState().setNotifications(storeSnapshot);
+      useNotificationStore.getState().setUnreadCount(storeUnreadSnapshot);
       haptic.error();
       showToast('Failed to mark notification as read', 'error');
     }
@@ -236,13 +249,23 @@ const MemberUpdates: React.FC = () => {
 
   const markAllRead = async () => {
     if (!user?.email) return;
+    const prevNotifications = notifications;
+    const prevUnread = unreadCount;
+    const storeSnapshot = useNotificationStore.getState().notifications;
+    const storeUnreadSnapshot = useNotificationStore.getState().unreadCount;
+
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+    useNotificationStore.getState().markAllAsRead();
+    window.dispatchEvent(new CustomEvent('notifications-read'));
+
     try {
       await putWithCredentials('/api/notifications/mark-all-read', { user_email: user.email });
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-      useNotificationStore.getState().markAllAsRead();
-      window.dispatchEvent(new CustomEvent('notifications-read'));
     } catch {
+      setNotifications(prevNotifications);
+      setUnreadCount(prevUnread);
+      useNotificationStore.getState().setNotifications(storeSnapshot);
+      useNotificationStore.getState().setUnreadCount(storeUnreadSnapshot);
       haptic.error();
       showToast('Failed to mark all as read', 'error');
     }
@@ -252,9 +275,12 @@ const MemberUpdates: React.FC = () => {
     if (!user?.email) return;
     const snapshot = [...notifications];
     const prevUnread = unreadCount;
+    const storeSnapshot = useNotificationStore.getState().notifications;
+    const storeUnreadSnapshot = useNotificationStore.getState().unreadCount;
 
     setNotifications([]);
     setUnreadCount(0);
+    useNotificationStore.getState().setNotifications([]);
     useNotificationStore.getState().setUnreadCount(0);
 
     try {
@@ -269,7 +295,8 @@ const MemberUpdates: React.FC = () => {
       showToast('Failed to dismiss notifications', 'error');
       setNotifications(snapshot);
       setUnreadCount(prevUnread);
-      useNotificationStore.getState().setUnreadCount(prevUnread);
+      useNotificationStore.getState().setNotifications(storeSnapshot);
+      useNotificationStore.getState().setUnreadCount(storeUnreadSnapshot);
     }
   };
 

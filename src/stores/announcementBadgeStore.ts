@@ -26,7 +26,7 @@ interface AnnouncementBadgeState {
 
   loadDismissedNotices: (userEmail: string) => Promise<void>;
   markAsSeen: (userEmail: string, announcementIds: string[]) => void;
-  markSingleAsSeen: (userEmail: string, announcementId: string) => void;
+  markSingleAsSeen: (userEmail: string, announcementId: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -69,12 +69,37 @@ export const useAnnouncementBadgeStore = create<AnnouncementBadgeState>((set, ge
       return { seenIds: newSet };
     });
     announcementIds.forEach(id => {
-      postWithCredentials('/api/notices/dismiss', { noticeType: 'announcement', noticeId: id }).catch(err => console.error('[AnnouncementBadge] Failed to dismiss notice:', err));
+      postWithCredentials('/api/notices/dismiss', { noticeType: 'announcement', noticeId: id }).catch(err => {
+        console.error('[AnnouncementBadge] Failed to dismiss notice:', err);
+        set((state) => {
+          const rolled = new Set(state.seenIds);
+          rolled.delete(id);
+          localStorage.setItem(getStorageKey(userEmail), JSON.stringify([...rolled]));
+          return { seenIds: rolled };
+        });
+      });
     });
   },
 
-  markSingleAsSeen: (userEmail, announcementId) => {
-    get().markAsSeen(userEmail, [announcementId]);
+  markSingleAsSeen: async (userEmail, announcementId) => {
+    if (!userEmail) return;
+    const state = get();
+    const newSet = new Set(state.seenIds);
+    newSet.add(announcementId);
+    localStorage.setItem(getStorageKey(userEmail), JSON.stringify([...newSet]));
+    set({ seenIds: newSet });
+    try {
+      await postWithCredentials('/api/notices/dismiss', { noticeType: 'announcement', noticeId: announcementId });
+    } catch (err) {
+      console.error('[AnnouncementBadge] Failed to dismiss notice:', err);
+      set((s) => {
+        const rolled = new Set(s.seenIds);
+        rolled.delete(announcementId);
+        localStorage.setItem(getStorageKey(userEmail), JSON.stringify([...rolled]));
+        return { seenIds: rolled };
+      });
+      throw err;
+    }
   },
 
   reset: () => set({ seenIds: new Set(), isInitialized: false, _currentEmail: null }),
@@ -109,8 +134,8 @@ export const useAnnouncementBadge = () => {
     if (user?.email) storeMarkAsSeen(user.email, announcementIds);
   }, [user?.email, storeMarkAsSeen]);
 
-  const markSingleAsSeen = useMemo(() => (announcementId: string) => {
-    if (user?.email) storeMarkSingleAsSeen(user.email, announcementId);
+  const markSingleAsSeen = useMemo(() => (announcementId: string): Promise<void> | undefined => {
+    if (user?.email) return storeMarkSingleAsSeen(user.email, announcementId);
   }, [user?.email, storeMarkSingleAsSeen]);
 
   const markAllAsSeen = useMemo(() => () => {

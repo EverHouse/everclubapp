@@ -150,15 +150,35 @@ const TeamTab: React.FC = () => {
       role: StaffRole;
       created_by: string | undefined;
     }) => postWithCredentials<TeamMember>('/api/staff-users', data),
-    onMutate: async () => {
+    onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['staff-users'] });
-    },
-    onSuccess: () => {
+      const previous = queryClient.getQueryData<TeamMember[]>(['staff-users']);
+      const optimisticMember: TeamMember = {
+        id: Date.now(),
+        email: data.email,
+        name: data.name,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        phone: data.phone,
+        job_title: data.job_title,
+        role: data.role,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        created_by: data.created_by || null,
+      };
+      queryClient.setQueryData<TeamMember[]>(['staff-users'], (old = []) => [...old, optimisticMember]);
+      const prevFormState = { ...newPerson };
       setNewPerson({ firstName: '', lastName: '', email: '', phone: '', jobTitle: '', role: 'staff' });
       setIsAddingPerson(false);
+      return { previous, prevFormState };
+    },
+    onSuccess: () => {
       showToast('Team member added', 'success');
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _data, context) => {
+      if (context?.previous) queryClient.setQueryData(['staff-users'], context.previous);
+      if (context?.prevFormState) setNewPerson(context.prevFormState);
+      setIsAddingPerson(true);
       setAddError(error.message || 'Failed to add team member');
     },
     onSettled: () => {

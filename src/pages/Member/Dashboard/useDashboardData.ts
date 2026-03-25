@@ -515,6 +515,7 @@ export function useDashboardData() {
       message: `Are you sure you want to leave this booking${primaryBookerName ? ` with ${primaryBookerName}` : ''}? You will be removed from the player list.`,
       onConfirm: async () => {
         setConfirmModal(null);
+        setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
 
         try {
           const participantsData = await fetchWithCredentials<{ participants: Array<{ user_email?: string; id?: number }> }>(`/api/bookings/${bookingId}/participants`);
@@ -525,6 +526,11 @@ export function useDashboardData() {
           );
 
           if (!myParticipant) {
+            setOptimisticCancelledIds(prev => {
+              const next = new Set(prev);
+              next.delete(bookingId);
+              return next;
+            });
             showToast('Could not find your participant record', 'error');
             return;
           }
@@ -538,6 +544,11 @@ export function useDashboardData() {
           showToast('You have left the booking', 'success');
           refetchAllData();
         } catch (_err: unknown) {
+          setOptimisticCancelledIds(prev => {
+            const next = new Set(prev);
+            next.delete(bookingId);
+            return next;
+          });
           showToast('Failed to leave booking', 'error');
         }
       }

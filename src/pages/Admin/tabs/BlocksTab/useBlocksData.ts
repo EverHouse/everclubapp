@@ -204,10 +204,54 @@ export function useBlocksData() {
                 ? putWithCredentials(url, payload)
                 : postWithCredentials(url, payload);
         },
-        onMutate: async () => { await queryClient.cancelQueries({ queryKey: ['closures'] }); },
-        onSuccess: (data: { blocks?: unknown[]; warnings?: string[] }) => {
+        onMutate: async (data) => {
+            await queryClient.cancelQueries({ queryKey: ['closures'] });
+            const previous = queryClient.getQueryData<BlocksClosure[]>(['closures']);
+
+            if (!data.isEdit) {
+                const optimistic: BlocksClosure = {
+                    id: Date.now(),
+                    title: data.form.title || '',
+                    reason: data.form.reason || null,
+                    memberNotice: data.form.member_notice || null,
+                    notes: data.form.notes || null,
+                    noticeType: data.form.notice_type || null,
+                    startDate: data.form.start_date,
+                    startTime: data.form.start_time || null,
+                    endDate: data.form.end_date || data.form.start_date,
+                    endTime: data.form.end_time || null,
+                    affectedAreas: data.form.affected_areas || null,
+                    visibility: null,
+                    notifyMembers: data.form.notify_members,
+                    isActive: true,
+                    needsReview: false,
+                    createdAt: new Date().toISOString(),
+                    createdBy: actualUser?.email || null,
+                };
+                queryClient.setQueryData<BlocksClosure[]>(['closures'], (old = []) => [optimistic, ...old]);
+            } else if (data.id) {
+                queryClient.setQueryData<BlocksClosure[]>(['closures'], (old = []) =>
+                    old.map(c => c.id === data.id ? {
+                        ...c,
+                        title: data.form.title || '',
+                        reason: data.form.reason || null,
+                        memberNotice: data.form.member_notice || null,
+                        notes: data.form.notes || null,
+                        noticeType: data.form.notice_type || null,
+                        startDate: data.form.start_date,
+                        startTime: data.form.start_time || null,
+                        endDate: data.form.end_date || data.form.start_date,
+                        endTime: data.form.end_time || null,
+                        affectedAreas: data.form.affected_areas || null,
+                        notifyMembers: data.form.notify_members,
+                    } : c)
+                );
+            }
             setIsClosureModalOpen(false);
             resetClosureForm();
+            return { previous };
+        },
+        onSuccess: (data: { blocks?: unknown[]; warnings?: string[] }) => {
             if (data.warnings && data.warnings.length > 0) {
                 showToast(
                     `Notice ${editingClosureId ? 'updated' : 'created'}, but: ${data.warnings.join(', ')}`,
@@ -220,7 +264,13 @@ export function useBlocksData() {
                 );
             }
         },
-        onError: (error: Error) => { showToast(error.message || 'Failed to save notice', 'error'); },
+        onError: (error: Error, _data, context) => {
+            if ((context as { previous?: BlocksClosure[] })?.previous) {
+                queryClient.setQueryData(['closures'], (context as { previous?: BlocksClosure[] }).previous);
+            }
+            setIsClosureModalOpen(true);
+            showToast(error.message || 'Failed to save notice', 'error');
+        },
         onSettled: () => { queryClient.invalidateQueries({ queryKey: ['closures'] }); },
     });
 

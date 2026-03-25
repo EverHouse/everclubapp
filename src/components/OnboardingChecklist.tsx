@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData } from '../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../hooks/queries/useFetch';
+import { useToast } from './Toast';
 import Icon from './icons/Icon';
 
 interface OnboardingStep {
@@ -87,12 +88,15 @@ const OnboardingChecklist: React.FC = () => {
     return () => { cancelled = true; };
   }, [isInStandaloneMode]);
 
+  const { showToast } = useToast();
+
   const handleDismiss = async () => {
+    setDismissed(true);
     try {
       await postWithCredentials('/api/member/onboarding/dismiss', {});
-      setDismissed(true);
     } catch {
-      // fail silently
+      setDismissed(false);
+      showToast('Failed to dismiss checklist', 'error');
     }
   };
 

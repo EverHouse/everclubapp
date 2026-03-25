@@ -283,6 +283,9 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
     const enrollmentToCancel = enrollments.find(e => e.class_id === classData.id);
     const isWaitlistCancel = enrollmentToCancel?.is_waitlisted;
 
+    const prevEnrollments = queryClient.getQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail]);
+    const prevClasses = queryClient.getQueryData<WellnessClass[]>(['wellness-classes']);
+
     queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
       old.filter(e => e.class_id !== classData.id)
     );
@@ -312,8 +315,8 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
       queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
       queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
     } else {
-      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
-      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
+      if (prevEnrollments !== undefined) queryClient.setQueryData(['wellness-enrollments', userEmail], prevEnrollments);
+      if (prevClasses !== undefined) queryClient.setQueryData(['wellness-classes'], prevClasses);
       showToast(error || 'Unable to cancel. Please try again.', 'error');
     }
     setLoadingCancel(null);
@@ -327,6 +330,9 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
     
     const isWaitlistJoin = classData.spotsRemaining !== null && classData.spotsRemaining <= 0 && classData.waitlistEnabled;
     
+    const prevClasses = queryClient.getQueryData<WellnessClass[]>(['wellness-classes']);
+    const prevEnrollments = queryClient.getQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail]);
+
     queryClient.setQueryData<WellnessClass[]>(['wellness-classes'], (old = []) => 
       old.map(c => {
         if (c.id === classData.id) {
@@ -343,6 +349,9 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
         return c;
       })
     );
+    queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
+      [...old, { class_id: classData.id, user_email: userEmail, is_waitlisted: isWaitlistJoin }]
+    );
     
     const { ok, data, error } = await apiRequest<{isWaitlisted?: boolean; message?: string}>('/api/wellness-enrollments', {
       method: 'POST',
@@ -357,9 +366,11 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
       playSound('bookingConfirmed');
       const isWaitlisted = data?.isWaitlisted;
       showToast(isWaitlisted ? `Added to waitlist for ${classData.title}` : `RSVP confirmed for ${classData.title}!`, 'success');
-      queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
-        [...old, { class_id: classData.id, user_email: userEmail, is_waitlisted: isWaitlistJoin }]
-      );
+      if (isWaitlisted !== isWaitlistJoin) {
+        queryClient.setQueryData<WellnessEnrollment[]>(['wellness-enrollments', userEmail], (old = []) => 
+          old.map(e => e.class_id === classData.id && e.user_email === userEmail ? { ...e, is_waitlisted: isWaitlisted } : e)
+        );
+      }
       const existingTimer = recentlyEnrolledTimers.current.get(classData.id);
       if (existingTimer) clearTimeout(existingTimer);
       const timer = setTimeout(() => {
@@ -380,8 +391,8 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
         next.delete(classData.id);
         return next;
       });
-      queryClient.invalidateQueries({ queryKey: ['wellness-classes'] });
-      queryClient.invalidateQueries({ queryKey: ['wellness-enrollments', userEmail] });
+      if (prevClasses !== undefined) queryClient.setQueryData(['wellness-classes'], prevClasses);
+      if (prevEnrollments !== undefined) queryClient.setQueryData(['wellness-enrollments', userEmail], prevEnrollments);
       showToast(error || 'Unable to RSVP. Please try again.', 'error');
     }
     setLoadingRsvp(null);

@@ -233,6 +233,12 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                 const bookingKey = `${item.source || 'booking'}-${item.id}`;
                                                                 setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
                                                                 
+                                                                let previousRequests: BookingRequest[] | undefined;
+                                                                queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => {
+                                                                    previousRequests = old ? [...old] : undefined;
+                                                                    return (old || []).filter((r: BookingRequest) => r.id !== item.id);
+                                                                });
+                                                                
                                                                 try {
                                                                     await putWithCredentials(`/api/booking-requests/${item.id}/complete-cancellation`, {});
                                                                     
@@ -240,6 +246,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
                                                                     queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
                                                                 } catch (err: unknown) {
+                                                                    if (previousRequests !== undefined) queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                                                                     showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
                                                                 } finally {
                                                                     setActionInProgress(prev => {
@@ -530,6 +537,12 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                         const bookingKey = `${booking.source || 'booking'}-${booking.id}`;
                                                                         setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
                                                                         
+                                                                        let previousRequests: BookingRequest[] | undefined;
+                                                                        queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => {
+                                                                            previousRequests = old ? [...old] : undefined;
+                                                                            return (old || []).filter((r: BookingRequest) => r.id !== booking.id);
+                                                                        });
+                                                                        
                                                                         try {
                                                                             await putWithCredentials(`/api/booking-requests/${booking.id}/complete-cancellation`, {});
                                                                             
@@ -537,6 +550,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                             queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
                                                                             queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
                                                                         } catch (err: unknown) {
+                                                                            if (previousRequests !== undefined) queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
                                                                             showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
                                                                         } finally {
                                                                             setActionInProgress(prev => {
