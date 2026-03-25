@@ -152,7 +152,7 @@ const MemberUpdates: React.FC = () => {
     }
     try {
       const data = await fetchWithCredentials<Record<string, unknown>[]>(`/api/notifications?user_email=${encodeURIComponent(user.email)}`);
-      const mapped = data.map((n: Record<string, unknown>) => ({ ...n, read: n.is_read ?? n.read ?? false }));
+      const mapped = data.map((n: Record<string, unknown>) => ({ ...n, read: n.is_read ?? n.read ?? false, action_url: n.url ?? n.action_url }));
       setNotifications(mapped as unknown as NotificationItem[]);
       const newUnreadCount = mapped.filter((n: Record<string, unknown>) => !n.read).length;
       setUnreadCount(newUnreadCount);

@@ -10,6 +10,7 @@ export const notifications = pgTable("notifications", {
   type: varchar("type").default("info"),
   relatedId: integer("related_id"),
   relatedType: varchar("related_type"),
+  url: varchar("url"),
   isRead: boolean("is_read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [

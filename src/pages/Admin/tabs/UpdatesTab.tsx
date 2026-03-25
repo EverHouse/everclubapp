@@ -23,6 +23,7 @@ interface StaffNotification {
     type: string;
     title: string;
     message: string;
+    url?: string | null;
     data?: Record<string, unknown>;
     is_read: boolean;
     created_at: string;
@@ -176,7 +177,7 @@ const UpdatesTab: React.FC = () => {
             });
         }
         
-        const route = getStaffNotificationRoute(notif);
+        const route = notif.url || getStaffNotificationRoute(notif);
         if (route) {
             navigate(route);
         }

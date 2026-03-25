@@ -702,6 +702,9 @@ export async function ensureDatabaseConstraints() {
     try { await db.execute(sql`ALTER TABLE cafe_items ADD COLUMN IF NOT EXISTS stripe_price_id VARCHAR`); } catch { logger.debug('[DB Init] cafe_items.stripe_price_id already exists or failed'); }
     logger.info('[DB Init] Cafe items Stripe columns verified');
 
+    try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS url VARCHAR`); } catch { logger.debug('[DB Init] notifications.url already exists or failed'); }
+    logger.info('[DB Init] Notifications url column verified');
+
     try {
       await db.execute(sql`
         DO $$

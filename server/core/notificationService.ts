@@ -119,6 +119,25 @@ function buildPushTag(type: NotificationType, relatedId?: number): string {
   return type;
 }
 
+function buildStaffRoute(type: NotificationType): string {
+  if (type === 'cancellation_pending' || type === 'cancellation_stuck' || type === 'attendance' || type === 'trackman_cancelled_link') return '/admin/bookings';
+  if (type.startsWith('booking') || type === 'day_pass' || type === 'guest_pass') return '/admin/bookings';
+  if (type.startsWith('wellness')) return '/admin/calendar';
+  if (type.startsWith('event')) return '/admin/calendar';
+  if (type.startsWith('payment') || type === 'outstanding_balance' || type === 'billing' || type === 'billing_alert' || type === 'billing_migration' || type === 'terminal_refund' || type === 'terminal_dispute' || type === 'terminal_dispute_closed' || type === 'terminal_payment_canceled' || type === 'funds_added' || type === 'card_expiring' || type === 'fee_waived' || type === 'membership_failed' || type === 'membership_past_due') return '/admin/financials';
+  if (type === 'membership_renewed' || type === 'membership_cancelled' || type === 'membership_terminated' || type === 'membership_cancellation' || type === 'new_member' || type === 'trial_expired' || type === 'trial_ending') return '/admin/directory';
+  if (type === 'member_status_change' || type === 'staff_note' || type === 'account_deletion') return '/admin/members';
+  if (type === 'tour' || type === 'tour_scheduled' || type === 'tour_reminder') return '/admin/tours';
+  if (type === 'bug_report') return '/admin/bugs';
+  if (type === 'import_failure' || type === 'integration_error') return '/admin/data-integrity';
+  if (type === 'waiver_review') return '/admin/waivers';
+  if (type === 'trackman_unmatched' || type === 'trackman_booking') return '/admin/trackman';
+  if (type === 'closure' || type === 'closure_today' || type === 'closure_created') return '/admin/notices';
+  if (type === 'announcement') return '/admin/updates';
+  if (type === 'system') return '/admin/data-integrity';
+  return '/admin/updates';
+}
+
 function buildDeepLink(type: NotificationType, url?: string): string {
   if (url) return url;
   if (type === 'cancellation_pending' || type === 'cancellation_stuck' || type === 'attendance' || type === 'trackman_cancelled_link') return '/admin/bookings';
@@ -245,6 +264,8 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
     const safeRelatedId = typeof payload.relatedId === 'number' ? payload.relatedId : null;
     const safeRelatedType = payload.relatedType && typeof payload.relatedType === 'string' ? payload.relatedType : null;
     
+    const resolvedUrl = payload.url || buildDeepLink(payload.type) || null;
+    
     const [result] = await db.insert(notifications).values({
       userEmail: payload.userEmail,
       title: payload.title,
@@ -252,6 +273,7 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
       type: payload.type,
       relatedId: safeRelatedId,
       relatedType: safeRelatedType,
+      url: resolvedUrl,
     }).returning({ id: notifications.id });
     
     return result;
@@ -658,6 +680,8 @@ export async function notifyAllStaff(
     const safeRelatedId = typeof options.relatedId === 'number' ? options.relatedId : null;
     const safeRelatedType = options.relatedType && typeof options.relatedType === 'string' ? options.relatedType : null;
     
+    const resolvedUrl = options.url && typeof options.url === 'string' ? options.url : buildStaffRoute(type);
+    
     const notificationValues = staffEmails.map(({ email }) => ({
       userEmail: email,
       title,
@@ -665,6 +689,7 @@ export async function notifyAllStaff(
       type,
       relatedId: safeRelatedId,
       relatedType: safeRelatedType,
+      url: resolvedUrl,
     }));
     
     await db.insert(notifications).values(notificationValues);
@@ -704,7 +729,7 @@ export async function notifyAllStaff(
         body: message,
         icon: PUSH_ICON,
         badge: PUSH_BADGE,
-        url: buildDeepLink(type, options.url),
+        url: resolvedUrl,
         tag: buildPushTag(type, options.relatedId)
       });
       deliveryResults.push(pushResult);
