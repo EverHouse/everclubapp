@@ -1013,6 +1013,23 @@ export async function ensureDatabaseConstraints() {
     } catch (err: unknown) {
       logger.warn(`[DB Init] Guest pass legacy cleanup: ${getErrorMessage(err)}`);
     }
+    try {
+      const gpSyncResult = await db.execute(sql`
+        UPDATE guest_passes gp
+        SET passes_total = mt.guest_passes_per_year,
+            passes_used = LEAST(gp.passes_used, mt.guest_passes_per_year)
+        FROM users u
+        JOIN membership_tiers mt ON u.tier_id = mt.id
+        WHERE LOWER(u.email) = LOWER(gp.member_email)
+          AND gp.passes_total != mt.guest_passes_per_year
+      `);
+      const gpFixed = gpSyncResult.rowCount ?? 0;
+      if (gpFixed > 0) {
+        logger.info(`[DB Init] Guest pass totals synced to tier config: ${gpFixed} records updated`);
+      }
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Guest pass total sync: ${getErrorMessage(err)}`);
+    }
 
     try {
       const emailOrphanCleanup = await db.execute(sql`

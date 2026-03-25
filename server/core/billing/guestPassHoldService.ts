@@ -27,24 +27,29 @@ export async function getAvailableGuestPasses(
     JOIN membership_tiers mt ON u.tier_id = mt.id
     WHERE LOWER(u.email) = ${emailLower}
   `);
-  const tierGuestPasses = (tierResult.rows[0] as Record<string, unknown>)?.guest_passes_per_year as number ?? 4;
+  const tierRow = tierResult.rows[0] as Record<string, unknown> | undefined;
+  const tierGuestPasses = tierRow?.guest_passes_per_year as number | null;
+  if (tierGuestPasses == null) {
+    logger.warn('[GuestPassHoldService] Tier guest_passes_per_year lookup returned null — member may have no tier_id linked. Defaulting to 0 passes (fail-closed).', { extra: { memberEmail: emailLower } });
+  }
+  const effectiveGuestPasses = tierGuestPasses ?? 0;
   
   const guestPassResult = await executor.execute(sql`
     SELECT passes_used, passes_total FROM guest_passes WHERE LOWER(member_email) = ${emailLower}
   `);
   
   let passesUsed = 0;
-  let passesTotal = tierGuestPasses;
+  let passesTotal = effectiveGuestPasses;
   
   if (guestPassResult.rows.length > 0) {
     const row = guestPassResult.rows[0] as Record<string, unknown>;
     passesUsed = (row.passes_used as number) || 0;
-    passesTotal = (row.passes_total as number) || tierGuestPasses;
-    if (tierGuestPasses > passesTotal) {
+    passesTotal = (row.passes_total as number) || effectiveGuestPasses;
+    if (tierGuestPasses != null && effectiveGuestPasses !== passesTotal) {
       await executor.execute(sql`
-        UPDATE guest_passes SET passes_total = ${tierGuestPasses} WHERE LOWER(member_email) = ${emailLower}
+        UPDATE guest_passes SET passes_total = ${effectiveGuestPasses} WHERE LOWER(member_email) = ${emailLower}
       `);
-      passesTotal = tierGuestPasses;
+      passesTotal = effectiveGuestPasses;
     }
   }
   

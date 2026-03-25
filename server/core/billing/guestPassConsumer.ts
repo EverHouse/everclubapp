@@ -77,7 +77,7 @@ export async function consumeGuestPassForParticipant(
       } else {
         // eslint-disable-next-line prefer-const
         let { passes_used, passes_total } = existingPass.rows[0] as unknown as GuestPassRow;
-        if ((effectiveGuestPasses as number) > (passes_total as number)) {
+        if (tierGuestPasses != null && (effectiveGuestPasses as number) !== (passes_total as number)) {
           await tx.execute(sql`UPDATE guest_passes SET passes_total = ${effectiveGuestPasses} WHERE LOWER(member_email) = ${ownerEmailLower}`);
           passes_total = effectiveGuestPasses;
         }
@@ -207,7 +207,11 @@ export async function canUseGuestPass(ownerEmail: string): Promise<{
     }
     
     const row = result.rows[0] as unknown as GuestPassRow;
-    const { passes_used, passes_total } = row;
+    const { passes_used } = row;
+    let { passes_total } = row;
+    if (tierGuestPasses != null && (effectiveGuestPasses as number) !== (passes_total as number)) {
+      passes_total = effectiveGuestPasses;
+    }
     const remaining = Math.max(0, (passes_total as number) - (passes_used as number));
     
     return {
