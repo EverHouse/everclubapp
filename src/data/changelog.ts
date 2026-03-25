@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.21",
+    date: "2026-03-25",
+    title: "Guest Pass & Booking Stability",
+    changes: [
+      "Fixed: Guest pass tracking no longer fails on startup when a member has used more passes than their current tier allows (e.g. after a tier downgrade)",
+      "Fixed: Booking approval now correctly detects scheduling conflicts for late-night bookings that cross midnight",
+    ]
+  },
+  {
     version: "8.97.20",
     date: "2026-03-25",
     title: "Stripe Product Auto-Reactivation",

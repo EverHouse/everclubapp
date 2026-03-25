@@ -51,7 +51,7 @@ function timeToMinutes(timeStr: string): number {
  * A cross-midnight booking (e.g., 23:00-01:00) has end_time < start_time.
  * We handle this by adding 24 hours (1440 minutes) to the end time.
  */
-function timePeriodsOverlap(
+export function timePeriodsOverlap(
   start1: string,
   end1: string,
   start2: string,

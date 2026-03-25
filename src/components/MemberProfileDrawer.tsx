@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../contexts/ThemeContext';
@@ -79,13 +79,20 @@ const VISITOR_TABS: TabType[] = ['overview', 'billing', 'activity', 'communicati
 
 const CopyButton: React.FC<{ value: string; isDark: boolean; size?: 'sm' | 'xs' }> = ({ value, isDark, size = 'sm' }) => {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const success = await copyToClipboard(value);
     if (success) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 1500);
     }
   };
   const iconSize = size === 'xs' ? 'text-[12px]' : 'text-[14px]';

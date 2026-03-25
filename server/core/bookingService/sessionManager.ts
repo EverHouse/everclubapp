@@ -683,9 +683,13 @@ async function deductGuestPassesInternal(
       const tierAllocation = await resolveYearlyAllocation(tierName);
       const effectiveTotal = tierName ? tierAllocation : (passes_total || 0);
 
-      const needsBackfill = effectiveTotal !== passes_total;
+      const safeEffectiveTotal = Math.max(effectiveTotal, passes_used);
+      if (safeEffectiveTotal !== effectiveTotal && tierName) {
+        logger.warn('[deductGuestPasses] Tier allocation lower than current usage — clamping passes_total to passes_used', { extra: { memberEmail, tierAllocation: effectiveTotal, passes_used } });
+      }
+      const needsBackfill = safeEffectiveTotal !== passes_total;
 
-      if (passes_used + passCount > effectiveTotal) {
+      if (passes_used + passCount > safeEffectiveTotal) {
         if (manageTransaction) await client.query('ROLLBACK');
         logger.warn('[deductGuestPasses] Insufficient passes', { extra: { memberEmail, passCount, passes_used, passes_total: effectiveTotal } });
         return { success: false, passesDeducted: 0 };
@@ -695,7 +699,7 @@ async function deductGuestPassesInternal(
         ? `UPDATE guest_passes SET passes_total = $3, passes_used = passes_used + $2 WHERE LOWER(member_email) = LOWER($1)`
         : `UPDATE guest_passes SET passes_used = passes_used + $2 WHERE LOWER(member_email) = LOWER($1)`;
       const updateParams = needsBackfill
-        ? [memberEmail, passCount, effectiveTotal]
+        ? [memberEmail, passCount, safeEffectiveTotal]
         : [memberEmail, passCount];
 
       await client.query(updateQuery, updateParams);

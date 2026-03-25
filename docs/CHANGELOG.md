@@ -2,6 +2,24 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.21] - 2026-03-25
+
+### Guest Pass Constraint Violation Fix
+- **Root cause**: When a member is downgraded to a lower tier, `passes_used` can exceed the new tier's `passes_total`. The startup reconciliation query tried to set `passes_used` to the actual count without ensuring `passes_total >= passes_used`, violating the `guest_passes_usage_check` CHECK constraint.
+- **Fix**: Startup reconciliation in `server/loaders/startup.ts` now uses `GREATEST(gp.passes_total, COALESCE(actual.used_count, 0))` to ensure `passes_total` is never set below `passes_used`.
+- **Runtime guards**: Three code paths that sync `passes_total` to tier allocation now use `Math.max(tierAllocation, passesUsed)` to prevent the CHECK constraint violation: `guestPassConsumer.ts`, `guestPassHoldService.ts`, and `sessionManager.ts`. Each logs a warning when clamping occurs.
+- **Files changed**: `server/loaders/startup.ts`, `server/core/billing/guestPassConsumer.ts`, `server/core/billing/guestPassHoldService.ts`, `server/core/bookingService/sessionManager.ts`
+
+### Booking Approval Cross-Midnight Overlap Fix
+- **Root cause**: `approvalFlow.ts` used inline Drizzle ORM overlap conditions (`lte/gte/gt/lt`) that don't handle cross-midnight bookings (e.g. 23:00–01:00). `conflictDetection.ts` already had a correct `timePeriodsOverlap` helper that adds 1440 minutes when end < start.
+- **Fix**: Replaced inline Drizzle overlap conditions with a two-step approach: fetch same-day candidates, then filter using the exported `timePeriodsOverlap` helper.
+- **Files changed**: `server/core/bookingService/approvalFlow.ts`, `server/core/bookingService/conflictDetection.ts` (exported `timePeriodsOverlap`)
+
+### CopyButton Timeout Memory Leak Fix
+- **Root cause**: `CopyButton` component used `setTimeout` without cleanup, causing React state-update-on-unmounted-component warnings.
+- **Fix**: Added `useRef` to track the timeout ID and `useEffect` cleanup to clear it on unmount.
+- **Files changed**: `src/components/MemberProfileDrawer.tsx`
+
 ## [8.97.20] - 2026-03-25
 
 ### Stripe Product Auto-Reactivation

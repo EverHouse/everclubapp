@@ -598,7 +598,8 @@ export async function runStartupTasks(): Promise<void> {
   try {
     const passReconcile = await db.execute(sql`
       UPDATE guest_passes gp
-      SET passes_used = COALESCE(actual.used_count, 0)
+      SET passes_used = COALESCE(actual.used_count, 0),
+          passes_total = GREATEST(gp.passes_total, COALESCE(actual.used_count, 0))
       FROM (
         SELECT LOWER(gp2.member_email) as email, COUNT(bp.id) as used_count
         FROM guest_passes gp2

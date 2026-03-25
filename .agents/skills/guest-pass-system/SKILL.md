@@ -56,7 +56,7 @@ Booking cancelled
 6. **Never refund from `tryLinkCancelledBooking`.** Cancellation workflows handle their own refunds.
 7. **Use `SELECT FOR UPDATE`** on `guest_passes` for all atomic operations.
 8. **Broadcast after pass use/refund.** `broadcastMemberStatsUpdated(email, { guestPasses: remaining })`.
-9. **Auto-update allocation on tier change.** GET endpoint compares `passes_total` against tier config. On downgrade, clamp `passes_used` to new total.
+9. **Auto-update allocation on tier change (safe clamping).** All three runtime sync paths (`guestPassConsumer.ts`, `guestPassHoldService.ts`, `sessionManager.ts`) compare `passes_total` against tier config and use `Math.max(tierAllocation, passesUsed)` to prevent setting `passes_total` below `passes_used` (which would violate the `guest_passes_usage_check` CHECK constraint). A warning is logged when clamping occurs. The startup reconciliation in `startup.ts` also uses `GREATEST(passes_total, used_count)` for the same reason.
 10. **Yearly reset is idempotent.** Uses `system_settings` key `'last_guest_pass_reset'` with year key `YYYY`. Runs only on January 1st, 3am–8am Pacific catch-up window.
 11. **Tier lookup fail-closed (v8.95.4).** When `guest_passes_per_year` lookup returns null (e.g., member has no `tier_id` linkage), both `consumeGuestPass()` and `canUseGuestPass()` default to **0 passes** (not 4). A `logger.warn` fires to flag members with broken tier linkage.
 

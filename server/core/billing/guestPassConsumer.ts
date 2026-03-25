@@ -78,8 +78,12 @@ export async function consumeGuestPassForParticipant(
         // eslint-disable-next-line prefer-const
         let { passes_used, passes_total } = existingPass.rows[0] as unknown as GuestPassRow;
         if (tierGuestPasses != null && (effectiveGuestPasses as number) !== (passes_total as number)) {
-          await tx.execute(sql`UPDATE guest_passes SET passes_total = ${effectiveGuestPasses} WHERE LOWER(member_email) = ${ownerEmailLower}`);
-          passes_total = effectiveGuestPasses;
+          const safeTotalValue = Math.max(effectiveGuestPasses as number, passes_used as number);
+          if (safeTotalValue !== (effectiveGuestPasses as number)) {
+            logger.warn('[GuestPassConsumer] Tier allocation lower than current usage — clamping passes_total to passes_used', { extra: { ownerEmail: ownerEmailLower, tierAllocation: effectiveGuestPasses, passesUsed: passes_used } });
+          }
+          await tx.execute(sql`UPDATE guest_passes SET passes_total = ${safeTotalValue} WHERE LOWER(member_email) = ${ownerEmailLower}`);
+          passes_total = safeTotalValue;
         }
         if ((passes_used as number) >= (passes_total as number)) {
           throw new Error(`NO_PASSES_REMAINING:No guest passes remaining. ${ownerEmailLower} has 0/${passes_total} passes available.`);

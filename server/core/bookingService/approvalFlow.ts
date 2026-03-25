@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { pool, safeRelease } from '../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
-import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
+import { eq, and, or, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../../routes/push';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { logger } from '../logger';
@@ -12,6 +12,7 @@ import { sendNotificationToUser, broadcastAvailabilityUpdate, broadcastMemberSta
 import { refundGuestPass } from '../../routes/guestPasses';
 import { updateHubSpotContactVisitCount } from '../memberSync';
 import { createSessionWithUsageTracking, ensureSessionForBooking, createOrFindGuest } from './sessionManager';
+import { timePeriodsOverlap } from './conflictDetection';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { PaymentStatusService } from '../billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../stripe';
@@ -79,7 +80,7 @@ export async function approveBooking(params: ApproveBookingParams) {
       throw new AppError(400, 'Bay must be assigned before approval');
     }
 
-    const conflicts = await tx.select().from(bookingRequests).where(and(
+    const sameDayCandidates = await tx.select().from(bookingRequests).where(and(
       eq(bookingRequests.resourceId, assignedBayId),
       eq(bookingRequests.requestDate, req_data.requestDate),
       or(
@@ -90,13 +91,13 @@ export async function approveBooking(params: ApproveBookingParams) {
         eq(bookingRequests.status, 'attended'),
         eq(bookingRequests.status, 'cancellation_pending')
       ),
-      ne(bookingRequests.id, bookingId),
-      or(
-        and(lte(bookingRequests.startTime, req_data.startTime), gt(bookingRequests.endTime, req_data.startTime)),
-        and(lt(bookingRequests.startTime, req_data.endTime), gte(bookingRequests.endTime, req_data.endTime)),
-        and(gte(bookingRequests.startTime, req_data.startTime), lte(bookingRequests.endTime, req_data.endTime))
-      )
+      ne(bookingRequests.id, bookingId)
     ));
+
+    const conflicts = sameDayCandidates.filter(c => {
+      if (!c.startTime || !c.endTime || !req_data.startTime || !req_data.endTime) return false;
+      return timePeriodsOverlap(c.startTime, c.endTime, req_data.startTime, req_data.endTime);
+    });
 
     if (conflicts.length > 0) {
       throw new AppError(409, 'Time slot conflicts with existing booking');

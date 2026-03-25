@@ -46,10 +46,14 @@ export async function getAvailableGuestPasses(
     passesUsed = (row.passes_used as number) || 0;
     passesTotal = (row.passes_total as number) || effectiveGuestPasses;
     if (tierGuestPasses != null && effectiveGuestPasses !== passesTotal) {
+      const safeTotalValue = Math.max(effectiveGuestPasses, passesUsed);
+      if (safeTotalValue !== effectiveGuestPasses) {
+        logger.warn('[GuestPassHoldService] Tier allocation lower than current usage — clamping passes_total to passes_used', { extra: { memberEmail: emailLower, tierAllocation: effectiveGuestPasses, passesUsed } });
+      }
       await executor.execute(sql`
-        UPDATE guest_passes SET passes_total = ${effectiveGuestPasses} WHERE LOWER(member_email) = ${emailLower}
+        UPDATE guest_passes SET passes_total = ${safeTotalValue} WHERE LOWER(member_email) = ${emailLower}
       `);
-      passesTotal = effectiveGuestPasses;
+      passesTotal = safeTotalValue;
     }
   }
   
