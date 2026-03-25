@@ -14,12 +14,23 @@ async function archiveStalePrices(stripe: Stripe, productId: string, activePrice
     const prices = await stripe.prices.list({ product: productId, active: true, limit: 100 });
     const stale = prices.data.filter(p => p.id !== activePriceId);
     if (stale.length === 0) return;
+    let archived = 0;
     for (const p of stale) {
-      await stripe.prices.update(p.id, { active: false });
+      try {
+        await stripe.prices.update(p.id, { active: false });
+        archived++;
+      } catch (archiveErr: unknown) {
+        const msg = getErrorMessage(archiveErr);
+        if (msg.includes('default price')) {
+          logger.debug(`[${label}] Skipped default price ${p.id}`);
+        } else {
+          logger.warn(`[${label}] Failed to archive price ${p.id}`, { error: msg });
+        }
+      }
     }
-    logger.info(`[${label}] Archived ${stale.length} stale price(s)`);
+    if (archived > 0) logger.info(`[${label}] Archived ${archived} stale price(s)`);
   } catch (err: unknown) {
-    logger.warn(`[${label}] Failed to archive stale prices`, { error: getErrorMessage(err) });
+    logger.warn(`[${label}] Failed to list stale prices`, { error: getErrorMessage(err) });
   }
 }
 
