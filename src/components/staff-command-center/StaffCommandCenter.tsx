@@ -192,7 +192,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
                 start_time: result.bookingDetails?.startTime || '',
                 end_time: result.bookingDetails?.endTime || '',
                 resource_type: result.bookingDetails?.resourceType || 'golf_simulator',
-                request_date: new Date().toISOString().split('T')[0],
+                request_date: getTodayPacific(),
               } as BookingRequest;
               handleCheckIn(syntheticBooking);
               showToast(`Checking in ${result.memberName} for booking...`, 'info');
@@ -232,7 +232,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
               start_time: result.bookingDetails?.startTime || '',
               end_time: result.bookingDetails?.endTime || '',
               resource_type: result.bookingDetails?.resourceType || 'golf_simulator',
-              request_date: new Date().toISOString().split('T')[0],
+              request_date: getTodayPacific(),
             } as BookingRequest;
             handleCheckIn(syntheticBooking);
             showToast(`Already checked in — now checking in for booking...`, 'info');

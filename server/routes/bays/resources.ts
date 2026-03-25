@@ -6,7 +6,7 @@ import { isProduction } from '../../core/db';
 import { getGoogleCalendarClient } from '../../core/integrations';
 import {logAndRespond, logger } from '../../core/logger';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { getPacificMidnightUTC } from '../../utils/dateUtils';
+import { getPacificMidnightUTC, addDaysToPacificDate } from '../../utils/dateUtils';
 
 const router = Router();
 
@@ -76,7 +76,8 @@ router.get('/api/bays/:bayId/availability', async (req, res) => {
     try {
       const calendar = await getGoogleCalendarClient();
       const startTime = getPacificMidnightUTC(date as string);
-      const endTime = new Date(startTime.getTime() + 24 * 60 * 60 * 1000 - 1);
+      const nextDay = addDaysToPacificDate(date as string, 1);
+      const endTime = new Date(getPacificMidnightUTC(nextDay).getTime() - 1);
       
       const response = await calendar.freebusy.query({
         requestBody: {

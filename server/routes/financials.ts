@@ -5,7 +5,7 @@ import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
 import { sendOutstandingBalanceEmail } from '../emails/paymentEmails';
-import { getPacificMidnightUTC } from '../utils/dateUtils';
+import { getPacificMidnightUTC, addDaysToPacificDate } from '../utils/dateUtils';
 import { upsertTransactionCache } from '../core/stripe/webhooks';
 import Stripe from 'stripe';
 
@@ -46,7 +46,8 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
     
     if (date && typeof date === 'string') {
       startOfDay = Math.floor(getPacificMidnightUTC(date).getTime() / 1000);
-      endOfDay = startOfDay + 86400;
+      const nextDay = addDaysToPacificDate(date, 1);
+      endOfDay = Math.floor(getPacificMidnightUTC(nextDay).getTime() / 1000);
     }
     
     const cursorDate = cursor && typeof cursor === 'string' ? new Date(cursor) : null;
@@ -872,12 +873,13 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
     }
 
     if (startDate && typeof startDate === 'string') {
-      const startTimestamp = Math.floor(new Date(startDate).getTime() / 1000);
+      const startTimestamp = Math.floor(getPacificMidnightUTC(startDate).getTime() / 1000);
       listParams.created = { ...(listParams.created as object || {}), gte: startTimestamp };
     }
 
     if (endDate && typeof endDate === 'string') {
-      const endTimestamp = Math.floor(new Date(endDate).getTime() / 1000) + 86400;
+      const nextDay = addDaysToPacificDate(endDate, 1);
+      const endTimestamp = Math.floor(getPacificMidnightUTC(nextDay).getTime() / 1000);
       listParams.created = { ...(listParams.created as object || {}), lte: endTimestamp };
     }
 

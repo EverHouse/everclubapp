@@ -10,7 +10,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
 import { passRedemptionLogs, dayPassPurchases, users } from '../../../shared/schema';
 import { eq, gte, desc, inArray, sql } from 'drizzle-orm';
-import { getTodayPacific, getPacificMidnightUTC } from '../../utils/dateUtils';
+import { getTodayPacific, getPacificMidnightUTC, addDaysToPacificDate } from '../../utils/dateUtils';
 import { getStripeClient } from '../../core/stripe/client';
 import {
   getRefundablePayments,
@@ -359,8 +359,9 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
     const today = getTodayPacific();
     const stripe = await getStripeClient();
     
-    const startOfDay = Math.floor(getPacificMidnightUTC().getTime() / 1000);
-    const endOfDay = startOfDay + 86400;
+    const startOfDay = Math.floor(getPacificMidnightUTC(today).getTime() / 1000);
+    const tomorrowStr = addDaysToPacificDate(today, 1);
+    const endOfDay = Math.floor(getPacificMidnightUTC(tomorrowStr).getTime() / 1000);
     
     const allPaymentIntents: Stripe.PaymentIntent[] = [];
     let piHasMore = true;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVisibilityAwareInterval } from '../../../../hooks/useVisibilityAwareInterval';
 import { fetchWithCredentials } from '../../../../hooks/queries/useFetch';
+import { getTodayPacific } from '../../../../utils/dateUtils';
 
 export interface CommandCenterCounts {
   pendingBookings: number;
@@ -125,7 +126,7 @@ export function useCommandCenter(): UseCommandCenterResult {
         pendingToursList: [],
         recentActivity: [],
         financials: defaultFinancials,
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayPacific(),
         timestamp: new Date().toISOString()
       });
     } finally {

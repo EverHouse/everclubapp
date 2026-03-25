@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../../db';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { logger } from '../../core/logger';
-import { getPacificMidnightUTC, getTodayPacific } from '../../utils/dateUtils';
+import { getPacificMidnightUTC, getTodayPacific, addDaysToPacificDate } from '../../utils/dateUtils';
 import { bookingRequests, tours, adminAuditLog, users, resources } from '../../../shared/schema';
 import { eq, and, inArray, notInArray, desc, asc, sql, count } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -18,9 +18,9 @@ const router = Router();
 router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
   try {
     const today = getTodayPacific();
-    const startOfDay = getPacificMidnightUTC(today);
-    const startOfDayUnix = Math.floor(startOfDay.getTime() / 1000);
-    const endOfDayUnix = startOfDayUnix + 86400;
+    const startOfDayUnix = Math.floor(getPacificMidnightUTC(today).getTime() / 1000);
+    const tomorrow = addDaysToPacificDate(today, 1);
+    const endOfDayUnix = Math.floor(getPacificMidnightUTC(tomorrow).getTime() / 1000);
     
     // Run all queries in parallel for maximum efficiency using Drizzle
     const [
@@ -244,7 +244,8 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
   try {
     const today = getTodayPacific();
     const startOfDay = Math.floor(getPacificMidnightUTC(today).getTime() / 1000);
-    const endOfDay = startOfDay + 86400;
+    const tomorrowStr = addDaysToPacificDate(today, 1);
+    const endOfDay = Math.floor(getPacificMidnightUTC(tomorrowStr).getTime() / 1000);
     
     // Use individual queries with error handling for each - some tables may not exist
     const results: { todayRevenueCents: number; overduePaymentsCount: number; failedPaymentsCount: number; pendingAuthorizationsCount: number } = {
