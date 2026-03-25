@@ -81,7 +81,10 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
       <style>{`
         .loader-overlay {
           position: fixed;
-          inset: 0;
+          top: -env(safe-area-inset-top, 0px);
+          left: 0;
+          right: 0;
+          bottom: -env(safe-area-inset-bottom, 0px);
           z-index: var(--z-modal);
           display: flex;
           justify-content: center;
