@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.42",
+    date: "2026-03-25",
+    title: "Dispute Handling Coverage Fix",
+    changes: [
+      "Fixed: Payment disputes on web bookings and app payments are now properly detected, suspending membership and alerting staff — previously only in-person card reader disputes were processed",
+      "Fixed: Disputes on legacy charges without a payment intent ID now trigger staff alerts instead of being silently ignored",
+      "Improved: Dispute status updates now sync to both terminal payments and web payment records",
+    ]
+  },
+  {
     version: "8.97.41",
     date: "2026-03-25",
     title: "Financial Safety & Security Fixes",

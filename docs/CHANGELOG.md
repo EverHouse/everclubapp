@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.42] - 2026-03-25
+
+### Dispute Handling Coverage Fix
+- **Web payment disputes silently ignored**: `handleChargeDisputeCreated` and `handleChargeDisputeClosed` only queried the `terminal_payments` table to find disputed payments. If a member disputed a web booking fee, app-based day pass, or any payment stored in `stripe_payment_intents`, the query returned 0 rows and the handler did nothing — no membership suspension, no staff alert, no audit trail. Added a fallback: when `terminal_payments` doesn't match, the handler now checks `stripe_payment_intents`, performs the same suspension/reactivation logic, and notifies staff. Unmatched disputes still trigger a staff alert for manual investigation.
+- **Null payment_intent disputes silently dropped**: If Stripe sends a dispute for a legacy charge that has no `payment_intent` field (only a `charge` ID), `paymentIntentId` evaluates to `undefined` and the entire handler body is skipped — the dispute is completely invisible to the system. Added an explicit `else` branch: when `paymentIntentId` is null, the handler logs a warning and sends staff an urgent push notification with the charge ID and dispute details for manual investigation.
+- **Dispute status updates missed web payments**: `handleChargeDisputeUpdated` only updated `terminal_payments.dispute_status`. Added a parallel update to `stripe_payment_intents` so that web payment records also reflect the current dispute status (`disputed`, `disputed_lost`, or back to `succeeded`).
+- **Files changed**: `server/core/stripe/webhooks/handlers/payments.ts`
+
 ## [8.97.41] - 2026-03-25
 
 ### Financial Safety & Security Fixes

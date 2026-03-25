@@ -437,7 +437,115 @@ export async function handleChargeDisputeCreated(client: PoolClient, dispute: St
           }
         });
       });
+    } else {
+      const webPaymentResult = await client.query(
+        `SELECT spi.user_id, u.email as user_email, u.billing_provider, spi.amount_cents, spi.booking_id
+         FROM stripe_payment_intents spi
+         JOIN users u ON u.id = spi.user_id
+         WHERE spi.stripe_payment_intent_id = $1
+         LIMIT 1`,
+        [paymentIntentId]
+      );
+      
+      if (webPaymentResult.rows.length > 0) {
+        const webPayment = webPaymentResult.rows[0];
+        logger.info(`[Stripe Webhook] Web payment disputed for user ${webPayment.user_email}`);
+        
+        await client.query(
+          `UPDATE stripe_payment_intents SET status = 'disputed', updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
+          [paymentIntentId]
+        );
+        
+        if (webPayment.billing_provider && webPayment.billing_provider !== '' && webPayment.billing_provider !== 'stripe') {
+          logger.info(`[Stripe Webhook] Skipping charge.dispute.created for ${webPayment.user_email} — billing_provider is '${webPayment.billing_provider}', not 'stripe'`);
+        } else {
+          const webSuspendResult = await client.query(
+            `UPDATE users SET membership_status = 'suspended', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'suspended' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', updated_at = NOW() WHERE id = $1 AND (membership_status IS NULL OR membership_status IN ('active', 'trialing', 'past_due', 'suspended', 'frozen'))`,
+            [webPayment.user_id]
+          );
+          if (webSuspendResult.rowCount === 0) {
+            logger.warn(`[Stripe Webhook] Skipping dispute suspension for user ${webPayment.user_id} — current status is terminal or incompatible`);
+          } else {
+            logger.info(`[Stripe Webhook] Suspended membership for user ${webPayment.user_id} due to web payment dispute`);
+            
+            await client.query(
+              `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
+               VALUES ($1, $2, $3, $4, $5, NOW())`,
+              [
+                webPayment.user_email.toLowerCase(),
+                'Membership Suspended',
+                'Your membership has been suspended due to a payment dispute. Please contact staff immediately to resolve this issue.',
+                'billing',
+                'membership'
+              ]
+            );
+          }
+        }
+        
+        deferredActions.push(async () => {
+          await notifyAllStaff(
+            'URGENT: Payment Dispute Received',
+            `A payment dispute has been filed for ${webPayment.user_email}. Amount: $${(amount / 100).toFixed(2)}. Reason: ${reason || 'not specified'}. Membership has been suspended.`,
+            'payment_dispute',
+            { sendPush: true }
+          );
+          
+          await logSystemAction({
+            action: 'web_payment_disputed',
+            resourceType: 'user',
+            resourceId: webPayment.user_id,
+            resourceName: webPayment.user_email,
+            details: {
+              source: 'stripe_webhook',
+              dispute_id: id,
+              dispute_reason: reason,
+              dispute_status: status,
+              stripe_payment_intent_id: paymentIntentId,
+              booking_id: webPayment.booking_id,
+              amount_cents: webPayment.amount_cents,
+              disputed_amount_cents: amount,
+              membership_action: 'suspended'
+            }
+          });
+        });
+      } else {
+        logger.warn(`[Stripe Webhook] Dispute ${id} for PI ${paymentIntentId}: no matching terminal or web payment found — alerting staff`);
+        deferredActions.push(async () => {
+          await notifyAllStaff(
+            'URGENT: Unmatched Payment Dispute',
+            `A payment dispute (${id}) was filed but could not be matched to any payment record. Amount: $${(amount / 100).toFixed(2)}. Reason: ${reason || 'not specified'}. PI: ${paymentIntentId}. Manual investigation required.`,
+            'payment_dispute',
+            { sendPush: true }
+          );
+        });
+      }
     }
+  } else {
+    const chargeId = typeof charge === 'string' ? charge : charge?.id;
+    logger.warn(`[Stripe Webhook] Dispute ${id} has no payment_intent (charge: ${chargeId || 'unknown'}) — alerting staff for manual review`);
+    deferredActions.push(async () => {
+      await notifyAllStaff(
+        'URGENT: Payment Dispute (No Payment Intent)',
+        `A payment dispute (${id}) was received without a payment intent ID. Charge: ${chargeId || 'unknown'}. Amount: $${(amount / 100).toFixed(2)}. Reason: ${reason || 'not specified'}. Manual investigation required.`,
+        'payment_dispute',
+        { sendPush: true }
+      );
+      
+      await logSystemAction({
+        action: 'unmatched_dispute_created',
+        resourceType: 'dispute',
+        resourceId: id,
+        details: {
+          source: 'stripe_webhook',
+          dispute_id: id,
+          charge_id: chargeId,
+          dispute_reason: reason,
+          dispute_status: status,
+          disputed_amount_cents: amount,
+          note: 'No payment_intent on dispute — requires manual investigation'
+        }
+      });
+    });
   }
   
   deferredActions.push(async () => {
@@ -488,16 +596,21 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
           logger.info(`[Stripe Webhook] Skipping charge.dispute.closed for ${terminalPayment.user_email} — billing_provider is '${disputeClosedBillingProvider}', not 'stripe'`);
           membershipAction = 'skipped_non_stripe';
         } else {
-          const otherOpenDisputes = await client.query(
+          const otherOpenTerminalDisputes = await client.query(
             `SELECT id FROM terminal_payments 
              WHERE user_id = $1 AND status = 'disputed' AND id != $2`,
             [terminalPayment.user_id, terminalPayment.id]
           );
+          const otherOpenWebDisputes = await client.query(
+            `SELECT id FROM stripe_payment_intents WHERE user_id = $1 AND status = 'disputed'`,
+            [terminalPayment.user_id]
+          );
 
           const blockingReasons: string[] = [];
+          const totalOpenDisputes = (otherOpenTerminalDisputes.rowCount || 0) + (otherOpenWebDisputes.rowCount || 0);
 
-          if (otherOpenDisputes.rowCount && otherOpenDisputes.rowCount > 0) {
-            blockingReasons.push(`${otherOpenDisputes.rowCount} other open dispute(s)`);
+          if (totalOpenDisputes > 0) {
+            blockingReasons.push(`${totalOpenDisputes} other open dispute(s)`);
           }
 
           if (disputeClosedUser?.stripe_subscription_id) {
@@ -592,7 +705,173 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
           }
         });
       });
+    } else {
+      const webPaymentResult = await client.query(
+        `SELECT spi.user_id, u.email as user_email, u.billing_provider, u.membership_status, u.stripe_subscription_id as user_stripe_sub, spi.amount_cents, spi.booking_id
+         FROM stripe_payment_intents spi
+         JOIN users u ON u.id = spi.user_id
+         WHERE spi.stripe_payment_intent_id = $1
+         LIMIT 1`,
+        [paymentIntentId]
+      );
+
+      if (webPaymentResult.rows.length > 0) {
+        const webPayment = webPaymentResult.rows[0];
+        logger.info(`[Stripe Webhook] Web payment dispute closed for user ${webPayment.user_email}: ${status}`);
+
+        await client.query(
+          `UPDATE stripe_payment_intents SET status = CASE WHEN $1 = true THEN 'succeeded' ELSE 'disputed_lost' END, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,
+          [disputeWon, paymentIntentId]
+        );
+
+        let webMembershipAction: 'reactivated' | 'blocked_manual_review' | 'remained_suspended' | 'skipped_non_stripe' | 'skipped' = 'remained_suspended';
+
+        if (disputeWon) {
+          if (webPayment.billing_provider && webPayment.billing_provider !== '' && webPayment.billing_provider !== 'stripe') {
+            logger.info(`[Stripe Webhook] Skipping charge.dispute.closed for ${webPayment.user_email} — billing_provider is '${webPayment.billing_provider}', not 'stripe'`);
+            webMembershipAction = 'skipped_non_stripe';
+          } else {
+            const otherOpenWebDisputes = await client.query(
+              `SELECT id FROM stripe_payment_intents WHERE user_id = $1 AND status = 'disputed' AND stripe_payment_intent_id != $2`,
+              [webPayment.user_id, paymentIntentId]
+            );
+            const otherOpenTerminalDisputes = await client.query(
+              `SELECT id FROM terminal_payments WHERE user_id = $1 AND status = 'disputed'`,
+              [webPayment.user_id]
+            );
+
+            const webBlockingReasons: string[] = [];
+            const totalOpenDisputes = (otherOpenWebDisputes.rowCount || 0) + (otherOpenTerminalDisputes.rowCount || 0);
+            if (totalOpenDisputes > 0) {
+              webBlockingReasons.push(`${totalOpenDisputes} other open dispute(s)`);
+            }
+
+            if (webPayment.user_stripe_sub) {
+              try {
+                const stripeClient = await (await import('../../client')).getStripeClient();
+                const sub = await stripeClient.subscriptions.retrieve(webPayment.user_stripe_sub);
+                if (sub.status === 'past_due' || sub.status === 'unpaid' || sub.status === 'canceled') {
+                  webBlockingReasons.push(`subscription status is '${sub.status}'`);
+                }
+              } catch (subErr: unknown) {
+                logger.warn(`[Stripe Webhook] Could not verify subscription status for web dispute reactivation — blocking as precaution`, { error: getErrorMessage(subErr) });
+                webBlockingReasons.push('subscription status could not be verified');
+              }
+            }
+
+            if (webBlockingReasons.length > 0) {
+              webMembershipAction = 'blocked_manual_review';
+              logger.warn(`[Stripe Webhook] Web dispute won for user ${webPayment.user_id} but cannot auto-reactivate: ${webBlockingReasons.join(', ')}`);
+              deferredActions.push(async () => {
+                await notifyAllStaff(
+                  'Dispute Won — Manual Review Required',
+                  `Web payment dispute ${id} won for ${webPayment.user_email} ($${(amount / 100).toFixed(2)}), ` +
+                  `but auto-reactivation was blocked: ${webBlockingReasons.join('; ')}. ` +
+                  `Please review and reactivate manually if appropriate.`,
+                  'payment_dispute_closed',
+                  { sendPush: true }
+                );
+              });
+            } else {
+              webMembershipAction = 'reactivated';
+              const webReactivateResult = await client.query(
+                `UPDATE users SET membership_status = 'active', membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END, billing_provider = 'stripe', archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = $1 AND membership_status IN ('suspended', 'past_due', 'frozen')`,
+                [webPayment.user_id]
+              );
+              if (webReactivateResult.rowCount === 0) {
+                logger.warn(`[Stripe Webhook] Skipping dispute-won reactivation for web user ${webPayment.user_id} — current status is terminal or incompatible`);
+                webMembershipAction = 'skipped';
+              } else {
+                logger.info(`[Stripe Webhook] Reactivated membership for user ${webPayment.user_id} - web dispute won`);
+                await client.query(
+                  `INSERT INTO notifications (user_email, title, message, type, related_type, created_at)
+                   VALUES ($1, $2, $3, $4, $5, NOW())`,
+                  [
+                    webPayment.user_email.toLowerCase(),
+                    'Membership Reactivated',
+                    'Your membership has been reactivated. The payment dispute has been resolved in your favor.',
+                    'billing',
+                    'membership'
+                  ]
+                );
+              }
+            }
+          }
+        }
+
+        const webDisputeTitle = webMembershipAction === 'reactivated'
+          ? 'Dispute Won - Membership Reactivated'
+          : webMembershipAction === 'blocked_manual_review'
+            ? 'Dispute Won - Reactivation Blocked (Review Required)'
+            : 'Dispute Lost - Membership Remains Suspended';
+        const webDisputeMessage = webMembershipAction === 'reactivated'
+          ? `Web payment dispute for ${webPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership has been reactivated.`
+          : webMembershipAction === 'blocked_manual_review'
+            ? `Web payment dispute for ${webPayment.user_email} has been closed (won). Amount: $${(amount / 100).toFixed(2)}. Auto-reactivation was blocked — manual review required.`
+            : `Web payment dispute for ${webPayment.user_email} has been closed. Status: ${status}. Amount: $${(amount / 100).toFixed(2)}. Membership remains suspended.`;
+
+        deferredActions.push(async () => {
+          await notifyAllStaff(
+            webDisputeTitle,
+            webDisputeMessage,
+            'payment_dispute_closed',
+            { sendPush: true }
+          );
+
+          await logSystemAction({
+            action: 'web_dispute_closed',
+            resourceType: 'user',
+            resourceId: webPayment.user_id,
+            resourceName: webPayment.user_email,
+            details: {
+              source: 'stripe_webhook',
+              dispute_id: id,
+              dispute_status: status,
+              dispute_won: disputeWon,
+              stripe_payment_intent_id: paymentIntentId,
+              booking_id: webPayment.booking_id,
+              amount_cents: webPayment.amount_cents,
+              disputed_amount_cents: amount,
+              membership_action: webMembershipAction
+            }
+          });
+        });
+      } else {
+        logger.warn(`[Stripe Webhook] Dispute closed ${id} for PI ${paymentIntentId}: no matching terminal or web payment found`);
+        deferredActions.push(async () => {
+          await notifyAllStaff(
+            'Dispute Closed — Unmatched Payment',
+            `Dispute ${id} closed (${status}) but could not be matched to any payment record. Amount: $${(amount / 100).toFixed(2)}. PI: ${paymentIntentId}. Manual investigation required.`,
+            'payment_dispute_closed',
+            { sendPush: true }
+          );
+        });
+      }
     }
+  } else {
+    logger.warn(`[Stripe Webhook] Dispute closed ${id} has no payment_intent — alerting staff for manual review`);
+    deferredActions.push(async () => {
+      await notifyAllStaff(
+        'Dispute Closed (No Payment Intent)',
+        `Dispute ${id} closed (${status}) without a payment intent ID. Amount: $${(amount / 100).toFixed(2)}. Manual investigation required.`,
+        'payment_dispute_closed',
+        { sendPush: true }
+      );
+
+      await logSystemAction({
+        action: 'unmatched_dispute_closed',
+        resourceType: 'dispute',
+        resourceId: id,
+        details: {
+          source: 'stripe_webhook',
+          dispute_id: id,
+          dispute_status: status,
+          dispute_won: disputeWon,
+          disputed_amount_cents: amount,
+          note: 'No payment_intent on dispute — requires manual investigation'
+        }
+      });
+    });
   }
   
   deferredActions.push(async () => {
@@ -615,6 +894,11 @@ export async function handleChargeDisputeUpdated(client: PoolClient, dispute: St
     if (paymentIntentId) {
       await client.query(
         `UPDATE terminal_payments SET dispute_status = $1 WHERE stripe_payment_intent_id = $2`,
+        [status, paymentIntentId]
+      );
+      
+      await client.query(
+        `UPDATE stripe_payment_intents SET status = CASE WHEN $1 IN ('won', 'charge_refunded') THEN 'succeeded' WHEN $1 = 'lost' THEN 'disputed_lost' ELSE 'disputed' END, updated_at = NOW() WHERE stripe_payment_intent_id = $2 AND status = 'disputed'`,
         [status, paymentIntentId]
       );
     }
