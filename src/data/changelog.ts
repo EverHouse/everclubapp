@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.22",
+    date: "2026-03-25",
+    title: "HubSpot Call Sync Fix",
+    changes: [
+      "Fixed: HubSpot call association lookups now use the correct REST API endpoint instead of an incompatible SDK method, resolving repeated 'getAll' errors during member sync",
+    ]
+  },
+  {
     version: "8.97.21",
     date: "2026-03-25",
     title: "Guest Pass & Booking Stability",

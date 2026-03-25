@@ -130,13 +130,20 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               let memberEmail: string | null = null;
               
               try {
-                const associations = await retryableHubSpotRequest(() => (hubspot.crm.objects.calls as unknown as { associationsApi: { getAll: (id: string, toObjectType: string) => Promise<{ results?: Array<{ id: string }> }> } }).associationsApi.getAll(
-                  callId,
-                  'contacts'
-                ));
+                const assocResponse = await retryableHubSpotRequest(async () => {
+                  const res = await hubspot.apiRequest({
+                    method: 'GET',
+                    path: `/crm/v3/objects/calls/${callId}/associations/contacts`
+                  });
+                  if (res.status === 429) {
+                    throw new Error('HTTP 429 Rate Limit from HubSpot call associations API');
+                  }
+                  return res;
+                });
+                const assocData = await assocResponse.json() as { results?: Array<{ id: string }> };
                 
-                if (associations.results && associations.results.length > 0) {
-                  const contactId = associations.results[0].id;
+                if (assocData.results && assocData.results.length > 0) {
+                  const contactId = assocData.results[0].id;
                   memberEmail = emailByHubSpotId.get(contactId) || null;
                   
                   if (!memberEmail) {

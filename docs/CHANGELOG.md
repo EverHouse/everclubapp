@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.22] - 2026-03-25
+
+### HubSpot Call Association Fix
+- **Root cause**: `memberSyncCommLogs.ts` used a force-cast to access `hubspot.crm.objects.calls.associationsApi.getAll()`, but the `@hubspot/api-client` v13.4.0 SDK does not expose `associationsApi` on the `calls` object. The `as unknown as { associationsApi: ... }` cast bypassed TypeScript but failed at runtime with `Cannot read properties of undefined (reading 'getAll')`, spamming production logs on every member sync cycle.
+- **Fix**: Replaced the fabricated SDK method with the raw REST API endpoint (`/crm/v3/objects/calls/{callId}/associations/contacts`), matching the pattern already used successfully for SMS/communication associations in the same file.
+- **Files changed**: `server/core/memberSyncCommLogs.ts`
+
 ## [8.97.21] - 2026-03-25
 
 ### Guest Pass Constraint Violation Fix
