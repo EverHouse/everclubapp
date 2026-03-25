@@ -80,7 +80,7 @@ const InitialLoadingScreen: React.FC<{ children: React.ReactNode }> = ({ childre
           onFadeComplete={handleFadeComplete} 
         />
       )}
-      {hasHiddenLoader && children}
+      {children}
     </>
   );
 };

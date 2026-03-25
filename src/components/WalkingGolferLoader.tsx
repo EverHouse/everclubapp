@@ -40,14 +40,6 @@ const WalkingGolferLoader: React.FC<WalkingGolferLoaderProps> = ({ isVisible = t
   }, [onFadeComplete]);
 
   React.useEffect(() => {
-    const originalBg = document.body.style.backgroundColor;
-    document.body.style.backgroundColor = '#293515';
-    return () => {
-      document.body.style.backgroundColor = originalBg;
-    };
-  }, []);
-
-  React.useEffect(() => {
     if (!isVisible) {
       setIsExiting(true);
       
