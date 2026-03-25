@@ -39,9 +39,11 @@
     <link rel="dns-prefetch" href="https://api.stripe.com">
     <link rel="preload" href="https://fonts.gstatic.com/s/instrumentsans/v1/pximypc9vsFDm051Uf6KVwgkfoSxQ0GsQv8ToedPibnr-yp2JGEJOH9npSTF-Qf1mS0v3_7Y.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="https://fonts.gstatic.com/s/newsreader/v21/cY9qfjOCX1hbuyalUrK49dLac06G1ZGsZBtoBCzBDXXD9JVF438s-0LDIAhiPQ.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" media="all" fetchpriority="high" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" /></noscript>
     <link rel="canonical" href="https://everclub.app/" />
+    <link rel="privacy-policy" href="/privacy" />
+    <link rel="terms-of-service" href="/terms" />
     <style>
       :root { --z-splash-inline: 11000; --z-drawer-inline: 9500; }
       #app-splash {
@@ -147,7 +149,7 @@
     <!-- End Meta Pixel Code -->
   </head>
   <body>
-    <a href="#main-content" class="sr-only" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" onfocus="this.style.position='fixed';this.style.left='16px';this.style.top='16px';this.style.width='auto';this.style.height='auto';this.style.overflow='visible';this.style.zIndex='99999';this.style.background='#1a1a1a';this.style.color='#fff';this.style.padding='12px 24px';this.style.borderRadius='8px';this.style.fontSize='14px';this.style.textDecoration='none';" onblur="this.style.position='absolute';this.style.left='-9999px';this.style.width='1px';this.style.height='1px';this.style.overflow='hidden';">Skip to main content</a>
+    <a href="#main-content" class="sr-only" style="position:fixed;top:-100%;left:16px;min-width:44px;min-height:44px;padding:12px 24px;z-index:99999;background:#1a1a1a;color:#fff;border-radius:8px;font-size:14px;text-decoration:none;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity 0.15s;" onfocus="this.style.top='16px';this.style.opacity='1';this.style.pointerEvents='auto';" onblur="this.style.top='-100%';this.style.opacity='0';this.style.pointerEvents='none';">Skip to main content</a>
     <div id="safari-tint-top"></div>
     <div id="app-splash"></div>
     <main id="main-content" role="main">
@@ -174,7 +176,7 @@
         </nav>
       </div>
     </noscript>
-    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=906341427989429&ev=PageView&noscript=1" alt="" /></noscript>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=906341427989429&ev=PageView&noscript=1" alt="Facebook Pixel" /></noscript>
     <div id="header-root"></div>
     <div id="nav-overlay-root" style="position:fixed;inset:0;pointer-events:none;z-index:var(--z-drawer-inline);"></div>
     <script type="module" src="/src/main.tsx"></script>
