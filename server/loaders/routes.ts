@@ -27,7 +27,6 @@ import toursRouter from '../routes/tours';
 import bugReportsRouter from '../routes/bugReports';
 import trackmanRouter from '../routes/trackman';
 import noticesRouter from '../routes/notices';
-import testAuthRouter from '../routes/testAuth';
 import rosterRouter from '../routes/roster';
 import staffCheckinRouter from '../routes/staffCheckin';
 import dataIntegrityRouter from '../routes/dataIntegrity';
@@ -75,7 +74,6 @@ export function registerRoutes(app: Express): void {
   app.use(authGoogleRouter);
   app.use(authAppleRouter);
   app.use(authPasskeyRouter);
-  app.use('/api/auth', testAuthRouter);
   app.use(hubspotRouter);
   app.use(accountRouter);
   app.use(dataExportRouter);

@@ -694,19 +694,3 @@ export async function getAuditLogs(params: {
   }
 }
 
-export async function cleanupOldAuditLogs(daysToKeep: number = 365): Promise<number> {
-  try {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
-    
-    const deleted = await db.delete(adminAuditLog)
-      .where(lte(adminAuditLog.createdAt, cutoffDate))
-      .returning({ id: adminAuditLog.id });
-    
-    logger.info(`[AuditLog] Cleaned up ${deleted.length} old audit log entries`);
-    return deleted.length;
-  } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to cleanup old audit logs:', { error: getErrorMessage(error) });
-    return 0;
-  }
-}
