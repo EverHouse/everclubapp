@@ -32,7 +32,7 @@ const PrivateHire: React.FC = () => {
        <SEO title="Private Events & Venue Hire | Ever Club, Tustin" description="Host private events, corporate gatherings & celebrations at Ever Club in Tustin. Trackman simulator bays, conference rooms & event spaces in OC." url="/private-hire" keywords="private event venue Tustin, corporate event Orange County, golf simulator party OC, private golf event Tustin, venue hire Orange County" />
        <div 
          className="fixed top-0 left-0 right-0 bg-primary"
-         style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
+         style={{ height: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))', zIndex: 'var(--z-header)' }}
          aria-hidden="true"
        />
        
@@ -46,8 +46,8 @@ const PrivateHire: React.FC = () => {
          <div 
            className="absolute inset-0 overflow-hidden rounded-b-[2.5rem]"
            style={{
-             top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-             height: 'calc(100% + env(safe-area-inset-top, 0px))'
+             top: 'calc(-1 * max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)))',
+             height: 'calc(100% + max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)))'
            }}
          >
            <img 

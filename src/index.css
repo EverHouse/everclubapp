@@ -182,7 +182,7 @@ html {
 :root {
   /* Header Offset - centralized calculation for header height + safe area */
   --header-height: 80px;
-  --header-offset: calc(env(safe-area-inset-top, 0px) + var(--header-height) + 8px);
+  --header-offset: calc(max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)) + var(--header-height) + 8px);
   
   /* Safe Area / Nav Clearance */
   --nav-bottom-offset: 2rem; /* bottom-8 = 32px = 2rem */
@@ -832,8 +832,8 @@ input, select, textarea {
 
 /* Modal max-height that fits between header and bottom nav */
 .modal-safe-height {
-  max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 160px);
-  max-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 160px);
+  max-height: calc(100vh - max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)) - env(safe-area-inset-bottom, 0px) - 160px);
+  max-height: calc(100dvh - max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)) - env(safe-area-inset-bottom, 0px) - 160px);
 }
 
 /* iOS safe area support */
@@ -842,17 +842,17 @@ input, select, textarea {
 }
 
 .safe-area-top {
-  padding-top: calc(env(safe-area-inset-top, 0));
+  padding-top: calc(max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)));
 }
 
 .safe-area-inset {
-  padding-top: env(safe-area-inset-top, 0);
+  padding-top: max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px));
   padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0));
 }
 
 /* Menu-specific safe area that preserves base padding */
 .safe-area-inset-menu {
-  padding-top: max(1.5rem, env(safe-area-inset-top, 0));
+  padding-top: max(1.5rem, env(safe-area-inset-top, 0), env(titlebar-area-height, 0));
   padding-bottom: max(2rem, calc(1rem + env(safe-area-inset-bottom, 0)));
   padding-left: max(2rem, env(safe-area-inset-left, 0));
   padding-right: max(2rem, env(safe-area-inset-right, 0));

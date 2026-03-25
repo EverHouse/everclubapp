@@ -263,7 +263,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
       onClick={onClose}
       aria-hidden="true"
     >
-      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
+      <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4" style={{ paddingTop: 'calc(max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)) + 16px)' }}>
         <div className="px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
           <span className="text-white/80 text-sm font-medium">
             {currentIndex + 1} / {images.length}

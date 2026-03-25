@@ -592,7 +592,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         className={`fixed top-0 w-full max-w-xl rounded-tl-[2rem] ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} shadow-2xl transform transition-transform duration-normal flex flex-col overflow-hidden`}
         style={{ 
           animation: 'slideInRight 0.4s var(--spring-bounce)',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))',
           right: '-100px',
           paddingRight: '100px',
           bottom: 0

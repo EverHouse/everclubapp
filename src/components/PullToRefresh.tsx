@@ -406,7 +406,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         <div 
           className="ptr-pull-bar"
           style={{
-            height: `calc(env(safe-area-inset-top, 0px) + 80px + ${pullDistance}px)`,
+            height: `calc(max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)) + 80px + ${pullDistance}px)`,
           }}
         >
           <div 

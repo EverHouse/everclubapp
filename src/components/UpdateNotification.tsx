@@ -55,7 +55,7 @@ export const UpdateNotification: React.FC = () => {
         isExiting ? 'opacity-0 scale-95 translate-y-[-8px]' : 'animate-pop-in'
       }`}
       style={{ 
-        top: 'max(120px, calc(env(safe-area-inset-top) + 100px))',
+        top: 'max(120px, calc(max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)) + 100px))',
         zIndex: 'var(--z-toast, 10500)'
       }}
       role="alert"

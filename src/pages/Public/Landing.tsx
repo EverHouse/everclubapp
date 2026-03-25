@@ -117,7 +117,7 @@ const Landing: React.FC = () => {
     <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414]">
       <div 
         className="fixed top-0 left-0 right-0 bg-primary"
-        style={{ height: 'env(safe-area-inset-top, 0px)', zIndex: 'var(--z-header)' }}
+        style={{ height: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))', zIndex: 'var(--z-header)' }}
         aria-hidden="true"
       />
       
@@ -132,8 +132,8 @@ const Landing: React.FC = () => {
         <div 
           className="absolute inset-0 overflow-hidden"
           style={{
-            top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-            height: 'calc(100% + env(safe-area-inset-top, 0px))'
+            top: 'calc(-1 * max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)))',
+            height: 'calc(100% + max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)))'
           }}
         >
           <img 

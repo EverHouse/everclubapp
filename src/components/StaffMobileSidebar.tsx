@@ -136,7 +136,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         className={`absolute left-0 top-0 bottom-0 w-72 bg-[#293515] shadow-2xl flex flex-col ${
           isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'
         }`}
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))' }}
       >
         <button 
           onClick={handleHomeClick}
