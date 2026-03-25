@@ -45,6 +45,41 @@ async function resolveToEmail(identifier: string | undefined): Promise<string> {
   return identifier;
 }
 
+async function batchResolveToEmails(identifiers: (string | undefined)[]): Promise<string[]> {
+  const results: string[] = new Array(identifiers.length).fill('');
+  const uuidIndices: number[] = [];
+  const uuids: string[] = [];
+
+  for (let i = 0; i < identifiers.length; i++) {
+    const id = identifiers[i];
+    if (!id) continue;
+    if (isEmail(id)) {
+      results[i] = normalizeEmail(id);
+    } else if (isUUID(id)) {
+      uuidIndices.push(i);
+      uuids.push(id);
+    } else {
+      results[i] = id;
+    }
+  }
+
+  if (uuids.length > 0) {
+    const uuidLookup = await db.execute(
+      sql`SELECT id, email FROM users WHERE id = ANY(${uuids})`
+    );
+    const emailByUuid = new Map<string, string>();
+    for (const row of uuidLookup.rows as { id: string; email: string }[]) {
+      emailByUuid.set(row.id, normalizeEmail(row.email));
+    }
+    for (let j = 0; j < uuidIndices.length; j++) {
+      const resolved = emailByUuid.get(uuids[j]);
+      results[uuidIndices[j]] = resolved || uuids[j];
+    }
+  }
+
+  return results;
+}
+
 interface SessionData {
   sessionId: number;
   bookingId: number;
@@ -390,8 +425,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   
   // Pre-fetch participant identifiers (both UUID and email)
   const participantIdentifiers: Array<{ participantId: number | undefined; userId: string | null; email: string | null }> = [];
-  const resolvedEmails = await Promise.all(
-    participants.map(p => resolveToEmail(p.email || p.userId))
+  const resolvedEmails = await batchResolveToEmails(
+    participants.map(p => p.email || p.userId)
   );
   resolvedEmails.forEach((email, idx) => {
     const p = participants[idx];

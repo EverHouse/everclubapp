@@ -118,8 +118,8 @@ export function startMorningClosureScheduler(): void {
       logger.error('[Morning Closures] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Morning Closure', false, getErrorMessage(err));
     });
-  }, 30 * 60 * 1000);
-  logger.info('[Startup] Morning closure notification scheduler enabled (runs at 8am)');
+  }, 60 * 60 * 1000);
+  logger.info('[Startup] Morning closure notification scheduler enabled (runs at 8am, checks hourly)');
 }
 
 export function stopMorningClosureScheduler(): void {

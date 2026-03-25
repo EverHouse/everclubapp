@@ -7,6 +7,7 @@ import { logAndRespond } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { invalidateSettingsCache } from '../core/settingsHelper';
+import { getCached, setCache, invalidateCache as invalidateQueryCache } from '../core/queryCache';
 
 const router = Router();
 
@@ -135,10 +136,17 @@ const DEFAULT_SETTINGS: Record<string, { value: string; category: string }> = {
 };
 
 const PUBLIC_CATEGORIES = new Set(['contact', 'social', 'apple_messages', 'hours_display']);
+const PUBLIC_SETTINGS_CACHE_KEY = 'public_settings';
+const PUBLIC_SETTINGS_CACHE_TTL = 180_000;
 
-// PUBLIC ROUTE - publicly accessible settings (contact info, hours, social links)
 router.get('/api/settings/public', async (req, res) => {
   try {
+    const cached = getCached<Record<string, string>>(PUBLIC_SETTINGS_CACHE_KEY);
+    if (cached) {
+      res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+      return res.json(cached);
+    }
+
     const settings = await db.select().from(systemSettings);
     
     const settingsMap: Record<string, string> = {};
@@ -149,6 +157,8 @@ router.get('/api/settings/public', async (req, res) => {
       settingsMap[key] = existing?.value ?? defaultVal.value;
     }
     
+    setCache(PUBLIC_SETTINGS_CACHE_KEY, settingsMap, PUBLIC_SETTINGS_CACHE_TTL);
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(settingsMap);
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch public settings', error, 'PUBLIC_SETTINGS_FETCH_ERROR');
@@ -240,6 +250,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
       .returning();
     
     invalidateSettingsCache(key);
+    invalidateQueryCache(PUBLIC_SETTINGS_CACHE_KEY);
     logFromRequest(req, 'update_setting', 'setting', req.params.key as string, req.params.key as string, { value: req.body.value });
     res.json(result);
   } catch (error: unknown) {
@@ -284,6 +295,7 @@ router.put('/api/admin/settings', isAdmin, async (req, res) => {
     }
     
     invalidateSettingsCache();
+    invalidateQueryCache(PUBLIC_SETTINGS_CACHE_KEY);
     logFromRequest(req, 'update_settings_bulk', 'settings', '', 'bulk_update', { keys: Object.keys(settings) });
     res.json({ success: true, updated: results.length });
   } catch (error: unknown) {

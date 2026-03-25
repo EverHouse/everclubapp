@@ -149,8 +149,8 @@ export function startUnresolvedTrackmanScheduler(): void {
       logger.error('[Unresolved Trackman] Uncaught error:', { error: err as Error });
       schedulerTracker.recordRun('Unresolved Trackman', false, getErrorMessage(err));
     });
-  }, 15 * 60 * 1000);
-  logger.info('[Startup] Unresolved Trackman check scheduler enabled (runs at 9am Pacific)');
+  }, 60 * 60 * 1000);
+  logger.info('[Startup] Unresolved Trackman check scheduler enabled (runs at 9am Pacific, checks hourly)');
 }
 
 export function stopUnresolvedTrackmanScheduler(): void {

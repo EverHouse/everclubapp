@@ -112,11 +112,61 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
     let updated = 0;
     let pushedToCalendar = 0;
     
+    const validEventIds: string[] = [];
+    for (const event of events) {
+      if (!event.id) continue;
+      if (event.status === 'cancelled' || !event.summary) {
+        cancelledEventIds.add(event.id);
+      } else {
+        validEventIds.push(event.id);
+      }
+    }
+
+    interface WellnessDbRow {
+      id: number;
+      google_calendar_id: string;
+      locally_edited: boolean;
+      app_last_modified_at: string | null;
+      google_event_updated_at: string | null;
+      image_url: string | null;
+      external_url: string | null;
+      spots: string | null;
+      status: string | null;
+      title: string;
+      time: string;
+      instructor: string | null;
+      duration: string;
+      category: string | null;
+      date: Date | string;
+      description: string | null;
+      reviewed_at: string | null;
+      last_synced_at: string | null;
+      review_dismissed: boolean;
+      needs_review: boolean;
+      block_simulators: boolean;
+      block_conference_room: boolean;
+    }
+
+    const existingClassesMap = new Map<string, WellnessDbRow>();
+    if (validEventIds.length > 0) {
+      const batchSize = 500;
+      for (let i = 0; i < validEventIds.length; i += batchSize) {
+        const batch = validEventIds.slice(i, i + batchSize);
+        const existingResult = await db.execute(sql`SELECT id, google_calendar_id, locally_edited, app_last_modified_at, google_event_updated_at,
+                  image_url, external_url, spots, status, title, time, instructor, duration, category, date, description,
+                  reviewed_at, last_synced_at, review_dismissed, needs_review,
+                  block_simulators, block_conference_room
+           FROM wellness_classes WHERE google_calendar_id = ANY(${batch})`);
+        for (const row of existingResult.rows as unknown as WellnessDbRow[]) {
+          existingClassesMap.set(row.google_calendar_id, row);
+        }
+      }
+    }
+    
     for (const event of events) {
       if (!event.id) continue;
       
       if (event.status === 'cancelled' || !event.summary) {
-        cancelledEventIds.add(event.id);
         continue;
       }
       
@@ -217,35 +267,8 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
         }
       }
       
-      const existing = await db.execute(sql`SELECT id, locally_edited, app_last_modified_at, google_event_updated_at, 
-                image_url, external_url, spots, status, title, time, instructor, duration, category, date, description,
-                reviewed_at, last_synced_at, review_dismissed, needs_review,
-                block_simulators, block_conference_room
-         FROM wellness_classes WHERE google_calendar_id = ${googleEventId}`);
-      
-      interface WellnessDbRow {
-        id: number;
-        locally_edited: boolean;
-        app_last_modified_at: string | null;
-        google_event_updated_at: string | null;
-        image_url: string | null;
-        external_url: string | null;
-        spots: string | null;
-        status: string | null;
-        title: string;
-        time: string;
-        instructor: string | null;
-        duration: string;
-        category: string | null;
-        date: Date | string;
-        description: string | null;
-        reviewed_at: string | null;
-        last_synced_at: string | null;
-        review_dismissed: boolean;
-        needs_review: boolean;
-        block_simulators: boolean;
-        block_conference_room: boolean;
-      }
+      const existingRow = existingClassesMap.get(googleEventId);
+      const existing = { rows: existingRow ? [existingRow] : [] };
 
       if (existing.rows.length > 0) {
         const dbRow = existing.rows[0] as unknown as WellnessDbRow;

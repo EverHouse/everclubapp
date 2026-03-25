@@ -23,6 +23,7 @@ async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: numbe
           ROW_NUMBER() OVER (PARTITION BY trackman_booking_id ORDER BY created_at ASC) as rn
         FROM booking_requests
         WHERE trackman_booking_id IS NOT NULL
+          AND created_at > NOW() - INTERVAL '7 days'
       )
       SELECT id, trackman_booking_id
       FROM ranked
