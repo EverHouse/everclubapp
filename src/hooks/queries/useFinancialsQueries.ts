@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, postWithCredentials } from './useFetch';
 import { financialsKeys } from './adminKeys';
 
@@ -168,33 +168,39 @@ export function useRefundedPayments() {
 }
 
 export function useSubscriptions(statusFilter: string = 'all') {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: financialsKeys.subscriptions(statusFilter),
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       params.append('limit', '50');
+      if (pageParam) params.append('starting_after', pageParam);
       const url = `/api/financials/subscriptions${params.toString() ? `?${params.toString()}` : ''}`;
       const data = await fetchWithCredentials<{ subscriptions: SubscriptionListItem[]; hasMore: boolean; nextCursor?: string }>(url);
       return data;
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
   });
 }
 
 export function useInvoices(statusFilter: string = 'all', startDate?: string, endDate?: string) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: financialsKeys.invoices({ status: statusFilter, startDate, endDate }),
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       const stripeStatus = statusFilter === 'refunded' ? 'paid' : statusFilter;
       if (stripeStatus !== 'all') params.append('status', stripeStatus);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
       params.append('limit', '50');
+      if (pageParam) params.append('starting_after', pageParam);
       const url = `/api/financials/invoices${params.toString() ? `?${params.toString()}` : ''}`;
       const data = await fetchWithCredentials<{ invoices: InvoiceListItem[]; hasMore: boolean; nextCursor?: string }>(url);
       return data;
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
   });
 }
 

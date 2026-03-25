@@ -149,10 +149,10 @@ const SubscriptionsSubTab: React.FC = () => {
     };
   }, []);
 
-  const { data: subscriptionsData, isLoading, error: queryError, refetch } = useSubscriptions(statusFilter);
-  const subscriptions = subscriptionsData?.subscriptions || [];
-  const hasMore = subscriptionsData?.hasMore || false;
-  const [isLoadingMore, _setIsLoadingMore] = useState(false);
+  const { data: subscriptionsData, isLoading, error: queryError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useSubscriptions(statusFilter);
+  const subscriptions = subscriptionsData?.pages.flatMap(page => page.subscriptions) || [];
+  const hasMore = hasNextPage ?? false;
+  const isLoadingMore = isFetchingNextPage;
   
   const error = localError || (queryError instanceof Error ? queryError.message : null);
 
@@ -182,9 +182,7 @@ const SubscriptionsSubTab: React.FC = () => {
   };
 
   const handleLoadMore = () => {
-    // Note: Pagination would need additional query implementation
-    // For now, just refetch
-    refetch();
+    fetchNextPage();
   };
 
   const handleSendReminder = async (subscriptionId: string) => {
@@ -505,10 +503,10 @@ const InvoicesSubTab: React.FC = () => {
   const [invMobileParent] = useAutoAnimate();
   const [invTbodyParent] = useAutoAnimate();
 
-  const { data: invoicesData, isLoading, error: queryError, refetch } = useInvoices(statusFilter, appliedStartDate, appliedEndDate);
-  const invoices = invoicesData?.invoices || [];
-  const hasMore = invoicesData?.hasMore || false;
-  const [isLoadingMore, _setIsLoadingMore] = useState(false);
+  const { data: invoicesData, isLoading, error: queryError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInvoices(statusFilter, appliedStartDate, appliedEndDate);
+  const invoices = invoicesData?.pages.flatMap(page => page.invoices) || [];
+  const hasMore = hasNextPage ?? false;
+  const isLoadingMore = isFetchingNextPage;
 
   const error = queryError instanceof Error ? queryError.message : null;
 
@@ -529,9 +527,7 @@ const InvoicesSubTab: React.FC = () => {
     : statusFilteredInvoices;
 
   const handleLoadMore = () => {
-    // Note: Pagination would need additional query implementation
-    // For now, just refetch
-    refetch();
+    fetchNextPage();
   };
 
   const handleDateFilterApply = () => {
