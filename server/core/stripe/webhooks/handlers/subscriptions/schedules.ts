@@ -152,7 +152,7 @@ export async function handleSubscriptionScheduleCreated(
           ? 'scheduled pause'
           : `tier change to ${deferredPendingData.newTier || 'unknown'}`;
         const effectiveDateStr = new Date(deferredPendingData.effectiveDate).toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric',
+          month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles',
         });
 
         await notifyAllStaff(
@@ -219,7 +219,7 @@ export async function handleSubscriptionScheduleUpdated(
           ? 'scheduled pause'
           : `tier change to ${deferredPendingData.newTier || 'unknown'}`;
         const effectiveDateStr = new Date(deferredPendingData.effectiveDate).toLocaleDateString('en-US', {
-          month: 'short', day: 'numeric', year: 'numeric',
+          month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles',
         });
 
         await notifyAllStaff(

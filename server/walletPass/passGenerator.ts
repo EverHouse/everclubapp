@@ -482,6 +482,7 @@ function buildBookingPassJson(data: BookingPassData, config: WalletConfig): Reco
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'America/Los_Angeles',
   });
 
   const formatTime = (t: string) => {

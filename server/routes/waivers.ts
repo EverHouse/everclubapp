@@ -203,7 +203,7 @@ router.post('/api/waivers/email-copy', sensitiveActionRateLimiter, isAuthenticat
     const currentVersion = currentVersionResult[0]?.value || '2.0';
     const greeting = user.firstName ? `Dear ${user.firstName},` : 'Dear Member,';
     const signedInfo = user.waiverVersion === currentVersion && user.waiverSignedAt
-      ? `<p style="margin: 0 0 16px; font-size: 14px; color: #4b5563;">You signed version ${currentVersion} on ${new Date(user.waiverSignedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.</p>`
+      ? `<p style="margin: 0 0 16px; font-size: 14px; color: #4b5563;">You signed version ${currentVersion} on ${new Date(user.waiverSignedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Los_Angeles' })}.</p>`
       : '';
 
     const html = `<!DOCTYPE html>
