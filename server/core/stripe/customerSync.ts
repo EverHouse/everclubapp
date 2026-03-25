@@ -165,7 +165,8 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     } else {
       try {
         await db.delete(systemSettings).where(eq(systemSettings.key, 'orphaned_stripe_customers'));
-      } catch {
+      } catch (delErr: unknown) {
+        logger.debug(`[Stripe Customer Sync] Failed to clear orphaned customer cache: ${getErrorMessage(delErr)}`);
       }
     }
 

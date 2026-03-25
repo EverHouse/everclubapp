@@ -260,7 +260,7 @@ const WhatsOn: React.FC = () => {
                   <div className="px-4 pb-4 pt-0">
                     {isEvent && item.image_url && (
                       <div className="rounded-xl overflow-hidden mb-3">
-                        <img src={item.image_url} className="w-full h-40 object-cover" alt={item.title} />
+                        <img src={item.image_url} className="w-full h-40 object-cover" alt={item.title} loading="lazy" width={400} height={160} />
                       </div>
                     )}
                     

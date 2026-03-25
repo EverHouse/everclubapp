@@ -123,7 +123,9 @@ async function verifySessionFromDatabase(sessionId: string, retries = 2): Promis
       return sessionData;
     } catch (err: unknown) {
       if (client) {
-        try { client.release(true); } catch (_) {}
+        try { client.release(true); } catch (releaseErr: unknown) {
+          logger.debug('[WebSocket] Error releasing client during session verify', { extra: { error: getErrorMessage(releaseErr) } });
+        }
         client = null;
       }
       const msg = getErrorMessage(err);
@@ -283,7 +285,8 @@ export function closeWebSocketServer(): void {
       connections.forEach(conn => {
         try {
           conn.ws.close(1001, 'Server shutting down');
-        } catch (_err: unknown) {
+        } catch (closeErr: unknown) {
+          logger.debug('[WebSocket] Error closing connection during shutdown', { extra: { error: getErrorMessage(closeErr) } });
         }
       });
     });

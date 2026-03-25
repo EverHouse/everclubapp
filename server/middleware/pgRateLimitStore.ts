@@ -93,7 +93,8 @@ export class PgRateLimitStore implements Store {
         `UPDATE rate_limit_hits SET hits = GREATEST(hits - 1, 0) WHERE key = $1`,
         [prefixed]
       );
-    } catch {
+    } catch (err: unknown) {
+      logger.warn('[PgRateLimitStore] decrement failed', { extra: { error: String(err) } });
     }
   }
 
@@ -101,14 +102,16 @@ export class PgRateLimitStore implements Store {
     const prefixed = this.prefixedKey(key);
     try {
       await pool.query(`DELETE FROM rate_limit_hits WHERE key = $1`, [prefixed]);
-    } catch {
+    } catch (err: unknown) {
+      logger.warn('[PgRateLimitStore] resetKey failed', { extra: { error: String(err) } });
     }
   }
 
   async resetAll(): Promise<void> {
     try {
       await pool.query(`DELETE FROM rate_limit_hits WHERE key LIKE $1`, [`${this.prefix}:%`]);
-    } catch {
+    } catch (err: unknown) {
+      logger.warn('[PgRateLimitStore] resetAll failed', { extra: { error: String(err) } });
     }
   }
 
@@ -119,7 +122,8 @@ export class PgRateLimitStore implements Store {
         `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
         [`${this.prefix}:%`, cutoff]
       );
-    } catch {
+    } catch (err: unknown) {
+      logger.warn('[PgRateLimitStore] cleanup failed', { extra: { error: String(err) } });
     }
   }
 }

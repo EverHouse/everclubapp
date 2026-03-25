@@ -122,7 +122,7 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                           </div>
                           <p className="text-sm text-primary/70 dark:text-white/70 mt-1">{step.content}</p>
                           {step.imageUrl && (
-                            <img src={step.imageUrl} alt="" className="mt-2 rounded-lg max-w-full h-auto" />
+                            <img src={step.imageUrl} alt="" className="mt-2 rounded-lg max-w-full h-auto" loading="lazy" width={400} height={225} />
                           )}
                         </div>
                       </div>

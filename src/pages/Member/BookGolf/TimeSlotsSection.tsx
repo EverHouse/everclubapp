@@ -44,7 +44,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
           ))}
         </div>
       )}
-      <div className={`transition-opacity duration-normal ${isLoading ? 'opacity-0 hidden' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-normal ${isLoading ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
         <div ref={timeSlotsAnimRef} className="space-y-2">
           {slotsByHour.map((hourGroup) => {
             const isExpanded = expandedHour === hourGroup.hour24;
