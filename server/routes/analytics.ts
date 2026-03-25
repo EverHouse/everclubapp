@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { getStripeClient } from '../core/stripe/client';
+import { CLUB_TIMEZONE } from '../utils/dateUtils';
 import type Stripe from 'stripe';
 
 const router = Router();
@@ -48,10 +49,12 @@ async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
   }
 
   const stripe = await getStripeClient();
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-  sixMonthsAgo.setDate(1);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
+  const nowPacificStr = new Date().toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
+  const [nowY, nowM] = nowPacificStr.split('-').map(Number);
+  let startMonth = nowM - 5;
+  let startYear = nowY;
+  if (startMonth <= 0) { startMonth += 12; startYear -= 1; }
+  const sixMonthsAgo = new Date(Date.UTC(startYear, startMonth - 1, 1));
   const startTimestamp = Math.floor(sixMonthsAgo.getTime() / 1000);
 
   const knownCustomersResult = await db.execute(sql`
@@ -62,10 +65,11 @@ async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
   );
 
   const months: Record<string, RevenueMonth> = {};
-  const currentDate = new Date();
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    let m = nowM - i;
+    let y = nowY;
+    if (m <= 0) { m += 12; y -= 1; }
+    const key = `${y}-${String(m).padStart(2, '0')}`;
     months[key] = { subscription_cents: 0, booking_cents: 0, overage_cents: 0, pos_sale_cents: 0, account_balance_cents: 0, guest_fee_cents: 0, other_cents: 0, total_cents: 0 };
   }
 
@@ -96,7 +100,8 @@ async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
       }
 
       const created = new Date(charge.created * 1000);
-      const monthKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}`;
+      const pacificDate = created.toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
+      const monthKey = pacificDate.substring(0, 7);
       if (!months[monthKey]) continue;
 
       const category = categorizeCharge(charge);

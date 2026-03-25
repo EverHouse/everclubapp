@@ -5,7 +5,7 @@ import { db } from '../../db';
 import { wellnessEnrollments, wellnessClasses, users, notifications } from '../../../shared/schema';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { eq, and, gte, sql, isNull, asc, desc } from 'drizzle-orm';
-import { formatDateDisplayWithDay, getTodayPacific, formatTime12Hour } from '../../utils/dateUtils';
+import { formatDateDisplayWithDay, getTodayPacific, formatTime12Hour, addDaysToPacificDate } from '../../utils/dateUtils';
 import { getAllActiveBayIds, getConferenceRoomId } from '../../core/affectedAreas';
 import { broadcastToStaff, broadcastWaitlistUpdate } from '../../core/websocket';
 import { getSessionUser } from '../../types/session';
@@ -281,9 +281,7 @@ router.get('/api/wellness-classes', async (req, res) => {
       if (end_date && typeof end_date === 'string') {
         sqlConditions.push(sql`wc.date <= ${end_date}`);
       } else {
-        const cutoff = new Date(today);
-        cutoff.setDate(cutoff.getDate() + 60);
-        const cutoffStr = cutoff.toISOString().split('T')[0];
+        const cutoffStr = addDaysToPacificDate(today, 60);
         sqlConditions.push(sql`wc.date <= ${cutoffStr}`);
       }
     }

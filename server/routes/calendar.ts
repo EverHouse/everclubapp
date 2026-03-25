@@ -8,6 +8,7 @@ import { CALENDAR_CONFIG, getResourceConfig, getCalendarAvailability, getCalenda
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { getErrorMessage, safeErrorDetail } from '../utils/errorUtils';
 import { broadcastToStaff } from '../core/websocket';
+import { getPacificMidnightUTC, addDaysToPacificDate } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -120,11 +121,10 @@ router.get('/api/calendar/availability', async (req, res) => {
     
     const calendar = await getGoogleCalendarClient();
     
-    const startTime = new Date(start_date as string);
-    startTime.setHours(0, 0, 0, 0);
+    const startTime = getPacificMidnightUTC(start_date as string);
     
-    const endTime = new Date(end_date as string);
-    endTime.setHours(23, 59, 59, 999);
+    const nextDay = addDaysToPacificDate(end_date as string, 1);
+    const endTime = new Date(getPacificMidnightUTC(nextDay).getTime() - 1);
     
     const response = await calendar.freebusy.query({
       requestBody: {

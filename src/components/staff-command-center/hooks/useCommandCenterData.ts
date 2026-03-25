@@ -190,7 +190,7 @@ export function useCommandCenterData(userEmail?: string) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
         const parsed = new Date(dateStr);
         if (!isNaN(parsed.getTime())) {
-          normalizedDate = parsed.toISOString().split('T')[0];
+          normalizedDate = parsed.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
         } else {
           return Infinity;
         }
@@ -223,7 +223,7 @@ export function useCommandCenterData(userEmail?: string) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
         const parsed = new Date(dateStr);
         if (!isNaN(parsed.getTime())) {
-          normalizedDate = parsed.toISOString().split('T')[0];
+          normalizedDate = parsed.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
         } else {
           return Infinity;
         }

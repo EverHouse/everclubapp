@@ -25,6 +25,7 @@ import { invalidateCache } from '../../core/queryCache';
 import { normalizeEmail } from '../../core/utils/emailNormalization';
 import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { getTodayPacific } from '../../utils/dateUtils';
 
 const router = Router();
 
@@ -805,12 +806,14 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       new Date(b.bookingDate as string).getTime() - new Date(a.bookingDate as string).getTime()
     );
 
-    // Calculate total attended visits including bookings, walk-ins, events, and wellness
     const attendedBookingsCount = visitHistory.length + walkInItems.length;
-    const now = new Date();
+    const todayPacific = getTodayPacific();
     const attendedEventsCount = eventRsvpHistory.filter((e) => {
-      const eventDate = new Date(e.eventDate ?? '');
-      return eventDate < now;
+      if (!e.eventDate) return false;
+      const eventDateStr = typeof e.eventDate === 'string'
+        ? e.eventDate.substring(0, 10)
+        : (e.eventDate as Date).toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      return eventDateStr < todayPacific;
     }).length;
     const attendedWellnessCount = wellnessHistory.filter((w) => w.status === 'attended').length;
     const totalAttendedVisits = attendedBookingsCount + attendedEventsCount + attendedWellnessCount;
