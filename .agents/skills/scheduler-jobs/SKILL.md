@@ -20,6 +20,8 @@ Note: `notificationCleanupScheduler.ts` uses `node-cron` (not `setInterval`) —
 
 ## Scheduler Registry (29 logical tasks across 26 files)
 
+**v8.97.24 (Task #213) — Scheduler timeout handling**: All schedulers now have configurable execution timeouts via `withTimeout()` wrapper in `schedulerTracker.ts`. Default timeout: 5 minutes per run. Timed-out runs are logged as errors and recorded in the tracker. This prevents individual scheduler hangs from blocking subsequent runs.
+
 | Name | File | Interval | Time Gate | Purpose |
 |---|---|---|---|---|
 | Background Sync | backgroundSyncScheduler.ts | 5 min | None | Google Calendar events, wellness, closures, conference rooms |
@@ -47,7 +49,7 @@ Note: `notificationCleanupScheduler.ts` uses `node-cron` (not `setInterval`) —
 | Stuck Cancellation | stuckCancellationScheduler.ts | 2 hr | None | Alert for cancellation_pending >4h |
 | Pending User Cleanup | pendingUserCleanupScheduler.ts | 6 hr | None | Delete 48h+ pending users |
 | Webhook Event Cleanup | webhookEventCleanupScheduler.ts | 24 hr | None | Remove 7-day-old processed events |
-| Onboarding Nudge | onboardingNudgeScheduler.ts | 1 hr | 10 AM Pacific | Stalled member nudge emails |
+| Onboarding Nudge | onboardingNudgeScheduler.ts | 1 hr | 10 AM Pacific | Stalled member nudge emails. **v8.97.24 fix**: Added `WHERE onboarding_completed_at IS NULL` filter to prevent sending to already-completed members. |
 | Supabase Heartbeat | supabaseHeartbeatScheduler.ts | 6 hr | None | Keep Supabase connection alive |
 | Notification Cleanup | notificationCleanupScheduler.ts | 24 hr (cron) | Midnight Pacific | Delete old notifications, push subscriptions, dismissed notices (configurable retention via `cleanup.notification_retention_days` setting, default 30 days) |
 | Job Queue Processor | jobQueue.ts | 5 sec | None | Process background jobs |

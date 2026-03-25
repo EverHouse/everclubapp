@@ -27,7 +27,7 @@ description: HubSpot CRM synchronization system — queue-based sync of contacts
 | Tour scheduler booking | `server/routes/tours.ts` | `bookHubSpotMeeting()` calls HubSpot Scheduler API; `parseHubSpotMeetingLink()` extracts slug + hublet; `pacificToUtcMs()` for timezone conversion |
 | Tour sync (inbound) | `server/routes/tours.ts` | `syncToursFromHubSpot()` pulls HubSpot meetings into local tours table; deduplicates by `hubspotMeetingId` or email+date+time fallback |
 | Full member sync | `server/core/memberSync.ts` | Daily inbound reconciliation |
-| Comm logs sync | `server/core/memberSyncCommLogs.ts` | Calls + SMS/WhatsApp from HubSpot → `communication_logs`. Uses raw REST API for call/communication associations (`/crm/v3/objects/calls/{id}/associations/contacts`). Do NOT use `hubspot.crm.objects.calls.associationsApi` — it does not exist in SDK v13.x. |
+| Comm logs sync | `server/core/memberSyncCommLogs.ts` | Calls + SMS/WhatsApp from HubSpot → `communication_logs`. Uses raw REST API for call/communication associations (`/crm/v3/objects/calls/{id}/associations/contacts`). **CRITICAL (v8.97.22)**: Do NOT use `hubspot.crm.objects.calls.associationsApi` — it does not exist in SDK v13.x. The force-cast `as unknown as { associationsApi }` compiled but crashed at runtime. |
 | Payment line items | `server/core/hubspot/queueHelpers.ts` | Stripe → HubSpot line items (via queue) |
 | Queue monitor | `server/core/hubspotQueueMonitor.ts` | Admin dashboard stats |
 | Queue scheduler | `server/schedulers/hubspotQueueScheduler.ts` | Every 2 min |

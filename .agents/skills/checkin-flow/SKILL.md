@@ -22,7 +22,7 @@ Three distinct paths: **Booking check-in** (billing + status change), **QR/NFC w
 | Checkin billing modal | `src/components/staff-command-center/modals/CheckinBillingModal.tsx` | UI |
 | Unified booking sheet | `src/components/staff-command-center/modals/UnifiedBookingSheet.tsx` | Roster + billing UI |
 | QR scanner modal | `src/components/staff-command-center/modals/QrScannerModal.tsx` | QR/NFC scan UI |
-| Kiosk check-in API | `server/routes/kioskCheckin.ts` | `POST /api/kiosk/checkin`, `GET /api/kiosk/verify-staff` |
+| Kiosk check-in API | `server/routes/kioskCheckin.ts` | `POST /api/kiosk/checkin`, `GET /api/kiosk/verify-staff`. **v8.97.30 fix**: resource_type enum comparison changed from numeric to string to fix upcoming booking detection. |
 | Kiosk check-in page | `src/pages/Staff/KioskCheckin.tsx` | Full-screen self-service check-in UI at `/kiosk` |
 | Booking status dropdown | `src/components/BookingStatusDropdown.tsx` | Status toggle UI |
 | Booking actions hook | `src/hooks/useBookingActions.ts` | Frontend API calls |
@@ -100,7 +100,7 @@ Staff activates kiosk mode (navigates to /kiosk)
 7. **Cancelled/declined bookings = $0 fees.** `computeFeeBreakdown` short-circuits to zero for terminal statuses.
 8. **Invoice settlement is non-blocking.** `settleBookingInvoiceAfterCheckin()` runs as background task. If all settled + any paid → finalize. If all waived → void. Failures logged as ERROR.
 9. **Cash payment route.** `POST /api/stripe/staff/mark-booking-paid` marks all pending as `paid` and triggers settlement.
-10. **Auto check-in runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard blocks if unpaid fees.
+10. **Auto check-in runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard blocks if unpaid fees. **v8.97.28**: Auto-complete and bulk check-in now also trigger guest pass auto-consumption for eligible guests (previously only individual check-in consumed passes).
 11. **Placeholder guests cannot consume guest passes.** `/^Guest \d+$/i` pattern rejected — real name required.
 12. **BookingStatusDropdown uses portal rendering.** Portaled to `document.body` to escape `backdrop-filter` stacking contexts. Any dropdown inside a container with `backdrop-filter`/`transform`/`filter` MUST use a portal.
 

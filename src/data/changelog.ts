@@ -8,6 +8,133 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.35",
+    date: "2026-03-25",
+    title: "SEO & Accessibility Improvements",
+    changes: [
+      "Improved: Website accessibility and content consistency for search engines — better heading structure, alt text, and semantic HTML",
+      "Improved: HEAD requests now supported for all single-page application routes, improving compatibility with monitoring tools",
+    ]
+  },
+  {
+    version: "8.97.34",
+    date: "2026-03-25",
+    title: "Data Integrity Hardening",
+    changes: [
+      "Improved: Advisory locks now prevent race conditions during concurrent booking and session creation",
+      "Improved: HubSpot deduplication guards prevent syncing duplicate contact records",
+      "Improved: Database-level status constraints now enforce valid membership and booking state transitions more strictly",
+    ]
+  },
+  {
+    version: "8.97.33",
+    date: "2026-03-24",
+    title: "Stripe Sync & Customer Improvements",
+    changes: [
+      "Fixed: Duplicate Stripe products are now automatically detected and archived during sync",
+      "Fixed: Stale Stripe customer IDs are now re-linked instead of failing silently",
+      "Improved: Older products are prioritized during Stripe synchronization to prevent duplicate creation",
+    ]
+  },
+  {
+    version: "8.97.32",
+    date: "2026-03-24",
+    title: "Subscription & Billing Fixes",
+    changes: [
+      "Fixed: Subscription renewals no longer fail when Stripe customer IDs become stale",
+      "Fixed: Billing dashboard no longer crashes when displaying certain payment statuses",
+      "Fixed: Coupon handling now correctly validates discount amounts during checkout",
+      "Fixed: Idempotency keys no longer conflict across different payment types",
+    ]
+  },
+  {
+    version: "8.97.31",
+    date: "2026-03-24",
+    title: "Tier Layout Refresh",
+    changes: [
+      "Improved: Membership tiers now display in a clean 4-column layout on the comparison page",
+      "Improved: Tier titles shortened by removing the word 'Membership' for a cleaner look",
+      "Improved: Corporate tier now appears as a full-width card below the other tiers for better visibility",
+    ]
+  },
+  {
+    version: "8.97.30",
+    date: "2026-03-24",
+    title: "Kiosk & Terminal Fixes",
+    changes: [
+      "Fixed: Kiosk self-check-in now correctly detects upcoming bookings — a data type mismatch was preventing bookings from appearing on the check-in screen",
+      "Fixed: Terminal card reader no longer encounters a race condition when activated in the New Member drawer",
+    ]
+  },
+  {
+    version: "8.97.29",
+    date: "2026-03-24",
+    title: "Booking & Fee Calculation Fixes",
+    changes: [
+      "Fixed: Booking creation race conditions that could allow overlapping bookings in rare cases",
+      "Fixed: Zero-dollar payment UI no longer hangs when processing fully discounted sessions",
+      "Fixed: Fee calculation correctly handles edge cases with invalid payment statuses",
+      "Fixed: Time overlap detection now correctly calculates booking conflicts across midnight",
+    ]
+  },
+  {
+    version: "8.97.28",
+    date: "2026-03-23",
+    title: "Guest Pass Improvements",
+    changes: [
+      "Improved: Remaining guest pass count now accounts for holds from pending bookings, giving you a more accurate available balance",
+      "Fixed: Guest passes are now automatically consumed during bulk check-in and auto-complete — previously only applied during individual check-in",
+    ]
+  },
+  {
+    version: "8.97.27",
+    date: "2026-03-23",
+    title: "Cafe Menu Fixes",
+    changes: [
+      "Fixed: Deleted cafe menu items no longer remain visible in the app after being removed",
+      "Added: Staff can now bulk-delete all inactive cafe items at once, instead of removing them one by one",
+    ]
+  },
+  {
+    version: "8.97.26",
+    date: "2026-03-23",
+    title: "Free Trial & Promo Code Support",
+    isMajor: true,
+    changes: [
+      "Added: Free trial options are now available when adding new members — staff can set trial duration directly in the New Member drawer",
+      "Added: Promotion code support in the Create Coupon admin form — staff can now create discount codes that members can apply at checkout",
+    ]
+  },
+  {
+    version: "8.97.25",
+    date: "2026-03-23",
+    title: "Staff Financial Summary Upgrade",
+    changes: [
+      "Improved: Staff financial summary now shows detailed breakdowns including revenue by payment type, outstanding balances, and collection trends",
+    ]
+  },
+  {
+    version: "8.97.24",
+    date: "2026-03-22",
+    title: "Background System Reliability",
+    changes: [
+      "Fixed: Background schedulers no longer timeout during heavy database operations — added configurable timeout handling",
+      "Fixed: Onboarding nudge emails now correctly target stalled members instead of sending to already-completed members",
+      "Fixed: QR scanner initialization is more reliable on mobile devices",
+      "Fixed: Google Calendar sync no longer fails silently when encountering timezone edge cases",
+    ]
+  },
+  {
+    version: "8.97.23",
+    date: "2026-03-22",
+    title: "Database & Infrastructure Optimization",
+    changes: [
+      "Improved: Removed 15 duplicate database indexes that were slowing down write operations",
+      "Fixed: Existing customer IDs in user billing information are no longer overwritten during sync",
+      "Improved: Data cleanup routines now run more frequently with shorter retention periods",
+    ]
+  },
+  {
     version: "8.97.22",
     date: "2026-03-25",
     title: "HubSpot Call Sync Fix",

@@ -84,6 +84,8 @@ Does it write to the database?
 16. **Tier update must also repair stale `tier_id`.** The `subscription.updated` handler checks BOTH `tierChanged` (name differs) and `tierIdDrifted` (name matches but `tier_id` is null/wrong). Both conditions trigger the UPDATE. The initial SELECT includes `tier_id` alongside `tier`. (`updated.ts`)
 17. **Corporate propagation checks `tier_id` parity.** The sub-member propagation WHERE clause is `AND (u.tier IS DISTINCT FROM $2 OR u.tier_id IS DISTINCT FROM $3)` — catches members with correct tier name but stale `tier_id`. (`updated.ts`)
 18. **Schedule `released` status clears `pending_tier_change`.** The `handleScheduleUpdate` terminal-status block handles `canceled`, `completed`, AND `released`. (`schedules.ts`)
+19. **Stripe product auto-reactivation (v8.97.20).** All `ensure*Product` functions in `productCreation.ts` check `active === false` and reactivate archived products. `autoPush.ts` sets `active: true` on every tier product update. Fee products (Guest Fee, Day Pass Coworking, Day Pass Golf Sim) are auto-reactivated on startup.
+20. **Stale price archival (v8.97.18).** `archiveStalePrices()` in `productCreation.ts` runs after each fee product initialization. Archives any active prices that don't match the current price ID, preventing accumulation of orphaned prices.
 
 ## Anti-Patterns (NEVER)
 

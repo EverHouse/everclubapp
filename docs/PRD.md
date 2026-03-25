@@ -3,7 +3,7 @@
 ## Ever Club Members App
 
 **Version:** 1.0
-**Last Updated:** March 24, 2026
+**Last Updated:** March 25, 2026
 **Document Owner:** Ever Club Product Team
 **Operating Entity:** Tempo CC Inc.
 
@@ -206,7 +206,7 @@ To provide an elegant, frictionless digital experience that mirrors the elevated
 - Stripe product synchronization
 
 #### Financial Management (Admin only)
-- Revenue reports and financial dashboards
+- Revenue reports and financial dashboards with detailed breakdowns (revenue by payment type, outstanding balance aging, collection rate trends, per-tier revenue distribution)
 - Stripe configuration management
 - Data integrity checks and reconciliation tools
 - POS register for in-person transactions
@@ -290,8 +290,8 @@ Valid status transitions enforced at the database level:
 
 #### Subscription Management
 - Stripe-powered recurring billing for membership tiers
-- Trial periods with automatic conversion
-- Coupon and promo code support (including 100% off / $0 checkouts)
+- Trial periods with automatic conversion — staff can set 7, 14, or 30-day free trials when adding new members
+- Coupon and promo code support (including 100% off / $0 checkouts) — staff can create promotion codes via the Create Coupon admin form
 - Subscription pause and resume
 - Duplicate subscription prevention with per-email operation locks
 
@@ -420,7 +420,7 @@ Valid status transitions enforced at the database level:
 - Dedicated staff interface for processing arrivals
 - Member search and identification
 - Billing verification and prepayment enforcement
-- Guest pass consumption at check-in
+- Guest pass consumption at check-in (also triggered during bulk check-in and booking auto-complete)
 - Walk-in visit recording
 
 #### Walk-In Visit Tracking
@@ -444,6 +444,7 @@ Valid status transitions enforced at the database level:
 - Menu items synced as Stripe products
 - Ordering support through POS register
 - Publicly accessible at `/menu`
+- Bulk delete all inactive menu items for easy cleanup
 
 ### 5.12 Public Website & Marketing Pages
 
@@ -701,7 +702,7 @@ Tiers are dynamically managed in the database with the following default hierarc
 | Staff | `staff_users` | Staff and admin accounts with role and active status |
 | Membership Tiers | `membership_tiers` | Tier definitions with limits, pricing, and feature flags |
 | Tier Features | `tier_features` / `tier_feature_values` | Flexible feature assignment system for tier comparisons |
-| Guest Passes | `guest_passes` | Annual/monthly guest pass allocation and usage tracking |
+| Guest Passes | `guest_passes` | Annual/monthly guest pass allocation and usage tracking. Remaining count accounts for active holds from pending bookings. |
 | Resources | `resources` | Bookable assets (simulator bays, conference rooms) |
 | Booking Requests | `booking_requests` | Member-initiated booking attempts with status lifecycle |
 | Booking Sessions | `booking_sessions` | Actualized sessions linking requests to resources and Trackman data |
@@ -854,11 +855,13 @@ All schedulers have overlap protection, catch-up windows, and error alerting.
 - Booking status transitions enforced at the database level (not just application)
 - Failed side-effects tracked in dedicated table for staff recovery
 
-### Accessibility
+### Accessibility & SEO
 - WCAG compliance: skip navigation, focus trapping, proper ARIA roles
 - `prefers-reduced-motion` respected for all animations
 - All clickable non-button elements have keyboard handlers
 - Consistent interaction patterns across the app
+- Semantic heading structure and alt text on public-facing pages for screen reader and search engine support
+- HEAD request handling for all SPA routes (monitoring tools and crawlers)
 
 ### Mobile Experience
 - Mobile-first responsive design
@@ -879,4 +882,4 @@ All schedulers have overlap protection, catch-up windows, and error alerting.
 
 ---
 
-*This document reflects the state of the Ever Club Members App as of March 24, 2026 (v8.97.11). It should be updated as new features are developed and requirements evolve.*
+*This document reflects the state of the Ever Club Members App as of March 25, 2026 (v8.97.35). It should be updated as new features are developed and requirements evolve.*

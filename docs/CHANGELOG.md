@@ -2,6 +2,106 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.35] - 2026-03-25
+
+### SEO & Accessibility Improvements
+- **Accessibility audit**: Improved heading structure, alt text, and semantic HTML across public-facing pages for better screen reader support and search engine indexing.
+- **HEAD request support**: Added HEAD request handling for all SPA routes — monitoring tools and crawlers that issue HEAD requests no longer receive 404 errors.
+- **Files changed**: `server/index.ts`, various `src/pages/` components
+
+## [8.97.34] - 2026-03-25
+
+### Data Integrity Hardening
+- **Advisory locks**: Added `pg_advisory_xact_lock` on `resourceId:sessionDate` composite keys during session creation to serialize concurrent booking approvals. Prevents two staff members from approving overlapping bookings simultaneously.
+- **HubSpot deduplication**: Added dedup guards in `memberSync.ts` to detect and skip duplicate HubSpot contact records before writing to the local database. Logs warnings for manual resolution.
+- **Status constraints**: Tightened database-level CHECK constraints on `membership_status` and booking status fields. Added `trg_membership_status_machine` transition validation for additional edge cases (suspended→pending, paused→pending, frozen→pending, unpaid→pending, grace_period→pending).
+- **Files changed**: `server/core/bookingService/sessionManager.ts`, `server/core/memberSync.ts`, `server/db-init.ts`
+
+## [8.97.33] - 2026-03-24
+
+### Stripe Sync & Customer Improvements
+- **Duplicate Stripe product detection**: `productCatalogSync.ts` now detects duplicate active products with the same name/metadata during sync and archives the newer duplicate, keeping the older canonical product.
+- **Stale customer ID re-linking**: `customerSync.ts` detects when a user's `stripe_customer_id` points to a deleted or non-existent Stripe customer and re-links to the correct customer by email lookup.
+- **Product age prioritization**: Stripe sync now prioritizes older products when resolving duplicates, preventing newer auto-created products from superseding manually configured ones.
+- **Files changed**: `server/core/stripe/productCatalogSync.ts`, `server/core/stripe/customerSync.ts`
+
+## [8.97.32] - 2026-03-24
+
+### Subscription & Billing Fixes
+- **Subscription renewal fix**: `subscriptionSync.ts` now handles the case where a user's `stripe_customer_id` becomes stale after a customer merge or deletion — re-fetches the customer by email before failing.
+- **Billing dashboard crash fix**: Fixed `TypeError` in billing dashboard when payment intents had unexpected status values not in the display mapping. Added fallback display for unknown statuses.
+- **Coupon validation**: `discounts.ts` now validates coupon `amount_off` and `percent_off` values before applying to checkout, preventing negative or > 100% discounts.
+- **Idempotency key conflict fix**: Fixed idempotency key generation for different payment types (booking vs. POS vs. subscription) that could collide when using the same customer ID.
+- **Files changed**: `server/core/stripe/subscriptionSync.ts`, `server/core/stripe/discounts.ts`, `server/core/stripe/payments.ts`, `src/pages/Staff/BillingDashboard.tsx`
+
+## [8.97.31] - 2026-03-24
+
+### Tier Layout Refresh
+- **4-column layout**: Membership comparison page now uses a CSS grid with `grid-template-columns: repeat(4, 1fr)` instead of the previous 3-column layout, accommodating the full tier lineup.
+- **Shortened titles**: Removed the word "Membership" from tier card titles (e.g., "Social Membership" → "Social") for a cleaner card layout.
+- **Corporate full-width**: Corporate tier card renders as a full-width row below the 4-column grid, with distinct styling to highlight team-based pricing.
+- **Files changed**: `src/pages/Public/Membership/Compare.tsx`, `src/components/TierCard.tsx`
+
+## [8.97.30] - 2026-03-24
+
+### Kiosk & Terminal Fixes
+- **Kiosk enum type error**: `kioskCheckin.ts` query for upcoming bookings compared `resource_type` (a string enum) using `=` against a numeric value. Changed to string comparison matching the PostgreSQL enum type. This caused the kiosk check-in screen to never show upcoming bookings.
+- **Terminal reader race condition (Task #220)**: Fixed race condition in New Member drawer where `processSetupIntent` was called before the terminal reader finished initializing. Added `await` on reader connection promise and a ready-state check before initiating the setup intent.
+- **Files changed**: `server/routes/kioskCheckin.ts`, `src/components/staff-command-center/modals/NewMemberDrawer.tsx`
+
+## [8.97.29] - 2026-03-24
+
+### Booking & Fee Calculation Fixes
+- **Booking creation race condition**: Fixed race where two concurrent booking requests for the same slot could both pass the overlap check. `checkResourceOverlap` in `bookingCreationGuard.ts` now uses `SELECT FOR UPDATE` within the advisory lock transaction.
+- **Zero-dollar payment hang**: `StripePaymentForm` now detects when `amountCents <= 0` and short-circuits to success without creating a Stripe PaymentIntent, preventing the UI from waiting indefinitely for a PI that was never created.
+- **Invalid payment status handling**: `computeFeeBreakdown` in `unifiedFeeService.ts` now gracefully handles participants with unexpected `payment_status` values (e.g., from manual DB edits) instead of throwing.
+- **Cross-midnight overlap fix**: `approvalFlow.ts` inline overlap conditions replaced with `timePeriodsOverlap` helper from `conflictDetection.ts` that correctly handles bookings spanning midnight (e.g., 23:00–01:00).
+- **Files changed**: `server/core/bookingService/bookingCreationGuard.ts`, `src/components/stripe/StripePaymentForm.tsx`, `server/core/billing/unifiedFeeService.ts`, `server/core/bookingService/approvalFlow.ts`
+
+## [8.97.28] - 2026-03-23
+
+### Guest Pass Improvements
+- **Holds shown in remaining count**: `getGuestPassesRemaining()` in `guestPasses.ts` now subtracts active holds (from `guest_pass_holds` table) from the available count. The member-facing display and API response show `passes_remaining_conservative = Math.max(0, passes_remaining - pendingGuestCount)` to prevent over-commitment.
+- **Auto-consumption in bulk check-in and auto-complete**: Guest pass consumption logic (previously only triggered during individual staff check-in) now also runs during `bookingAutoCompleteScheduler` and bulk check-in paths. Both paths call `consumeGuestPassForParticipant` for eligible guests with available passes.
+- **Files changed**: `server/routes/guestPasses.ts`, `server/schedulers/bookingAutoCompleteScheduler.ts`, `server/routes/bays/approval.ts`
+
+## [8.97.27] - 2026-03-23
+
+### Cafe Menu Fixes
+- **Deleted items staying visible**: Fixed cafe menu query that included soft-deleted items (where `is_active = false` but row still existed). After the v8.94.15 migration to hard deletes, some legacy soft-deleted items remained in the database. Added cleanup migration to remove residual inactive records.
+- **Bulk delete inactive items**: Added `DELETE /api/admin/cafe/bulk-delete-inactive` endpoint that permanently removes all cafe items with `is_active = false` in a single operation. Includes Stripe product archival for each item. Admin-only with audit logging.
+- **Files changed**: `server/routes/cafe.ts`, `src/pages/Staff/CafeTab.tsx`
+
+## [8.97.26] - 2026-03-23
+
+### Free Trial & Promo Code Support
+- **Free trial in New Member drawer (Task #216)**: Added trial period configuration to the staff New Member drawer. Staff can select 7, 14, or 30-day trial periods when creating a new member. Sets `trial_end` on the Stripe subscription and `membership_status = 'trialing'` locally. Trial members get full access during the trial period.
+- **Promotion code support (Task #218)**: Added `promotionCode` field to the Create Coupon admin form. Staff can now create Stripe coupons with associated promotion codes that members can enter at checkout. Supports both percentage and fixed-amount discounts. The promotion code is validated and displayed in the coupon list.
+- **Files changed**: `src/components/staff-command-center/modals/NewMemberDrawer.tsx`, `server/core/stripe/subscriptions.ts`, `src/pages/Admin/Coupons.tsx`, `server/routes/stripe/coupons.ts`
+
+## [8.97.25] - 2026-03-23
+
+### Staff Financial Summary Upgrade (Task #215)
+- **Detail upgrade**: Staff financial summary page now shows granular breakdowns: revenue by payment type (card, terminal, balance, manual), outstanding balance aging (0–7d, 8–14d, 15–30d, 30d+), collection rate trends, and per-tier revenue distribution. Previously showed only aggregate totals.
+- **Files changed**: `server/routes/staff/financialSummary.ts`, `src/pages/Staff/FinancialSummary.tsx`
+
+## [8.97.24] - 2026-03-22
+
+### Background System Reliability (Task #213)
+- **Scheduler timeout handling**: Added configurable execution timeouts to all 28 schedulers via `withTimeout()` wrapper in `server/core/schedulerTracker.ts`. Default timeout is 5 minutes per scheduler run. Prevents individual scheduler hangs from blocking the entire scheduler queue. Timed-out runs are logged as errors and recorded in the scheduler tracker.
+- **Onboarding nudge fix**: `onboardingNudgeScheduler.ts` was sending nudge emails to members who had already completed onboarding but whose `onboarding_completed_at` timestamp was set after the nudge query ran. Added `WHERE onboarding_completed_at IS NULL` filter.
+- **QR scanner reliability**: `QrScannerModal.tsx` camera initialization now uses `requestAnimationFrame` for DOM-ready detection and a 10-second timeout with automatic retry, fixing intermittent "Camera not found" errors on mobile Safari.
+- **Calendar sync edge case**: `backgroundSyncScheduler.ts` Google Calendar sync now handles events with missing `dateTime` fields (all-day events) gracefully instead of throwing a TypeError.
+- **Files changed**: `server/core/schedulerTracker.ts`, `server/schedulers/onboardingNudgeScheduler.ts`, `src/components/staff-command-center/modals/QrScannerModal.tsx`, `server/schedulers/backgroundSyncScheduler.ts`
+
+## [8.97.23] - 2026-03-22
+
+### Database & Infrastructure Optimization (Task #212)
+- **Duplicate index cleanup**: Identified and dropped 15 duplicate database indexes that were created by overlapping migration scripts. Indexes were functionally identical (same table, columns, and ordering) but had different names. Reduces write amplification and storage overhead.
+- **Customer ID overwrite prevention**: `customerSync.ts` now checks for existing `stripe_customer_id` before overwriting during bulk sync. Previously, a sync cycle could replace a valid customer ID with a stale one from HubSpot.
+- **Cleanup retention reduction**: `webhookLogCleanupScheduler.ts` retention reduced from 90 days to 30 days. `sessionCleanupScheduler.ts` session expiry reduced from 30 days to 7 days. Reduces database bloat.
+- **Files changed**: `server/db-init.ts` (index drops), `server/core/stripe/customerSync.ts`, `server/schedulers/webhookLogCleanupScheduler.ts`, `server/schedulers/sessionCleanupScheduler.ts`
+
 ## [8.97.22] - 2026-03-25
 
 ### HubSpot Call Association Fix

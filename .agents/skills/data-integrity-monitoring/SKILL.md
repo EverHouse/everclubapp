@@ -87,7 +87,9 @@ What type of alert?
 20. **Abandoned pending cleanup (every 6h).** Delete users pending >24h with no Stripe subscription, cascade-deleting related records in transaction.
 21. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
 22. **Webhook dedup cleanup.** `cleanupOldProcessedEvents()` runs probabilistically (5% of webhooks).
-23. **FK constraints must NOT use `.references()` unless already in production.** Replit's deployment auto-generates migrations from Drizzle schema — if `.references()` exists but the FK isn't in production, deployment fails on orphaned data. FK constraints for tables with potential orphans are managed at runtime by `db-init.ts` (orphan cleanup → DROP IF EXISTS → ADD CONSTRAINT). See `project-architecture` Rule 7 for the full list.
+23. **FK constraints must NOT use `.references()` unless already in production.**
+24. **Duplicate index cleanup (v8.97.23, Task #212).** 15 duplicate database indexes removed that were created by overlapping migration scripts. Reduces write amplification. Run `SELECT indexname, tablename FROM pg_indexes WHERE schemaname = 'public' GROUP BY tablename, indexdef HAVING count(*) > 1` to detect future duplicates.
+25. **Advisory lock serialization for session creation (v8.97.34).** `ensureSessionForBooking` uses `pg_advisory_xact_lock` on `resourceId:sessionDate` to prevent concurrent booking approvals from creating overlapping sessions. Combined with HubSpot dedup guards and tightened membership status constraints.
 
 ## Anti-Patterns (NEVER)
 

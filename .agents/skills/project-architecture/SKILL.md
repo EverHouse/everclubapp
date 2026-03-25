@@ -58,7 +58,7 @@ What are you changing?
 ├── src/                    # Frontend (React + Vite + Tailwind)
 ├── server/
 │   ├── core/               # ALL business logic lives here
-│   ├── routes/             # Thin HTTP handlers (no business logic)
+│   ├── routes/             # Thin HTTP handlers (no business logic). HEAD requests handled for all SPA routes (v8.97.35).
 │   ├── schedulers/         # Timed background jobs
 │   ├── emails/             # Email templates
 │   ├── middleware/          # Express middleware
@@ -118,6 +118,8 @@ Update `src/data/changelog.ts` after EVERY significant change. Bump version numb
 - `src/data/changelog-version.ts` — `getLatestVersion()` return value (drives "new updates" badge)
 - `package.json` — `version` field (must match `APP_VERSION` exactly)
 - `replit.md` — version in the header line
+
+**Dead code cleanup (v8.97.12):** 22 unused files removed across frontend (10), server (9), and shared (3). Notable removals: `feeCalculator.ts` (superseded by `unifiedFeeService.ts`), `server/core/mindbody/` (dead module), `StaffDirectAddModal.tsx`, barrel `index.ts` files. See `docs/CHANGELOG.md` v8.97.12 for the full list.
 
 ### 4. Pacific Timezone First
 All date/time operations use Pacific timezone (`America/Los_Angeles`). Use `server/utils/dateUtils.ts` utilities, never raw `new Date()` comparisons.

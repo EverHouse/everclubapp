@@ -13,7 +13,7 @@ Central entry point: `computeFeeBreakdown()` in `server/core/billing/unifiedFeeS
 |---|---|---|
 | Fee computation | `server/core/billing/unifiedFeeService.ts` | `computeFeeBreakdown()`, line item rules |
 | Fee recalculation | `server/core/billing/unifiedFeeService.ts` | `recalculateSessionFees()` |
-| Fee caching | `server/core/billing/feeCalculator.ts` | `calculateAndCacheParticipantFees()` |
+| Fee caching | `server/core/billing/unifiedFeeService.ts` | `calculateAndCacheParticipantFees()` (note: `feeCalculator.ts` was removed in v8.97.12 dead code cleanup; functionality consolidated into `unifiedFeeService.ts`) |
 | Usage calculation | `server/core/bookingService/usageCalculator.ts` | Daily usage, overage, allocation |
 | Pricing config | `server/core/billing/pricingConfig.ts` | In-memory rate store |
 | Prepayment | `server/core/billing/prepaymentService.ts` | Payment intent creation |
@@ -76,6 +76,8 @@ After calling recalculateSessionFees()?
 12. **Account credit audit trail.** When `createPrepaymentIntent` returns `paidInFull: true`, call `logPaymentAudit()` with `paymentMethod: 'account_credit'`.
 13. **Outstanding balance queries MUST include 3 filters:** 90-day lookback, exclude cancelled bookings, exclude paid snapshots.
 14. **Conference room zero-fee bookings skip invoice finalization (v8.87.7).** When `totalCents === 0` (within daily allowance), `syncBookingInvoice()` creates no invoice. All downstream code must check `getBookingInvoiceId()` before calling `finalizeAndPayInvoice()` — if null, skip finalization. This applies to member bookings (`bookings.ts`), staff bookings (`staff-conference-booking.ts`), and booking approvals (`approvalService.ts`).
+15. **Zero-dollar charge guard (v8.97.16).** `createPaymentIntent` and `chargeWithBalance` short-circuit with a synthetic success when `amountCents <= 0`, preventing Stripe 400 errors on 100% discounted or comped sessions.
+16. **Array mutation safety (v8.97.16).** `generatePaymentIdempotencyKey` copies `participantIds` before sorting (`[...participantIds].sort(...)`) to prevent mutating the caller's array.
 
 ## Anti-Patterns (NEVER)
 

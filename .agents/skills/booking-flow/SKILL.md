@@ -56,6 +56,16 @@ Who is cancelling?
     └── Deletes ALL trackman_bay_slots in duration range (not just first slot) (v8.87.35)
     └── Cancels ALL pending PIs via cancelPendingPaymentIntentsForBooking() (v8.87.42)
     └── Marks fee snapshots as 'cancelled' (including NULL-PI orphaned snapshots since v8.87.77)
+
+### Conflict detection — cross-midnight fix (v8.97.29)
+
+```
+Booking approval overlap check
+├── Old: inline Drizzle ORM lte/gte/gt/lt conditions
+│   └── BROKEN for cross-midnight bookings (23:00–01:00)
+└── New: fetch same-day candidates → filter via timePeriodsOverlap()
+    └── timePeriodsOverlap() adds 1440 min when end < start
+    └── Exported from conflictDetection.ts (v8.97.21)
 ```
 
 ### Fee calculation timing
@@ -80,8 +90,9 @@ Is this inside a db.transaction()?
 7. **Roster lock after paid invoice.** `enforceRosterLock()` blocks edits after invoice is paid. Staff can override with reason. `isBookingInvoicePaid()` checks Stripe first; on Stripe failure, falls back to `booking_fee_snapshots` — locks only if a completed snapshot with `total_cents > 0` exists (meaning real money was collected). This avoids false locks on $0 bookings (within daily allowance) while preventing fail-open when Stripe is unreachable.
 8. **Conflict check must include all 7 occupied statuses.** `pending`, `pending_approval`, `approved`, `confirmed`, `checked_in`, `attended`, `cancellation_pending`. The `checked_in` status was added in v8.88.6 — a checked-in member is actively using the bay. For `booking_sessions` subquery, use `NOT IN ('cancelled', 'deleted', 'declined')` which is equivalent plus includes terminal `expired`/`no_show` (harmless — those are past bookings). Both `bookingCreationGuard.ts` and `conflictDetection.ts` use `OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending']`. Booking creation in `booking-create.ts` and `staff-conference-booking.ts` must use the same 7-status list.
 9. **Guest pass hold-then-convert.** Holds at booking creation → converted to usage inside session creation transaction → released on cancellation. `releaseGuestPassHold` runs AFTER the hard-delete transaction commits — prevents premature release if the delete fails (v8.87.35).
-10. **Auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard: blocks auto-complete if unpaid fees exist.
+10. **Auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time (same-day) or next day (overnight). Fee guard: blocks auto-complete if unpaid fees exist. **Guest pass auto-consumption (v8.97.28)**: Auto-complete now calls `consumeGuestPassForParticipant` for eligible guests, matching the individual check-in behavior.
 11. **Usage ledger stores emails, not UUIDs.** `resolveUserIdToEmail()` converts before ledger writes.
+12. **Conference room pending limit (v8.97.16).** `bookingCreationGuard.ts` enforces a limit of 5 pending conference room requests per user. Simulator bookings retain the existing 1-pending limit.
 
 ## Anti-Patterns (NEVER)
 

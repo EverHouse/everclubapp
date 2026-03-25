@@ -106,11 +106,21 @@ Booking cancelled
 
 `available = passes_total - passes_used - active_holds`
 
+**v8.97.28 — Holds shown in remaining count**: `getGuestPassesRemaining()` now subtracts active holds from the available count. The member-facing display shows the conservative estimate accounting for pending booking holds.
+
 ## Pending Guest Count
 
 GET endpoint calculates: query `booking_requests` with status in `pending/pending_approval/approved/confirmed`, parse `requestParticipants` JSONB, count `type === 'guest'` with email or userId set.
 
 `passes_remaining_conservative = Math.max(0, passes_remaining - pendingGuestCount)`
+
+## Auto-Consumption in Bulk Paths (v8.97.28)
+
+Guest pass consumption now also runs during:
+- **Booking auto-complete** (`bookingAutoCompleteScheduler`): When a booking is auto-completed 30 min after end time, eligible guests with available passes have passes consumed automatically.
+- **Bulk check-in**: When multiple bookings are checked in simultaneously, guest pass consumption is applied per-participant.
+
+Previously, guest pass consumption only occurred during individual staff check-in via `consumeGuestPassForParticipant`.
 
 ## Exported Helpers (from `guestPasses.ts`)
 
