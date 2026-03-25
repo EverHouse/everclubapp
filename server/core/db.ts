@@ -3,7 +3,7 @@ import { getErrorCode, getErrorDetail, getErrorMessage } from '../utils/errorUti
 import { isRetryableError as _isRetryableError, RETRYABLE_ERRORS } from './retry';
 
 import { logger } from './logger';
-export const isProduction = process.env.NODE_ENV === 'production';
+export const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
 
 export function stripSslMode(url: string | undefined): string | undefined {
   if (!url) return url;

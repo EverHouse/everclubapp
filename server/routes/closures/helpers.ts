@@ -95,28 +95,31 @@ export async function getAffectedBayIds(affectedAreas: string | null | undefined
   
   const conferenceRoomId = await getConferenceRoomId();
   
-  try {
-    const parsed = JSON.parse(affectedAreas);
-    if (Array.isArray(parsed)) {
-      for (const item of parsed) {
-        if (typeof item === 'number') {
-          idSet.add(item);
-        } else if (typeof item === 'string') {
-          if (item.startsWith('bay_')) {
-            const bayId = parseInt(item.replace('bay_', ''), 10);
-            if (!isNaN(bayId)) idSet.add(bayId);
-          } else if (item === 'conference_room' || item.toLowerCase() === 'conference room') {
-            if (conferenceRoomId) idSet.add(conferenceRoomId);
-          } else {
-            const bayId = parseInt(item, 10);
-            if (!isNaN(bayId)) idSet.add(bayId);
+  const looksLikeJson = affectedAreas.trimStart().startsWith('[') || affectedAreas.trimStart().startsWith('{');
+  if (looksLikeJson) {
+    try {
+      const parsed = JSON.parse(affectedAreas);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (typeof item === 'number') {
+            idSet.add(item);
+          } else if (typeof item === 'string') {
+            if (item.startsWith('bay_')) {
+              const bayId = parseInt(item.replace('bay_', ''), 10);
+              if (!isNaN(bayId)) idSet.add(bayId);
+            } else if (item === 'conference_room' || item.toLowerCase() === 'conference room') {
+              if (conferenceRoomId) idSet.add(conferenceRoomId);
+            } else {
+              const bayId = parseInt(item, 10);
+              if (!isNaN(bayId)) idSet.add(bayId);
+            }
           }
         }
+        if (idSet.size > 0) return Array.from(idSet);
       }
-      if (idSet.size > 0) return Array.from(idSet);
+    } catch (parseError: unknown) {
+      logger.warn('[getAffectedBayIds] Failed to parse JSON affectedAreas', { extra: { affectedAreas, parseError } });
     }
-  } catch (parseError: unknown) {
-    logger.warn('[getAffectedBayIds] Failed to parse JSON affectedAreas', { extra: { affectedAreas, parseError } });
   }
   
   const parts = affectedAreas.split(',').map(s => s.trim());

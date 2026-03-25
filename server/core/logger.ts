@@ -206,19 +206,30 @@ export function logAndRespond(
   const dbErrorTable = typeof errObj.table === 'string' ? errObj.table : undefined;
   const dbErrorConstraint = typeof errObj.constraint === 'string' ? errObj.constraint : undefined;
   
-  logger.error(`[API Error] ${message}`, {
+  const logPayload = {
     requestId: req.requestId,
     method: req.method,
     path: req.path,
     params: req.params,
     query: req.query as Record<string, unknown>,
-    error: err,
+    error: err.message,
+    stack: err.stack,
     dbErrorCode,
     dbErrorDetail,
     dbErrorTable,
     dbErrorConstraint,
     userEmail: getSessionUser(req)?.email,
-  });
+  };
+
+  if (statusCode >= 500) {
+    logger.error(`[API Error] ${message}`, logPayload);
+  } else if (statusCode === 401) {
+    logger.debug(`[API Auth] ${message}`, logPayload);
+  } else if (statusCode >= 400) {
+    logger.warn(`[API Warn] ${message}`, logPayload);
+  } else {
+    logger.info(`[API Info] ${message}`, logPayload);
+  }
   
   if (statusCode >= 500) {
     import('./errorAlerts').then(({ alertOnServerError }) => {
