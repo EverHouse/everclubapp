@@ -708,14 +708,20 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       .orderBy(desc(wellnessClasses.date), desc(wellnessEnrollments.createdAt))
       .limit(100);
     
+    const memberForTier = await db.select({ tier: users.tier })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${normalizedEmail}`)
+      .limit(1);
+    const memberTier = memberForTier[0]?.tier ?? null;
+
     const [guestPassRaw, tierGuestPassResult] = await Promise.all([
       db.select()
         .from(guestPasses)
         .where(sql`LOWER(${guestPasses.memberEmail}) = ${normalizedEmail}`)
         .limit(1),
-      user.tier ? db.select({ guestPassesPerYear: membershipTiers.guestPassesPerYear })
+      memberTier ? db.select({ guestPassesPerYear: membershipTiers.guestPassesPerYear })
         .from(membershipTiers)
-        .where(sql`LOWER(${membershipTiers.name}) = LOWER(${user.tier})`)
+        .where(sql`LOWER(${membershipTiers.name}) = LOWER(${memberTier})`)
         .limit(1) : Promise.resolve([]),
     ]);
     

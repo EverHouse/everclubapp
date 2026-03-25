@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.37",
+    date: "2026-03-25",
+    title: "Bug Fix",
+    changes: [
+      "Fixed: Member history page now loads correctly in the staff portal — guest pass information displays properly",
+    ]
+  },
+  {
     version: "8.97.36",
     date: "2026-03-25",
     title: "Stability Improvements",

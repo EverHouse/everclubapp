@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.37] - 2026-03-25
+
+### Fix Member History Endpoint Crash
+- **Root cause**: The `/api/members/:email/history` endpoint referenced an undefined `user` variable when looking up guest pass tier information. The variable was never declared in the handler scope, causing every call to crash with "user is not defined".
+- **Fix**: Added a user lookup query to fetch the member's tier before the guest pass query. Uses `memberForTier` variable to get the tier name from the `users` table.
+- **Impact**: Staff could not view any member's history page — the endpoint returned 500 for every member. Guest pass counts and visit history were completely unavailable in the staff portal.
+- **Files changed**: `server/routes/members/profile.ts`
+
 ## [8.97.36] - 2026-03-25
 
 ### Fix Stripe Initialization Timeout in Production
