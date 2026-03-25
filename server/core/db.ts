@@ -95,9 +95,10 @@ logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=30s, 
 
 basePool.on('connect', () => {
   const { totalCount, idleCount, waitingCount } = basePool;
-  if (waitingCount > 0 || totalCount >= poolMax - 2) {
+  const activeCount = totalCount - idleCount;
+  if (waitingCount > 0 || activeCount >= poolMax - 2) {
     logger.warn('[Database] Pool near exhaustion', {
-      extra: { total: totalCount, idle: idleCount, waiting: waitingCount, max: poolMax },
+      extra: { total: totalCount, idle: idleCount, active: activeCount, waiting: waitingCount, max: poolMax },
     });
   }
 });

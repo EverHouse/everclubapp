@@ -299,7 +299,7 @@ export function MemberFormStep({
               <input
                 type="date"
                 value={form.trialEndDate}
-                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                min={(() => { const d = new Date(Date.now() + 86400000); return d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }); })()}
                 onChange={(e) => {
                   setForm(prev => ({
                     ...prev,

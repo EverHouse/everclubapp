@@ -58,6 +58,12 @@ export async function devConfirmBooking(params: DevConfirmParams) {
   // eslint-disable-next-line no-useless-assignment
   let resolvedTotalFeeCents = 0;
   const { sessionId, totalFeeCents, dateStr, timeStr, participantEmails } = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('approve_booking_' || ${String(bookingId)}))`);
+
+    if (booking.resource_id && booking.request_date) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${String(booking.resource_id)} || '::' || ${booking.request_date as string}))`);
+    }
+
     let sessionId = booking.session_id;
     const totalFeeCents = 0;
 
