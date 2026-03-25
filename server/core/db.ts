@@ -89,6 +89,7 @@ const basePool = new Pool({
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
   allowExitOnIdle: true,
+  statement_timeout: 60000,
 });
 
 logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=30s, idle=30s`);

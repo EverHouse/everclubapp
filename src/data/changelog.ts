@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.43",
+    date: "2026-03-25",
+    title: "Stability & Reliability Fixes",
+    changes: [
+      "Fixed: Wellness class schedule now syncs reliably from Google Calendar — a database query issue was preventing wellness classes from updating",
+      "Fixed: Booking fee invoices no longer fail when retried after a roster change — duplicate invoice item errors are now handled gracefully",
+      "Improved: Database connection management now includes query timeouts to prevent slowdowns during busy periods",
+    ]
+  },
+  {
     version: "8.97.42",
     date: "2026-03-25",
     title: "Dispute Handling Coverage Fix",

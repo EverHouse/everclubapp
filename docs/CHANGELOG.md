@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.43] - 2026-03-25
+
+### Stability & Reliability Fixes
+- **Wellness calendar sync broken SQL**: The `syncWellnessEvents` batch lookup used `ANY(${batch})` with Drizzle's `sql` template, which expanded the JS array into individual positional parameters `($1, $2, ... $174)` — invalid syntax for `ANY()` which expects a single array. Replaced with a properly parameterized `IN (...)` clause using `pool.query()` with generated placeholders. This was causing every wellness sync to fail with a SQL error, preventing wellness classes from updating from Google Calendar.
+- **Stripe idempotency key collision on invoice sync retry**: When `syncBookingInvoice` retried after a roster change, the fee amounts or API path (price-based vs amount-based) could differ, but the idempotency key `invitem_overage_${invoiceId}_${participantId}_${cents}` was the same, causing Stripe to reject with "Keys for idempotent requests can only be used with the same parameters." Added `isIdempotencyKeyReuse()` guard to all 4 invoice item creation paths (overage price, overage amount, guest price, guest amount) — on match, the item is skipped with an info log since the original call already succeeded.
+- **Database pool exhaustion mitigation**: Added `statement_timeout: 60000` (60s) to the main connection pool to prevent runaway queries from indefinitely holding pool connections. Production was repeatedly hitting 25/25 active connections with waiting requests during scheduler runs.
+- **Files changed**: `server/core/calendar/sync/wellness.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/core/db.ts`
+
 ## [8.97.42] - 2026-03-25
 
 ### Dispute Handling Coverage Fix

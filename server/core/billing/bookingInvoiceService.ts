@@ -174,6 +174,11 @@ async function getFeePriceIds(): Promise<{ overagePriceId: string | null; guestP
   return { overagePriceId, guestPriceId };
 }
 
+function isIdempotencyKeyReuse(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.message.includes('Keys for idempotent requests can only be used with the same parameters');
+}
+
 async function addLineItemsToInvoice(
   stripe: Stripe,
   invoiceId: string,
@@ -216,7 +221,9 @@ async function addLineItemsToInvoice(
           const errCode = errObj && 'code' in errObj ? (errObj as Record<string, unknown>).code : undefined;
           const isStalePrice = (errType === 'StripeInvalidRequestError' && (errCode === 'resource_missing' || errCode === 'price_inactive'))
             || (errObj !== null && (errObj.message.includes('No such price') || errObj.message.includes('inactive')));
-          if (isStalePrice) {
+          if (isIdempotencyKeyReuse(priceErr)) {
+            logger.info('[BookingInvoice] Overage line item already exists (idempotency key reuse), skipping', { extra: { invoiceId, participantId: li.participantId } });
+          } else if (isStalePrice) {
             const errMsg = errObj ? errObj.message : String(priceErr);
             logger.warn('[BookingInvoice] Stale/inactive overage price ID, falling back to custom amount', { extra: { overagePriceId, error: errMsg } });
             await stripe.invoiceItems.create({
@@ -238,20 +245,28 @@ async function addLineItemsToInvoice(
           }
         }
       } else {
-        await stripe.invoiceItems.create({
-          customer: customerId,
-          invoice: invoiceId,
-          amount: li.overageCents,
-          currency: 'usd',
-          description: overageDesc,
-          metadata: {
-            participantId: li.participantId?.toString() || '',
-            feeType: 'overage',
-            participantType: li.participantType,
-          },
-        }, {
-          idempotencyKey: `invitem_overage_${invoiceId}_${li.participantId || 'unknown'}_${li.overageCents}`
-        });
+        try {
+          await stripe.invoiceItems.create({
+            customer: customerId,
+            invoice: invoiceId,
+            amount: li.overageCents,
+            currency: 'usd',
+            description: overageDesc,
+            metadata: {
+              participantId: li.participantId?.toString() || '',
+              feeType: 'overage',
+              participantType: li.participantType,
+            },
+          }, {
+            idempotencyKey: `invitem_overage_${invoiceId}_${li.participantId || 'unknown'}_${li.overageCents}`
+          });
+        } catch (amtErr: unknown) {
+          if (isIdempotencyKeyReuse(amtErr)) {
+            logger.info('[BookingInvoice] Overage line item already exists (idempotency key reuse), skipping', { extra: { invoiceId, participantId: li.participantId } });
+          } else {
+            throw amtErr;
+          }
+        }
       }
     }
 
@@ -282,7 +297,9 @@ async function addLineItemsToInvoice(
           const errCode = errObj && 'code' in errObj ? (errObj as Record<string, unknown>).code : undefined;
           const isStalePrice = (errType === 'StripeInvalidRequestError' && (errCode === 'resource_missing' || errCode === 'price_inactive'))
             || (errObj !== null && (errObj.message.includes('No such price') || errObj.message.includes('inactive')));
-          if (isStalePrice) {
+          if (isIdempotencyKeyReuse(priceErr)) {
+            logger.info('[BookingInvoice] Guest line item already exists (idempotency key reuse), skipping', { extra: { invoiceId, participantId: li.participantId } });
+          } else if (isStalePrice) {
             const errMsg = errObj ? errObj.message : String(priceErr);
             logger.warn('[BookingInvoice] Stale/inactive guest price ID, falling back to custom amount', { extra: { guestPriceId, error: errMsg } });
             await stripe.invoiceItems.create({
@@ -304,20 +321,28 @@ async function addLineItemsToInvoice(
           }
         }
       } else {
-        await stripe.invoiceItems.create({
-          customer: customerId,
-          invoice: invoiceId,
-          amount: li.guestCents,
-          currency: 'usd',
-          description: `Guest fee — ${li.displayName}`,
-          metadata: {
-            participantId: li.participantId?.toString() || '',
-            feeType: 'guest',
-            participantType: li.participantType,
-          },
-        }, {
-          idempotencyKey: `invitem_guest_${invoiceId}_${li.participantId || 'unknown'}_${li.guestCents}`
-        });
+        try {
+          await stripe.invoiceItems.create({
+            customer: customerId,
+            invoice: invoiceId,
+            amount: li.guestCents,
+            currency: 'usd',
+            description: `Guest fee — ${li.displayName}`,
+            metadata: {
+              participantId: li.participantId?.toString() || '',
+              feeType: 'guest',
+              participantType: li.participantType,
+            },
+          }, {
+            idempotencyKey: `invitem_guest_${invoiceId}_${li.participantId || 'unknown'}_${li.guestCents}`
+          });
+        } catch (amtErr: unknown) {
+          if (isIdempotencyKeyReuse(amtErr)) {
+            logger.info('[BookingInvoice] Guest line item already exists (idempotency key reuse), skipping', { extra: { invoiceId, participantId: li.participantId } });
+          } else {
+            throw amtErr;
+          }
+        }
       }
     }
   }
