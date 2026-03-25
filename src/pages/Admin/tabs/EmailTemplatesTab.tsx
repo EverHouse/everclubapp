@@ -149,12 +149,17 @@ const EmailTemplatesTab: React.FC = () => {
 
   useEffect(() => {
     if (previewHtml && iframeRef.current) {
-      const doc = iframeRef.current.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(previewHtml);
-        doc.close();
+      let html = previewHtml;
+      if (!html.includes('<meta name="viewport"')) {
+        html = html.replace(/<head([^>]*)>/i, '<head$1><meta name="viewport" content="width=device-width, initial-scale=1">');
+        if (!html.includes('<head')) {
+          html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${html}</body></html>`;
+        }
       }
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      iframeRef.current.src = url;
+      return () => URL.revokeObjectURL(url);
     }
   }, [previewHtml]);
 

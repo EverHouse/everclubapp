@@ -104,6 +104,19 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
           },
           () => {}
         );
+        setTimeout(() => {
+          const container = document.getElementById(elementId);
+          if (container) {
+            container.querySelectorAll('div').forEach(div => {
+              if (div.style.position === 'absolute' && div.style.backgroundColor) {
+                div.style.backgroundColor = 'transparent';
+              }
+            });
+            container.querySelectorAll('img').forEach(img => {
+              img.style.display = 'none';
+            });
+          }
+        }, 200);
       } catch (err: unknown) {
         if (isMounted) {
           setError(`Error accessing camera: ${(err instanceof Error ? err.message : String(err))}`);

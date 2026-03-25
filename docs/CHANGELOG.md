@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.44] - 2026-03-25
+
+### Visual Polish & Mobile Fixes
+- **QR code overflow in membership card modal**: The `LocalQrCode` component's canvas rendered at a fixed 200×200px but the container used `width: '55%'` without overflow protection. On smaller modal widths the canvas overflowed the white rounded container. Changed container to `width: 'min(45%, 160px)'` with `overflow-hidden`, increased padding from `p-2.5` to `p-3`, and applied proper `object-fit: contain` to the canvas.
+- **Booking status dropdown misaligned on mobile**: The `BookingStatusDropdown` portal menu used `transform: translateX(-50%)` centering which could push the menu off-screen on narrow viewports. Replaced with explicit left-position calculation with viewport boundary clamping (8px padding from edges). Also changed `zIndex` from CSS variable string `'var(--z-modal)'` to numeric `10000` for consistent inline-style rendering.
+- **Email template preview renders as plain text on mobile**: The admin email template preview used `doc.open()/doc.write()/doc.close()` to inject HTML into a sandboxed iframe, which fails silently on some mobile browsers (especially Safari). Switched to Blob URL approach (`URL.createObjectURL`) and auto-injects `<meta name="viewport">` into templates missing it, ensuring proper mobile rendering and scaling.
+- **Kiosk QR scanner dark overlay regions**: The html5-qrcode library creates semi-transparent shading divs around the `qrbox` scan area. Added post-start DOM cleanup that makes these shading elements transparent, plus hides the library's built-in camera-switch image. Applied same fix to the staff command center `QrScannerModal`.
+- **Files changed**: `src/pages/Member/Dashboard/MembershipCard.tsx`, `src/components/BookingStatusDropdown.tsx`, `src/pages/Admin/tabs/EmailTemplatesTab.tsx`, `src/pages/Staff/KioskCheckin.tsx`, `src/components/staff-command-center/modals/QrScannerModal.tsx`
+
 ## [8.97.43] - 2026-03-25
 
 ### Stability & Reliability Fixes

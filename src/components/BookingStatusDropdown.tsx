@@ -218,25 +218,27 @@ export function BookingStatusDropdown({
   const computeMenuStyle = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
+    const menuWidth = isSm ? 140 : 180;
+    const padding = 8;
+    let left = rect.left + rect.width / 2 - menuWidth / 2;
+    if (left < padding) left = padding;
+    if (left + menuWidth > window.innerWidth - padding) left = window.innerWidth - padding - menuWidth;
     if (menuDirection === 'up') {
       setMenuStyle({
         position: 'fixed',
-        left: centerX,
-        transform: 'translateX(-50%)',
+        left,
         bottom: window.innerHeight - rect.top + 4,
-        zIndex: 'var(--z-modal)',
+        zIndex: 10000,
       });
     } else {
       setMenuStyle({
         position: 'fixed',
-        left: centerX,
-        transform: 'translateX(-50%)',
+        left,
         top: rect.bottom + 4,
-        zIndex: 'var(--z-modal)',
+        zIndex: 10000,
       });
     }
-  }, [menuDirection]);
+  }, [menuDirection, isSm]);
 
   useEffect(() => {
     if (isOpen) {
@@ -284,7 +286,7 @@ export function BookingStatusDropdown({
         <>
           <div
             className="fixed inset-0"
-            style={{ zIndex: 'var(--z-modal)' }}
+            style={{ zIndex: 10000 }}
             onClick={handleBackdropClick}
             aria-hidden="true"
           />

@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.44",
+    date: "2026-03-25",
+    title: "Visual Polish & Mobile Fixes",
+    changes: [
+      "Fixed: Digital membership QR code no longer overflows its container on smaller screens",
+      "Fixed: Check-in status dropdown now stays properly aligned within the screen on mobile devices",
+      "Fixed: Email template previews now render with full styling on mobile instead of appearing as plain text",
+      "Fixed: Kiosk QR scanner no longer shows dark overlays on the sides and bottom of the camera view",
+    ]
+  },
+  {
     version: "8.97.43",
     date: "2026-03-25",
     title: "Stability & Reliability Fixes",

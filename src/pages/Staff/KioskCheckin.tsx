@@ -206,6 +206,19 @@ const KioskCheckin: React.FC = () => {
       );
       scannerStartedRef.current = true;
       clearTimeout(initTimeout);
+      setTimeout(() => {
+        const container = document.getElementById(elementId);
+        if (container) {
+          container.querySelectorAll('div').forEach(div => {
+            if (div.style.position === 'absolute' && div.style.backgroundColor) {
+              div.style.backgroundColor = 'transparent';
+            }
+          });
+          container.querySelectorAll('img').forEach(img => {
+            img.style.display = 'none';
+          });
+        }
+      }, 200);
     } catch (err: unknown) {
       clearTimeout(initTimeout);
       setCameraError(`Camera error: ${err instanceof Error ? err.message : String(err)}`);
@@ -593,7 +606,16 @@ const KioskCheckin: React.FC = () => {
               <div className="absolute -bottom-2 -left-2 w-7 h-7 border-b-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
               <div className="absolute -bottom-2 -right-2 w-7 h-7 border-b-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
 
-              <div className="rounded-lg overflow-hidden bg-black/40" style={{ border: `1px solid ${CARD_BORDER}` }}>
+              <div className="rounded-lg overflow-hidden bg-black/40 kiosk-scanner-container" style={{ border: `1px solid ${CARD_BORDER}` }}>
+                <style>{`
+                  .kiosk-scanner-container [id$="__scan_region"] ~ div,
+                  .kiosk-scanner-container > div > div > div[style*="border-width"] {
+                    display: none !important;
+                  }
+                  .kiosk-scanner-container video {
+                    object-fit: cover !important;
+                  }
+                `}</style>
                 <div id={elementId} className="w-full" style={{ height: 'min(350px, 45vh)' }} />
               </div>
 
