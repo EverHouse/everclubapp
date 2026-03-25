@@ -769,11 +769,11 @@ async function initializeApp() {
       },
       '/privacy': {
         title: 'Privacy Policy | Ever Members Club',
-        description: 'Ever Members Club privacy policy. Learn how we collect, use, and protect your personal information at our Tustin, CA indoor golf and social club.',
+        description: 'Read the Ever Members Club privacy policy. Learn how we collect, use, and protect your personal data from bookings, payments, and membership at our Tustin, CA club.',
       },
       '/terms': {
         title: 'Terms of Service | Ever Members Club',
-        description: 'Ever Members Club terms of service. Membership agreement, fees, liability waiver, guest policy, and club rules for our Tustin, OC location.',
+        description: 'Review the Ever Members Club terms of service — membership agreements, monthly fees, cancellation policy, liability waivers, and guest pass rules in Tustin, OC.',
       },
       '/private-hire/inquire': {
         title: 'Private Event Inquiry | Ever Club — OC Venue',

@@ -9,7 +9,7 @@ interface SEOProps {
   keywords?: string;
 }
 
-const BASE_URL = 'https://everclub.app';
+const BASE_URL = 'https://www.everclub.app';
 const DEFAULT_IMAGE = '/images/hero-lounge-optimized.webp';
 
 const setMetaTag = (selector: string, attrType: 'name' | 'property', attrValue: string, content: string) => {
@@ -20,6 +20,16 @@ const setMetaTag = (selector: string, attrType: 'name' | 'property', attrValue: 
     document.head.appendChild(el);
   }
   el.setAttribute('content', content);
+};
+
+const setCanonical = (href: string) => {
+  let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
+    link.setAttribute('rel', 'canonical');
+    document.head.appendChild(link);
+  }
+  link.setAttribute('href', href);
 };
 
 export const SEO: React.FC<SEOProps> = ({
@@ -49,6 +59,8 @@ export const SEO: React.FC<SEOProps> = ({
     setMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', fullTitle);
     setMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
     setMetaTag('meta[name="twitter:image"]', 'name', 'twitter:image', fullImage);
+
+    setCanonical(fullUrl);
   }, [fullTitle, description, fullUrl, fullImage, type, keywords]);
 
   return null;
