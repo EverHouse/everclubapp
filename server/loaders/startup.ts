@@ -490,6 +490,15 @@ export async function runStartupTasks(): Promise<void> {
       }
 
       try {
+        const stalePriceResult = await products.archiveAllStalePrices();
+        if (stalePriceResult.totalArchived > 0) {
+          logger.info(`[Stripe] Stale price sweep: ${stalePriceResult.totalArchived} archived across ${stalePriceResult.productsProcessed} products`, { extra: { errors: stalePriceResult.totalErrors, skipped: stalePriceResult.productsSkipped } });
+        }
+      } catch (err: unknown) {
+        logger.error('[Stripe] Stale price sweep failed', { error: getErrorMessage(err) });
+      }
+
+      try {
         const { syncStripeCustomersForMindBodyMembers } = await import('../core/stripe/customerSync.js');
         const result = await syncStripeCustomersForMindBodyMembers();
         if (result.updated > 0 || result.relinked > 0 || result.staleFound > 0) {

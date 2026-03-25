@@ -217,9 +217,14 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
         markAppOriginated(stripeProductId);
         await stripe.products.update(stripeProductId, { default_price: stripePriceId });
 
-        archiveStalePricesForProduct(stripeProductId, stripePriceId).catch(err => {
-          logger.error(`[AutoPush] Background stale price cleanup failed for tier "${tierRow.name}":`, { error: getErrorMessage(err) });
-        });
+        try {
+          const archiveResult = await archiveStalePricesForProduct(stripeProductId, stripePriceId);
+          if (archiveResult.archived > 0) {
+            logger.info(`[AutoPush] Archived ${archiveResult.archived} stale price(s) for tier "${tierRow.name}"`);
+          }
+        } catch (err) {
+          logger.error(`[AutoPush] Stale price cleanup failed for tier "${tierRow.name}":`, { error: getErrorMessage(err) });
+        }
 
         logger.info(`[AutoPush] Created new price ${stripePriceId} for tier "${tierRow.name}"`);
       }
@@ -372,9 +377,14 @@ export async function autoPushCafeItemToStripe(item: {
       markAppOriginated(stripeProductId);
       await stripe.products.update(stripeProductId, { default_price: stripePriceId });
 
-      archiveStalePricesForProduct(stripeProductId, stripePriceId).catch(err => {
-        logger.error(`[AutoPush] Background stale price cleanup failed for cafe item "${item.name}":`, { error: getErrorMessage(err) });
-      });
+      try {
+        const archiveResult = await archiveStalePricesForProduct(stripeProductId, stripePriceId);
+        if (archiveResult.archived > 0) {
+          logger.info(`[AutoPush] Archived ${archiveResult.archived} stale price(s) for cafe item "${item.name}"`);
+        }
+      } catch (err) {
+        logger.error(`[AutoPush] Stale price cleanup failed for cafe item "${item.name}":`, { error: getErrorMessage(err) });
+      }
 
       logger.info(`[AutoPush] Created new price ${stripePriceId} for cafe item "${item.name}"`);
     }
@@ -451,9 +461,14 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
       markAppOriginated(stripeProductId);
       await stripe.products.update(stripeProductId, { default_price: stripePriceId });
 
-      archiveStalePricesForProduct(stripeProductId, stripePriceId).catch(err => {
-        logger.error(`[AutoPush] Background stale price cleanup failed for fee "${slug}":`, { error: getErrorMessage(err) });
-      });
+      try {
+        const archiveResult = await archiveStalePricesForProduct(stripeProductId, stripePriceId);
+        if (archiveResult.archived > 0) {
+          logger.info(`[AutoPush] Archived ${archiveResult.archived} stale price(s) for fee "${slug}"`);
+        }
+      } catch (err) {
+        logger.error(`[AutoPush] Stale price cleanup failed for fee "${slug}":`, { error: getErrorMessage(err) });
+      }
 
       await db.update(membershipTiers)
         .set({
