@@ -425,21 +425,61 @@ export async function cleanupOrphanStripeProducts(): Promise<{
   }
 }
 
-export async function archiveStalePricesForProduct(stripeProductId: string, currentPriceId: string): Promise<{ archived: number; errors: number; skipped: boolean }> {
+export async function archiveStalePricesForProduct(stripeProductId: string, currentPriceId: string): Promise<{ archived: number; errors: number; skipped: boolean; relinkedPriceId?: string }> {
   let archived = 0;
   let errors = 0;
+  let keepPriceId = currentPriceId;
   try {
     const stripe = await getStripeClient();
 
+    let product: Stripe.Product | null = null;
     try {
-      const keepPrice = await stripe.prices.retrieve(currentPriceId);
-      if (!keepPrice.active) {
-        logger.warn(`[Stale Price Cleanup] Keep-price ${currentPriceId} is inactive on product ${stripeProductId}, skipping archival to avoid deactivating all prices`);
+      product = await stripe.products.retrieve(stripeProductId);
+    } catch (prodErr: unknown) {
+      const msg = getErrorMessage(prodErr);
+      if (msg.includes('No such product') || msg.includes('resource_missing')) {
+        logger.warn(`[Stale Price Cleanup] Product ${stripeProductId} not found in Stripe, nothing to clean`);
         return { archived: 0, errors: 0, skipped: true };
       }
+      throw prodErr;
+    }
+
+    try {
+      const keepPrice = await stripe.prices.retrieve(keepPriceId);
+      if (!keepPrice.active) {
+        logger.warn(`[Stale Price Cleanup] Keep-price ${keepPriceId} is inactive on product ${stripeProductId}, falling back to default_price`);
+        keepPriceId = '';
+      }
     } catch (err: unknown) {
-      logger.warn(`[Stale Price Cleanup] Keep-price ${currentPriceId} not found on product ${stripeProductId}, skipping archival: ${getErrorMessage(err)}`);
-      return { archived: 0, errors: 0, skipped: true };
+      logger.warn(`[Stale Price Cleanup] Keep-price ${keepPriceId} not found on product ${stripeProductId}, falling back to default_price`);
+      keepPriceId = '';
+    }
+
+    if (!keepPriceId && product) {
+      const defaultPrice = product.default_price;
+      if (defaultPrice) {
+        const defaultPriceId = typeof defaultPrice === 'string' ? defaultPrice : defaultPrice.id;
+        try {
+          const dp = await stripe.prices.retrieve(defaultPriceId);
+          if (dp.active) {
+            keepPriceId = defaultPriceId;
+            logger.info(`[Stale Price Cleanup] Using product default_price ${keepPriceId} as keep-price for ${stripeProductId}`);
+          }
+        } catch {
+          logger.warn(`[Stale Price Cleanup] Product default_price ${defaultPriceId} not retrievable for ${stripeProductId}`);
+        }
+      }
+    }
+
+    if (!keepPriceId) {
+      const firstPage = await stripe.prices.list({ product: stripeProductId, active: true, limit: 1 });
+      if (firstPage.data.length > 0) {
+        keepPriceId = firstPage.data[0].id;
+        logger.info(`[Stale Price Cleanup] No valid keep-price found, using newest active price ${keepPriceId} for ${stripeProductId}`);
+      } else {
+        logger.info(`[Stale Price Cleanup] No active prices on product ${stripeProductId}, nothing to clean`);
+        return { archived: 0, errors: 0, skipped: false };
+      }
     }
 
     let hasMore = true;
@@ -456,7 +496,7 @@ export async function archiveStalePricesForProduct(stripeProductId: string, curr
       const prices = await stripe.prices.list(params);
 
       for (const price of prices.data) {
-        if (price.id === currentPriceId) continue;
+        if (price.id === keepPriceId) continue;
         try {
           markAppOriginated(price.id);
           await stripe.prices.update(price.id, { active: false });
@@ -477,22 +517,66 @@ export async function archiveStalePricesForProduct(stripeProductId: string, curr
     logger.error(`[Stale Price Cleanup] Error listing prices for ${stripeProductId}:`, { error: getErrorMessage(error) });
     errors++;
   }
-  return { archived, errors, skipped: false };
+  const relinkedPriceId = keepPriceId !== currentPriceId ? keepPriceId : undefined;
+  return { archived, errors, skipped: false, relinkedPriceId };
 }
 
-export async function archiveAllStalePrices(): Promise<{ totalArchived: number; totalErrors: number; productsProcessed: number; productsSkipped: number }> {
+export async function archiveAllStalePrices(): Promise<{ totalArchived: number; totalErrors: number; productsProcessed: number; productsSkipped: number; relinked: number }> {
   let totalArchived = 0;
   let totalErrors = 0;
   let productsProcessed = 0;
   let productsSkipped = 0;
+  let relinked = 0;
 
   try {
+    const stripe = await getStripeClient();
     const tiers = await db.select().from(membershipTiers).where(eq(membershipTiers.isActive, true));
 
     for (const tier of tiers) {
       if (!tier.stripeProductId || !tier.stripePriceId) continue;
-      const result = await archiveStalePricesForProduct(tier.stripeProductId, tier.stripePriceId);
+
+      let productId = tier.stripeProductId;
+      let priceId = tier.stripePriceId;
+
+      try {
+        await stripe.products.retrieve(productId);
+      } catch (prodErr: unknown) {
+        const msg = getErrorMessage(prodErr);
+        if (msg.includes('No such product') || msg.includes('resource_missing')) {
+          const metadataKey = 'tier_slug';
+          const found = await findExistingStripeProduct(stripe, tier.name, metadataKey, tier.slug);
+          if (found) {
+            productId = found.id;
+            const dp = found.default_price;
+            if (dp) {
+              priceId = typeof dp === 'string' ? dp : dp.id;
+            }
+            await db.update(membershipTiers)
+              .set({ stripeProductId: productId, stripePriceId: priceId, updatedAt: new Date() })
+              .where(eq(membershipTiers.id, tier.id));
+            logger.info(`[Stale Price Cleanup] Re-linked tier "${tier.name}" (${tier.slug}) to Stripe product ${productId}, price ${priceId}`);
+            relinked++;
+          } else {
+            logger.warn(`[Stale Price Cleanup] Product ${tier.stripeProductId} not found in Stripe and no match by name/slug for "${tier.name}", skipping`);
+            productsSkipped++;
+            continue;
+          }
+        } else {
+          logger.error(`[Stale Price Cleanup] Transient error checking product ${productId} for "${tier.name}":`, { error: msg });
+          totalErrors++;
+          continue;
+        }
+      }
+
+      const result = await archiveStalePricesForProduct(productId, priceId);
       if (result.skipped) { productsSkipped++; continue; }
+      if (result.relinkedPriceId && result.relinkedPriceId !== priceId) {
+        await db.update(membershipTiers)
+          .set({ stripePriceId: result.relinkedPriceId, updatedAt: new Date() })
+          .where(eq(membershipTiers.id, tier.id));
+        logger.info(`[Stale Price Cleanup] Updated DB price for tier "${tier.name}" to ${result.relinkedPriceId}`);
+        relinked++;
+      }
       totalArchived += result.archived;
       totalErrors += result.errors;
       productsProcessed++;
@@ -500,6 +584,7 @@ export async function archiveAllStalePrices(): Promise<{ totalArchived: number; 
 
     const cafeRows = await db.select({
       id: cafeItems.id,
+      name: cafeItems.name,
       stripeProductId: cafeItems.stripeProductId,
       stripePriceId: cafeItems.stripePriceId,
     }).from(cafeItems).where(
@@ -518,13 +603,13 @@ export async function archiveAllStalePrices(): Promise<{ totalArchived: number; 
       productsProcessed++;
     }
 
-    logger.info(`[Stale Price Cleanup] Complete: ${totalArchived} prices archived across ${productsProcessed} products, ${productsSkipped} skipped`);
+    logger.info(`[Stale Price Cleanup] Complete: ${totalArchived} prices archived across ${productsProcessed} products, ${productsSkipped} skipped, ${relinked} re-linked`);
   } catch (error: unknown) {
     logger.error('[Stale Price Cleanup] Fatal error:', { error: getErrorMessage(error) });
     totalErrors++;
   }
 
-  return { totalArchived, totalErrors, productsProcessed, productsSkipped };
+  return { totalArchived, totalErrors, productsProcessed, productsSkipped, relinked };
 }
 
 export interface DeduplicationResult {
