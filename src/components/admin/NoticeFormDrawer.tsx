@@ -53,7 +53,7 @@ export const NoticeFormDrawer: React.FC<NoticeFormDrawerProps> = ({
 }) => {
   const { showToast } = useToast();
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   
   const [formData, setFormData] = useState<NoticeFormData>({
     title: '',

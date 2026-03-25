@@ -8,6 +8,7 @@ import { recordUsage, ensureSessionForBooking } from '../bookingService/sessionM
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { getTodayPacific } from '../../../shared/utils/dateUtils';
 export interface BookingTypeInfo {
   keyword: string | null;
   visitorType: VisitorType;
@@ -279,15 +280,13 @@ export function isAfterClosingHours(startTime: string): boolean {
 }
 
 export function isFutureBooking(bookingDate: Date | string): boolean {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStr = getTodayPacific();
   
-  const bookingDay = typeof bookingDate === 'string' 
-    ? new Date(bookingDate + 'T00:00:00')
-    : new Date(bookingDate);
-  bookingDay.setHours(0, 0, 0, 0);
+  const bookingStr = typeof bookingDate === 'string'
+    ? bookingDate.substring(0, 10)
+    : bookingDate.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
   
-  return bookingDay >= today;
+  return bookingStr >= todayStr;
 }
 
 interface UnmatchedBookingDetails {

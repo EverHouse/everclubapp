@@ -351,7 +351,7 @@ router.post('/api/membership-tiers', isAdmin, validateBody(createTierSchema), as
 });
 
 // Admin endpoint to sync all membership tiers to Stripe (two-way sync)
-router.post('/api/admin/stripe/sync-products', isStaffOrAdmin, async (req, res) => {
+router.post('/api/admin/stripe/sync-products', isAdmin, async (req, res) => {
   try {
     logger.info('[Admin] Starting Stripe product sync...');
     

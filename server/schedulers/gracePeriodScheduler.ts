@@ -26,14 +26,16 @@ const DEFAULT_GRACE_PERIOD_HOUR = 10;
 const DEFAULT_GRACE_PERIOD_DAYS = 3;
 
 function getDaysSinceStartPacific(graceStartDate: Date): number {
-  const now = new Date();
-  const nowPacific = new Date(now.toLocaleString('en-US', { timeZone: CLUB_TIMEZONE }));
-  const startPacific = new Date(graceStartDate.toLocaleString('en-US', { timeZone: CLUB_TIMEZONE }));
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
+  const startStr = graceStartDate.toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
   
-  nowPacific.setHours(0, 0, 0, 0);
-  startPacific.setHours(0, 0, 0, 0);
+  const [ty, tm, td] = todayStr.split('-').map(Number);
+  const [sy, sm, sd] = startStr.split('-').map(Number);
   
-  return Math.floor((nowPacific.getTime() - startPacific.getTime()) / (1000 * 60 * 60 * 24));
+  const todayMs = Date.UTC(ty, tm - 1, td);
+  const startMs = Date.UTC(sy, sm - 1, sd);
+  
+  return Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
 }
 
 async function getReactivationLink(stripeCustomerId: string | null): Promise<string> {
