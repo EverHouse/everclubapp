@@ -1580,6 +1580,25 @@ html.dark .border-accessible {
   transform: translateY(0);
 }
 
+/* CLS-safe height collapse/expand using CSS grid rows */
+.cls-safe-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s var(--m3-emphasized-decel), opacity 0.3s var(--m3-emphasized-decel);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cls-safe-collapse > .cls-safe-inner {
+  overflow: hidden;
+}
+
+.cls-safe-collapse.cls-safe-visible {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Soft Layered Shadows - Premium floating card effect */
 .shadow-layered {
   box-shadow:

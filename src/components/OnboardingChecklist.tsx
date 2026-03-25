@@ -146,10 +146,9 @@ const OnboardingChecklist: React.FC = () => {
     }
   };
 
-  if (loading || !status || dismissed || status.isDismissed) return null;
-  if (status.isComplete && !celebrating) return null;
+  const isChecklistVisible = !loading && !!status && !dismissed && !status.isDismissed && (!status.isComplete || celebrating);
 
-  const progressPercent = Math.round((status.completedCount / status.totalSteps) * 100);
+  const progressPercent = status ? Math.round((status.completedCount / status.totalSteps) * 100) : 0;
 
   const stepIcons: Record<string, string> = {
     profile: 'person',
@@ -160,7 +159,10 @@ const OnboardingChecklist: React.FC = () => {
   };
 
   return (
-    <div className="mb-6 glass-card rounded-xl p-5 backdrop-blur-xl bg-white/30 dark:bg-white/5 border border-white/20 animate-pop-in">
+    <div className={`cls-safe-collapse ${isChecklistVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isChecklistVisible}>
+    <div className="cls-safe-inner">
+    {status ? (
+    <div className="mb-6 glass-card rounded-xl p-5 backdrop-blur-xl bg-white/30 dark:bg-white/5 border border-white/20">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="text-2xl text-primary dark:text-white leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -225,6 +227,9 @@ const OnboardingChecklist: React.FC = () => {
           </button>
         ))}
       </div>
+    </div>
+    ) : null}
+    </div>
     </div>
   );
 };

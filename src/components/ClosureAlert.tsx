@@ -190,21 +190,20 @@ const ClosureAlert: React.FC = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
   };
 
-  if (isLoading || activeClosures.length === 0) return null;
+  const isVisible = !isLoading && activeClosures.length > 0 && !isExiting;
 
   const closure = activeClosures[0];
   const hasMultiple = activeClosures.length > 1;
-  const blocking = isBlocking(closure.affectedAreas);
+  const blocking = closure ? isBlocking(closure.affectedAreas) : false;
   
-  // For informational notices (not blocking), always show "Notice" unless a specific type is set
-  // "Closure" type should only show for blocking notices
-  const noticeLabel = getNoticeLabelUtil(closure);
+  const noticeLabel = closure ? getNoticeLabelUtil(closure) : '';
 
   return (
+    <div className={`cls-safe-collapse ${isVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isVisible}>
+    <div className="cls-safe-inner">
+    {closure ? (
     <div 
       className={`mb-4 py-2 px-4 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-normal ease-spring-smooth ${
-        isExiting ? 'opacity-0 scale-95 max-h-0 mb-0 py-0 overflow-hidden' : 'animate-content-enter max-h-[200px]'
-      } ${
         blocking
           ? (isDark ? 'bg-red-500/20 hover:bg-red-500/30' : 'bg-red-100 hover:bg-red-200')
           : (isDark ? 'bg-amber-500/20 hover:bg-amber-500/30' : 'bg-amber-100 hover:bg-amber-200')
@@ -297,6 +296,9 @@ const ClosureAlert: React.FC = () => {
       >
         <Icon name="close" className="text-lg" />
       </button>
+    </div>
+    ) : null}
+    </div>
     </div>
   );
 };

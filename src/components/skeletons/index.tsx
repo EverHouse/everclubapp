@@ -24,31 +24,40 @@ export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({
 }) => {
   const [showSkeleton, setShowSkeleton] = useState(loading);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [lockedHeight, setLockedHeight] = useState<number | null>(null);
 
   useEffect(() => {
     if (!loading && showSkeleton) {
+      if (containerRef.current) {
+        setLockedHeight(containerRef.current.offsetHeight);
+      }
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsTransitioning(true);
       const timer = setTimeout(() => {
         setShowSkeleton(false);
         setIsTransitioning(false);
+        setLockedHeight(null);
       }, duration);
       return () => clearTimeout(timer);
     } else if (loading) {
       setShowSkeleton(true);
+      setLockedHeight(null);
     }
   }, [loading, showSkeleton, duration]);
 
+  const heightStyle = lockedHeight != null ? { minHeight: lockedHeight } : undefined;
+
   if (showSkeleton) {
     return (
-      <div className={`${className} ${isTransitioning ? 'animate-skeleton-out' : ''}`}>
+      <div ref={containerRef} className={`${className} ${isTransitioning ? 'animate-skeleton-out' : ''}`} style={heightStyle}>
         {skeleton}
       </div>
     );
   }
 
   return (
-    <div className={`animate-content-in ${className}`}>
+    <div className={`animate-content-in ${className}`} style={heightStyle}>
       {children}
     </div>
   );

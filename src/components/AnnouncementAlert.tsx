@@ -40,12 +40,10 @@ const AnnouncementAlert: React.FC = () => {
     }, EXIT_DURATION);
   }, [markSingleAsSeen, unseenHighPriority, showToast]);
 
-  if (unseenHighPriority.length === 0 && !isExiting) return null;
-
   const latestAnnouncement = unseenHighPriority[0];
-  if (!latestAnnouncement) return null;
+  const isAlertVisible = unseenHighPriority.length > 0 && !isExiting;
   const hasMultiple = unseenHighPriority.length > 1;
-  const isUpdate = latestAnnouncement.type === 'update';
+  const isUpdate = latestAnnouncement?.type === 'update';
 
   const handleAnnouncementClick = (item: Announcement) => {
     haptic.selection();
@@ -113,10 +111,11 @@ const AnnouncementAlert: React.FC = () => {
   };
 
   return (
+    <div className={`cls-safe-collapse ${isAlertVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isAlertVisible}>
+    <div className="cls-safe-inner">
+    {latestAnnouncement ? (
     <article 
-      className={`mb-6 p-4 rounded-xl border cursor-pointer transition-all duration-normal ease-spring-smooth ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none ${
-        isExiting ? 'opacity-0 scale-95 max-h-0 mb-0 py-0 overflow-hidden' : 'animate-content-enter max-h-[200px]'
-      }`}
+      className={`mb-6 p-4 rounded-xl border cursor-pointer transition-all duration-normal ease-spring-smooth ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none`}
       onClick={handleViewAll}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
@@ -169,6 +168,9 @@ const AnnouncementAlert: React.FC = () => {
         </div>
       </div>
     </article>
+    ) : null}
+    </div>
+    </div>
   );
 };
 
