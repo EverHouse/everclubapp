@@ -153,7 +153,6 @@ export interface PurchaseRecord {
   saleDate?: string;
   amountCents?: number;
   salePriceCents?: number;
-  source?: string;
   type?: string;
   itemName?: string;
 }

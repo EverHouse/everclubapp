@@ -55,8 +55,6 @@ export function PurchaseHistorySection({
                 {categoryPurchases.slice(0, 5).map((purchase: PurchaseRecord) => {
                   const displayDate = purchase.saleDate || purchase.date;
                   const displayAmount = purchase.salePriceCents || purchase.amountCents || 0;
-                  const displaySource = purchase.source || (purchase.type === 'stripe' ? 'Stripe' : '');
-                  
                   return (
                     <div key={purchase.id} className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'}`}>
                       <div className="flex items-start justify-between gap-3">
@@ -68,11 +66,6 @@ export function PurchaseHistorySection({
                             {purchase.quantity! > 1 && (
                               <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>
                                 x{purchase.quantity}
-                              </span>
-                            )}
-                            {displaySource && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-500'}`}>
-                                {displaySource}
                               </span>
                             )}
                           </div>

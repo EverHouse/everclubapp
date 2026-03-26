@@ -249,6 +249,10 @@ export async function executePendingMigration(userId: string, email: string): Pr
     }
   } catch (error: unknown) {
     logger.error(`${prefix} Unexpected error during migration for ${email}:`, { error: getErrorMessage(error) });
+    await db.execute(sql`
+      UPDATE users SET migration_status = 'failed', mindbody_cancellation_detected_at = NULL, updated_at = NOW()
+      WHERE id = ${userId}
+    `);
     return { success: false, error: getErrorMessage(error) };
   }
 }
