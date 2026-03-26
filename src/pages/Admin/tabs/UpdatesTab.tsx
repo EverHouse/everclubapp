@@ -130,6 +130,8 @@ const UpdatesTab: React.FC = () => {
             payment_failed: '/admin/financials',
             payment_receipt: '/admin/financials',
             payment_error: '/admin/financials',
+            payment_dispute: '/admin/financials',
+            payment_dispute_closed: '/admin/financials',
             payment_method_update: '/admin/financials',
             outstanding_balance: '/admin/financials',
             fee_waived: '/admin/financials',
@@ -165,6 +167,11 @@ const UpdatesTab: React.FC = () => {
             closure: '/admin/notices',
             closure_today: '/admin/notices',
             closure_created: '/admin/notices',
+            announcement: '/admin/updates',
+            info: '/admin/updates',
+            success: '/admin/updates',
+            warning: '/admin/updates',
+            error: '/admin/updates',
         };
         return routeMap[notif.type] || null;
     };

@@ -727,7 +727,7 @@ export async function ensureDatabaseConstraints() {
               'trackman_booking', 'trackman_unmatched', 'trackman_cancelled_link',
               'announcement',
               'payment_method_update', 'payment_success', 'payment_failed',
-              'payment_receipt', 'payment_error',
+              'payment_receipt', 'payment_error', 'payment_dispute', 'payment_dispute_closed',
               'outstanding_balance', 'fee_waived',
               'membership_renewed', 'membership_failed', 'membership_past_due',
               'membership_cancelled', 'membership_terminated', 'membership_cancellation',
