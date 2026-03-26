@@ -188,7 +188,7 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                             '🎉 New Member Activated',
                             `${hubspotMemberName} (${email}) is now active ${changeSource} (${memberTier} tier).`,
                             'new_member',
-                            { sendPush: true, url: '/admin/members' }
+                            { sendPush: true, url: '/admin/directory' }
                           );
                         } else if (inactiveStatuses.includes(newStatus) && !inactiveStatuses.includes((prevStatus || '') as string)) {
                           await notifyAllStaff(

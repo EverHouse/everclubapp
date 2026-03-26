@@ -349,7 +349,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
               '🎉 New Member Joined',
               `${deferredActivationMemberName} (${deferredActivationEmail}) has subscribed to ${deferredPlanName}.`,
               'new_member',
-              { sendPush: true, url: '/admin/members' }
+              { sendPush: true, url: '/admin/directory' }
             );
           } catch (notifyErr: unknown) {
             logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
