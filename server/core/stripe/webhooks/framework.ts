@@ -121,7 +121,7 @@ export async function checkResourceEventOrder(
   return true;
 }
 
-export async function executeDeferredActions(actions: DeferredAction[], eventContext?: { eventId: string; eventType: string }): Promise<void> {
+export async function executeDeferredActions(actions: DeferredAction[], eventContext?: { eventId: string; eventType: string }): Promise<number> {
   let failedCount = 0;
   const failedIndices: number[] = [];
   for (let i = 0; i < actions.length; i++) {
@@ -154,6 +154,7 @@ export async function executeDeferredActions(actions: DeferredAction[], eventCon
       logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { error: getErrorMessage(alertErr) });
     }
   }
+  return failedCount;
 }
 
 export async function upsertTransactionCache(params: CacheTransactionParams): Promise<void> {

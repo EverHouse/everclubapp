@@ -8,6 +8,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.54",
+    date: "2026-03-26",
+    title: "Data Safety & Webhook Reliability Fixes",
+    changes: [
+      "Fixed: Staff login no longer overwrites existing profile data (phone, tags) when HubSpot is unreachable",
+      "Fixed: Staff/admin login no longer resets membership tier — tier is preserved from the database",
+      "Security: Stripe webhooks now verify live/test mode matches the environment, preventing test data from reaching production",
+      "Fixed: If post-webhook side effects fail (emails, notifications), the event is automatically retried by Stripe instead of being permanently lost",
+      "Fixed: Deleting the family discount coupon in Stripe now immediately stops applying the discount",
+      "Security: Session endpoint now sets anti-caching headers to prevent proxies from leaking session data",
+      "Fixed: Logout cookie cleanup uses a configurable cookie name instead of a hardcoded default",
+    ]
+  },
+  {
     version: "8.97.53",
     date: "2026-03-26",
     title: "Security Audit Fixes — Account Safety & Webhook Integrity",

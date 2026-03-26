@@ -3,6 +3,7 @@ import { getStripeSync, getStripeClient } from '../client';
 import { updateFamilyDiscountPercent } from '../../billing/pricingConfig';
 import { pool, safeRelease } from '../../db';
 import { logger } from '../../logger';
+import { getErrorMessage } from '../../../utils/errorUtils';
 import type { DeferredAction, StripeProductWithMarketingFeatures, InvoiceWithLegacyFields, SubscriptionPreviousAttributes } from './types';
 import {
   extractResourceId,
@@ -151,7 +152,8 @@ async function dispatchWebhookEvent(
   } else if (eventType === 'coupon.deleted') {
     const coupon = dataObject as Stripe.Coupon;
     if (coupon.metadata?.system_role === 'family_discount' || coupon.id === 'FAMILY20') {
-      logger.info(`[Stripe Webhook] Family discount coupon deleted (${coupon.id}) - will be recreated on next use`);
+      updateFamilyDiscountPercent(0);
+      logger.info(`[Stripe Webhook] Family discount coupon deleted (${coupon.id}) - discount zeroed out, will be recreated on next use`);
     }
   } else if (eventType === 'credit_note.created') {
     return handleCreditNoteCreated(client, dataObject as Stripe.CreditNote);
@@ -212,11 +214,23 @@ export async function processStripeWebhook(
   }
 
   const stripe = await getStripeClient();
+  const payloadString = payload.toString('utf8');
+
+  const isProductionEnv = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+  try {
+    const rawParse = JSON.parse(payloadString) as { id?: string; livemode?: boolean };
+    if (typeof rawParse.livemode === 'boolean' && rawParse.livemode !== isProductionEnv) {
+      logger.warn(`[Stripe Webhook] Ignored event ${rawParse.id ?? 'unknown'}: livemode=${rawParse.livemode} does not match environment production=${isProductionEnv}`);
+      return;
+    }
+  } catch {
+    logger.warn('[Stripe Webhook] Could not pre-parse payload for livemode check, continuing');
+  }
+
   const sync = await getStripeSync() as { processWebhook: (payload: Buffer, signature: string) => Promise<void> };
   await sync.processWebhook(payload, signature);
 
   let event: Stripe.Event;
-  const payloadString = payload.toString('utf8');
   try {
     const minimalParse = JSON.parse(payloadString) as { id: string };
     event = await stripe.events.retrieve(minimalParse.id);
@@ -264,8 +278,21 @@ export async function processStripeWebhook(
     await client.query('COMMIT');
     logger.info(`[Stripe Webhook] Event ${event.id} committed successfully`);
 
-    await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
-
+    const failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
+    if (failedActions > 0) {
+      const unclaimClient = await pool.connect();
+      try {
+        await unclaimClient.query(
+          'DELETE FROM webhook_processed_events WHERE event_id = $1',
+          [event.id]
+        );
+        logger.warn(`[Stripe Webhook] Unclaimed event ${event.id} after ${failedActions} deferred action failure(s) — Stripe retry will re-process`);
+      } catch (unclaimErr) {
+        logger.error(`[Stripe Webhook] Failed to unclaim event ${event.id} for retry:`, { error: getErrorMessage(unclaimErr as Error) });
+      } finally {
+        safeRelease(unclaimClient);
+      }
+    }
 
   } catch (handlerError: unknown) {
     await client.query('ROLLBACK');

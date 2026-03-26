@@ -110,7 +110,7 @@ export async function isStaffOrAdminEmail(email: string): Promise<boolean> {
 
 export interface UpsertUserData {
   email: string;
-  tierName: string;
+  tierName?: string;
   firstName?: string;
   lastName?: string;
   phone?: string;
@@ -127,7 +127,8 @@ export async function upsertUserWithTier(data: UpsertUserData): Promise<string |
     const isStaffOrAdmin = data.role === 'admin' || data.role === 'staff';
     const isVisitor = data.role === 'visitor';
     
-    const normalizedTier = isVisitor ? null : (isStaffOrAdmin ? 'VIP' : normalizeTierName(data.tierName));
+    const hasTierInput = data.tierName !== undefined;
+    const normalizedTier = isVisitor ? null : (isStaffOrAdmin ? 'VIP' : (hasTierInput ? normalizeTierName(data.tierName) : null));
     let tierId: number | null = null;
     
     if (normalizedTier) {
@@ -138,7 +139,7 @@ export async function upsertUserWithTier(data: UpsertUserData): Promise<string |
       tierId = tierResult.length > 0 ? tierResult[0].id : null;
     }
     
-    const hasTierData = normalizedTier !== null;
+    const hasTierData = isStaffOrAdmin || (hasTierInput && normalizedTier !== null);
     
     const result = await db.insert(users)
       .values({
@@ -149,8 +150,8 @@ export async function upsertUserWithTier(data: UpsertUserData): Promise<string |
         tier: normalizedTier,
         tierId: tierId,
         phone: data.phone || null,
-        mindbodyClientId: isStaffOrAdmin ? null : (data.mindbodyClientId || null),
-        tags: isStaffOrAdmin ? [] as string[] : (data.tags && data.tags.length > 0 ? data.tags : [] as string[]),
+        mindbodyClientId: data.mindbodyClientId || null,
+        tags: data.tags && data.tags.length > 0 ? data.tags : [] as string[],
         role: data.role || 'member'
       })
       .onConflictDoUpdate({
@@ -160,9 +161,9 @@ export async function upsertUserWithTier(data: UpsertUserData): Promise<string |
           tierId: hasTierData ? tierId : sql`COALESCE(${users.tierId}, NULL)`,
           firstName: sql`COALESCE(${data.firstName || null}, ${users.firstName})`,
           lastName: sql`COALESCE(${data.lastName || null}, ${users.lastName})`,
-          phone: sql`COALESCE(${data.phone || null}, ${users.phone})`,
-          mindbodyClientId: isStaffOrAdmin ? null : sql`COALESCE(${data.mindbodyClientId || null}, ${users.mindbodyClientId})`,
-          tags: isStaffOrAdmin ? [] as string[] : (data.tags && data.tags.length > 0 ? data.tags : [] as string[]),
+          phone: data.phone !== undefined ? sql`COALESCE(${data.phone || null}, ${users.phone})` : sql`${users.phone}`,
+          mindbodyClientId: data.mindbodyClientId !== undefined ? sql`COALESCE(${data.mindbodyClientId || null}, ${users.mindbodyClientId})` : sql`${users.mindbodyClientId}`,
+          tags: data.tags !== undefined ? (data.tags.length > 0 ? data.tags : sql`${users.tags}`) : sql`${users.tags}`,
           role: data.role || 'member',
           updatedAt: new Date()
         }

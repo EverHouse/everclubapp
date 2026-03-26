@@ -22,6 +22,8 @@ import {
   regenerateSession,
 } from './helpers';
 
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'connect.sid';
+
 export const sessionRouter = Router();
 
 // PUBLIC ROUTE - destroy session (no auth check, harmless if called unauthenticated)
@@ -30,13 +32,17 @@ sessionRouter.post('/api/auth/logout', (req, res) => {
     if (err) {
       return logAndRespond(req, res, 500, 'Failed to logout', err);
     }
-    res.clearCookie('connect.sid');
+    res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
     res.json({ success: true, message: 'Logged out successfully' });
   });
 });
 
 // PUBLIC ROUTE - get current session info (returns 401 if unauthenticated, no middleware required)
 sessionRouter.get('/api/auth/session', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
   const sessionUser = getSessionUser(req);
   
   if (!sessionUser?.email) {
@@ -45,7 +51,7 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
   
   if (sessionUser.expires_at && Date.now() > sessionUser.expires_at) {
     return req.session.destroy(() => {
-      res.clearCookie('connect.sid');
+      res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
       logAndRespond(req, res, 401, 'Session expired');
     });
   }
@@ -281,13 +287,13 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     
     const dbUserId2 = await upsertUserWithTier({
       email: member.email,
-      tierName: member.tier ?? '',
+      tierName: userRole === 'member' ? (member.tier ?? '') : undefined,
       firstName: member.firstName,
       lastName: member.lastName,
-      phone: member.phone,
-      mindbodyClientId: member.mindbodyClientId,
-      tags: member.tags,
-      membershipStartDate: member.membershipStartDate,
+      phone: memberData?.phone || undefined,
+      mindbodyClientId: memberData?.mindbodyClientId || undefined,
+      tags: memberData?.tags && memberData.tags.length > 0 ? memberData.tags : undefined,
+      membershipStartDate: memberData?.membershipStartDate || undefined,
       role: userRole
     });
     

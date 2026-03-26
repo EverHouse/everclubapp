@@ -2,6 +2,38 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.54] - 2026-03-26
+
+### Deferred Action Loss — Webhook Outbox Recovery (Critical)
+- **Root cause**: After a Stripe webhook's database changes were committed, deferred side-effects (emails, HubSpot sync, notifications) were executed outside the transaction. If any failed, the event was already marked as "claimed" and Stripe's retry would be rejected as a duplicate. The side-effects were permanently lost.
+- **Fix**: `executeDeferredActions` now returns the failure count. If any deferred actions fail, the event is unclaimed from `webhook_processed_events`, allowing Stripe's automatic retry to re-process the entire event. Since all DB handlers use upserts, re-processing is idempotent.
+- **Files changed**: `server/core/stripe/webhooks/framework.ts`, `server/core/stripe/webhooks/index.ts`
+
+### Staff Tier/Data Wipeout via Login (Critical)
+- **Root cause**: When staff/admin logged in via password, the upsert always sent `tierName: member.tier ?? ''` which evaluated to `''` for staff. While `upsertUserWithTier` forced VIP for staff (masking the tier issue), the phone, mindbodyClientId, and tags fields were sent as empty strings/arrays when HubSpot was unavailable, causing the upsert to overwrite existing local data with empty values.
+- **Fix**: Login routes now pass `undefined` (not empty strings) for fields without fresh data. `upsertUserWithTier` updated to preserve existing database values when fields are `undefined`. Staff/admin logins skip tier mutation entirely (the `tierName` field is now optional). Applied to both password-login and OTP verify routes.
+- **Files changed**: `server/routes/auth/session.ts`, `server/routes/auth/otp.ts`, `server/routes/auth/helpers.ts`
+
+### Stripe Environment Cross-Pollination (High)
+- **Root cause**: The webhook processor verified the Stripe signature but never checked `event.livemode`. If a test webhook was accidentally routed to production (or vice versa), the signature would validate correctly and test data would be processed against the production database.
+- **Fix**: Added early `livemode` check from the raw payload *before* any side-effecting processing (sync, DB writes). Events where `livemode` doesn't match the environment (`NODE_ENV=production` or `REPLIT_DEPLOYMENT=1`) are rejected with a warning log before reaching dispatch.
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
+### Session Caching Leak (Medium)
+- **Root cause**: The `/api/auth/session` endpoint returned sensitive session data (PII, auth state) without anti-caching headers. Aggressive proxies, CDNs, or ISPs could cache the response and serve it to other users on the same network.
+- **Fix**: Added `Cache-Control: no-store`, `Pragma: no-cache`, and `Expires: 0` headers to the session endpoint.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Hardcoded Cookie Name in Logout (Low)
+- **Root cause**: `res.clearCookie('connect.sid')` was hardcoded. If the session cookie name were ever changed for security hardening, logout would fail to clear the browser cookie.
+- **Fix**: Extracted cookie name to `SESSION_COOKIE_NAME` constant (configurable via `SESSION_COOKIE_NAME` env var, defaulting to `connect.sid`). Applied to both logout and session-expiry paths.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Orphaned Family Discount on Coupon Deletion (Medium)
+- **Root cause**: When the family discount coupon was deleted in Stripe, the webhook handler logged the deletion but left the 20% discount actively running in the in-memory pricing config until the next server restart.
+- **Fix**: Webhook handler now calls `updateFamilyDiscountPercent(0)` on coupon deletion, immediately zeroing out the active discount.
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
 ## [8.97.53] - 2026-03-26
 
 ### Cross-Domain Password Overwrite — Account Takeover Prevention (Critical)

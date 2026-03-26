@@ -626,13 +626,13 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
 
     const dbUserId = await upsertUserWithTier({
       email: member.email,
-      tierName: member.tier ?? '',
+      tierName: (role === 'admin' || role === 'staff') ? undefined : (member.tier ?? ''),
       firstName: member.firstName,
       lastName: member.lastName,
-      phone: member.phone,
-      mindbodyClientId: member.mindbodyClientId,
-      tags: member.tags || [],
-      membershipStartDate: member.membershipStartDate || '',
+      phone: member.phone || undefined,
+      mindbodyClientId: member.mindbodyClientId || undefined,
+      tags: member.tags && member.tags.length > 0 ? member.tags : undefined,
+      membershipStartDate: member.membershipStartDate || undefined,
       role
     });
     
