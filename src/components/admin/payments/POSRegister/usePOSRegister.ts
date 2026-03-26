@@ -4,6 +4,7 @@ import type { SelectedMember } from '../../../shared/MemberSearchInput';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { useIsMobile } from '../../../../hooks/useBreakpoint';
 import { useCafeMenu } from '../../../../hooks/queries/useCafeQueries';
+import { useMerchItems } from '../../../../hooks/queries/useMerchQueries';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { CafeItem } from '../../../../types/data';
 import {
@@ -22,6 +23,7 @@ export function usePOSRegister() {
   const isDark = effectiveTheme === 'dark';
   const isMobile = useIsMobile();
   const { data: cafeItems, isLoading: cafeLoading } = useCafeMenu();
+  const { data: merchItemsData, isLoading: merchLoading } = useMerchItems();
 
   const [passProducts, setPassProducts] = useState<{ productId: string; name: string; priceCents: number; icon: string }[]>([]);
   const [passProductsLoading, setPassProductsLoading] = useState(true);
@@ -348,6 +350,8 @@ export function usePOSRegister() {
     totalItems,
     groupedCafeItems,
     sortedCafeCategories,
+    merchItems: merchItemsData || [],
+    merchLoading,
     addToCart,
     updateQuantity,
     clearCart,

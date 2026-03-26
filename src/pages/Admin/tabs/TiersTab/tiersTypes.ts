@@ -1,4 +1,4 @@
-export type SubTab = 'tiers' | 'fees' | 'discounts' | 'cafe';
+export type SubTab = 'tiers' | 'fees' | 'discounts' | 'cafe' | 'merch';
 
 export interface TierFeature {
     id: number;

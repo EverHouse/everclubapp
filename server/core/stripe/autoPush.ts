@@ -398,6 +398,173 @@ export async function autoPushCafeItemToStripe(item: {
   }
 }
 
+export async function autoPushMerchItemToStripe(item: {
+  id: number;
+  name: string;
+  description?: string | null;
+  price: string;
+  type: string;
+  imageUrl?: string | null;
+  isActive?: boolean;
+  stockQuantity?: number | null;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
+}): Promise<{ success: boolean; stripeProductId?: string; stripePriceId?: string; error?: string }> {
+  try {
+    const stripe = await getStripeClient();
+    const priceCents = Math.round(parseFloat(item.price) * 100);
+    const isActive = item.isActive !== false;
+
+    if (!isActive && item.stripeProductId) {
+      try {
+        markAppOriginated(item.stripeProductId);
+        await stripe.products.update(item.stripeProductId, { active: false });
+        logger.info(`[AutoPush] Archived Stripe product ${item.stripeProductId} for deactivated merch item "${item.name}"`);
+      } catch (archiveErr: unknown) {
+        logger.error(`[AutoPush] Failed to archive Stripe product for merch item "${item.name}":`, { error: getErrorMessage(archiveErr) });
+      }
+      return { success: true, stripeProductId: item.stripeProductId };
+    }
+
+    if (priceCents <= 0) {
+      return { success: true };
+    }
+
+    const metadata: Record<string, string> = {
+      source: 'ever_house_app',
+      merch_item_id: item.id.toString(),
+      merch_type: item.type || '',
+      product_type: 'one_time',
+      app_category: 'merch',
+      stock_quantity: String(item.stockQuantity ?? 0),
+    };
+
+    const images: string[] = [];
+    if (item.imageUrl && item.imageUrl.startsWith('http')) {
+      images.push(item.imageUrl);
+    }
+
+    let stripeProductId = item.stripeProductId || null;
+    let stripePriceId = item.stripePriceId || null;
+
+    if (stripeProductId) {
+      try {
+        markAppOriginated(stripeProductId);
+        await stripe.products.update(stripeProductId, {
+          name: item.name,
+          description: item.description || undefined,
+          metadata,
+          ...(images.length > 0 ? { images } : {}),
+          active: true,
+        });
+        logger.info(`[AutoPush] Updated Stripe product for merch item "${item.name}"`);
+      } catch (prodErr: unknown) {
+        const errMsg = getErrorMessage(prodErr);
+        if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
+          logger.warn(`[AutoPush] Stored product ${stripeProductId} no longer exists for merch item "${item.name}", will recreate`);
+          stripeProductId = null;
+          stripePriceId = null;
+        } else {
+          throw prodErr;
+        }
+      }
+    }
+
+    if (!stripeProductId) {
+      const existingProduct = await findExistingStripeProduct(stripe, item.name, 'merch_item_id', item.id.toString());
+      if (existingProduct) {
+        try {
+          stripeProductId = existingProduct.id;
+          markAppOriginated(stripeProductId);
+          await stripe.products.update(stripeProductId, {
+            name: item.name,
+            description: item.description || undefined,
+            metadata,
+            ...(images.length > 0 ? { images } : {}),
+            active: true,
+          });
+          logger.info(`[AutoPush] Reusing existing Stripe product ${stripeProductId} for merch item "${item.name}"`);
+        } catch (reuseErr: unknown) {
+          const reuseMsg = getErrorMessage(reuseErr);
+          if (reuseMsg.includes('cannot be updated') || reuseMsg.includes('created by Stripe automatically')) {
+            logger.warn(`[AutoPush] Product ${existingProduct.id} is Stripe-auto-created, creating new product for merch item "${item.name}"`);
+            stripeProductId = null;
+          } else {
+            throw reuseErr;
+          }
+        }
+      }
+      if (!stripeProductId) {
+        const newProduct = await stripe.products.create({
+          name: item.name,
+          description: item.description || undefined,
+          metadata,
+          ...(images.length > 0 ? { images } : {}),
+        }, {
+          idempotencyKey: `autopush_product_merch_${item.id}_${Date.now()}`
+        });
+        stripeProductId = newProduct.id;
+        markAppOriginated(stripeProductId);
+        logger.info(`[AutoPush] Created new Stripe product ${stripeProductId} for merch item "${item.name}"`);
+      }
+    }
+
+    let needNewPrice = false;
+    if (stripePriceId) {
+      try {
+        const existingPrice = await stripe.prices.retrieve(stripePriceId);
+        if (!existingPrice.active) {
+          needNewPrice = true;
+        } else if (existingPrice.unit_amount !== priceCents) {
+          markAppOriginated(stripePriceId);
+          await stripe.prices.update(stripePriceId, { active: false });
+          needNewPrice = true;
+          logger.info(`[AutoPush] Price changed for merch item "${item.name}", creating new price`);
+        }
+      } catch (err: unknown) {
+        logger.debug(`[AutoPush] Could not retrieve price ${stripePriceId} for merch item "${item.name}", will create new: ${getErrorMessage(err)}`);
+        needNewPrice = true;
+      }
+    } else {
+      needNewPrice = true;
+    }
+
+    if (needNewPrice) {
+      const newPrice = await stripe.prices.create({
+        product: stripeProductId,
+        unit_amount: priceCents,
+        currency: 'usd',
+        metadata: {
+          merch_item_id: item.id.toString(),
+          product_type: 'one_time',
+          app_category: 'merch',
+          source: 'ever_house_app',
+        },
+      }, {
+        idempotencyKey: `autopush_price_merch_${item.id}_${priceCents}`
+      });
+      markAppOriginated(newPrice.id);
+      stripePriceId = newPrice.id;
+
+      markAppOriginated(stripeProductId);
+      await stripe.products.update(stripeProductId, { default_price: stripePriceId });
+
+      archiveStalePricesForProduct(stripeProductId, stripePriceId).catch(err => {
+        logger.error(`[AutoPush] Background stale price cleanup failed for merch item "${item.name}":`, { error: getErrorMessage(err) });
+      });
+
+      logger.info(`[AutoPush] Created new price ${stripePriceId} for merch item "${item.name}"`);
+    }
+
+    await db.execute(sql`UPDATE merch_items SET stripe_product_id = ${stripeProductId}, stripe_price_id = ${stripePriceId} WHERE id = ${item.id}`);
+
+    return { success: true, stripeProductId: stripeProductId || undefined, stripePriceId: stripePriceId || undefined };
+  } catch (error: unknown) {
+    logger.error(`[AutoPush] Error pushing merch item "${item.name}" to Stripe:`, { error: getErrorMessage(error) });
+    return { success: false, error: getErrorMessage(error) };
+  }
+}
+
 export async function autoPushFeeToStripe(slug: string, priceCents: number): Promise<{ success: boolean; error?: string }> {
   try {
     const stripe = await getStripeClient();

@@ -15,6 +15,7 @@ import notificationsRouter from '../routes/notifications';
 import pushRouter from '../routes/push';
 import availabilityRouter from '../routes/availability';
 import cafeRouter from '../routes/cafe';
+import merchRouter from '../routes/merch';
 import galleryRouter from '../routes/gallery';
 import announcementsRouter from '../routes/announcements';
 import faqsRouter from '../routes/faqs';
@@ -87,6 +88,7 @@ export function registerRoutes(app: Express): void {
   app.use(pushRouter);
   app.use(availabilityRouter);
   app.use(cafeRouter);
+  app.use(merchRouter);
   app.use(galleryRouter);
   app.use(announcementsRouter);
   app.use(faqsRouter);

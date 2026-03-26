@@ -55,6 +55,11 @@ export const adminKeys = {
     menu: () => [...adminKeys.cafe.all, 'menu'] as const,
   },
 
+  merch: {
+    all: ['merch'] as const,
+    items: () => [...adminKeys.merch.all, 'items'] as const,
+  },
+
   tours: {
     all: ['tours'] as const,
     today: () => [...adminKeys.tours.all, 'today'] as const,
@@ -69,4 +74,5 @@ export const commandCenterKeys = adminKeys.commandCenter;
 export const billingKeys = adminKeys.billing;
 export const financialsKeys = adminKeys.financials;
 export const cafeKeys = adminKeys.cafe;
+export const merchKeys = adminKeys.merch;
 export const toursKeys = adminKeys.tours;

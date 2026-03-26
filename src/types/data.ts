@@ -9,6 +9,19 @@ export interface CafeItem {
   isActive?: boolean;
 }
 
+export interface MerchItem {
+  id: string;
+  name: string;
+  price: number;
+  description: string;
+  type: string;
+  icon: string;
+  image: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  stockQuantity?: number;
+}
+
 export type EventSource = 'internal' | 'eventbrite';
 
 export interface EventData {

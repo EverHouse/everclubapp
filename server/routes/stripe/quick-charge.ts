@@ -101,6 +101,10 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
           item.quantity && item.quantity > 1 ? `${item.name || 'Item'} x${item.quantity}` : (item.name || 'Item')
         ).join(', ');
         guestMetadata.items = itemNames.substring(0, 490);
+        const merchCartItems = cartItems.filter((item: { productId?: string }) => item.productId?.startsWith('merch_'));
+        if (merchCartItems.length > 0) {
+          guestMetadata.merchCartItems = JSON.stringify(merchCartItems.map((item: { productId?: string; quantity?: number }) => ({ productId: item.productId, quantity: item.quantity || 1 }))).substring(0, 490);
+        }
       }
 
       const numericAmount = Number(amountCents);
@@ -250,13 +254,17 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
       }
     }
 
+    let merchCartItemsMeta: string | undefined;
+    if (Array.isArray(cartItems) && cartItems.length > 0) {
+      const merchOnly = cartItems.filter((item: { productId?: string }) => item.productId?.startsWith('merch_'));
+      if (merchOnly.length > 0) {
+        merchCartItemsMeta = JSON.stringify(merchOnly.map((item: { productId?: string; quantity?: number }) => ({ productId: item.productId, quantity: item.quantity || 1 }))).substring(0, 490);
+      }
+    }
+
     if (Array.isArray(cartItems) && cartItems.length > 0 && stripeCustomerId) {
       try {
-        const invoiceResult = await createInvoiceWithLineItems({
-          customerId: stripeCustomerId,
-          description: finalDescription,
-          cartItems: cartItems as CartLineItem[],
-          metadata: {
+        const invoiceMeta: Record<string, string> = {
             staffInitiated: 'true',
             staffEmail: staffEmail,
             chargeType: 'quick_charge',
@@ -264,7 +272,13 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
             memberEmail: customerEmail,
             memberName: resolvedName,
             isNewCustomer: isNewCustomer ? 'true' : 'false',
-          },
+        };
+        if (merchCartItemsMeta) invoiceMeta.merchCartItems = merchCartItemsMeta;
+        const invoiceResult = await createInvoiceWithLineItems({
+          customerId: stripeCustomerId,
+          description: finalDescription,
+          cartItems: cartItems as CartLineItem[],
+          metadata: invoiceMeta,
           receiptEmail: customerEmail
         });
 
@@ -323,7 +337,8 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
         firstName: firstName || '',
         lastName: lastName || '',
         phone: phone || '',
-        dob: dob || ''
+        dob: dob || '',
+        ...(merchCartItemsMeta ? { merchCartItems: merchCartItemsMeta } : {})
       }
     });
 
@@ -409,6 +424,17 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, validateBo
         ).catch((err) => {
           logger.error('[Stripe] Background HubSpot sync after payment confirmation failed', { error: new Error(getErrorMessage(err)) });
         });
+      }
+    }
+
+    if (metadata.merchCartItems) {
+      try {
+        const { deductMerchStock } = await import('../merch');
+        const merchCartItems = JSON.parse(metadata.merchCartItems) as Array<{ productId?: string; quantity?: number }>;
+        await deductMerchStock(merchCartItems, paymentIntentId);
+        logger.info('[Stripe] Merch stock deducted after payment confirmation', { extra: { paymentIntentId, merchCartItems } });
+      } catch (merchErr: unknown) {
+        logger.error('[Stripe] Failed to deduct merch stock (non-blocking)', { extra: { paymentIntentId, error: getErrorMessage(merchErr) } });
       }
     }
 

@@ -13,7 +13,7 @@ export function useTiersTab() {
     const { confirm, ConfirmDialogComponent } = useConfirmDialog();
     const [searchParams, setSearchParams] = useSearchParams();
     const subtabParam = searchParams.get('subtab');
-    const activeSubTab: SubTab = subtabParam === 'fees' ? 'fees' : subtabParam === 'discounts' ? 'discounts' : subtabParam === 'cafe' ? 'cafe' : 'tiers';
+    const activeSubTab: SubTab = subtabParam === 'fees' ? 'fees' : subtabParam === 'discounts' ? 'discounts' : subtabParam === 'cafe' ? 'cafe' : subtabParam === 'merch' ? 'merch' : 'tiers';
     
     const setActiveSubTab = (tab: SubTab) => {
         setSearchParams(params => {

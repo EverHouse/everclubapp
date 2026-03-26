@@ -1,10 +1,11 @@
 import React from 'react';
-import type { CafeItem } from '../../../../types/data';
+import type { CafeItem, MerchItem } from '../../../../types/data';
 import Icon from '../../../icons/Icon';
 import {
   type CategoryTab,
   CAFE_CATEGORY_ICONS,
   cafeItemToCartProduct,
+  merchItemToCartProduct,
 } from './posTypes';
 
 interface POSProductGridProps {
@@ -16,6 +17,8 @@ interface POSProductGridProps {
   cafeLoading: boolean;
   sortedCafeCategories: string[];
   groupedCafeItems: Record<string, CafeItem[]>;
+  merchItems?: MerchItem[];
+  merchLoading?: boolean;
   addedProductId: string | null;
   addToCart: (product: { productId: string; name: string; priceCents: number; icon: string }) => void;
 }
@@ -64,6 +67,8 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
   cafeLoading,
   sortedCafeCategories,
   groupedCafeItems,
+  merchItems = [],
+  merchLoading = false,
   addedProductId,
   addToCart,
 }) => {
@@ -79,10 +84,71 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
   );
 
   if (activeTab === 'merch') {
+    if (merchLoading) {
+      return (
+        <div className={`grid ${gridCols} gap-2`}>
+          <SkeletonCards count={6} />
+        </div>
+      );
+    }
+
+    if (merchItems.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <Icon name="storefront" className="text-4xl text-primary/30 dark:text-white/30" />
+          <p className="text-primary/60 dark:text-white/60 font-medium">No merchandise available</p>
+        </div>
+      );
+    }
+
+    const merchByType: Record<string, MerchItem[]> = {};
+    merchItems.forEach(item => {
+      const t = item.type || 'Other';
+      if (!merchByType[t]) merchByType[t] = [];
+      merchByType[t].push(item);
+    });
+    const sortedTypes = Object.keys(merchByType).sort();
+
     return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3">
-        <Icon name="storefront" className="text-4xl text-primary/30 dark:text-white/30" />
-        <p className="text-primary/60 dark:text-white/60 font-medium">Merchandise coming soon</p>
+      <div className="space-y-3">
+        {sortedTypes.map(type => (
+          <div key={type}>
+            <p className="text-xs font-medium text-primary/40 dark:text-white/40 mb-1.5 flex items-center gap-1">
+              <Icon name="storefront" className="text-xs" />
+              {type}
+            </p>
+            <div className={`grid ${gridCols} gap-2`}>
+              {merchByType[type].map(item => {
+                const hasTrackedStock = item.stockQuantity != null;
+                const outOfStock = hasTrackedStock && item.stockQuantity! <= 0;
+                const cartProduct = merchItemToCartProduct(item);
+                return (
+                  <button
+                    key={cartProduct.productId}
+                    onClick={() => !outOfStock && addToCart(cartProduct)}
+                    disabled={outOfStock}
+                    className={`tactile-card flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 transition-all duration-fast text-center ${
+                      outOfStock
+                        ? 'opacity-50 cursor-not-allowed'
+                        : `hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 ${addedProductId === cartProduct.productId ? 'scale-95 ring-2 ring-emerald-400/50' : ''}`
+                    }`}
+                  >
+                    <Icon name={cartProduct.icon} className="text-3xl text-primary dark:text-white" />
+                    <span className="text-sm font-medium text-primary dark:text-white leading-tight">{cartProduct.name}</span>
+                    <span className="text-lg font-bold text-primary dark:text-white">
+                      ${(cartProduct.priceCents / 100).toFixed(2)}
+                    </span>
+                    {hasTrackedStock && (
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${outOfStock ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'}`}>
+                        {outOfStock ? 'Out of stock' : `${item.stockQuantity} left`}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import DiscountsSubTab from '../DiscountsSubTab';
 import CafeTab from '../CafeTab';
+import MerchTab from '../MerchTab';
 import { TiersTabSkeleton } from '../../../../components/skeletons';
 import { useTiersTab } from './useTiersTab';
 import TierCardList from './TierCardList';
@@ -14,6 +15,7 @@ const SUB_TABS: { key: SubTab; label: string; icon: string }[] = [
     { key: 'fees', label: 'Fees & Passes', icon: 'receipt_long' },
     { key: 'discounts', label: 'Discounts', icon: 'percent' },
     { key: 'cafe', label: 'Cafe Menu', icon: 'local_cafe' },
+    { key: 'merch', label: 'Merch', icon: 'storefront' },
 ];
 
 const TiersTab: React.FC = () => {
@@ -48,6 +50,7 @@ const TiersTab: React.FC = () => {
                 )}
                 {tab.activeSubTab === 'discounts' && <DiscountsSubTab />}
                 {tab.activeSubTab === 'cafe' && <CafeTab />}
+                {tab.activeSubTab === 'merch' && <MerchTab />}
 
                 <TierEditorDrawer
                     isEditing={tab.isEditing}

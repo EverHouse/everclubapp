@@ -1,4 +1,4 @@
-import type { CafeItem } from '../../../../types/data';
+import type { CafeItem, MerchItem } from '../../../../types/data';
 
 export interface CartItem {
   productId: string;
@@ -48,6 +48,28 @@ export function cafeItemToCartProduct(item: CafeItem) {
     name: item.name,
     priceCents: Math.round(item.price * 100),
     icon: getCafeItemIcon(item),
+  };
+}
+
+export const MERCH_TYPE_ICONS: Record<string, string> = {
+  Apparel: 'checkroom',
+  Accessories: 'watch',
+  Equipment: 'sports_golf',
+  Drinkware: 'local_cafe',
+  Other: 'category',
+};
+
+export function getMerchItemIcon(item: MerchItem): string {
+  if (item.icon) return item.icon;
+  return MERCH_TYPE_ICONS[item.type] || 'storefront';
+}
+
+export function merchItemToCartProduct(item: MerchItem) {
+  return {
+    productId: `merch_${item.id}`,
+    name: item.name,
+    priceCents: Math.round(item.price * 100),
+    icon: getMerchItemIcon(item),
   };
 }
 

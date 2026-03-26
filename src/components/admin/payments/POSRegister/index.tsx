@@ -124,6 +124,8 @@ const POSRegister: React.FC = () => {
       cafeLoading={pos.cafeLoading}
       sortedCafeCategories={pos.sortedCafeCategories}
       groupedCafeItems={pos.groupedCafeItems}
+      merchItems={pos.merchItems}
+      merchLoading={pos.merchLoading}
       addedProductId={pos.addedProductId}
       addToCart={pos.addToCart}
     />

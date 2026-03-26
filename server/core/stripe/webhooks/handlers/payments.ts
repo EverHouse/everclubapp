@@ -354,6 +354,31 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
     }
   }
 
+  if (refunded && paymentIntentId) {
+    deferredActions.push(async () => {
+      try {
+        const piMetadata = charge.metadata || {};
+        let merchCartItems: string | undefined = piMetadata.merchCartItems;
+
+        if (!merchCartItems && paymentIntentId) {
+          const { getStripeClient } = await import('../../client');
+          const stripe = await getStripeClient();
+          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+          merchCartItems = pi.metadata?.merchCartItems;
+        }
+
+        if (merchCartItems) {
+          const { restoreMerchStock } = await import('../../../../routes/merch');
+          const items = JSON.parse(merchCartItems) as Array<{ productId?: string; quantity?: number }>;
+          await restoreMerchStock(items, paymentIntentId);
+          logger.info('[Stripe Webhook] Merch stock restored after full refund', { extra: { paymentIntentId } });
+        }
+      } catch (stockErr: unknown) {
+        logger.error('[Stripe Webhook] Failed to restore merch stock after refund (non-blocking)', { extra: { paymentIntentId, error: getErrorMessage(stockErr) } });
+      }
+    });
+  }
+
   return deferredActions;
 }
 

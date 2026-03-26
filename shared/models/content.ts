@@ -181,6 +181,22 @@ export const cafeItems = pgTable("cafe_items", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const merchItems = pgTable("merch_items", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  price: numeric("price").notNull().default("0"),
+  description: text("description"),
+  type: varchar("type").notNull().default("Apparel"),
+  icon: varchar("icon"),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  stockQuantity: integer("stock_quantity"),
+  stripeProductId: varchar("stripe_product_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Form submissions table - contact/tour/event inquiries
 export const formSubmissions = pgTable("form_submissions", {
   id: serial("id").primaryKey(),
