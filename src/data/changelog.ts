@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.62",
+    date: "2026-03-26",
+    title: "Fee Product Stripe & Price Sync Gaps Fixed",
+    changes: [
+      "Fix: Creating a new fee product now actually creates the Stripe product — previously autoPushFeeToStripe required an existing stripeProductId and silently failed on new products",
+      "Fix: Updating a fee product's price_cents now auto-generates the display price_string (e.g. '$25.00') — previously only POST did this, PUT preserved the old value",
+    ]
+  },
+  {
     version: "8.97.61",
     date: "2026-03-26",
     title: "Frontend Delete Button for Tiers & Fee Products",

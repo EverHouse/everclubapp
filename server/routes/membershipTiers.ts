@@ -119,7 +119,12 @@ router.get('/api/fee-products', isStaffOrAdmin, async (_req, res) => {
 router.put('/api/fee-products/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, slug, price_string, description, button_text, sort_order, is_active, price_cents } = req.body;
+    const { name, slug, description, button_text, sort_order, is_active, price_cents } = req.body;
+    let { price_string } = req.body;
+
+    if (!price_string && price_cents != null && price_cents > 0) {
+      price_string = `$${(Number(price_cents) / 100).toFixed(2)}`;
+    }
 
     const result = await db.execute(sql`
       UPDATE fee_products SET

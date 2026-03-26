@@ -584,7 +584,29 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
     let stripePriceId = fee.stripePriceId;
 
     if (!stripeProductId) {
-      return { success: false, error: `Fee product "${slug}" has no Stripe product. Run "Sync to Stripe" first.` };
+      const feeType = slug.includes('guest') ? 'guest_pass' : slug.includes('overage') ? 'simulator_overage' : 'general';
+      const newProduct = await stripe.products.create({
+        name: fee.name,
+        description: fee.description || undefined,
+        metadata: {
+          fee_product_id: fee.id.toString(),
+          fee_slug: slug,
+          product_type: 'one_time',
+          app_category: 'fee',
+          fee_type: feeType,
+          source: 'ever_house_app',
+        },
+      }, {
+        idempotencyKey: `product_fee_${slug}_${fee.id}`
+      });
+      markAppOriginated(newProduct.id);
+      stripeProductId = newProduct.id;
+
+      await db.update(feeProducts)
+        .set({ stripeProductId, updatedAt: new Date() })
+        .where(eq(feeProducts.id, fee.id));
+
+      logger.info(`[AutoPush] Created Stripe product ${stripeProductId} for fee "${slug}"`);
     }
 
     let needNewPrice = false;

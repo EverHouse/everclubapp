@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.62] - 2026-03-26
+
+### Fee Product Stripe & Price Sync Gaps Fixed
+- **Fix**: `autoPushFeeToStripe` now creates the Stripe product when one doesn't exist yet (new fee products). Previously it required an existing `stripeProductId` and returned an error, so newly created fee products never got synced to Stripe.
+- **Fix**: `PUT /api/fee-products/:id` now auto-generates `price_string` from `price_cents` when no explicit `price_string` is provided — consistent with POST behavior.
+- **Files changed**: `server/core/stripe/autoPush.ts`, `server/routes/membershipTiers.ts`
+
 ## [8.97.61] - 2026-03-26
 
 ### Frontend Delete Button for Tiers & Fee Products
