@@ -144,14 +144,14 @@ async function dispatchWebhookEvent(
     return handlePriceDeleted(client, dataObject as Stripe.Price);
   } else if (eventType === 'coupon.updated' || eventType === 'coupon.created') {
     const coupon = dataObject as Stripe.Coupon;
-    if (coupon.id === 'FAMILY20' && coupon.percent_off) {
+    if ((coupon.metadata?.system_role === 'family_discount' || coupon.id === 'FAMILY20') && coupon.percent_off) {
       updateFamilyDiscountPercent(coupon.percent_off);
-      logger.info(`[Stripe Webhook] FAMILY20 coupon ${eventType}: ${coupon.percent_off}% off`);
+      logger.info(`[Stripe Webhook] Family discount coupon ${eventType}: ${coupon.percent_off}% off (coupon: ${coupon.id})`);
     }
   } else if (eventType === 'coupon.deleted') {
     const coupon = dataObject as Stripe.Coupon;
-    if (coupon.id === 'FAMILY20') {
-      logger.info('[Stripe Webhook] FAMILY20 coupon deleted - will be recreated on next use');
+    if (coupon.metadata?.system_role === 'family_discount' || coupon.id === 'FAMILY20') {
+      logger.info(`[Stripe Webhook] Family discount coupon deleted (${coupon.id}) - will be recreated on next use`);
     }
   } else if (eventType === 'credit_note.created') {
     return handleCreditNoteCreated(client, dataObject as Stripe.CreditNote);
@@ -211,18 +211,27 @@ export async function processStripeWebhook(
     );
   }
 
+  const stripe = await getStripeClient();
   const sync = await getStripeSync() as { processWebhook: (payload: Buffer, signature: string) => Promise<void> };
   await sync.processWebhook(payload, signature);
 
-  const payloadString = payload.toString('utf8');
   let event: Stripe.Event;
+  const payloadString = payload.toString('utf8');
   try {
-    event = JSON.parse(payloadString) as Stripe.Event;
-  } catch (parseErr) {
-    logger.error('[Stripe Webhook] Failed to parse payload JSON', {
-      error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)),
+    const minimalParse = JSON.parse(payloadString) as { id: string };
+    event = await stripe.events.retrieve(minimalParse.id);
+  } catch (retrieveErr) {
+    logger.warn('[Stripe Webhook] Stripe API retrieve failed, using verified payload', {
+      error: retrieveErr instanceof Error ? retrieveErr : new Error(String(retrieveErr)),
     });
-    throw new Error('Invalid JSON payload');
+    try {
+      event = JSON.parse(payloadString) as Stripe.Event;
+    } catch (parseErr) {
+      logger.error('[Stripe Webhook] Failed to parse verified payload', {
+        error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)),
+      });
+      throw new Error('Failed to parse webhook event');
+    }
   }
 
   const resourceId = extractResourceId(event);

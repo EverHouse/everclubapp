@@ -343,12 +343,10 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
     
     const normalizedEmail = sessionUser.email.toLowerCase();
     
-    const altEmailSetPw = getAlternateDomainEmail(normalizedEmail);
-    const emailsSetPw = altEmailSetPw ? [normalizedEmail, altEmailSetPw] : [normalizedEmail];
-    const staffRecord = await db.select({ id: staffUsers.id, passwordHash: staffUsers.passwordHash })
+    const staffRecord = await db.select({ id: staffUsers.id, passwordHash: staffUsers.passwordHash, email: staffUsers.email })
       .from(staffUsers)
       .where(and(
-        sql`LOWER(${staffUsers.email}) IN (${sql.join(emailsSetPw.map(e => sql`LOWER(${e})`), sql`, `)})`,
+        sql`LOWER(${staffUsers.email}) = LOWER(${normalizedEmail})`,
         eq(staffUsers.isActive, true)
       ))
       .limit(1);

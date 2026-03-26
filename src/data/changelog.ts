@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.53",
+    date: "2026-03-26",
+    title: "Security Audit Fixes — Account Safety & Webhook Integrity",
+    changes: [
+      "Security: Password changes now verify the resolved staff account matches the authenticated session, preventing cross-domain account takeover",
+      "Security: Stripe webhooks now retrieve events from Stripe's API after signature verification, eliminating JSON parsing discrepancies",
+      "Security: Added CSRF origin checking on all state-changing API routes to block cross-site request forgery attacks",
+      "Improved: Family discount coupon detection now uses Stripe metadata instead of a brittle hardcoded ID",
+    ]
+  },
+  {
     version: "8.97.52",
     date: "2026-03-26",
     title: "Auth & Booking Integrity Fixes",

@@ -2,6 +2,28 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.53] - 2026-03-26
+
+### Cross-Domain Password Overwrite — Account Takeover Prevention (Critical)
+- **Root cause**: The `/api/auth/set-password` route used `getAlternateDomainEmail()` to search for staff accounts across `.com`/`.co` domains. An attacker who registered with `admin@everclub.co` could trigger a password change that resolved to the real `admin@everclub.com` staff record, overwriting their password.
+- **Fix**: Removed domain aliasing entirely from the set-password route. The query now matches only the exact session email (`WHERE LOWER(email) = LOWER(sessionEmail)`). Domain aliasing remains available for login (read-only lookup) but is excluded from all mutation paths.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### JSON Parsing Discrepancy — Webhook Signature Evasion (High)
+- **Root cause**: After `processWebhook()` verified the Stripe signature, the raw payload was re-parsed with `JSON.parse()`. Different JSON parsers can handle edge cases (like duplicate keys) differently, theoretically allowing an attacker to inject fake event data that passes signature verification. While both parsers in Node.js use V8 (making this non-exploitable in practice), it violates defense-in-depth.
+- **Fix**: After signature verification, the event ID is extracted and the canonical event is retrieved from Stripe's API via `stripe.events.retrieve()`, ensuring the app acts on Stripe's authoritative data. If the Stripe API is temporarily unavailable, falls back to parsing the verified payload (which is safe since signature was already validated by `processWebhook`).
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
+### Missing CSRF Protection on Mutative Session Routes (Medium)
+- **Root cause**: Session cookies use `SameSite: none` in production (required for the Replit proxy iframe). Combined with `express.urlencoded()` being enabled, a malicious website could forge form submissions to mutative routes like `/api/auth/set-password` or `/api/auth/logout`.
+- **Fix**: Added `csrfOriginCheck` middleware that validates the `Origin` or `Referer` header on all POST/PUT/DELETE/PATCH requests to `/api/` routes, blocking requests from unrecognized origins. In production, only the app's specific domain, `ALLOWED_ORIGINS` env var, and `everclub.app` are permitted — broad wildcards like `*.replit.app` are restricted to development. Webhook endpoints are exempted. Requests with no Origin/Referer are allowed (non-browser clients are not CSRF vectors).
+- **Files changed**: `server/middleware/security.ts`, `server/index.ts`
+
+### Brittle Magic Strings in Webhook Logic (Low)
+- **Root cause**: The coupon webhook handler matched on `coupon.id === 'FAMILY20'`, meaning if the coupon were ever recreated with a different ID, the family discount would silently stop updating.
+- **Fix**: Webhook handler now checks `coupon.metadata?.system_role === 'family_discount'` as the primary match (with `FAMILY20` as fallback). Coupon creation now includes `system_role: 'family_discount'` in metadata.
+- **Files changed**: `server/core/stripe/webhooks/index.ts`, `server/core/stripe/groupBillingCrud.ts`
+
 ## [8.97.52] - 2026-03-26
 
 ### Login Token Ordering Fix (Critical — per audit, Low actual risk)

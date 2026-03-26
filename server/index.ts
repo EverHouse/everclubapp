@@ -220,7 +220,7 @@ async function initializeApp() {
   const { initWebSocketServer, closeWebSocketServer: _closeWebSocketServer } = await import('./core/websocket');
   const { initSchedulers, stopSchedulers: _stopSchedulers } = await import('./schedulers');
   const { processStripeWebhook } = await import('./core/stripe');
-  const { securityMiddleware } = await import('./middleware/security');
+  const { securityMiddleware, csrfOriginCheck } = await import('./middleware/security');
   const { registerSitemapRoutes } = await import('./middleware/sitemap');
   const { seoMiddleware } = await import('./middleware/seo');
 
@@ -340,6 +340,7 @@ async function initializeApp() {
   app.use(requestIdMiddleware);
   app.use(logRequest);
   app.use(cors(corsOptions));
+  app.use(csrfOriginCheck);
   app.use(compression());
 
   app.post(

@@ -77,6 +77,7 @@ export async function getOrCreateFamilyCoupon(): Promise<string> {
           metadata: {
             source: 'group_billing',
             type: 'family_addon',
+            system_role: 'family_discount',
           },
         }, { idempotencyKey: `coupon_family_${FAMILY_COUPON_ID}_${getFamilyDiscountPercent()}` });
         logger.info(`[GroupBilling] Created FAMILY20 coupon: ${newCoupon.id}`);

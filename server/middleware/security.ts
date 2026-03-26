@@ -1,5 +1,53 @@
 import { randomBytes } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
+import { logger } from '../core/logger';
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function isAllowedOrigin(origin: string): boolean {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+  try {
+    const url = new URL(origin);
+    const hostname = url.hostname;
+    if (!isProduction) {
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+      if (hostname.endsWith('.replit.dev') || hostname.endsWith('.repl.co')) return true;
+    }
+    const allowedOrigins = process.env.ALLOWED_ORIGINS;
+    if (allowedOrigins) {
+      const allowed = allowedOrigins.split(',').map(o => o.trim().replace(/^https?:\/\//, ''));
+      if (allowed.includes(hostname)) return true;
+    }
+    const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+    if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) return true;
+    if (hostname === 'everclub.app' || hostname.endsWith('.everclub.app')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function csrfOriginCheck(req: Request, res: Response, next: NextFunction) {
+  if (SAFE_METHODS.has(req.method)) return next();
+  if (!req.path.startsWith('/api/')) return next();
+  if (req.path.startsWith('/api/webhooks/') || req.path.startsWith('/api/stripe-webhook')) return next();
+
+  const origin = req.headers['origin'] as string | undefined;
+  const referer = req.headers['referer'] as string | undefined;
+
+  if (!origin && !referer) {
+    return next();
+  }
+
+  const source = origin || (referer ? new URL(referer).origin : undefined);
+  if (source && !isAllowedOrigin(source)) {
+    logger.warn('[CSRF] Blocked mutative request from disallowed origin', { origin: source, path: req.path });
+    res.status(403).json({ error: 'Origin not allowed' });
+    return;
+  }
+
+  next();
+}
 
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
   const nonce = randomBytes(16).toString('base64');
