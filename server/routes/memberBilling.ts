@@ -1183,7 +1183,7 @@ router.get('/api/member-billing/:email/migration-status', isStaffOrAdmin, async 
 
     let tierHasStripePrice = false;
     if (member.tier) {
-      const tierResult = await db.execute(sql`SELECT stripe_price_id FROM membership_tiers WHERE slug = ${member.tier} AND stripe_price_id IS NOT NULL`);
+      const tierResult = await db.execute(sql`SELECT stripe_price_id FROM membership_tiers WHERE (LOWER(slug) = LOWER(${member.tier}) OR LOWER(name) = LOWER(${member.tier})) AND stripe_price_id IS NOT NULL`);
       tierHasStripePrice = tierResult.rows.length > 0;
     }
     migrationInfo.tierHasStripePrice = tierHasStripePrice;
