@@ -282,17 +282,27 @@ export async function processStripeWebhook(
 
     const failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
     if (failedActions > 0) {
-      const unclaimClient = await pool.connect();
+      const dlqClient = await pool.connect();
       try {
-        await unclaimClient.query(
-          'DELETE FROM webhook_processed_events WHERE event_id = $1',
-          [event.id]
+        await dlqClient.query(
+          `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (event_id) DO UPDATE SET
+             reason = webhook_dead_letter_queue.reason || E'\n' || EXCLUDED.reason,
+             event_payload = EXCLUDED.event_payload`,
+          [
+            event.id,
+            event.type,
+            resourceId || null,
+            `deferred_action_failure: ${failedActions} action(s) failed post-commit`,
+            JSON.stringify({ deferredActions, failedCount: failedActions }),
+          ]
         );
-        logger.warn(`[Stripe Webhook] Unclaimed event ${event.id} after ${failedActions} deferred action failure(s) — Stripe retry will re-process`);
-      } catch (unclaimErr) {
-        logger.error(`[Stripe Webhook] Failed to unclaim event ${event.id} for retry:`, { error: getErrorMessage(unclaimErr as Error) });
+        logger.warn(`[Stripe Webhook] Event ${event.id} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
+      } catch (dlqErr) {
+        logger.error(`[Stripe Webhook] Failed to write deferred action failure to DLQ for ${event.id}:`, { error: getErrorMessage(dlqErr as Error) });
       } finally {
-        safeRelease(unclaimClient);
+        safeRelease(dlqClient);
       }
     }
 

@@ -2,6 +2,18 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.58] - 2026-03-26
+
+### Stripe Idempotency Corruption — Duplicate Payment Processing (Critical)
+- **Root cause**: When deferred actions (like sending receipt emails) failed after a webhook's database transaction had already committed, the system deleted the event from `webhook_processed_events` (the idempotency lock). This created two catastrophic outcomes: (1) Stripe would never retry the event because the endpoint returned 200 OK, so the email was permanently lost; (2) If Stripe *did* retry due to a network blip, the deleted idempotency lock meant the system would re-process the event, potentially inserting duplicate payment records.
+- **Fix**: Failed deferred actions are now written to the `webhook_dead_letter_queue` instead of deleting the idempotency lock. The committed transaction is preserved, Stripe receives 200 OK (correct — the data is saved), and failed side-effects are captured for staff review/retry. Uses `ON CONFLICT` to merge with existing DLQ entries if the event was already flagged.
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
+### CSRF Origin Check Bypass (High)
+- **Root cause**: The `csrfOriginCheck` middleware allowed mutative API requests (POST/PUT/DELETE) to pass through when both `Origin` and `Referer` headers were missing. An attacker could exploit this by hosting a malicious page that suppresses these headers (via `<meta name="referrer" content="no-referrer">` or `rel="noreferrer"` on forms), completely bypassing CSRF protection.
+- **Fix**: Mutative API requests missing both `Origin` and `Referer` headers are now blocked with 403. Added exemptions for server-to-server callback paths that legitimately lack these headers: `/api/hubspot/webhooks` and `/api/wallet/v1/` (Apple Wallet Pass web service). Fixed Stripe webhook exemption to match actual path (`/api/stripe/webhook` in addition to the legacy `/api/stripe-webhook` pattern).
+- **Files changed**: `server/middleware/security.ts`
+
 ## [8.97.57] - 2026-03-26
 
 ### Booking Race Condition — Simultaneous Double-Booking (Critical)

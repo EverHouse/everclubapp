@@ -30,13 +30,17 @@ function isAllowedOrigin(origin: string): boolean {
 export function csrfOriginCheck(req: Request, res: Response, next: NextFunction) {
   if (SAFE_METHODS.has(req.method)) return next();
   if (!req.path.startsWith('/api/')) return next();
-  if (req.path.startsWith('/api/webhooks/') || req.path.startsWith('/api/stripe-webhook')) return next();
+  if (req.path.startsWith('/api/webhooks/') || req.path.startsWith('/api/stripe-webhook') || req.path.startsWith('/api/stripe/webhook')) return next();
+  if (req.path.startsWith('/api/hubspot/webhooks')) return next();
+  if (req.path.startsWith('/api/wallet/v1/')) return next();
 
   const origin = req.headers['origin'] as string | undefined;
   const referer = req.headers['referer'] as string | undefined;
 
   if (!origin && !referer) {
-    return next();
+    logger.warn('[CSRF] Blocked mutative API request with missing Origin and Referer headers', { path: req.path, method: req.method });
+    res.status(403).json({ error: 'Origin verification failed. Please try again.' });
+    return;
   }
 
   const source = origin || (referer ? new URL(referer).origin : undefined);

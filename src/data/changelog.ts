@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.58",
+    date: "2026-03-26",
+    title: "Stripe Idempotency Fix & CSRF Protection Hardening",
+    changes: [
+      "Critical: Fixed Stripe webhook deferred action failure — no longer deletes idempotency lock post-commit (prevents duplicate payment processing and lost side-effects)",
+      "Critical: Failed deferred actions now written to dead letter queue for staff review instead of unclaiming the event for Stripe retry",
+      "Security: CSRF origin check now blocks mutative API requests with missing Origin and Referer headers instead of allowing them through",
+      "Fixed: Added webhook exemptions for HubSpot webhooks and Apple Wallet Pass web service endpoints to prevent false CSRF blocks, and corrected Stripe webhook path exemption",
+    ]
+  },
+  {
     version: "8.97.57",
     date: "2026-03-26",
     title: "Booking Race Condition Fix & Crash Prevention",
