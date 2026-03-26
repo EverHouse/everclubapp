@@ -119,6 +119,14 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         WHERE bp.participant_type = 'guest'
         GROUP BY LOWER(u2.email)
       ),
+      booking_requestors AS (
+        SELECT LOWER(br.user_email) as email,
+          MAX(bs.session_date)::timestamp as last_booking_date
+        FROM booking_requests br
+        JOIN booking_sessions bs ON bs.id = br.session_id
+        WHERE br.status IN ('approved', 'attended', 'completed', 'checked_in')
+        GROUP BY LOWER(br.user_email)
+      ),
       day_pass_buyers AS (
         SELECT DISTINCT LOWER(purchaser_email) as email
         FROM day_pass_purchases
@@ -130,8 +138,8 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
             WHEN ga.bp_date IS NOT NULL OR upa.bp_date IS NOT NULL THEN 'guest'
             ELSE 'NEW'
           END as computed_type,
-          GREATEST(COALESCE(u.last_activity_at, '1970-01-01'::timestamp), COALESCE(ga.bp_date, '1970-01-01'::timestamp), COALESCE(upa.bp_date, '1970-01-01'::timestamp), COALESCE(dpp_max.last_purchase_date, '1970-01-01'::timestamp)) as last_activity,
-          CASE WHEN u.last_activity_at IS NULL AND ga.bp_date IS NULL AND upa.bp_date IS NULL AND dpp_max.last_purchase_date IS NULL THEN TRUE ELSE FALSE END as has_no_activity
+          GREATEST(COALESCE(u.last_activity_at, '1970-01-01'::timestamp), COALESCE(ga.bp_date, '1970-01-01'::timestamp), COALESCE(upa.bp_date, '1970-01-01'::timestamp), COALESCE(dpp_max.last_purchase_date, '1970-01-01'::timestamp), COALESCE(breq.last_booking_date, '1970-01-01'::timestamp)) as last_activity,
+          CASE WHEN u.last_activity_at IS NULL AND ga.bp_date IS NULL AND upa.bp_date IS NULL AND dpp_max.last_purchase_date IS NULL AND breq.last_booking_date IS NULL THEN TRUE ELSE FALSE END as has_no_activity
         FROM users u
         LEFT JOIN day_pass_buyers dpb ON LOWER(u.email) = dpb.email
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
@@ -141,6 +149,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           FROM day_pass_purchases
           GROUP BY LOWER(purchaser_email)
         ) dpp_max ON LOWER(u.email) = dpp_max.email
+        LEFT JOIN booking_requestors breq ON LOWER(u.email) = breq.email
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
         ${archiveClause}
@@ -172,6 +181,14 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         WHERE bp.participant_type = 'guest'
         GROUP BY LOWER(u2.email)
       ),
+      booking_requestors AS (
+        SELECT LOWER(br.user_email) as email,
+          MAX(bs.session_date)::timestamp as last_booking_date
+        FROM booking_requests br
+        JOIN booking_sessions bs ON bs.id = br.session_id
+        WHERE br.status IN ('approved', 'attended', 'completed', 'checked_in')
+        GROUP BY LOWER(br.user_email)
+      ),
       visitor_base AS (
         SELECT 
           u.id,
@@ -201,11 +218,12 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
             WHEN ga.bp_date IS NOT NULL OR upa.bp_date IS NOT NULL THEN 'guest'
             ELSE 'NEW'
           END as effective_type,
-          GREATEST(COALESCE(u.last_activity_at, '1970-01-01'::timestamp), COALESCE(ga.bp_date, '1970-01-01'::timestamp), COALESCE(upa.bp_date, '1970-01-01'::timestamp), COALESCE(dpp_agg.last_purchase_date, '1970-01-01'::timestamp)) as last_activity,
-          CASE WHEN u.last_activity_at IS NULL AND ga.bp_date IS NULL AND upa.bp_date IS NULL AND dpp_agg.last_purchase_date IS NULL THEN TRUE ELSE FALSE END as has_no_activity
+          GREATEST(COALESCE(u.last_activity_at, '1970-01-01'::timestamp), COALESCE(ga.bp_date, '1970-01-01'::timestamp), COALESCE(upa.bp_date, '1970-01-01'::timestamp), COALESCE(dpp_agg.last_purchase_date, '1970-01-01'::timestamp), COALESCE(breq.last_booking_date, '1970-01-01'::timestamp)) as last_activity,
+          CASE WHEN u.last_activity_at IS NULL AND ga.bp_date IS NULL AND upa.bp_date IS NULL AND dpp_agg.last_purchase_date IS NULL AND breq.last_booking_date IS NULL THEN TRUE ELSE FALSE END as has_no_activity
         FROM users u
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
         LEFT JOIN user_participant_appearances upa ON LOWER(u.email) = upa.email
+        LEFT JOIN booking_requestors breq ON LOWER(u.email) = breq.email
         LEFT JOIN (
           SELECT LOWER(purchaser_email) as email, COUNT(*)::int as purchase_count, SUM(amount_cents) as total_spent_cents, MAX(purchased_at) as last_purchase_date
           FROM day_pass_purchases
@@ -289,7 +307,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       role: row.role,
       stripeCustomerId: row.stripe_customer_id,
       hubspotId: row.hubspot_id,
-      lastActivityAt: row.last_activity_at,
+      lastActivityAt: row.last_activity && row.last_activity !== '1970-01-01 00:00:00' ? row.last_activity : row.last_activity_at,
       lastActivitySource: row.last_activity_source,
       createdAt: row.created_at,
       type: getType(row),
