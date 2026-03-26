@@ -23,6 +23,7 @@ import {
 } from './helpers';
 
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'connect.sid';
+const DUMMY_BCRYPT_HASH = '$2b$10$jicF9naWqBp2ywuM9.aTpeELpWMxKup2XIVnhexhlJN1Yk6EV.hVW';
 
 export const sessionRouter = Router();
 
@@ -225,12 +226,15 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     if (!userRecord) {
       const isMember = await db.select({ id: users.id }).from(users).where(sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`).limit(1);
       if (isMember.length > 0) {
+        await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
         return logAndRespond(req, res, 400, 'Members should log in using the email link or OTP method.');
       }
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
       return logAndRespond(req, res, 401, 'Invalid email or password');
     }
     
     if (!userRecord.passwordHash) {
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
       return logAndRespond(req, res, 400, 'Password not set. Please use magic link or contact an admin.');
     }
     

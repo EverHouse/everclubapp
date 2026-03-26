@@ -260,6 +260,13 @@
       "when": 1774742400000,
       "tag": "0064_add_merch_items",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1774828800000,
+      "tag": "0065_add_webhook_dead_letter_queue",
+      "breakpoints": true
     }
   ]
 }

@@ -264,7 +264,7 @@ export async function processStripeWebhook(
     }
 
     if (resourceId) {
-      const orderOk = await checkResourceEventOrder(client, resourceId, event.type, event.created);
+      const orderOk = await checkResourceEventOrder(client, resourceId, event.type, event.created, event.id);
       if (!orderOk) {
         await client.query('ROLLBACK');
         logger.info(`[Stripe Webhook] Skipping out-of-order event: ${event.id} (${event.type}) for resource ${resourceId}`);
@@ -334,7 +334,7 @@ export async function replayStripeEvent(
     }
 
     if (resourceId) {
-      const orderOk = await checkResourceEventOrder(client, resourceId, event.type, event.created);
+      const orderOk = await checkResourceEventOrder(client, resourceId, event.type, event.created, event.id);
       if (!orderOk) {
         await client.query('ROLLBACK');
         logger.info(`[Stripe Webhook Replay] Skipping out-of-order event: ${event.id} (${event.type}) for resource ${resourceId}`);

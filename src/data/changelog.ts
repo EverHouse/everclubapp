@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.56",
+    date: "2026-03-26",
+    title: "Timing Attack Defense, CSP Cache Fix & Webhook Dead Letter Queue",
+    changes: [
+      "Security: Login endpoint now runs constant-time bcrypt comparison even for unknown emails, preventing user enumeration via response timing",
+      "Security: Dynamic CSP nonce responses are now marked non-cacheable to prevent CDN cache poisoning that could bypass XSS protections",
+      "Fixed: Out-of-order Stripe webhook events are now saved to a dead letter queue instead of being permanently discarded",
+    ]
+  },
+  {
     version: "8.97.55",
     date: "2026-03-26",
     title: "Critical Security & Booking Safety Fixes",

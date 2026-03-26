@@ -5,6 +5,7 @@ import { webhookProcessedEvents } from '../../../../shared/models/system';
 import { logger } from '../../logger';
 import { getErrorMessage } from '../../../utils/errorUtils';
 import type { PoolClient } from 'pg';
+import { pool, safeRelease } from '../../db';
 import type { DeferredAction, StripeEventObject, CacheTransactionParams } from './types';
 
 const EVENT_DEDUP_WINDOW_DAYS = 7;
@@ -50,7 +51,8 @@ export async function checkResourceEventOrder(
   client: PoolClient,
   resourceId: string,
   eventType: string,
-  _eventTimestamp: number
+  _eventTimestamp: number,
+  stripeEventId?: string
 ): Promise<boolean> {
   const EVENT_PRIORITY: Record<string, number> = {
     'payment_intent.created': 1,
@@ -114,7 +116,26 @@ export async function checkResourceEventOrder(
       logger.info(`[Stripe Webhook] Out-of-order event: ${eventType} (priority ${currentPriority}) after ${lastEventType} (priority ${lastPriority}) for resource ${resourceId} — allowing through because subscription creation should never be skipped`);
       return true;
     }
-    logger.info(`[Stripe Webhook] Out-of-order event: ${eventType} (priority ${currentPriority}) after ${lastEventType} (priority ${lastPriority}) for resource ${resourceId}`);
+    logger.warn(`[Stripe Webhook] Out-of-order event: ${eventType} (priority ${currentPriority}) after ${lastEventType} (priority ${lastPriority}) for resource ${resourceId} — buffering to dead letter queue`);
+    const dlqClient = await pool.connect();
+    try {
+      await dlqClient.query(
+        `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (event_id) DO NOTHING`,
+        [
+          stripeEventId || `${resourceId}:${eventType}:${Date.now()}`,
+          eventType,
+          resourceId,
+          `Out-of-order: priority ${currentPriority} after ${lastEventType} (priority ${lastPriority})`,
+          JSON.stringify({ stripeEventId, eventType, resourceId, currentPriority, lastEventType, lastPriority })
+        ]
+      );
+    } catch (dlqErr: unknown) {
+      logger.error('[Stripe Webhook] Failed to write to dead letter queue:', { error: getErrorMessage(dlqErr) });
+    } finally {
+      safeRelease(dlqClient);
+    }
     return false;
   }
 

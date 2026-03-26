@@ -2,6 +2,26 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.56] - 2026-03-26
+
+### Cryptographic Timing Attack — User Enumeration (Critical)
+- **Root cause**: The password-login endpoint (`/api/auth/password-login`) returned an error response almost instantly (~10ms) for unknown emails, but took ~200ms for known emails because bcrypt comparison only ran when a user was found. An attacker could enumerate valid staff/admin email addresses by measuring response latency.
+- **Fix**: All rejection paths now run `bcrypt.compare` against a pre-computed dummy hash before returning, equalizing response time regardless of whether the email exists or has a password set.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### CSP Nonce Invalidation via CDN Cache Poisoning (High)
+- **Root cause**: The security middleware generated a unique CSP nonce per request but did not set anti-caching headers. If a CDN or proxy cached the HTML response, all subsequent users would receive the same nonce, allowing an attacker to craft XSS payloads using the leaked cached nonce.
+- **Fix**: Added `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate` to all non-static-asset responses served through the security middleware. Static assets (JS, CSS, images, fonts) are excluded to preserve CDN caching benefits.
+- **Files changed**: `server/middleware/security.ts`
+
+### Strict Event Ordering Data Loss (Medium)
+- **Root cause**: The Stripe webhook handler used a strict event ordering check that permanently dropped out-of-order events. Since Stripe does not guarantee delivery order, an `invoice.updated` arriving before `invoice.created` would cause the `invoice.created` payload (containing initial metadata, line items, creation timestamps) to be silently discarded forever.
+- **Fix**: Out-of-order events are now written to a `webhook_dead_letter_queue` table with the event type, resource ID, reason, and payload context. The events are still not processed inline (to maintain idempotency), but they are preserved for background reconciliation rather than being lost. Created migration `0065_add_webhook_dead_letter_queue.sql`.
+- **Files changed**: `server/core/stripe/webhooks/framework.ts`, `drizzle/0065_add_webhook_dead_letter_queue.sql`
+
+### Session Expiry Integer Overflow Assessment (Low — No Fix Needed)
+- **Assessment**: The `expires_at` field (`Date.now() + sessionTtl`) is stored in the Express session object as a JavaScript number (64-bit float), serialized as JSON to the session store. It is not stored in a dedicated database column. JavaScript's 64-bit float can safely represent integers up to 2^53, and `Date.now()` in 2026 is approximately 1.77 × 10^12 — well within safe range. No 32-bit integer column is involved. No fix required.
+
 ## [8.97.55] - 2026-03-26
 
 ### Drizzle ORM AST Leak in Staff Password Check (Critical)

@@ -53,6 +53,10 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   const nonce = randomBytes(16).toString('base64');
   res.locals.cspNonce = nonce;
 
+  const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/.test(req.path);
+  if (!isStaticAsset) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
