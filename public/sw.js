@@ -8,7 +8,8 @@ const FONTS_CACHE = 'google-fonts-v1';
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/assets/logos/walking-mascot-white.gif'
 ];
 
 const CACHEABLE_API_ENDPOINTS = ['events', 'wellness-classes', 'cafe-menu', 'hours', 'faqs', 'announcements', 'gallery'];
