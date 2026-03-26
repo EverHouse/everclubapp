@@ -312,35 +312,37 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        <div>
-                                            <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Link to Stripe Price</label>
-                                            <select
-                                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
-                                                value=""
-                                                onChange={e => {
-                                                    if (!selectedTier) return;
-                                                    const priceId = e.target.value;
-                                                    if (priceId) {
-                                                        const selectedPrice = stripePrices.find(p => p.id === priceId);
-                                                        if (selectedPrice) {
-                                                            setSelectedTier({
-                                                                ...selectedTier,
-                                                                stripe_price_id: priceId,
-                                                                stripe_product_id: selectedPrice.productId,
-                                                                price_cents: selectedPrice.amountCents
-                                                            });
+                                        {!isCreatingItem && (
+                                            <div>
+                                                <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Link to Stripe Price</label>
+                                                <select
+                                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                                                    value=""
+                                                    onChange={e => {
+                                                        if (!selectedTier) return;
+                                                        const priceId = e.target.value;
+                                                        if (priceId) {
+                                                            const selectedPrice = stripePrices.find(p => p.id === priceId);
+                                                            if (selectedPrice) {
+                                                                setSelectedTier({
+                                                                    ...selectedTier,
+                                                                    stripe_price_id: priceId,
+                                                                    stripe_product_id: selectedPrice.productId,
+                                                                    price_cents: selectedPrice.amountCents
+                                                                });
+                                                            }
                                                         }
-                                                    }
-                                                }}
-                                            >
-                                                <option value="">Select a Stripe price...</option>
-                                                {stripePrices.map(p => (
-                                                    <option key={p.id} value={p.id}>
-                                                        {p.productName} — {p.displayString} — {p.id}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                                    }}
+                                                >
+                                                    <option value="">Select a Stripe price...</option>
+                                                    {stripePrices.map(p => (
+                                                        <option key={p.id} value={p.id}>
+                                                            {p.productName} — {p.displayString} — {p.id}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
                                         <div>
                                             <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Price (cents)</label>
                                             <input
@@ -359,11 +361,16 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                                     if (isNaN(parsed) || parsed < 0) return;
                                                     setSelectedTier({ ...selectedTier, price_cents: parsed });
                                                 }}
-                                                placeholder="e.g., 5000 = $50.00"
+                                                placeholder="e.g., 2500 = $25.00"
                                             />
                                             {selectedTier?.price_cents != null && selectedTier.price_cents > 0 && (
                                                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
                                                     = ${(selectedTier.price_cents / 100).toFixed(2)}
+                                                </p>
+                                            )}
+                                            {isCreatingItem && (
+                                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                                                    A Stripe product and price will be created automatically when you save.
                                                 </p>
                                             )}
                                         </div>

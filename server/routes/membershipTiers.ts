@@ -168,10 +168,18 @@ router.put('/api/fee-products/:id', isAdmin, async (req, res) => {
 
 router.post('/api/fee-products', isAdmin, async (req, res) => {
   try {
-    const { name, slug, price_string, description, button_text, sort_order, is_active, price_cents, product_type, fee_type } = req.body;
+    const { name, slug, description, button_text, sort_order, is_active, price_cents, product_type, fee_type } = req.body;
+    let { price_string } = req.body;
 
-    if (!name || !slug || !price_string) {
-      return res.status(400).json({ error: 'name, slug, and price_string are required' });
+    if (!name || !slug) {
+      return res.status(400).json({ error: 'name and slug are required' });
+    }
+
+    if (!price_string && price_cents != null && price_cents > 0) {
+      price_string = `$${(Number(price_cents) / 100).toFixed(2)}`;
+    }
+    if (!price_string) {
+      return res.status(400).json({ error: 'Either price_string or price_cents is required' });
     }
 
     const result = await db.execute(sql`

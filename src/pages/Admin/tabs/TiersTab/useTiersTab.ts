@@ -149,10 +149,13 @@ export function useTiersTab() {
     const saveFeeProductMutation = useMutation({
         mutationFn: async ({ tier, isNew }: { tier: MembershipTier; isNew: boolean }) => {
             const url = isNew ? '/api/fee-products' : `/api/fee-products/${tier.id}`;
+            const autoPriceString = tier.price_string || (tier.price_cents != null && tier.price_cents > 0
+                ? `$${(tier.price_cents / 100).toFixed(2)}`
+                : '');
             const payload = isNew ? {
                 name: tier.name,
                 slug: tier.name.toLowerCase().replace(/\s+/g, '-'),
-                price_string: tier.price_string,
+                price_string: autoPriceString,
                 description: tier.description,
                 button_text: tier.button_text,
                 sort_order: tier.sort_order,

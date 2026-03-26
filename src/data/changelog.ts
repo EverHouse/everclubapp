@@ -19,6 +19,8 @@ export const changelog: ChangelogEntry[] = [
       "Fix: Member count pre-check now uses same matching logic as actual delete (tier name, case-insensitive, excludes only archived/merged) — prevents false-positive 'safe to delete' results",
       "Fix: Deleting a tier or fee product now fully deletes the Stripe product and its prices (not just archived). For subscription tiers with active subscribers, the Stripe product is archived as a safety fallback.",
       "Fix: Audit log for delete actions now records correctly (was failing due to wrong field names)",
+      "Feature: Creating a new fee product now only requires a price in cents — the display price is auto-generated and Stripe product/price are created automatically on save",
+      "Fix: Stripe price dropdown is now hidden when creating new products (only shown when editing, since no Stripe product exists yet)",
     ]
   },
   {
