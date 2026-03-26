@@ -5,7 +5,7 @@ import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { notifyAllStaff } from '../notificationService';
 import { broadcastBookingInvoiceUpdate } from '../websocket';
-import { bookingRequests, membershipTiers } from '../../../shared/schema';
+import { bookingRequests } from '../../../shared/schema';
 import { notifications } from '../../../shared/models/notifications';
 import { eq, sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
@@ -162,9 +162,10 @@ function buildInvoiceMetadata(
 }
 
 async function getFeePriceIds(): Promise<{ overagePriceId: string | null; guestPriceId: string | null }> {
-  const rows = await db.select({ slug: membershipTiers.slug, stripePriceId: membershipTiers.stripePriceId })
-    .from(membershipTiers)
-    .where(sql`${membershipTiers.slug} IN ('simulator-overage-30min', 'guest-pass')`);
+  const { feeProducts } = await import('../../../shared/schema');
+  const rows = await db.select({ slug: feeProducts.slug, stripePriceId: feeProducts.stripePriceId })
+    .from(feeProducts)
+    .where(sql`${feeProducts.slug} IN ('simulator-overage-30min', 'guest-pass')`);
   let overagePriceId: string | null = null;
   let guestPriceId: string | null = null;
   for (const r of rows) {

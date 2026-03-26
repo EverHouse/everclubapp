@@ -1,12 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, putWithCredentials } from '../../../../hooks/queries/useFetch';
-import type { MembershipTier } from './tiersTypes';
+import type { FeeProduct, MembershipTier } from './tiersTypes';
 import Icon from '../../../../components/icons/Icon';
 import { useToast } from '../../../../components/Toast';
 
+function feeToTier(fee: FeeProduct): MembershipTier {
+    return {
+        id: fee.id,
+        name: fee.name,
+        slug: fee.slug,
+        price_string: fee.price_string,
+        description: fee.description,
+        button_text: fee.button_text || 'Purchase',
+        sort_order: fee.sort_order,
+        is_active: fee.is_active,
+        is_popular: false,
+        show_in_comparison: false,
+        show_on_membership_page: false,
+        highlighted_features: [],
+        all_features: {},
+        daily_sim_minutes: 0,
+        guest_passes_per_year: 0,
+        booking_window_days: 0,
+        daily_conf_room_minutes: 0,
+        can_book_simulators: false,
+        can_book_conference: false,
+        can_book_wellness: false,
+        has_group_lessons: false,
+        has_extended_sessions: false,
+        has_private_lesson: false,
+        has_simulator_guest_passes: false,
+        has_discounted_merch: false,
+        unlimited_access: false,
+        stripe_price_id: fee.stripe_price_id,
+        stripe_product_id: fee.stripe_product_id,
+        price_cents: fee.price_cents,
+        product_type: fee.product_type as 'one_time' | null,
+    };
+}
+
 interface FeesSubTabProps {
-    tiers: MembershipTier[];
+    feeProducts: FeeProduct[];
     openEdit: (tier: MembershipTier) => void;
     openCreate: () => void;
 }
@@ -22,10 +57,10 @@ interface PricingUpdateResponse extends PricingData {
     syncError?: string;
 }
 
-const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit, openCreate }) => {
-    const oneTimePasses = tiers.filter(t => t.product_type === 'one_time');
-    const guestFeeTier = tiers.find(t => t.slug === 'guest-pass');
-    const overageTier = tiers.find(t => t.slug === 'simulator-overage-30min');
+const FeesSubTab: React.FC<FeesSubTabProps> = ({ feeProducts, openEdit, openCreate }) => {
+    const oneTimePasses = feeProducts.filter(t => t.product_type === 'one_time');
+    const guestFeeTier = feeProducts.find(t => t.slug === 'guest-pass');
+    const overageTier = feeProducts.find(t => t.slug === 'simulator-overage-30min');
     const { showToast } = useToast();
     const queryClient = useQueryClient();
 
@@ -237,8 +272,8 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ tiers, openEdit, openCreate }) 
                                 key={pass.id} 
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => openEdit(pass)}
-                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(pass); } }}
+                                onClick={() => openEdit(feeToTier(pass))}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(feeToTier(pass)); } }}
                                 className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all duration-fast"
                             >
                                 <div className="flex items-start justify-between">

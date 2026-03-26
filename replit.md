@@ -93,7 +93,7 @@ The Ever Club Members App is a private members club application designed for gol
 
 ### POS Register Features
 - **Quick Guest Checkout**: Staff can skip customer info for walk-in sales; restricts payment to terminal-only.
-- **Dynamic Pass Products**: Pass products loaded from `membership_tiers` table by slug, with server startup functions ensuring DB records and Stripe Product + Price synchronization.
+- **Dynamic Pass Products**: Fee/pass products (guest-pass, simulator-overage, day passes, corporate pricing) are stored in a dedicated `fee_products` table — separated from `membership_tiers` which now only holds subscription tiers. Startup migration copies qualifying rows (`product_type IN ('one_time', 'fee', 'config')`) from `membership_tiers` to `fee_products` and deactivates them in `membership_tiers`. Admin CRUD: `GET/POST/PUT /api/fee-products`. All fee consumers (booking invoice service, guest pass purchase/refund, day pass routes, Stripe product creation, environment validation) query `fee_products`. The `productSync.ts` tier sync skips non-subscription product types.
 - **Backend Endpoints**: `POST /api/stripe/staff/quick-charge` and `POST /api/stripe/staff/quick-charge/attach-email` for guest checkout and email linking.
 
 ### Notification Source Attribution

@@ -317,24 +317,91 @@ export async function runStartupTasks(): Promise<void> {
     },
     async () => {
       try {
-        const fixResult = await db.execute(sql`
-          UPDATE membership_tiers SET product_type = 'one_time', updated_at = NOW()
-          WHERE name IN ('Guest Fee', 'Day Pass - Coworking', 'Day Pass - Golf Sim')
-            AND product_type != 'one_time'
-          RETURNING name
+        await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS fee_products (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR NOT NULL UNIQUE,
+            slug VARCHAR NOT NULL UNIQUE,
+            description TEXT,
+            price_cents INTEGER,
+            price_string VARCHAR NOT NULL,
+            button_text VARCHAR DEFAULT 'Purchase',
+            stripe_product_id VARCHAR,
+            stripe_price_id VARCHAR,
+            product_type VARCHAR DEFAULT 'one_time',
+            fee_type VARCHAR,
+            is_active BOOLEAN DEFAULT true,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+          )
         `);
-        const fixed = Array.isArray(fixResult) ? fixResult : (fixResult?.rows ?? []);
-        if (fixed.length > 0) {
-          logger.info(`[Startup] Fixed product_type to 'one_time' for: ${fixed.map((r: Record<string, unknown>) => r.name).join(', ')}`);
+
+        const migrated = await db.execute(sql`
+          INSERT INTO fee_products (name, slug, description, price_cents, price_string, button_text,
+            stripe_product_id, stripe_price_id, product_type,
+            fee_type, is_active, sort_order, created_at, updated_at)
+          SELECT name, slug, description, price_cents, price_string,
+            COALESCE(button_text, 'Purchase'),
+            stripe_product_id, stripe_price_id, product_type,
+            CASE
+              WHEN slug = 'guest-pass' THEN 'guest_pass'
+              WHEN slug = 'simulator-overage-30min' THEN 'simulator_overage'
+              WHEN slug = 'day-pass-coworking' THEN 'day_pass_coworking'
+              WHEN slug = 'day-pass-golf-sim' THEN 'day_pass_golf_sim'
+              WHEN slug = 'corporate-volume-pricing' THEN 'corporate_config'
+              ELSE 'general'
+            END,
+            is_active, sort_order, created_at, updated_at
+          FROM membership_tiers
+          WHERE product_type IN ('one_time', 'fee', 'config')
+          ON CONFLICT (slug) DO UPDATE SET
+            stripe_product_id = COALESCE(EXCLUDED.stripe_product_id, fee_products.stripe_product_id),
+            stripe_price_id = COALESCE(EXCLUDED.stripe_price_id, fee_products.stripe_price_id),
+            price_cents = COALESCE(EXCLUDED.price_cents, fee_products.price_cents),
+            price_string = COALESCE(EXCLUDED.price_string, fee_products.price_string),
+            updated_at = NOW()
+          RETURNING slug
+        `);
+        const migratedSlugs = Array.isArray(migrated) ? migrated : (migrated?.rows ?? []);
+        if (migratedSlugs.length > 0) {
+          logger.info(`[Startup] Migrated fee products to fee_products table: ${migratedSlugs.map((r: Record<string, unknown>) => r.slug).join(', ')}`);
+
+          await db.execute(sql`
+            UPDATE membership_tiers
+            SET is_active = false,
+                stripe_product_id = NULL,
+                stripe_price_id = NULL,
+                updated_at = NOW()
+            WHERE product_type IN ('one_time', 'fee', 'config')
+              AND is_active = true
+          `);
+          logger.info('[Startup] Deactivated migrated fee rows and cleared Stripe IDs in membership_tiers');
         }
       } catch (err: unknown) {
-        logger.warn(`[Startup] Tier product_type fix failed (non-critical): ${getErrorMessage(err)}`);
+        logger.error(`[Startup] Fee products migration failed: ${getErrorMessage(err)}`);
+        startupHealth.criticalFailures.push('Fee products table migration failed');
       }
     },
   ];
 
   await runWithConcurrency(parallelDbTasks, 5);
   logger.info('[Startup] Parallel DB initialization tasks complete');
+
+  try {
+    const FEE_SLUGS_REQUIRED = ['guest-pass', 'simulator-overage-30min', 'day-pass-coworking', 'day-pass-golf-sim', 'corporate-volume-pricing'];
+    const feeCheck = await db.execute(sql`SELECT slug FROM fee_products WHERE slug = ANY(${FEE_SLUGS_REQUIRED})`);
+    const foundSlugs = new Set((Array.isArray(feeCheck) ? feeCheck : (feeCheck?.rows ?? [])).map((r: Record<string, unknown>) => r.slug));
+    const missingSlugs = FEE_SLUGS_REQUIRED.filter(s => !foundSlugs.has(s));
+    if (missingSlugs.length > 0) {
+      logger.error(`[Startup] Missing required fee products: ${missingSlugs.join(', ')}`);
+      startupHealth.warnings.push(`Missing fee products: ${missingSlugs.join(', ')}`);
+    } else {
+      logger.info('[Startup] All required fee products verified');
+    }
+  } catch (err: unknown) {
+    logger.warn(`[Startup] Fee products verification skipped: ${getErrorMessage(err)}`);
+  }
 
   try {
     const { verifyIntegrityConstraints } = await import('../db-init');

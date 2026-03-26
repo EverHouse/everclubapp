@@ -18,8 +18,19 @@ export async function handleProductUpdated(client: PoolClient, product: StripePr
 
     logger.info(`[Stripe Webhook] Product updated externally in Stripe: ${product.id} (${product.name})`);
 
+    const feeMatch = await client.query(
+      'SELECT id, name FROM fee_products WHERE stripe_product_id = $1 LIMIT 1',
+      [product.id]
+    );
+
+    if (feeMatch.rows.length > 0) {
+      const feeName = feeMatch.rows[0].name;
+      logger.warn(`[Stripe Webhook] Ignoring external Stripe changes to fee product "${feeName}" (product ${product.id}) — the app is the source of truth.`);
+      return deferredActions;
+    }
+
     const tierMatch = await client.query(
-      'SELECT id, name FROM membership_tiers WHERE stripe_product_id = $1 LIMIT 1',
+      'SELECT id, name FROM membership_tiers WHERE stripe_product_id = $1 AND product_type = \'subscription\' LIMIT 1',
       [product.id]
     );
 
@@ -58,8 +69,18 @@ export async function handleProductCreated(client: PoolClient, product: Stripe.P
       return deferredActions;
     }
 
+    const feeMatch = await client.query(
+      'SELECT id, name FROM fee_products WHERE stripe_product_id = $1 LIMIT 1',
+      [product.id]
+    );
+
+    if (feeMatch.rows.length > 0) {
+      logger.info(`[Stripe Webhook] Product ${product.id} already linked to fee product "${feeMatch.rows[0].name}"`);
+      return deferredActions;
+    }
+
     const tierMatch = await client.query(
-      'SELECT id, name FROM membership_tiers WHERE stripe_product_id = $1 LIMIT 1',
+      'SELECT id, name FROM membership_tiers WHERE stripe_product_id = $1 AND product_type = \'subscription\' LIMIT 1',
       [product.id]
     );
 
@@ -69,6 +90,25 @@ export async function handleProductCreated(client: PoolClient, product: Stripe.P
     }
 
     const meta = product.metadata || {};
+
+    if (meta.fee_product_id) {
+      const feeId = parseInt(meta.fee_product_id, 10);
+      if (!isNaN(feeId)) {
+        const unlinkedFee = await client.query(
+          'SELECT id, name FROM fee_products WHERE id = $1 AND stripe_product_id IS NULL LIMIT 1',
+          [feeId]
+        );
+        if (unlinkedFee.rows.length > 0) {
+          await client.query(
+            'UPDATE fee_products SET stripe_product_id = $1, updated_at = NOW() WHERE id = $2',
+            [product.id, feeId]
+          );
+          logger.info(`[Stripe Webhook] Linked new Stripe product ${product.id} to fee product "${unlinkedFee.rows[0].name}" via fee_product_id metadata`);
+          return deferredActions;
+        }
+      }
+    }
+
     if (meta.tier_id) {
       const tierId = parseInt(meta.tier_id, 10);
       if (!isNaN(tierId)) {
@@ -127,8 +167,20 @@ export async function handleProductDeleted(client: PoolClient, product: Stripe.P
 
     logger.info(`[Stripe Webhook] Product deleted in Stripe: ${product.id} (${product.name})`);
 
+    const feeResult = await client.query(
+      'UPDATE fee_products SET stripe_product_id = NULL, stripe_price_id = NULL, updated_at = NOW() WHERE stripe_product_id = $1 RETURNING id, name',
+      [product.id]
+    );
+
+    if (feeResult.rowCount && feeResult.rowCount > 0) {
+      for (const row of feeResult.rows) {
+        logger.warn(`[Stripe Webhook] Stripe product ${product.id} was deleted — cleared Stripe IDs for fee product "${row.name}". Use "Sync to Stripe" to recreate.`);
+      }
+      return deferredActions;
+    }
+
     const tierMatch = await client.query(
-      'SELECT id, name, product_type FROM membership_tiers WHERE stripe_product_id = $1 LIMIT 1',
+      'SELECT id, name, product_type FROM membership_tiers WHERE stripe_product_id = $1 AND product_type = \'subscription\' LIMIT 1',
       [product.id]
     );
 
@@ -177,8 +229,19 @@ export async function handlePriceDeleted(client: PoolClient, price: Stripe.Price
     const productId = typeof price.product === 'string' ? price.product : price.product?.id;
     logger.info(`[Stripe Webhook] Price deleted: ${price.id} for product ${productId || 'unknown'}`);
 
+    const feeResult = await client.query(
+      'UPDATE fee_products SET stripe_price_id = NULL, updated_at = NOW() WHERE stripe_price_id = $1 RETURNING id, name',
+      [price.id]
+    );
+
+    if (feeResult.rowCount && feeResult.rowCount > 0) {
+      for (const row of feeResult.rows) {
+        logger.warn(`[Stripe Webhook] Cleared stripe_price_id for fee product "${row.name}" — price ${price.id} was deleted in Stripe. Use "Sync to Stripe" to recreate.`);
+      }
+    }
+
     const tierResult = await client.query(
-      'UPDATE membership_tiers SET stripe_price_id = NULL, updated_at = NOW() WHERE stripe_price_id = $1 RETURNING id, name, slug',
+      'UPDATE membership_tiers SET stripe_price_id = NULL, updated_at = NOW() WHERE stripe_price_id = $1 AND product_type = \'subscription\' RETURNING id, name, slug',
       [price.id]
     );
 
@@ -230,38 +293,47 @@ export async function handlePriceChange(client: PoolClient, price: Stripe.Price)
 
     logger.info(`[Stripe Webhook] Price changed externally in Stripe: ${price.id} for product ${productId} ($${priceDecimal})`);
 
+    const feeResult = await client.query(
+      'SELECT id, name, slug, price_cents FROM fee_products WHERE stripe_product_id = $1 LIMIT 1',
+      [productId]
+    );
+
+    if (feeResult.rows.length > 0) {
+      const fee = feeResult.rows[0];
+
+      if (fee.slug === 'simulator-overage-30min') {
+        await client.query(
+          'UPDATE fee_products SET stripe_price_id = $1, price_cents = $2, price_string = $3, updated_at = NOW() WHERE id = $4',
+          [price.id, priceCents, `$${priceDecimal}`, fee.id]
+        );
+        updateOverageRate(priceCents);
+        logger.info(`[Stripe Webhook] Updated overage rate from Stripe price change: $${priceDecimal}`);
+      } else if (fee.slug === 'guest-pass') {
+        await client.query(
+          'UPDATE fee_products SET stripe_price_id = $1, price_cents = $2, price_string = $3, updated_at = NOW() WHERE id = $4',
+          [price.id, priceCents, `$${priceDecimal}`, fee.id]
+        );
+        updateGuestFee(priceCents);
+        logger.info(`[Stripe Webhook] Updated guest fee from Stripe price change: $${priceDecimal}`);
+      } else {
+        await client.query(
+          'UPDATE fee_products SET stripe_price_id = $1, price_cents = $2, price_string = $3, updated_at = NOW() WHERE id = $4',
+          [price.id, priceCents, `$${priceDecimal}`, fee.id]
+        );
+        logger.info(`[Stripe Webhook] Updated fee product "${fee.name}" from Stripe price change: $${priceDecimal}`);
+      }
+
+      return deferredActions;
+    }
+
     const tierResult = await client.query(
-      'SELECT id, name, slug, price_cents FROM membership_tiers WHERE stripe_product_id = $1 LIMIT 1',
+      'SELECT id, name, slug, price_cents FROM membership_tiers WHERE stripe_product_id = $1 AND product_type = \'subscription\' LIMIT 1',
       [productId]
     );
 
     if (tierResult.rows.length > 0) {
       const tier = tierResult.rows[0];
-
-      if (tier.slug === 'simulator-overage-30min') {
-        await client.query(
-          'UPDATE membership_tiers SET stripe_price_id = $1, price_cents = $2, price_string = $3, updated_at = NOW() WHERE id = $4',
-          [price.id, priceCents, `$${priceDecimal}`, tier.id]
-        );
-        updateOverageRate(priceCents);
-        logger.info(`[Stripe Webhook] Updated overage rate from Stripe price change: $${priceDecimal}`);
-        deferredActions.push(async () => {
-          await invalidateTierRegistry();
-        });
-      } else if (tier.slug === 'guest-pass') {
-        await client.query(
-          'UPDATE membership_tiers SET stripe_price_id = $1, price_cents = $2, price_string = $3, updated_at = NOW() WHERE id = $4',
-          [price.id, priceCents, `$${priceDecimal}`, tier.id]
-        );
-        updateGuestFee(priceCents);
-        logger.info(`[Stripe Webhook] Updated guest fee from Stripe price change: $${priceDecimal}`);
-        deferredActions.push(async () => {
-          await invalidateTierRegistry();
-        });
-      } else {
-        logger.warn(`[Stripe Webhook] Ignoring external price change for tier "${tier.name}" (${price.id}, $${priceDecimal}) — the app is the source of truth. Edit pricing in the admin panel, changes will sync to Stripe automatically.`);
-      }
-
+      logger.warn(`[Stripe Webhook] Ignoring external price change for tier "${tier.name}" (${price.id}, $${priceDecimal}) — the app is the source of truth. Edit pricing in the admin panel, changes will sync to Stripe automatically.`);
       return deferredActions;
     }
 

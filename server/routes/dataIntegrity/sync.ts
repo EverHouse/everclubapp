@@ -231,6 +231,10 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
         query: `SELECT slug AS match_key, stripe_product_id, stripe_price_id FROM membership_tiers WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
         cols: ['stripe_product_id', 'stripe_price_id'],
       },
+      fee_products: {
+        query: `SELECT slug AS match_key, stripe_product_id, stripe_price_id FROM fee_products WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
+        cols: ['stripe_product_id', 'stripe_price_id'],
+      },
       cafe_items: {
         query: `SELECT name AS match_key, stripe_product_id, stripe_price_id FROM cafe_items WHERE stripe_product_id IS NOT NULL OR stripe_price_id IS NOT NULL`,
         cols: ['stripe_product_id', 'stripe_price_id'],
@@ -359,6 +363,7 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
     const matchKeyColumn: Record<string, string> = {
       users: 'email',
       membership_tiers: 'slug',
+      fee_products: 'slug',
       cafe_items: 'name',
       billing_groups: 'id',
       stripe_products: 'stripe_product_id',

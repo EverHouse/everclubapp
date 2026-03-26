@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateGuestFee, updateOverageRate } from '../core/billing/pricingConfig';
 import { db } from '../db';
-import { membershipTiers } from '../../shared/schema';
+import { membershipTiers, feeProducts } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../core/logger';
 import { isStaffOrAdmin } from '../core/middleware';
@@ -58,8 +58,8 @@ router.get('/api/pricing', async (req, res) => {
 
   try {
     const dayPassProducts = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.productType, 'one_time'));
+      .from(feeProducts)
+      .where(eq(feeProducts.productType, 'one_time'));
 
     const dayPasses: Record<string, number> = {};
     for (const p of dayPassProducts) {

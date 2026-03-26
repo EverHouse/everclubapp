@@ -106,6 +106,106 @@ router.get('/api/membership-tiers', async (req, res) => {
   }
 });
 
+router.get('/api/fee-products', isStaffOrAdmin, async (_req, res) => {
+  try {
+    const result = await db.execute(sql`SELECT * FROM fee_products ORDER BY sort_order ASC, id ASC`);
+    res.json(result.rows);
+  } catch (error: unknown) {
+    logger.error('Fee products fetch error', { error: getErrorMessage(error) });
+    res.status(500).json([]);
+  }
+});
+
+router.put('/api/fee-products/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, price_string, description, button_text, sort_order, is_active, price_cents } = req.body;
+
+    const result = await db.execute(sql`
+      UPDATE fee_products SET
+        name = COALESCE(${name}, name),
+        slug = COALESCE(${slug}, slug),
+        price_string = COALESCE(${price_string}, price_string),
+        description = COALESCE(${description}, description),
+        button_text = COALESCE(${button_text}, button_text),
+        sort_order = COALESCE(${sort_order}, sort_order),
+        is_active = COALESCE(${is_active}, is_active),
+        price_cents = COALESCE(${price_cents}, price_cents),
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Fee product not found' });
+    }
+
+    const updated = result.rows[0] as Record<string, unknown>;
+    invalidateQueryCache(TIERS_CACHE_KEY);
+
+    let synced = false;
+    let syncError: string | undefined;
+    const feeSlug = String(updated.slug || '');
+    const feePriceCents = Number(updated.price_cents || 0);
+    if (feeSlug && feePriceCents > 0) {
+      try {
+        const pushResult = await autoPushFeeToStripe(feeSlug, feePriceCents);
+        synced = pushResult.success;
+        if (!pushResult.success) {
+          syncError = pushResult.error || 'Stripe sync failed';
+        }
+      } catch (err) {
+        syncError = getErrorMessage(err);
+      }
+    }
+
+    res.json({ ...updated, synced, syncError });
+  } catch (error: unknown) {
+    logger.error('Fee product update error', { error: getErrorMessage(error) });
+    res.status(500).json({ error: 'Failed to update fee product' });
+  }
+});
+
+router.post('/api/fee-products', isAdmin, async (req, res) => {
+  try {
+    const { name, slug, price_string, description, button_text, sort_order, is_active, price_cents, product_type, fee_type } = req.body;
+
+    if (!name || !slug || !price_string) {
+      return res.status(400).json({ error: 'name, slug, and price_string are required' });
+    }
+
+    const result = await db.execute(sql`
+      INSERT INTO fee_products (name, slug, price_string, description, button_text, sort_order, is_active, price_cents, product_type, fee_type)
+      VALUES (${name}, ${slug}, ${price_string}, ${description || null}, ${button_text || 'Purchase'}, ${sort_order || 0}, ${is_active !== false}, ${price_cents || 0}, ${product_type || 'one_time'}, ${fee_type || 'general'})
+      RETURNING *
+    `);
+
+    invalidateQueryCache(TIERS_CACHE_KEY);
+
+    const created = result.rows[0] as Record<string, unknown>;
+    let synced = false;
+    let syncError: string | undefined;
+    const feeSlug = String(created.slug || '');
+    const feePriceCents = Number(created.price_cents || 0);
+    if (feeSlug && feePriceCents > 0) {
+      try {
+        const pushResult = await autoPushFeeToStripe(feeSlug, feePriceCents);
+        synced = pushResult.success;
+        if (!pushResult.success) {
+          syncError = pushResult.error || 'Stripe sync failed';
+        }
+      } catch (err) {
+        syncError = getErrorMessage(err);
+      }
+    }
+
+    res.json({ ...created, synced, syncError });
+  } catch (error: unknown) {
+    logger.error('Fee product create error', { error: getErrorMessage(error) });
+    res.status(500).json({ error: 'Failed to create fee product' });
+  }
+});
+
 // PUBLIC ROUTE - tier limits needed by booking UI
 router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
   try {

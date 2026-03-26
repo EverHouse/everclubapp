@@ -1,9 +1,10 @@
-import { membershipTiers } from '../../../shared/schema';
+import { membershipTiers, feeProducts } from '../../../shared/schema';
 import Stripe from 'stripe';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 
 export type TierRecord = typeof membershipTiers.$inferSelect;
+export type FeeProductRecord = typeof feeProducts.$inferSelect;
 
 export type StripeProductWithMarketingFeatures = Stripe.Product & {
   marketing_features?: Array<{ name: string }>;
@@ -19,7 +20,8 @@ export async function findExistingStripeProduct(
   stripe: Stripe,
   productName: string,
   metadataKey?: string,
-  metadataValue?: string
+  metadataValue?: string,
+  fallbackMetadataKey?: string
 ): Promise<Stripe.Product | null> {
   try {
     const isAppProduct = (p: Stripe.Product) => p.metadata?.source === 'ever_house_app';
@@ -34,6 +36,19 @@ export async function findExistingStripeProduct(
         const oldest = appProducts.reduce((a, b) => a.created <= b.created ? a : b);
         logger.info(`[Stripe Products] Found existing product by metadata: ${oldest.id} (oldest of ${appProducts.length})`);
         return oldest;
+      }
+
+      if (fallbackMetadataKey) {
+        const fallbackResults = await stripe.products.search({
+          query: `metadata['${fallbackMetadataKey}']:'${metadataValue}'`,
+          limit: 10,
+        });
+        const fallbackAppProducts = fallbackResults.data.filter(isAppProduct);
+        if (fallbackAppProducts.length > 0) {
+          const oldest = fallbackAppProducts.reduce((a, b) => a.created <= b.created ? a : b);
+          logger.info(`[Stripe Products] Found existing product by fallback metadata '${fallbackMetadataKey}': ${oldest.id} (oldest of ${fallbackAppProducts.length})`);
+          return oldest;
+        }
       }
     }
     
@@ -59,6 +74,24 @@ export function resolveAppCategory(productType: string | null | undefined): stri
   if (productType === 'one_time' || productType === 'fee') return 'fee';
   if (productType === 'config') return 'config';
   return 'membership';
+}
+
+export function buildFeeProductMetadata(fee: FeeProductRecord): Record<string, string> {
+  const appCategory = resolveAppCategory(fee.productType);
+  const metadata: Record<string, string> = {
+    fee_product_id: fee.id.toString(),
+    fee_slug: fee.slug,
+    product_type: fee.productType || 'one_time',
+    source: 'ever_house_app',
+    app_category: appCategory,
+  };
+
+  if (fee.slug.includes('guest')) metadata.fee_type = 'guest_pass';
+  else if (fee.slug.includes('overage')) metadata.fee_type = 'simulator_overage';
+  else if (fee.slug.includes('day-pass')) metadata.fee_type = 'day_pass';
+  else metadata.fee_type = fee.feeType || 'general';
+
+  return metadata;
 }
 
 export function buildPrivilegeMetadata(tier: TierRecord): Record<string, string> {

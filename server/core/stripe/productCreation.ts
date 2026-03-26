@@ -1,5 +1,5 @@
 import { db } from '../../db';
-import { membershipTiers } from '../../../shared/schema';
+import { feeProducts } from '../../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from './client';
 import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateCorporateVolumePricing, updateOverageRate, updateGuestFee, VolumeTier } from '../billing/pricingConfig';
@@ -49,16 +49,16 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     const stripe = await getStripeClient();
     
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, OVERAGE_SLUG))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, OVERAGE_SLUG))
       .limit(1);
     
-    let tierId: number;
+    let feeId: number;
     let stripeProductId = existing[0]?.stripeProductId;
     let stripePriceId = existing[0]?.stripePriceId;
     
     if (existing.length === 0) {
-      const [newTier] = await db.insert(membershipTiers).values({
+      const [newFee] = await db.insert(feeProducts).values({
         name: OVERAGE_NAME,
         slug: OVERAGE_SLUG,
         priceString: `$${PRICING.OVERAGE_RATE_DOLLARS}`,
@@ -66,34 +66,18 @@ export async function ensureSimulatorOverageProduct(): Promise<{
         buttonText: 'Pay Now',
         sortOrder: 99,
         isActive: true,
-        isPopular: false,
-        showInComparison: false,
-        highlightedFeatures: [],
-        allFeatures: {},
-        dailySimMinutes: 0,
-        guestPassesPerYear: 0,
-        bookingWindowDays: 0,
-        dailyConfRoomMinutes: 0,
-        canBookSimulators: false,
-        canBookConference: false,
-        canBookWellness: false,
-        hasGroupLessons: false,
-        hasExtendedSessions: false,
-        hasPrivateLesson: false,
-        hasSimulatorGuestPasses: false,
-        hasDiscountedMerch: false,
-        unlimitedAccess: false,
         productType: 'one_time',
+        feeType: 'simulator_overage',
         priceCents: OVERAGE_PRICE_CENTS,
       }).returning();
-      tierId = newTier.id;
+      feeId = newFee.id;
       logger.info(`[Overage Product] Created database record: ${OVERAGE_NAME}`);
     } else {
-      tierId = existing[0].id;
+      feeId = existing[0].id;
       if (existing[0].productType !== 'one_time') {
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set({ productType: 'one_time' })
-          .where(eq(membershipTiers.id, tierId));
+          .where(eq(feeProducts.id, feeId));
         logger.info(`[Overage Product] Fixed productType to one_time`);
       }
     }
@@ -117,7 +101,7 @@ export async function ensureSimulatorOverageProduct(): Promise<{
     }
 
     if (!stripeProductId) {
-      const found = await findExistingStripeProduct(stripe, OVERAGE_NAME, 'tier_slug', OVERAGE_SLUG);
+      const found = await findExistingStripeProduct(stripe, OVERAGE_NAME, 'fee_slug', OVERAGE_SLUG, 'tier_slug');
       if (found) {
         stripeProductId = found.id;
         if (found.default_price && typeof found.default_price === 'string') {
@@ -131,8 +115,8 @@ export async function ensureSimulatorOverageProduct(): Promise<{
           name: OVERAGE_NAME,
           description: OVERAGE_DESCRIPTION,
           metadata: {
-            tier_id: tierId.toString(),
-            tier_slug: OVERAGE_SLUG,
+            fee_product_id: feeId.toString(),
+            fee_slug: OVERAGE_SLUG,
             product_type: 'one_time',
             fee_type: 'simulator_overage',
             app_category: 'fee',
@@ -168,8 +152,8 @@ export async function ensureSimulatorOverageProduct(): Promise<{
         unit_amount: OVERAGE_PRICE_CENTS,
         currency: 'usd',
         metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: OVERAGE_SLUG,
+          fee_product_id: feeId.toString(),
+          fee_slug: OVERAGE_SLUG,
           product_type: 'one_time',
           app_category: 'fee',
         },
@@ -178,12 +162,12 @@ export async function ensureSimulatorOverageProduct(): Promise<{
       logger.info(`[Overage Product] Created Stripe price: ${stripePriceId}`);
     }
     
-    await db.update(membershipTiers)
+    await db.update(feeProducts)
       .set({
         stripeProductId,
         stripePriceId,
       })
-      .where(eq(membershipTiers.id, tierId));
+      .where(eq(feeProducts.id, feeId));
     
     logger.info(`[Overage Product] ${OVERAGE_NAME} ready (${stripePriceId})`);
 
@@ -220,16 +204,16 @@ export async function ensureGuestPassProduct(): Promise<{
     const stripe = await getStripeClient();
     
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, GUEST_PASS_SLUG))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, GUEST_PASS_SLUG))
       .limit(1);
     
-    let tierId: number;
+    let feeId: number;
     let stripeProductId = existing[0]?.stripeProductId;
     let stripePriceId = existing[0]?.stripePriceId;
     
     if (existing.length === 0) {
-      const [newTier] = await db.insert(membershipTiers).values({
+      const [newFee] = await db.insert(feeProducts).values({
         name: GUEST_PASS_NAME,
         slug: GUEST_PASS_SLUG,
         priceString: `$${GUEST_PASS_PRICE_CENTS / 100}`,
@@ -237,37 +221,21 @@ export async function ensureGuestPassProduct(): Promise<{
         buttonText: 'Purchase',
         sortOrder: 97,
         isActive: true,
-        isPopular: false,
-        showInComparison: false,
-        highlightedFeatures: [],
-        allFeatures: {},
-        dailySimMinutes: 0,
-        guestPassesPerYear: 0,
-        bookingWindowDays: 0,
-        dailyConfRoomMinutes: 0,
-        canBookSimulators: false,
-        canBookConference: false,
-        canBookWellness: false,
-        hasGroupLessons: false,
-        hasExtendedSessions: false,
-        hasPrivateLesson: false,
-        hasSimulatorGuestPasses: false,
-        hasDiscountedMerch: false,
-        unlimitedAccess: false,
         productType: 'one_time',
+        feeType: 'guest_pass',
         priceCents: GUEST_PASS_PRICE_CENTS,
       }).returning();
-      tierId = newTier.id;
+      feeId = newFee.id;
       logger.info(`[Guest Pass Product] Created database record: ${GUEST_PASS_NAME}`);
     } else {
-      tierId = existing[0].id;
+      feeId = existing[0].id;
       const updates: Record<string, string> = {};
       if (existing[0].name !== GUEST_PASS_NAME) updates.name = GUEST_PASS_NAME;
       if (existing[0].productType !== 'one_time') updates.productType = 'one_time';
       if (Object.keys(updates).length > 0) {
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set(updates)
-          .where(eq(membershipTiers.id, tierId));
+          .where(eq(feeProducts.id, feeId));
         logger.info(`[Guest Pass Product] Fixed DB record fields: ${Object.keys(updates).join(', ')}`);
       }
     }
@@ -302,7 +270,7 @@ export async function ensureGuestPassProduct(): Promise<{
     }
 
     if (!stripeProductId) {
-      const found = await findExistingStripeProduct(stripe, GUEST_PASS_NAME, 'tier_slug', GUEST_PASS_SLUG);
+      const found = await findExistingStripeProduct(stripe, GUEST_PASS_NAME, 'fee_slug', GUEST_PASS_SLUG, 'tier_slug');
       if (found) {
         stripeProductId = found.id;
         if (found.default_price && typeof found.default_price === 'string') {
@@ -316,8 +284,8 @@ export async function ensureGuestPassProduct(): Promise<{
           name: GUEST_PASS_NAME,
           description: GUEST_PASS_DESCRIPTION,
           metadata: {
-            tier_id: tierId.toString(),
-            tier_slug: GUEST_PASS_SLUG,
+            fee_product_id: feeId.toString(),
+            fee_slug: GUEST_PASS_SLUG,
             product_type: 'one_time',
             fee_type: 'guest_pass',
             app_category: 'fee',
@@ -353,8 +321,8 @@ export async function ensureGuestPassProduct(): Promise<{
         unit_amount: GUEST_PASS_PRICE_CENTS,
         currency: 'usd',
         metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: GUEST_PASS_SLUG,
+          fee_product_id: feeId.toString(),
+          fee_slug: GUEST_PASS_SLUG,
           product_type: 'one_time',
           app_category: 'fee',
         },
@@ -363,12 +331,12 @@ export async function ensureGuestPassProduct(): Promise<{
       logger.info(`[Guest Pass Product] Created Stripe price: ${stripePriceId}`);
     }
     
-    await db.update(membershipTiers)
+    await db.update(feeProducts)
       .set({
         stripeProductId,
         stripePriceId,
       })
-      .where(eq(membershipTiers.id, tierId));
+      .where(eq(feeProducts.id, feeId));
     
     logger.info(`[Guest Pass Product] ${GUEST_PASS_NAME} ready (${stripePriceId})`);
 
@@ -405,16 +373,16 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
     const stripe = await getStripeClient();
     
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, COWORKING_SLUG))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, COWORKING_SLUG))
       .limit(1);
     
-    let tierId: number;
+    let feeId: number;
     let stripeProductId = existing[0]?.stripeProductId;
     let stripePriceId = existing[0]?.stripePriceId;
     
     if (existing.length === 0) {
-      const [newTier] = await db.insert(membershipTiers).values({
+      const [newFee] = await db.insert(feeProducts).values({
         name: COWORKING_NAME,
         slug: COWORKING_SLUG,
         priceString: `$${COWORKING_PRICE_CENTS / 100}`,
@@ -422,34 +390,18 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
         buttonText: 'Purchase',
         sortOrder: 96,
         isActive: true,
-        isPopular: false,
-        showInComparison: false,
-        highlightedFeatures: [],
-        allFeatures: {},
-        dailySimMinutes: 0,
-        guestPassesPerYear: 0,
-        bookingWindowDays: 0,
-        dailyConfRoomMinutes: 0,
-        canBookSimulators: false,
-        canBookConference: false,
-        canBookWellness: false,
-        hasGroupLessons: false,
-        hasExtendedSessions: false,
-        hasPrivateLesson: false,
-        hasSimulatorGuestPasses: false,
-        hasDiscountedMerch: false,
-        unlimitedAccess: false,
         productType: 'one_time',
+        feeType: 'day_pass_coworking',
         priceCents: COWORKING_PRICE_CENTS,
       }).returning();
-      tierId = newTier.id;
+      feeId = newFee.id;
       logger.info(`[Day Pass Coworking Product] Created database record: ${COWORKING_NAME}`);
     } else {
-      tierId = existing[0].id;
+      feeId = existing[0].id;
       if (existing[0].productType !== 'one_time') {
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set({ productType: 'one_time' })
-          .where(eq(membershipTiers.id, tierId));
+          .where(eq(feeProducts.id, feeId));
         logger.info(`[Day Pass Coworking Product] Fixed productType to one_time`);
       }
     }
@@ -491,7 +443,7 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
     }
     
     if (!stripeProductId) {
-      const found = await findExistingStripeProduct(stripe, COWORKING_NAME, 'tier_slug', COWORKING_SLUG);
+      const found = await findExistingStripeProduct(stripe, COWORKING_NAME, 'fee_slug', COWORKING_SLUG, 'tier_slug');
       if (found) {
         stripeProductId = found.id;
         if (found.default_price && typeof found.default_price === 'string') {
@@ -505,8 +457,8 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
           name: COWORKING_NAME,
           description: COWORKING_DESCRIPTION,
           metadata: {
-            tier_id: tierId.toString(),
-            tier_slug: COWORKING_SLUG,
+            fee_product_id: feeId.toString(),
+            fee_slug: COWORKING_SLUG,
             product_type: 'one_time',
             fee_type: 'day_pass_coworking',
             app_category: 'fee',
@@ -524,8 +476,8 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
         unit_amount: COWORKING_PRICE_CENTS,
         currency: 'usd',
         metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: COWORKING_SLUG,
+          fee_product_id: feeId.toString(),
+          fee_slug: COWORKING_SLUG,
           product_type: 'one_time',
           app_category: 'fee',
         },
@@ -534,12 +486,12 @@ export async function ensureDayPassCoworkingProduct(): Promise<{
       logger.info(`[Day Pass Coworking Product] Created Stripe price: ${stripePriceId}`);
     }
     
-    await db.update(membershipTiers)
+    await db.update(feeProducts)
       .set({
         stripeProductId,
         stripePriceId,
       })
-      .where(eq(membershipTiers.id, tierId));
+      .where(eq(feeProducts.id, feeId));
     
     logger.info(`[Day Pass Coworking Product] ${COWORKING_NAME} ready (${stripePriceId})`);
 
@@ -567,16 +519,16 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
     const stripe = await getStripeClient();
     
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, GOLF_SIM_SLUG))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, GOLF_SIM_SLUG))
       .limit(1);
     
-    let tierId: number;
+    let feeId: number;
     let stripeProductId = existing[0]?.stripeProductId;
     let stripePriceId = existing[0]?.stripePriceId;
     
     if (existing.length === 0) {
-      const [newTier] = await db.insert(membershipTiers).values({
+      const [newFee] = await db.insert(feeProducts).values({
         name: GOLF_SIM_NAME,
         slug: GOLF_SIM_SLUG,
         priceString: `$${GOLF_SIM_PRICE_CENTS / 100}`,
@@ -584,34 +536,18 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
         buttonText: 'Purchase',
         sortOrder: 95,
         isActive: true,
-        isPopular: false,
-        showInComparison: false,
-        highlightedFeatures: [],
-        allFeatures: {},
-        dailySimMinutes: 0,
-        guestPassesPerYear: 0,
-        bookingWindowDays: 0,
-        dailyConfRoomMinutes: 0,
-        canBookSimulators: false,
-        canBookConference: false,
-        canBookWellness: false,
-        hasGroupLessons: false,
-        hasExtendedSessions: false,
-        hasPrivateLesson: false,
-        hasSimulatorGuestPasses: false,
-        hasDiscountedMerch: false,
-        unlimitedAccess: false,
         productType: 'one_time',
+        feeType: 'day_pass_golf_sim',
         priceCents: GOLF_SIM_PRICE_CENTS,
       }).returning();
-      tierId = newTier.id;
+      feeId = newFee.id;
       logger.info(`[Day Pass Golf Sim Product] Created database record: ${GOLF_SIM_NAME}`);
     } else {
-      tierId = existing[0].id;
+      feeId = existing[0].id;
       if (existing[0].productType !== 'one_time') {
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set({ productType: 'one_time' })
-          .where(eq(membershipTiers.id, tierId));
+          .where(eq(feeProducts.id, feeId));
         logger.info(`[Day Pass Golf Sim Product] Fixed productType to one_time`);
       }
     }
@@ -653,7 +589,7 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
     }
     
     if (!stripeProductId) {
-      const found = await findExistingStripeProduct(stripe, GOLF_SIM_NAME, 'tier_slug', GOLF_SIM_SLUG);
+      const found = await findExistingStripeProduct(stripe, GOLF_SIM_NAME, 'fee_slug', GOLF_SIM_SLUG, 'tier_slug');
       if (found) {
         stripeProductId = found.id;
         if (found.default_price && typeof found.default_price === 'string') {
@@ -667,8 +603,8 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
           name: GOLF_SIM_NAME,
           description: GOLF_SIM_DESCRIPTION,
           metadata: {
-            tier_id: tierId.toString(),
-            tier_slug: GOLF_SIM_SLUG,
+            fee_product_id: feeId.toString(),
+            fee_slug: GOLF_SIM_SLUG,
             product_type: 'one_time',
             fee_type: 'day_pass_golf_sim',
             app_category: 'fee',
@@ -686,8 +622,8 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
         unit_amount: GOLF_SIM_PRICE_CENTS,
         currency: 'usd',
         metadata: {
-          tier_id: tierId.toString(),
-          tier_slug: GOLF_SIM_SLUG,
+          fee_product_id: feeId.toString(),
+          fee_slug: GOLF_SIM_SLUG,
           product_type: 'one_time',
           app_category: 'fee',
         },
@@ -696,12 +632,12 @@ export async function ensureDayPassGolfSimProduct(): Promise<{
       logger.info(`[Day Pass Golf Sim Product] Created Stripe price: ${stripePriceId}`);
     }
     
-    await db.update(membershipTiers)
+    await db.update(feeProducts)
       .set({
         stripeProductId,
         stripePriceId,
       })
-      .where(eq(membershipTiers.id, tierId));
+      .where(eq(feeProducts.id, feeId));
     
     logger.info(`[Day Pass Golf Sim Product] ${GOLF_SIM_NAME} ready (${stripePriceId})`);
 
@@ -726,15 +662,15 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
     const stripe = await getStripeClient();
     
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, CORPORATE_PRICING_SLUG))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, CORPORATE_PRICING_SLUG))
       .limit(1);
     
-    let tierId: number;
+    let feeId: number;
     let stripeProductId = existing[0]?.stripeProductId;
     
     if (existing.length === 0) {
-      const [newTier] = await db.insert(membershipTiers).values({
+      const [newFee] = await db.insert(feeProducts).values({
         name: CORPORATE_PRICING_NAME,
         slug: CORPORATE_PRICING_SLUG,
         priceString: 'Volume',
@@ -742,30 +678,14 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
         buttonText: '',
         sortOrder: 98,
         isActive: true,
-        isPopular: false,
-        showInComparison: false,
-        highlightedFeatures: [],
-        allFeatures: {},
-        dailySimMinutes: 0,
-        guestPassesPerYear: 0,
-        bookingWindowDays: 0,
-        dailyConfRoomMinutes: 0,
-        canBookSimulators: false,
-        canBookConference: false,
-        canBookWellness: false,
-        hasGroupLessons: false,
-        hasExtendedSessions: false,
-        hasPrivateLesson: false,
-        hasSimulatorGuestPasses: false,
-        hasDiscountedMerch: false,
-        unlimitedAccess: false,
         productType: 'config',
+        feeType: 'corporate_config',
         priceCents: 0,
       }).returning();
-      tierId = newTier.id;
+      feeId = newFee.id;
       logger.info(`[Corporate Pricing] Created database record: ${CORPORATE_PRICING_NAME}`);
     } else {
-      tierId = existing[0].id;
+      feeId = existing[0].id;
     }
     
     if (stripeProductId) {
@@ -787,23 +707,23 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
 
     if (!stripeProductId) {
       const existingProducts = await stripe.products.search({
-        query: `metadata['config_type']:'corporate_volume_pricing' AND metadata['tier_slug']:'${CORPORATE_PRICING_SLUG}'`,
+        query: `metadata['config_type']:'corporate_volume_pricing' AND metadata['fee_slug']:'${CORPORATE_PRICING_SLUG}'`,
         limit: 1,
       });
       
       if (existingProducts.data.length > 0) {
         stripeProductId = existingProducts.data[0].id;
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set({ stripeProductId })
-          .where(eq(membershipTiers.id, tierId));
+          .where(eq(feeProducts.id, feeId));
         logger.info(`[Corporate Pricing] Re-linked existing Stripe product: ${stripeProductId}`);
       } else {
         const tiers = getCorporateVolumeTiers();
         const basePrice = getCorporateBasePrice();
         
         const metadata: Record<string, string> = {
-          tier_id: tierId.toString(),
-          tier_slug: CORPORATE_PRICING_SLUG,
+          fee_product_id: feeId.toString(),
+          fee_slug: CORPORATE_PRICING_SLUG,
           product_type: 'config',
           config_type: 'corporate_volume_pricing',
           volume_base_price: basePrice.toString(),
@@ -821,9 +741,9 @@ export async function ensureCorporateVolumePricingProduct(): Promise<{
         });
         stripeProductId = product.id;
         
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set({ stripeProductId })
-          .where(eq(membershipTiers.id, tierId));
+          .where(eq(feeProducts.id, feeId));
         
         logger.info(`[Corporate Pricing] Created Stripe product: ${stripeProductId}`);
       }
@@ -844,8 +764,8 @@ export async function pullCorporateVolumePricingFromStripe(): Promise<boolean> {
     const stripe = await getStripeClient();
     
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, CORPORATE_PRICING_SLUG))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, CORPORATE_PRICING_SLUG))
       .limit(1);
     
     if (existing.length === 0 || !existing[0].stripeProductId) {
@@ -860,9 +780,9 @@ export async function pullCorporateVolumePricingFromStripe(): Promise<boolean> {
       const errMsg = getErrorMessage(prodErr);
       if (errMsg.includes('No such product') || errMsg.includes('resource_missing')) {
         logger.warn(`[Corporate Pricing] Stored Stripe product ${existing[0].stripeProductId} no longer exists, clearing reference`);
-        await db.update(membershipTiers)
+        await db.update(feeProducts)
           .set({ stripeProductId: null })
-          .where(eq(membershipTiers.id, existing[0].id));
+          .where(eq(feeProducts.id, existing[0].id));
         return false;
       }
       throw prodErr;

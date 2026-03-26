@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { isAuthenticated } from '../../../core/middleware';
 import { db } from '../../../db';
-import { membershipTiers } from '../../../../shared/schema';
-import { sql, ilike } from 'drizzle-orm';
+import { feeProducts } from '../../../../shared/schema';
+import { sql, ilike, eq } from 'drizzle-orm';
 import { getSessionUser } from '../../../types/session';
 import {
   getOrCreateStripeCustomer,
@@ -28,8 +28,8 @@ router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Re
       return res.status(400).json({ error: 'Invalid quantity. Must be 1, 3, or 5.' });
     }
 
-    const passProduct = await db.query.membershipTiers.findFirst({
-      where: ilike(membershipTiers.name, '%Guest Pass%')
+    const passProduct = await db.query.feeProducts.findFirst({
+      where: eq(feeProducts.slug, 'guest-pass')
     });
 
     if (!passProduct || !passProduct.stripePriceId || !passProduct.priceCents) {
@@ -159,8 +159,8 @@ router.post('/api/member/guest-passes/confirm', isAuthenticated, async (req: Req
       return res.status(400).json({ error: 'Quantity mismatch' });
     }
 
-    const passProduct = await db.query.membershipTiers.findFirst({
-      where: ilike(membershipTiers.name, '%Guest Pass%')
+    const passProduct = await db.query.feeProducts.findFirst({
+      where: eq(feeProducts.slug, 'guest-pass')
     });
 
     if (!passProduct || !passProduct.stripePriceId || !passProduct.priceCents) {

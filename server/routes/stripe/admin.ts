@@ -452,7 +452,7 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
     const sanitizedLastName = lastName ? String(lastName).trim().slice(0, 100) : '';
 
     const tierResult = await db.execute(sql`SELECT id, name, slug, stripe_price_id, price_cents, description 
-       FROM membership_tiers 
+       FROM fee_products 
        WHERE slug = ${sanitizedPassType} AND product_type = 'one_time' AND is_active = true`);
 
     if (tierResult.rows.length === 0) {
@@ -622,6 +622,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
       if (metadataTierSlug) {
         const tierResult = await db.execute(sql`SELECT name FROM membership_tiers WHERE slug = ${metadataTierSlug}`);
         if (tierResult.rows.length > 0) return (tierResult.rows[0] as unknown as TierNameRow).name;
+        const feeResult = await db.execute(sql`SELECT name FROM fee_products WHERE slug = ${metadataTierSlug}`);
+        if (feeResult.rows.length > 0) return (feeResult.rows[0] as unknown as TierNameRow).name;
         if (metadataTierName) return metadataTierName;
       }
 
@@ -629,6 +631,8 @@ router.post('/api/stripe/sync-member-subscriptions', isStaffOrAdmin, sensitiveAc
       if (priceId) {
         const tierResult = await db.execute(sql`SELECT name FROM membership_tiers WHERE stripe_price_id = ${priceId} OR founding_price_id = ${priceId}`);
         if (tierResult.rows.length > 0) return (tierResult.rows[0] as unknown as TierNameRow).name;
+        const feeResult = await db.execute(sql`SELECT name FROM fee_products WHERE stripe_price_id = ${priceId}`);
+        if (feeResult.rows.length > 0) return (feeResult.rows[0] as unknown as TierNameRow).name;
       }
 
       return null;

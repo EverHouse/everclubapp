@@ -693,6 +693,9 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
     
     // First try to match by price ID
     let tierResult = await db.execute(sql`SELECT slug, name FROM membership_tiers WHERE stripe_price_id = ${priceId} OR founding_price_id = ${priceId}`);
+    if (tierResult.rows.length === 0) {
+      tierResult = await db.execute(sql`SELECT slug, name FROM fee_products WHERE stripe_price_id = ${priceId}`);
+    }
     
     let newTier: string | null = null;
     let matchMethod = '';

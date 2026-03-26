@@ -5,7 +5,7 @@ import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWi
 import { useUndoAction } from '../../../../hooks/useUndoAction';
 import { useToast } from '../../../../components/Toast';
 import { useConfirmDialog } from '../../../../components/ConfirmDialog';
-import type { SubTab, MembershipTier, TierFeature, StripePrice, TierRecord } from './tiersTypes';
+import type { SubTab, MembershipTier, TierFeature, StripePrice, TierRecord, FeeProduct } from './tiersTypes';
 
 export function useTiersTab() {
     const queryClient = useQueryClient();
@@ -30,6 +30,7 @@ export function useTiersTab() {
     const [isEditing, setIsEditing] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [selectedTier, setSelectedTier] = useState<MembershipTier | null>(null);
+    const [isFeeProduct, setIsFeeProduct] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [editingLabelId, setEditingLabelId] = useState<number | null>(null);
     const [newFeatureForm, setNewFeatureForm] = useState({ key: '', label: '', type: 'boolean' as 'boolean' | 'number' | 'text' });
@@ -56,6 +57,11 @@ export function useTiersTab() {
                     (typeof t.all_features === 'string' ? JSON.parse(t.all_features || '{}') : {})
             })) as MembershipTier[];
         },
+    });
+
+    const { data: feeProducts = [] } = useQuery({
+        queryKey: ['fee-products'],
+        queryFn: () => fetchWithCredentials<FeeProduct[]>('/api/fee-products'),
     });
 
     const { data: stripePrices = [], isLoading: loadingPrices } = useQuery({
@@ -130,12 +136,60 @@ export function useTiersTab() {
             showToast(`Tier ${isCreating ? 'created' : 'updated'} — synced to Stripe`, 'success');
             setIsEditing(false);
             setIsCreating(false);
+            setIsFeeProduct(false);
         },
         onError: (err: Error) => {
             setError((err instanceof Error ? err.message : String(err)) || `Failed to ${isCreating ? 'create' : 'save'} tier`);
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
+        },
+    });
+
+    const saveFeeProductMutation = useMutation({
+        mutationFn: async ({ tier, isNew }: { tier: MembershipTier; isNew: boolean }) => {
+            const url = isNew ? '/api/fee-products' : `/api/fee-products/${tier.id}`;
+            const payload = isNew ? {
+                name: tier.name,
+                slug: tier.name.toLowerCase().replace(/\s+/g, '-'),
+                price_string: tier.price_string,
+                description: tier.description,
+                button_text: tier.button_text,
+                sort_order: tier.sort_order,
+                is_active: tier.is_active,
+                price_cents: tier.price_cents,
+                product_type: 'one_time',
+                fee_type: 'general',
+            } : {
+                name: tier.name,
+                slug: tier.slug,
+                price_string: tier.price_string,
+                description: tier.description,
+                button_text: tier.button_text,
+                sort_order: tier.sort_order,
+                is_active: tier.is_active,
+                price_cents: tier.price_cents,
+            };
+            return fetchWithCredentials<MembershipTier>(url, {
+                method: isNew ? 'POST' : 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+        },
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: ['fee-products'] });
+        },
+        onSuccess: () => {
+            showToast(`Fee product ${isCreating ? 'created' : 'updated'} — synced to Stripe`, 'success');
+            setIsEditing(false);
+            setIsCreating(false);
+            setIsFeeProduct(false);
+        },
+        onError: (err: Error) => {
+            setError((err instanceof Error ? err.message : String(err)) || `Failed to ${isCreating ? 'create' : 'save'} fee product`);
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['fee-products'] });
         },
     });
 
@@ -318,6 +372,7 @@ export function useTiersTab() {
 
     const openCreate = () => {
         setSelectedTier({ ...getDefaultTier(), product_type: 'subscription' });
+        setIsFeeProduct(false);
         setIsCreating(true);
         setIsEditing(true);
         setError(null);
@@ -331,12 +386,14 @@ export function useTiersTab() {
             show_on_membership_page: false,
             button_text: 'Purchase',
         });
+        setIsFeeProduct(true);
         setIsCreating(true);
         setIsEditing(true);
         setError(null);
     };
 
     const openEdit = (tier: MembershipTier) => {
+        setIsFeeProduct(activeSubTab === 'fees');
         setSelectedTier({
             ...tier,
             highlighted_features: Array.isArray(tier.highlighted_features) ? [...tier.highlighted_features] : [],
@@ -349,6 +406,11 @@ export function useTiersTab() {
     const handleSave = async () => {
         if (!selectedTier) return;
         setError(null);
+
+        if (isFeeProduct) {
+            saveFeeProductMutation.mutate({ tier: selectedTier, isNew: isCreating });
+            return;
+        }
 
         const originalTier = tiers.find(t => t.id === selectedTier.id);
         const isDeactivating = !isCreating && originalTier?.is_active === true && selectedTier.is_active === false;
@@ -417,6 +479,7 @@ export function useTiersTab() {
         setIsCreating,
         selectedTier,
         setSelectedTier,
+        isFeeProduct,
         error,
         setError,
         editingLabelId,
@@ -426,12 +489,14 @@ export function useTiersTab() {
         isReordering,
         stripeConnection,
         tiers,
+        feeProducts,
         isLoading,
         stripePrices,
         loadingPrices,
         tierFeatures,
         featuresLoading,
         saveTierMutation,
+        saveFeeProductMutation,
         updateFeatureValueMutation,
         updateFeatureLabelMutation,
         createFeatureMutation,

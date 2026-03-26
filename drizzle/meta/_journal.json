@@ -274,6 +274,13 @@
       "when": 1774828800001,
       "tag": "0066_update_booking_exclusion_statuses",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1774915200000,
+      "tag": "0067_add_fee_products",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,30 @@ import { sql } from "drizzle-orm";
 import { check, index, uniqueIndex, jsonb, pgTable, timestamp, varchar, serial, boolean, text, date, time, integer, numeric } from "drizzle-orm/pg-core";
 import type { CommunicationLogStatus } from "../constants/statuses";
 
+export const feeProducts = pgTable("fee_products", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull().unique(),
+  slug: varchar("slug").notNull().unique(),
+  description: text("description"),
+  priceCents: integer("price_cents"),
+  priceString: varchar("price_string").notNull(),
+  buttonText: varchar("button_text").default("Purchase"),
+  stripeProductId: varchar("stripe_product_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  productType: varchar("product_type").default("one_time"),
+  feeType: varchar("fee_type"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("fee_products_slug_idx").on(table.slug),
+  index("fee_products_product_type_idx").on(table.productType),
+]);
+
+export type FeeProduct = typeof feeProducts.$inferSelect;
+export type InsertFeeProduct = typeof feeProducts.$inferInsert;
+
 // Membership tiers table - centralized tier configuration for marketing and logic
 export const membershipTiers = pgTable("membership_tiers", {
   id: serial("id").primaryKey(),

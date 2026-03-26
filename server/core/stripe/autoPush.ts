@@ -568,22 +568,23 @@ export async function autoPushMerchItemToStripe(item: {
 export async function autoPushFeeToStripe(slug: string, priceCents: number): Promise<{ success: boolean; error?: string }> {
   try {
     const stripe = await getStripeClient();
+    const { feeProducts } = await import('../../../shared/schema');
 
     const existing = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, slug))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, slug))
       .limit(1);
 
     if (existing.length === 0) {
-      return { success: false, error: `No tier record found for slug "${slug}"` };
+      return { success: false, error: `No fee product record found for slug "${slug}"` };
     }
 
-    const tier = existing[0];
-    let stripeProductId = tier.stripeProductId;
-    let stripePriceId = tier.stripePriceId;
+    const fee = existing[0];
+    let stripeProductId = fee.stripeProductId;
+    let stripePriceId = fee.stripePriceId;
 
     if (!stripeProductId) {
-      return { success: false, error: `Tier "${slug}" has no Stripe product. Run "Sync to Stripe" first.` };
+      return { success: false, error: `Fee product "${slug}" has no Stripe product. Run "Sync to Stripe" first.` };
     }
 
     let needNewPrice = false;
@@ -612,8 +613,8 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
         unit_amount: priceCents,
         currency: 'usd',
         metadata: {
-          tier_id: tier.id.toString(),
-          tier_slug: slug,
+          fee_product_id: fee.id.toString(),
+          fee_slug: slug,
           product_type: 'one_time',
           app_category: 'fee',
           fee_type: feeType,
@@ -637,14 +638,14 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
         logger.error(`[AutoPush] Stale price cleanup failed for fee "${slug}":`, { error: getErrorMessage(err) });
       }
 
-      await db.update(membershipTiers)
+      await db.update(feeProducts)
         .set({
           stripePriceId,
           priceCents,
           priceString: `$${(priceCents / 100).toFixed(2)}`,
           updatedAt: new Date(),
         })
-        .where(eq(membershipTiers.id, tier.id));
+        .where(eq(feeProducts.id, fee.id));
 
       logger.info(`[AutoPush] Updated fee "${slug}" to ${priceCents} cents in Stripe`);
     }

@@ -1,7 +1,7 @@
 import { logger } from '../core/logger';
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { dayPassPurchases, membershipTiers, users } from '../../shared/schema';
+import { dayPassPurchases, feeProducts, users } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
 import { getOrCreateStripeCustomer, resolveUserByEmail } from '../core/stripe/customers';
@@ -25,8 +25,8 @@ const router = Router();
 router.get('/api/day-passes/products', async (req: Request, res: Response) => {
   try {
     const products = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.productType, 'one_time'));
+      .from(feeProducts)
+      .where(eq(feeProducts.productType, 'one_time'));
 
     const formattedProducts = products
       .filter(p => p.isActive && p.priceCents && p.priceCents > 0 && p.slug !== 'guest-pass')
@@ -61,8 +61,8 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
     }
 
     const [product] = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, productSlug))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, productSlug))
       .limit(1);
 
     if (!product) {
@@ -205,8 +205,8 @@ router.post('/api/day-passes/confirm', checkoutRateLimiter, async (req: Request,
     }
 
     const [product] = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, productSlug))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, productSlug))
       .limit(1);
 
     if (!product) {
@@ -315,8 +315,8 @@ router.post('/api/day-passes/staff-checkout', isStaffOrAdmin, async (req: Reques
     }
 
     const [product] = await db.select()
-      .from(membershipTiers)
-      .where(eq(membershipTiers.slug, productSlug))
+      .from(feeProducts)
+      .where(eq(feeProducts.slug, productSlug))
       .limit(1);
 
     if (!product) {

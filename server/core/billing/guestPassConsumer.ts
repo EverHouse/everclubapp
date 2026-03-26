@@ -257,7 +257,7 @@ export async function refundGuestPassForParticipant(
       const { PRICING } = await import('./pricingConfig');
       let guestFeeCents = PRICING.GUEST_FEE_CENTS;
       try {
-        const priceResult = await tx.execute(sql`SELECT stripe_price_id FROM membership_tiers WHERE LOWER(name) = 'guest pass' AND stripe_price_id IS NOT NULL`);
+        const priceResult = await tx.execute(sql`SELECT stripe_price_id FROM fee_products WHERE LOWER(slug) = 'guest-pass' AND stripe_price_id IS NOT NULL`);
         if ((priceResult.rows[0] as unknown as StripePriceIdRow)?.stripe_price_id) {
           const { getStripeClient } = await import('../stripe/client');
           const stripe = await getStripeClient();

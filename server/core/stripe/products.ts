@@ -1,4 +1,4 @@
-export { findExistingStripeProduct, buildPrivilegeMetadata, buildFeatureKeysForTier, resolveAppCategory, type TierRecord, type StripeProductWithMarketingFeatures, type StripePaginationParams } from './productHelpers';
+export { findExistingStripeProduct, buildPrivilegeMetadata, buildFeeProductMetadata, buildFeatureKeysForTier, resolveAppCategory, type TierRecord, type FeeProductRecord, type StripeProductWithMarketingFeatures, type StripePaginationParams } from './productHelpers';
 export { syncMembershipTiersToStripe, getTierSyncStatus, cleanupOrphanStripeProducts, archiveStalePricesForProduct, archiveAllStalePrices, deduplicateStripeProducts, type TierSyncResult, type OrphanCleanupResult, type DeduplicationResult } from './productSync';
 export { ensureSimulatorOverageProduct, ensureGuestPassProduct, ensureDayPassCoworkingProduct, ensureDayPassGolfSimProduct, ensureCorporateVolumePricingProduct, pullCorporateVolumePricingFromStripe } from './productCreation';
 export { syncTierFeaturesToStripe, syncSingleTierFeaturesToStripe, syncCafeItemsToStripe, pullTierFeaturesFromStripe, pullCafeItemsFromStripe } from './productCatalogSync';

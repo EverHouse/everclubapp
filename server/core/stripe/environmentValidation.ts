@@ -127,6 +127,45 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
       }
     }
 
+    // a2) Validate fee_products Stripe IDs
+    const feeResult = await db.execute(
+      sql`SELECT id, name, stripe_product_id, stripe_price_id FROM fee_products WHERE stripe_product_id IS NOT NULL`
+    );
+    const fees = feeResult.rows;
+    const staleFees: Array<{ id: unknown; name: unknown; stripe_product_id: unknown }> = [];
+
+    for (let i = 0; i < fees.length; i += 5) {
+      const batch = fees.slice(i, i + 5);
+      const results = await Promise.allSettled(
+        batch.map(async (fee: Record<string, unknown>) => {
+          try {
+            await stripe.products.retrieve(fee.stripe_product_id as string);
+          } catch (error: unknown) {
+            if (isStripeResourceMissing(error)) {
+              staleFees.push({ id: fee.id, name: fee.name, stripe_product_id: fee.stripe_product_id });
+            } else {
+              throw error;
+            }
+          }
+        })
+      );
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          logger.warn(`[Stripe Env] Error checking fee product:`, { extra: { detail: result.reason?.message || result.reason } });
+        }
+      }
+    }
+
+    if (staleFees.length > 0) {
+      for (const fee of staleFees) {
+        await db.execute(
+          sql`UPDATE fee_products SET stripe_product_id = NULL, stripe_price_id = NULL WHERE id = ${fee.id}`
+        );
+        logger.info(`[Stripe Env] Cleared stale Stripe IDs for fee product "${fee.name}" (product ${fee.stripe_product_id} not found in ${mode} Stripe)`);
+      }
+    }
+
     // b) Validate cafe_items Stripe IDs
     const cafeResult = await db.execute(
       sql`SELECT id, name, stripe_product_id, stripe_price_id FROM cafe_items WHERE stripe_product_id IS NOT NULL`

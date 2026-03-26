@@ -80,3 +80,21 @@ export interface TierRecord {
   stripe_price_id?: string;
   [key: string]: unknown;
 }
+
+export interface FeeProduct {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  price_cents: number | null;
+  price_string: string;
+  button_text: string | null;
+  stripe_product_id: string | null;
+  stripe_price_id: string | null;
+  product_type: string | null;
+  fee_type: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string | null;
+  updated_at: string | null;
+}

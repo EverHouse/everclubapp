@@ -610,7 +610,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
            AND (status IS NULL OR status != 'cancelled')`);
         
         if (existingDayPass.rows.length === 0) {
-          const dayPassResult = await db.execute(sql`SELECT price_cents, stripe_price_id, name FROM membership_tiers 
+          const dayPassResult = await db.execute(sql`SELECT price_cents, stripe_price_id, name FROM fee_products 
              WHERE slug = 'day-pass-golf-sim' AND is_active = true`);
           
           if (dayPassResult.rows.length > 0) {
@@ -618,7 +618,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             const amountCents = dayPass.price_cents;
             if (!amountCents || Number(amountCents) <= 0) {
               logger.error('[Trackman Resolve] Day pass price_cents is missing or zero for slug \'day-pass-golf-sim\' — cannot bill');
-              billingMessage = ' Day pass billing skipped: price not configured in membership_tiers.';
+              billingMessage = ' Day pass billing skipped: price not configured in fee_products.';
               await db.execute(sql`INSERT INTO day_pass_purchases 
                  (user_id, product_type, quantity, amount_cents, booking_date, status, trackman_booking_id, created_at)
                  VALUES (${member.id}, ${'day-pass-golf-sim'}, 1, 0, ${bookingDateStr}, ${'pending_price'}, ${booking.trackman_booking_id}, NOW())`);
