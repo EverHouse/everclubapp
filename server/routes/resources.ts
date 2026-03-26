@@ -534,6 +534,11 @@ router.post('/api/bookings', bookingRateLimiter, validateBody(createBookingSchem
         ...(err.remainingMinutes !== undefined && { remainingMinutes: err.remainingMinutes }),
       });
     }
+    const { isConstraintError } = await import('../core/db');
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique' || constraint.type === 'exclusion') {
+      return res.status(409).json({ error: 'This time slot was just booked by someone else. Please refresh and pick a different time.' });
+    }
     logAndRespond(req, res, 500, 'Failed to submit booking request', error, 'BOOKING_REQUEST_ERROR');
   }
 });

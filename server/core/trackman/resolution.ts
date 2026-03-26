@@ -135,9 +135,16 @@ async function insertBookingIfNotExists(
       guestCount: actualGuestCount,
     }).returning({ id: bookingRequests.id });
   } catch (insertErr: unknown) {
-    if (getErrorMessage(insertErr)?.includes('duplicate key') || getErrorCode(insertErr) === '23505') {
+    const errCode = getErrorCode(insertErr);
+    const errMsg = getErrorMessage(insertErr) || '';
+    const causeCode = (insertErr as { cause?: { code?: string } })?.cause?.code;
+    if (errMsg.includes('duplicate key') || errCode === '23505' || causeCode === '23505') {
       logger.warn('[TrackmanImport] Booking already exists (race condition), skipping', { extra: { trackmanBookingId: booking.trackmanBookingId } });
       return { inserted: false, reason: 'Already imported (race condition)' };
+    }
+    if (errCode === '23P01' || causeCode === '23P01' || errMsg.includes('booking_requests_no_overlap')) {
+      logger.warn('[TrackmanImport] Overlap constraint on resolution insert, skipping', { extra: { trackmanBookingId: booking.trackmanBookingId } });
+      return { inserted: false, reason: 'Overlapping booking exists' };
     }
     throw insertErr;
   }

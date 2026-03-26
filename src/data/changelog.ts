@@ -14,7 +14,9 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Critical: Database exclusion constraint now prevents simultaneous double-bookings on the same simulator (race condition fix)",
       "Fixed: Cross-midnight bookings are now handled correctly by the exclusion constraint via a helper function",
-      "Fixed: All booking creation endpoints now return a clear 409 'slot just booked' message instead of crashing with a 500 error on overlap",
+      "Fixed: Exclusion constraint now covers all active statuses including pending_approval, matching application logic",
+      "Fixed: All 5 booking creation endpoints now return a clear 409 'slot just booked' message instead of crashing with a 500 error on overlap",
+      "Fixed: Trackman resolution insert now handles exclusion constraint violations gracefully",
       "Fixed: Logout endpoint no longer crashes when called without an active session",
       "Fixed: Conflict detection gracefully handles missing member email instead of crashing",
     ]

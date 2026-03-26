@@ -6,9 +6,10 @@ All notable changes to the Ever Club Members App are documented here.
 
 ### Booking Race Condition — Simultaneous Double-Booking (Critical)
 - **Root cause**: Conflict detection relied on application-level SELECT queries. When multiple users clicked "Book" for the same time slot simultaneously, each request's SELECT ran before the other's INSERT, so both saw no conflict and both bookings were created — double-booking the simulator.
-- **Fix**: Updated the PostgreSQL `booking_requests_no_overlap` exclusion constraint (GiST index) to cover `checked_in` status in addition to `pending`, `approved`, and `confirmed`. Created a `booking_time_range()` helper function that correctly computes timestamp ranges for cross-midnight bookings (extending `end_time` to the next day when it's earlier than `start_time`). The database now hard-rejects overlapping bookings regardless of application timing.
+- **Fix**: Updated the PostgreSQL `booking_requests_no_overlap` exclusion constraint (GiST index) to cover all active statuses: `pending`, `pending_approval`, `approved`, `confirmed`, and `checked_in`. Created a `booking_time_range()` helper function that correctly computes timestamp ranges for cross-midnight bookings (extending `end_time` to the next day when it's earlier than `start_time`). The database now hard-rejects overlapping bookings regardless of application timing.
 - **Note**: `attended` bookings are excluded from the constraint because they are immutable historical records with pre-existing overlaps in legacy data.
-- **Files changed**: `drizzle/0066_update_booking_exclusion_statuses.sql`
+- **Constraint error handling**: Extended `isConstraintError()` to recognize PostgreSQL error code `23P01` (exclusion violation). All 5 booking INSERT paths now return HTTP 409 with a clear message instead of a 500 crash: `booking-create.ts`, `staff-conference-booking.ts`, `manualBooking.ts`, `resources.ts`, and `resolution.ts` (Trackman).
+- **Files changed**: `drizzle/0066_update_booking_exclusion_statuses.sql`, `server/core/db.ts`, `server/routes/bays/booking-create.ts`, `server/routes/bays/staff-conference-booking.ts`, `server/routes/staff/manualBooking.ts`, `server/routes/resources.ts`, `server/core/trackman/resolution.ts`
 
 ### Logout Crash on Missing Session (Medium)
 - **Root cause**: `POST /api/auth/logout` called `req.session.destroy()` without checking if `req.session` existed. Bots or users without session cookies could trigger a `TypeError` that bypassed Express error handlers and potentially crashed the Node.js worker process.

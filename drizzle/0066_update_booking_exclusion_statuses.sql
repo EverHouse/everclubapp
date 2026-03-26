@@ -17,7 +17,7 @@ EXCLUDE USING gist (
   resource_id WITH =,
   booking_time_range(request_date, start_time, end_time) WITH &&
 )
-WHERE (status IN ('pending', 'approved', 'confirmed', 'checked_in') AND resource_id IS NOT NULL);
+WHERE (status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'checked_in') AND resource_id IS NOT NULL);
 
 COMMENT ON CONSTRAINT booking_requests_no_overlap ON booking_requests IS
-'Prevents overlapping bookings on the same resource. Handles cross-midnight bookings. Applies to active bookings (pending/approved/confirmed/checked_in). Attended bookings are excluded as they are immutable historical records.';
+'Prevents overlapping bookings on the same resource. Handles cross-midnight bookings. Applies to all active booking statuses (pending/pending_approval/approved/confirmed/checked_in). Attended bookings are excluded as they are immutable historical records.';
