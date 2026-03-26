@@ -71,7 +71,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
     if (paymentMethods.length === 0) {
       logger.error(`${prefix} No card on file for ${email} (customer: ${customerId})`);
       await db.execute(sql`
-        UPDATE users SET migration_status = 'failed', updated_at = NOW()
+        UPDATE users SET migration_status = 'failed', mindbody_cancellation_detected_at = NULL, updated_at = NOW()
         WHERE id = ${userId}
       `);
       await notifyAllStaff(
@@ -112,7 +112,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
     if (!tierSlug) {
       logger.error(`${prefix} No tier found for ${email}`);
       await db.execute(sql`
-        UPDATE users SET migration_status = 'failed', updated_at = NOW()
+        UPDATE users SET migration_status = 'failed', mindbody_cancellation_detected_at = NULL, updated_at = NOW()
         WHERE id = ${userId}
       `);
       await notifyAllStaff(
@@ -132,7 +132,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
     if (tierResult.rows.length === 0) {
       logger.error(`${prefix} No Stripe price ID for tier '${tierSlug}' for ${email}`);
       await db.execute(sql`
-        UPDATE users SET migration_status = 'failed', updated_at = NOW()
+        UPDATE users SET migration_status = 'failed', mindbody_cancellation_detected_at = NULL, updated_at = NOW()
         WHERE id = ${userId}
       `);
       await notifyAllStaff(
