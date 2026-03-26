@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { MemberProfile } from '../../../../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
@@ -22,7 +22,11 @@ import {
 
 export function useIncrementalLoad<T>(items: T[], threshold: number = VIRTUALIZATION_THRESHOLD) {
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
-    const loadMoreRef = useRef<HTMLDivElement>(null);
+    const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
+
+    const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+        setSentinel(node);
+    }, []);
     
     const needsVirtualization = items.length > threshold;
     const visibleItems = needsVirtualization ? items.slice(0, visibleCount) : items;
@@ -34,7 +38,7 @@ export function useIncrementalLoad<T>(items: T[], threshold: number = VIRTUALIZA
     }, [items.length]);
     
     useEffect(() => {
-        if (!needsVirtualization || !loadMoreRef.current) return;
+        if (!needsVirtualization || !sentinel) return;
         
         const observer = new IntersectionObserver(
             (entries) => {
@@ -45,9 +49,9 @@ export function useIncrementalLoad<T>(items: T[], threshold: number = VIRTUALIZA
             { rootMargin: '200px' }
         );
         
-        observer.observe(loadMoreRef.current);
+        observer.observe(sentinel);
         return () => observer.disconnect();
-    }, [needsVirtualization, hasMore, items.length]);
+    }, [needsVirtualization, hasMore, items.length, sentinel]);
     
     return { visibleItems, hasMore, loadMoreRef, totalCount: items.length, visibleCount };
 }

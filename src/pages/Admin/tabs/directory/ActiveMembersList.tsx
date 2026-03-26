@@ -17,7 +17,7 @@ interface ActiveMembersListProps {
     filteredList: MemberProfile[];
     visibleItems: MemberProfile[];
     hasMore: boolean;
-    loadMoreRef: React.RefObject<HTMLDivElement | null>;
+    loadMoreRef: (node: HTMLDivElement | null) => void;
     totalCount: number;
     visibleCount: number;
     isAdmin: boolean;
