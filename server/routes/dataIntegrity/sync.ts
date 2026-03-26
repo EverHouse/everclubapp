@@ -304,14 +304,51 @@ router.post('/api/data-integrity/resync-from-production', isAdmin, async (req, r
     await execFileAsync('psql', [localUrl, '-c', truncateSql], { timeout: 60000 });
     logger.info(`[DevSync] Truncated ${allTablesToTruncate.length} tables (preserved ${DEV_ONLY_TABLES.length} dev-only tables)`);
 
+    const quoteIdent = (id: string) => '"' + id.replace(/"/g, '""') + '"';
+
     for (const csvFile of importCsvFiles) {
       const table = csvFile.replace('.csv', '');
-      const importSql = `SET session_replication_role = 'replica';\n\\COPY "${table}" FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`;
       try {
-        await execFileAsync('psql', [localUrl], {
-          timeout: 120000,
-          input: importSql
-        } as Parameters<typeof execFileAsync>[2] & { input: string });
+        const { stdout: prodColsRaw } = await execFileAsync('psql', [
+          poolerUrl, '-t', '-A', '-c',
+          `SELECT column_name FROM information_schema.columns WHERE table_name=$$ ${table} $$ AND table_schema='public' ORDER BY ordinal_position;`
+        ], { timeout: 10000 });
+        const prodCols = prodColsRaw.trim().split('\n').filter(Boolean);
+
+        const { stdout: localColsRaw } = await execFileAsync('psql', [
+          localUrl, '-t', '-A', '-c',
+          `SELECT column_name FROM information_schema.columns WHERE table_name=$$ ${table} $$ AND table_schema='public' ORDER BY ordinal_position;`
+        ], { timeout: 10000 });
+        const localCols = localColsRaw.trim().split('\n').filter(Boolean);
+        const extraLocalCols = localCols.filter(c => !prodCols.includes(c));
+
+        if (extraLocalCols.length === 0) {
+          const importSql = `SET session_replication_role = 'replica';\n\\COPY ${quoteIdent(table)} FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`;
+          await execFileAsync('psql', [localUrl], {
+            timeout: 120000,
+            input: importSql
+          } as Parameters<typeof execFileAsync>[2] & { input: string });
+        } else {
+          logger.info(`[DevSync] Table ${table} has ${extraLocalCols.length} extra local columns (${extraLocalCols.join(', ')}), using temp table approach`);
+          const tmpTable = `_tmp_import_${table.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+          const setupSql = [
+            `SET session_replication_role = 'replica';`,
+            `DROP TABLE IF EXISTS ${quoteIdent(tmpTable)};`,
+            `CREATE TABLE ${quoteIdent(tmpTable)} (LIKE ${quoteIdent(table)} INCLUDING DEFAULTS);`,
+            ...extraLocalCols.map(col => `ALTER TABLE ${quoteIdent(tmpTable)} DROP COLUMN IF EXISTS ${quoteIdent(col)};`),
+          ].join('\n');
+          await execFileAsync('psql', [localUrl, '-c', setupSql], { timeout: 30000 });
+
+          const copySql = `SET session_replication_role = 'replica';\n\\COPY ${quoteIdent(tmpTable)} FROM '${dumpDir}/${csvFile}' WITH (FORMAT csv, HEADER true)`;
+          await execFileAsync('psql', [localUrl], {
+            timeout: 120000,
+            input: copySql
+          } as Parameters<typeof execFileAsync>[2] & { input: string });
+
+          const colList = prodCols.map(c => quoteIdent(c)).join(', ');
+          const insertSql = `SET session_replication_role = 'replica'; INSERT INTO ${quoteIdent(table)} (${colList}) SELECT ${colList} FROM ${quoteIdent(tmpTable)}; DROP TABLE ${quoteIdent(tmpTable)};`;
+          await execFileAsync('psql', [localUrl, '-c', insertSql], { timeout: 120000 });
+        }
         imported++;
       } catch (importErr: unknown) {
         failed.push(table);
