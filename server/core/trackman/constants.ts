@@ -98,7 +98,7 @@ export function normalizeStatus(status: string, bookingDate: string, startTime: 
     return isFuture ? 'approved' : 'attended';
   }
   if (s === 'cancelled' || s === 'canceled') return 'cancelled';
-  if (s === 'no_show' || s === 'noshow') return 'no_show';
+  if (s === 'no_show' || s === 'noshow') return isFuture ? 'approved' : 'attended';
   return null;
 }
 
