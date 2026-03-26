@@ -123,9 +123,12 @@ export class PgRateLimitStore implements Store {
     this.cleanupRunning = true;
     const cutoff = new Date(Date.now() - this.windowMs * 2);
     try {
-      if ((pool as unknown as Pool).waitingCount > 5) {
+      const p = pool as unknown as Pool;
+      const activeCount = p.totalCount - p.idleCount;
+      const poolMax = (pool as unknown as { options?: { max?: number } }).options?.max || 25;
+      if (p.waitingCount > 0 || activeCount >= poolMax * 0.8) {
         logger.debug('[PgRateLimitStore] Skipping cleanup — pool under pressure', {
-          extra: { waitingCount: (pool as unknown as Pool).waitingCount }
+          extra: { waitingCount: p.waitingCount, idle: p.idleCount, active: activeCount, max: poolMax }
         });
         return;
       }

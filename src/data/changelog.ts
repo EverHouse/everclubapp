@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.49",
+    date: "2026-03-26",
+    title: "Bug Fixes",
+    changes: [
+      "Fixed: QR check-in now correctly finds bookings for members with multiple linked email accounts",
+      "Fixed: Account deletion requests work reliably for all member accounts",
+      "Fixed: Background cleanup tasks are smarter about when to run, reducing slowdowns during busy periods",
+    ]
+  },
+  {
     version: "8.97.48",
     date: "2026-03-25",
     title: "Stability & Connection Reliability",

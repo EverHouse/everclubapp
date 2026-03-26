@@ -2,6 +2,24 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.49] - 2026-03-26
+
+### QR Check-in SQL Fix (Critical)
+- **Root cause**: `server/routes/staffCheckin/directAdd.ts` line 474 used `unnest()` on a JSONB column (`manually_linked_emails`), but PostgreSQL's `unnest()` only works on arrays, not JSONB. This caused `function unnest(jsonb) does not exist` errors every time a member with manually linked emails scanned a QR code.
+- **Fix**: Changed `unnest(...)` to `jsonb_array_elements_text(...)` which correctly iterates JSONB arrays.
+- **Impact**: QR check-in booking lookup now works for all members including those with manually linked emails.
+- **Files changed**: `server/routes/staffCheckin/directAdd.ts`
+
+### Account Deletion Request Type Mismatch Fix
+- **Root cause**: `account_deletion_requests.user_id` is `integer` but `users.id` is `varchar` (UUID). The insert in `server/routes/account.ts` and delete in `server/routes/members/admin-actions.ts` both used `user_id` matching, causing `invalid input syntax for type integer` errors.
+- **Fix**: Changed all `account_deletion_requests` queries to use `LOWER(email)` matching instead of `user_id`. Insert now uses placeholder `0` for `user_id` (column is NOT NULL). Admin delete uses `normalizedEmail`.
+- **Files changed**: `server/routes/account.ts`, `server/routes/members/admin-actions.ts`
+
+### PgRateLimitStore Pool Pressure Sensitivity
+- **Root cause**: Rate limit cleanup was checking `waitingCount > 5` before skipping, which still allowed cleanup to run even when the pool was 80%+ utilized with 1-4 waiting queries.
+- **Fix**: Now skips cleanup when `waitingCount > 0` OR when active connections exceed 80% of total pool capacity.
+- **Files changed**: `server/middleware/pgRateLimitStore.ts`
+
 ## [8.97.48] - 2026-03-25
 
 ### Database Pool Exhaustion Fixes (Part 2)

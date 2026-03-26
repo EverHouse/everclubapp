@@ -917,13 +917,8 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     await db.execute(sql`DELETE FROM stripe_payment_intents WHERE user_id = ${userIdStr}`);
     deletionLog.push('stripe_payment_intents');
     
-    try {
-      await db.execute(sql`DELETE FROM account_deletion_requests WHERE user_id = ${userId}::text::integer`);
-      deletionLog.push('account_deletion_requests');
-    } catch (err) {
-      logger.debug('account_deletion_requests deletion skipped due to type mismatch', { error: getErrorMessage(err) });
-      deletionLog.push('account_deletion_requests (skipped - type mismatch)');
-    }
+    await db.execute(sql`DELETE FROM account_deletion_requests WHERE LOWER(email) = ${normalizedEmail}`);
+    deletionLog.push('account_deletion_requests');
     
     await db.execute(sql`DELETE FROM usage_ledger WHERE member_id = ${userIdStr}`);
     deletionLog.push('usage_ledger');

@@ -21,11 +21,11 @@ router.post('/api/account/delete-request', isAuthenticated, async (req: Request,
       return res.status(404).json({ error: 'User not found' });
     }
     
-    const user = userResult.rows[0] as unknown as { id: number; email: string; first_name: string | null; last_name: string | null };
+    const user = userResult.rows[0] as unknown as { id: string; email: string; first_name: string | null; last_name: string | null };
     const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
 
     const existingRequest = await db.execute(sql`SELECT id FROM account_deletion_requests 
-       WHERE user_id = ${user.id} AND status = 'pending'`
+       WHERE LOWER(email) = LOWER(${user.email}) AND status = 'pending'`
     );
     
     if (existingRequest.rows.length > 0) {
@@ -35,10 +35,10 @@ router.post('/api/account/delete-request', isAuthenticated, async (req: Request,
     }
 
     await db.execute(sql`INSERT INTO account_deletion_requests (user_id, email, requested_at, status)
-       SELECT ${user.id}, ${user.email}, NOW(), 'pending'
+       SELECT 0, ${user.email}, NOW(), 'pending'
        WHERE NOT EXISTS (
          SELECT 1 FROM account_deletion_requests 
-         WHERE user_id = ${user.id} AND status = 'pending'
+         WHERE LOWER(email) = LOWER(${user.email}) AND status = 'pending'
        )`
     );
 
