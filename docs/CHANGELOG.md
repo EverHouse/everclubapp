@@ -2,6 +2,33 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.51] - 2026-03-26
+
+### Privilege Escalation via Stale WebSocket Token (High)
+- **Root cause**: `/api/auth/ws-token` used `sessionUser.role` from the session cookie (valid up to 30 days) without re-checking the database. A demoted staff member could mint WebSocket tokens with their old elevated role.
+- **Fix**: Now calls `getUserRole(sessionUser.email)` to fetch the current role from the database before minting tokens.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### User Enumeration via check-staff-admin (High/Medium)
+- **Root cause**: `GET /api/auth/check-staff-admin` returned the exact role (`admin`/`staff`) in its public response, allowing attackers to identify high-value targets for phishing.
+- **Fix**: Removed `role` from the response. The endpoint now only returns `isStaffOrAdmin` (boolean) and `hasPassword` (boolean), which is all the frontend needs to decide which login flow to show.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Type Confusion Crash via Bcrypt (High/Medium)
+- **Root cause**: Password fields in `password-login` and `set-password` checked for truthiness but not `typeof string`. Sending `{"password": ["array"]}` would pass the truthy check but crash `bcrypt.compare()` or `bcrypt.hash()`.
+- **Fix**: Added `typeof password !== 'string'` checks in both routes. Also added `password.length > 72` cap to `set-password` and `typeof currentPassword !== 'string'` validation.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Error Propagation DoS via Invalid Time Strings (Medium)
+- **Root cause**: `timeToMinutes()` in `conflictDetection.ts` threw hard errors on malformed time strings (e.g., `"99:99"`), generating stack traces and error logs that could fill up logging infrastructure if spammed.
+- **Fix**: Changed `timeToMinutes()` to return `null` instead of throwing. `timePeriodsOverlap()` now returns `false` (no conflict) when any time is invalid, which is the safe default.
+- **Files changed**: `server/core/bookingService/conflictDetection.ts`
+
+### Fire-and-Forget Webhook Cleanup Removed (Low)
+- **Root cause**: `processStripeWebhookEvent()` and `replayStripeEvent()` had `if (Math.random() < 0.05) { cleanupOldProcessedEvents().catch(...) }` — a floating promise that could be killed mid-flight when the HTTP response is sent, causing pool leaks.
+- **Fix**: Removed both instances. The existing `webhookEventCleanupScheduler.ts` already runs this cleanup every 24 hours via a dedicated interval, making the in-handler version redundant.
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
 ## [8.97.50] - 2026-03-26
 
 ### Session Fixation Vulnerability Fix (Critical)

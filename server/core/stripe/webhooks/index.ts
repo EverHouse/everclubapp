@@ -9,7 +9,6 @@ import {
   tryClaimEvent,
   checkResourceEventOrder,
   executeDeferredActions,
-  cleanupOldProcessedEvents,
 } from './framework';
 export { upsertTransactionCache } from './framework';
 
@@ -258,11 +257,6 @@ export async function processStripeWebhook(
 
     await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
 
-    if (Math.random() < 0.05) {
-      cleanupOldProcessedEvents().catch(err => 
-        logger.warn('[Stripe Webhook] Background cleanup failed:', { error: getErrorMessage(err) })
-      );
-    }
 
   } catch (handlerError: unknown) {
     await client.query('ROLLBACK');
@@ -313,12 +307,6 @@ export async function replayStripeEvent(
     logger.info(`[Stripe Webhook Replay] Event ${event.id} committed successfully`);
 
     await executeDeferredActions(deferredActions);
-
-    if (Math.random() < 0.05) {
-      cleanupOldProcessedEvents().catch(err => 
-        logger.warn('[Stripe Webhook] Background cleanup failed:', { error: getErrorMessage(err) })
-      );
-    }
 
     return { success: true, eventType: event.type, message: `Successfully replayed event ${event.id} (${event.type})` };
   } catch (handlerError: unknown) {

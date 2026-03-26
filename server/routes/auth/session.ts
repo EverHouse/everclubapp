@@ -124,8 +124,9 @@ sessionRouter.post('/api/auth/ws-token', authRateLimiterByIp, async (req, res) =
     return logAndRespond(req, res, 401, 'Not authenticated');
   }
   try {
+    const freshRole = await getUserRole(sessionUser.email);
     const { createWsAuthToken } = await import('../../core/websocket');
-    const token = createWsAuthToken(sessionUser.email, sessionUser.role || 'member');
+    const token = createWsAuthToken(sessionUser.email, freshRole || 'member');
     return res.json({ token });
   } catch (err) {
     return logAndRespond(req, res, 500, 'Failed to create token', err);
@@ -157,15 +158,13 @@ sessionRouter.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req
       ));
     
     if (staffResult.length > 0) {
-      const userRole = staffResult[0].role === 'admin' ? 'admin' : 'staff';
       return res.json({ 
         isStaffOrAdmin: true, 
-        role: userRole,
         hasPassword: staffResult[0].hasPassword 
       });
     }
     
-    res.json({ isStaffOrAdmin: false, role: null, hasPassword: false });
+    res.json({ isStaffOrAdmin: false, hasPassword: false });
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to check user status', error);
   }
@@ -176,7 +175,7 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
   try {
     const { email, password } = req.body;
     
-    if (!email || !password) {
+    if (!email || !password || typeof password !== 'string') {
       return logAndRespond(req, res, 400, 'Email and password are required');
     }
 
@@ -323,12 +322,20 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
     
     const { password, currentPassword } = req.body;
     
-    if (!password) {
+    if (!password || typeof password !== 'string') {
       return logAndRespond(req, res, 400, 'Password is required');
     }
     
     if (password.length < 8) {
       return logAndRespond(req, res, 400, 'Password must be at least 8 characters');
+    }
+
+    if (password.length > 72) {
+      return logAndRespond(req, res, 400, 'Password must be 72 characters or fewer');
+    }
+
+    if (currentPassword && typeof currentPassword !== 'string') {
+      return logAndRespond(req, res, 400, 'Invalid password format');
     }
     
     const normalizedEmail = sessionUser.email.toLowerCase();

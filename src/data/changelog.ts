@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.51",
+    date: "2026-03-26",
+    title: "Security Hardening (Part 2)",
+    changes: [
+      "Security: WebSocket tokens now verify your current role in real-time, so demoted accounts lose access immediately",
+      "Security: Staff/admin lookup no longer reveals account roles to unauthenticated users",
+      "Security: Password fields now reject malformed data that could crash the server",
+      "Fixed: Invalid booking times are handled gracefully instead of generating error logs",
+      "Fixed: Stripe webhook cleanup now runs only via the dedicated scheduler, not piggybacked on live requests",
+    ]
+  },
+  {
     version: "8.97.50",
     date: "2026-03-26",
     title: "Security Hardening",

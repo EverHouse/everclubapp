@@ -39,21 +39,14 @@ export interface ConflictCheckResult {
   conflicts: ConflictingBooking[];
 }
 
-function timeToMinutes(timeStr: string): number {
-  if (!timeStr || typeof timeStr !== 'string') {
-    throw new Error(`Invalid time string provided: ${timeStr}`);
-  }
-  const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-  if (!match) {
-    throw new Error(`Invalid time format (expected HH:MM): ${timeStr}`);
-  }
+function timeToMinutes(timeStr: string): number | null {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const trimmed = timeStr.trim();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (!match) return null;
   const hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
-
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-    throw new Error(`Time out of range (expected 00:00–23:59): ${timeStr}`);
-  }
-
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
   return hours * 60 + minutes;
 }
 
@@ -72,6 +65,8 @@ export function timePeriodsOverlap(
   let e1 = timeToMinutes(end1);
   const s2 = timeToMinutes(start2);
   let e2 = timeToMinutes(end2);
+
+  if (s1 === null || e1 === null || s2 === null || e2 === null) return false;
   
   // Handle cross-midnight: if end < start, add 24 hours to end
   if (e1 < s1) e1 += 1440;
