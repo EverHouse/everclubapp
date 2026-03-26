@@ -263,7 +263,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                 {activeFilters.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                         {activeFilters.map(filter => (
-                            <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 dark:bg-lavender/10 text-primary dark:!text-lavender border border-primary/20 dark:border-lavender/20">
+                            <span key={filter.key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold dark:bg-lavender/10 text-primary dark:!text-lavender border border-primary/20 dark:border-lavender/20 bg-[#CCB8E4]">
                                 {filter.label}
                                 <button onClick={filter.onRemove} className="hover:text-red-500 transition-colors ml-0.5 cursor-pointer" aria-label={`Remove ${filter.label} filter`}>
                                     <Icon name="close" className="text-[12px]" />
