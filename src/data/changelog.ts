@@ -17,6 +17,8 @@ export const changelog: ChangelogEntry[] = [
       "Feature: Confirmation dialog (danger variant) warns about permanent deletion and Stripe product archival before proceeding",
       "Feature: On successful delete, editor drawer closes and tier/fee product lists refresh automatically",
       "Fix: Member count pre-check now uses same matching logic as actual delete (tier name, case-insensitive, excludes only archived/merged) — prevents false-positive 'safe to delete' results",
+      "Fix: Deleting a tier or fee product now fully deletes the Stripe product and its prices (not just archived). For subscription tiers with active subscribers, the Stripe product is archived as a safety fallback.",
+      "Fix: Audit log for delete actions now records correctly (was failing due to wrong field names)",
     ]
   },
   {

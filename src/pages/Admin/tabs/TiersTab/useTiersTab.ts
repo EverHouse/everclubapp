@@ -497,7 +497,7 @@ export function useTiersTab() {
 
         const confirmed = await confirm({
             title: `Delete ${isFee ? 'Fee Product' : 'Tier'}`,
-            message: `Permanently delete "${itemName}"? This will also archive the linked Stripe product. This cannot be undone.`,
+            message: `Permanently delete "${itemName}"? This will also delete the linked Stripe product and all its prices. This cannot be undone.`,
             confirmText: 'Delete',
             cancelText: 'Cancel',
             variant: 'danger',

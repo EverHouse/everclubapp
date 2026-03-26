@@ -9,7 +9,10 @@ All notable changes to the Ever Club Members App are documented here.
 - **Safety**: For tiers, the frontend pre-checks the member count — if any non-archived members are on the tier, deletion is blocked with a toast message. A danger-variant confirmation dialog warns about permanent deletion and Stripe product archival.
 - **UX**: Delete button is left-aligned in the drawer footer (red text), only visible when editing (hidden during creation). On success, the drawer closes and lists refresh.
 - **Fix**: Aligned `/api/membership-tiers/:id/member-count` pre-check with delete route logic — now matches by tier name (case-insensitive) and excludes only archived/merged statuses, matching the server-side 409 guard exactly.
-- **Files changed**: `src/pages/Admin/tabs/TiersTab/useTiersTab.ts`, `src/pages/Admin/tabs/TiersTab/TierEditorDrawer.tsx`, `src/pages/Admin/tabs/TiersTab/index.tsx`, `server/routes/membershipTiers.ts`
+- **Stripe cleanup**: Deleting a tier or fee product now fully deletes the Stripe product (deactivates all prices first, then calls `products.del`). For subscription tiers, if any prices still have active subscribers, the product is archived instead as a safety measure. Fee products are always fully deleted since they have no subscriptions.
+- **Audit log fix**: Delete routes were using `targetType`/`targetId` instead of `resourceType`/`resourceId`, causing `null value in column "resource_type"` — corrected and added `delete_tier`/`delete_fee_product` to audit action types and `membership_tier`/`fee_product` to resource types.
+- **404 handling**: If a tier was already deleted and the user tries to delete again, the frontend now shows "already been deleted" instead of a generic error.
+- **Files changed**: `src/pages/Admin/tabs/TiersTab/useTiersTab.ts`, `src/pages/Admin/tabs/TiersTab/TierEditorDrawer.tsx`, `src/pages/Admin/tabs/TiersTab/index.tsx`, `server/routes/membershipTiers.ts`, `server/core/auditLog.ts`
 
 ## [8.97.60] - 2026-03-26
 

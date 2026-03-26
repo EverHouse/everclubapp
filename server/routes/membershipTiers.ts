@@ -222,10 +222,16 @@ router.delete('/api/fee-products/:id', isAdmin, async (req, res) => {
       try {
         const { getStripeClient } = await import('../core/stripe/client');
         const stripe = await getStripeClient();
-        await stripe.products.update(stripeProductId, { active: false });
-        logger.info(`[Fee Delete] Archived Stripe product ${stripeProductId} for fee "${fee.name}"`);
+        const prices = await stripe.prices.list({ product: stripeProductId, limit: 100 });
+        for (const price of prices.data) {
+          if (price.active) {
+            await stripe.prices.update(price.id, { active: false });
+          }
+        }
+        await stripe.products.del(stripeProductId);
+        logger.info(`[Fee Delete] Deleted Stripe product ${stripeProductId} for fee "${fee.name}" (${prices.data.length} prices deactivated)`);
       } catch (stripeErr) {
-        logger.warn(`[Fee Delete] Could not archive Stripe product ${stripeProductId}: ${getErrorMessage(stripeErr)}`);
+        logger.warn(`[Fee Delete] Could not delete Stripe product ${stripeProductId}: ${getErrorMessage(stripeErr)}`);
       }
     }
 
@@ -272,10 +278,31 @@ router.delete('/api/membership-tiers/:id', isAdmin, async (req, res) => {
       try {
         const { getStripeClient } = await import('../core/stripe/client');
         const stripe = await getStripeClient();
-        await stripe.products.update(stripeProductId, { active: false });
-        logger.info(`[Tier Delete] Archived Stripe product ${stripeProductId} for tier "${tierName}"`);
+        const prices = await stripe.prices.list({ product: stripeProductId, limit: 100 });
+        let hasActiveSubscriptions = false;
+        for (const price of prices.data) {
+          if (price.recurring) {
+            const subs = await stripe.subscriptions.list({ price: price.id, status: 'active', limit: 1 });
+            if (subs.data.length > 0) {
+              hasActiveSubscriptions = true;
+              break;
+            }
+          }
+        }
+        if (hasActiveSubscriptions) {
+          await stripe.products.update(stripeProductId, { active: false });
+          logger.warn(`[Tier Delete] Stripe product ${stripeProductId} has active subscriptions — archived instead of deleted`);
+        } else {
+          for (const price of prices.data) {
+            if (price.active) {
+              await stripe.prices.update(price.id, { active: false });
+            }
+          }
+          await stripe.products.del(stripeProductId);
+          logger.info(`[Tier Delete] Deleted Stripe product ${stripeProductId} for tier "${tierName}" (${prices.data.length} prices deactivated)`);
+        }
       } catch (stripeErr) {
-        logger.warn(`[Tier Delete] Could not archive Stripe product ${stripeProductId}: ${getErrorMessage(stripeErr)}`);
+        logger.warn(`[Tier Delete] Could not delete Stripe product ${stripeProductId}: ${getErrorMessage(stripeErr)}`);
       }
     }
 
