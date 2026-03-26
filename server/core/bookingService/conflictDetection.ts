@@ -50,6 +50,32 @@ function timeToMinutes(timeStr: string): number | null {
   return hours * 60 + minutes;
 }
 
+function dayDiffInMinutes(requestedDate: string, existingDate: string): number {
+  const rd = new Date(requestedDate + 'T00:00:00Z');
+  const ed = new Date(existingDate + 'T00:00:00Z');
+  return Math.round((ed.getTime() - rd.getTime()) / 60000);
+}
+
+function dateAwareOverlap(
+  reqDate: string, reqStartTime: string, reqEndTime: string,
+  existDate: string, existStartTime: string, existEndTime: string
+): boolean {
+  const rs = timeToMinutes(reqStartTime);
+  let re = timeToMinutes(reqEndTime);
+  const es = timeToMinutes(existStartTime);
+  let ee = timeToMinutes(existEndTime);
+  if (rs === null || re === null || es === null || ee === null) return false;
+
+  if (re <= rs) re += 1440;
+
+  const offset = dayDiffInMinutes(reqDate, existDate);
+  const absEs = es + offset;
+  let absEe = ee + offset;
+  if (ee <= es) absEe = ee + offset + 1440;
+
+  return rs < absEe && absEs < re;
+}
+
 /**
  * Check if two time periods overlap, handling cross-midnight cases.
  * A cross-midnight booking (e.g., 23:00-01:00) has end_time < start_time.
@@ -151,9 +177,16 @@ export async function findConflictingBookings(
       `) : Promise.resolve({ rows: [] }),
     ]);
 
+    const reqStart = timeToMinutes(startTime);
+    let reqEnd = timeToMinutes(endTime);
+    if (reqStart === null || reqEnd === null) {
+      return { hasConflict: false, conflicts: [] };
+    }
+    if (reqEnd <= reqStart) reqEnd += 1440;
+
     const ownerRows = ownerResult.rows as unknown as BookingConflictRow[];
     for (const row of ownerRows) {
-      if (!timePeriodsOverlap(String(row.start_time), String(row.end_time), startTime, endTime)) continue;
+      if (!dateAwareOverlap(date, startTime, endTime, String(row.request_date), String(row.start_time), String(row.end_time))) continue;
       conflicts.push({
         bookingId: row.booking_id,
         resourceName: row.resource_name,
@@ -168,7 +201,7 @@ export async function findConflictingBookings(
 
     const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
     for (const row of participantRows) {
-      if (!timePeriodsOverlap(String(row.start_time), String(row.end_time), startTime, endTime)) continue;
+      if (!dateAwareOverlap(date, startTime, endTime, String(row.request_date), String(row.start_time), String(row.end_time))) continue;
       const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
       if (!isDuplicate) {
         conflicts.push({

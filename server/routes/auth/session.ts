@@ -341,6 +341,10 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
     if (!sessionUser?.email) {
       return logAndRespond(req, res, 401, 'You must be logged in to set a password');
     }
+
+    if (sessionUser.role !== 'admin' && sessionUser.role !== 'staff') {
+      return logAndRespond(req, res, 403, 'Only staff and admin accounts can set passwords');
+    }
     
     const { password, currentPassword } = req.body;
     

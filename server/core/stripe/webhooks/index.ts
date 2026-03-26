@@ -228,7 +228,12 @@ export async function processStripeWebhook(
   }
 
   const sync = await getStripeSync() as { processWebhook: (payload: Buffer, signature: string) => Promise<void> };
-  await sync.processWebhook(payload, signature);
+  try {
+    await sync.processWebhook(payload, signature);
+  } catch (sigErr) {
+    logger.warn('[Stripe Webhook] Signature verification failed', { error: getErrorMessage(sigErr as Error) });
+    throw new Error('Webhook signature verification failed');
+  }
 
   let event: Stripe.Event;
   try {

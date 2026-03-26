@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.59",
+    date: "2026-03-26",
+    title: "Booking Blackout Fix, Privilege Escalation Block & Webhook Crash Guard",
+    changes: [
+      "Critical: Fixed cross-day booking conflict detection — overlap check now accounts for actual dates, preventing false 3-day time slot blackouts",
+      "Critical: Set-password endpoint now enforces role check — only staff/admin can set passwords, blocking member-to-admin privilege escalation",
+      "Medium: Stripe webhook signature verification failure now caught gracefully instead of crashing the Node.js process",
+    ]
+  },
+  {
     version: "8.97.58",
     date: "2026-03-26",
     title: "Stripe Idempotency Fix & CSRF Protection Hardening",

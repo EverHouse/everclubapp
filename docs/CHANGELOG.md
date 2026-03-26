@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.59] - 2026-03-26
+
+### "Groundhog Day" Booking Blackout — False Conflicts Across Days (Critical)
+- **Root cause**: The conflict detection query fetched bookings from the requested date ± 1 day (to handle cross-midnight bookings), but `timePeriodsOverlap()` compared only time strings and ignored the actual dates. A Wednesday 2:00 PM booking would falsely conflict with a Thursday 2:00 PM request because `14:00` vs `14:00` overlaps — making each time slot unbookable for 3 consecutive days.
+- **Fix**: Replaced date-blind `timePeriodsOverlap()` calls with a new `dateAwareOverlap()` function that converts existing bookings to absolute minute offsets relative to the requested date before comparing. A Wednesday 2:00 PM booking is correctly offset by -1440 minutes when checking against Thursday, so it no longer collides.
+- **Files changed**: `server/core/bookingService/conflictDetection.ts`
+
+### Privilege Escalation — Member Can Overwrite Staff Password (Critical)
+- **Root cause**: `POST /api/auth/set-password` only checked that the user was authenticated and had an email, then queried the `staffUsers` table to set the password. It never verified the user's role. A regular member whose email matched a staff account could overwrite the staff member's password and gain full admin access.
+- **Fix**: Added an explicit role check — only users with `admin` or `staff` role can reach the password-setting logic. Members get a 403 response.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Webhook Signature Crash — Unhandled Promise Rejection (Medium)
+- **Root cause**: `sync.processWebhook()` (Stripe signature verification) was called outside the main try/catch block. If an attacker sent a fake payload with a garbage signature, the thrown error became an unhandled promise rejection, which in Node.js v16+ terminates the process — an instant server crash.
+- **Fix**: Wrapped the signature verification call in its own try/catch that logs the failure and re-throws a clean error. The Express route handler catches this and returns 400 (already had logic for signature-related errors).
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
 ## [8.97.58] - 2026-03-26
 
 ### Stripe Idempotency Corruption — Duplicate Payment Processing (Critical)
