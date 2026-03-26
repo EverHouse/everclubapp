@@ -2,6 +2,42 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.55] - 2026-03-26
+
+### Drizzle ORM AST Leak in Staff Password Check (Critical)
+- **Root cause**: The `/api/auth/check-staff-admin` endpoint used Drizzle's `isNotNull()` helper inside a `.select()` projection. `isNotNull()` is a WHERE-clause builder, not a column mapper — it returns a raw SQL AST wrapper object instead of a boolean. When serialized to JSON, this leaked internal schema structure to unauthenticated users. Worse, JavaScript objects are truthy, so `hasPassword` always evaluated to `true` on the frontend, permanently breaking the "set your first password" prompt for new staff.
+- **Fix**: Replaced `isNotNull(staffUsers.passwordHash)` with `sql<boolean>\`password_hash IS NOT NULL\`` which executes as a proper Postgres boolean cast, returning actual `true`/`false`.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Staff/Admin Blocked from Booking Simulators (High)
+- **Root cause**: `isAuthorizedForMemberBooking()` rejected any user without a tier (`if (!tier) return false`). Staff/admin sessions explicitly set `tier: undefined` since they don't have membership tiers. This hard-blocked all staff and admins from making simulator bookings.
+- **Fix**: Added optional `role` parameter to `isAuthorizedForMemberBooking()`. Staff and admin roles bypass the tier check entirely. Updated the caller in `resource/service.ts` to pass the user's role from the database.
+- **Files changed**: `server/core/bookingAuth.ts`, `server/core/resource/service.ts`
+
+### Ghost Sessions for Deleted Users (High)
+- **Root cause**: When `/api/auth/session` looked up the user in the database to sync membership status, it only handled the case where the user was found (`rows.length > 0`). If a user was deleted from the database (e.g., banned member), the lookup returned zero rows but the endpoint still returned `authenticated: true` using stale cookie data. Deleted users retained full API access until their 30-day session cookie expired.
+- **Fix**: When the database lookup returns zero rows for an authenticated session, the session is immediately destroyed and the cookie cleared, returning a 401.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Cross-Midnight Booking Overlap Math Failure (Critical)
+- **Root cause**: `timePeriodsOverlap()` added 1440 minutes to end times that wrapped past midnight, but the standard interval overlap check (`s1 < e2 && s2 < e1`) fails when one booking is in the "next day" range (e.g., 1380-1500) and the other is early morning (30-90). The check `1380 < 90` evaluates to false, missing the collision entirely.
+- **Fix**: Implemented circular overlap logic that checks the primary window plus two shifted windows (+1440 for each booking), catching all cross-midnight collision scenarios.
+- **Files changed**: `server/core/bookingService/conflictDetection.ts`
+
+### Cross-Midnight Booking Query Blindspot (Medium)
+- **Root cause**: Conflict detection queries filtered by `request_date = ${date}` only. A late-night booking stored on Monday (23:00-01:00) would not appear when checking Tuesday bookings, and vice versa.
+- **Fix**: Conflict queries now check the requested date, the prior day, and the next day (`request_date IN (date, date - 1 day, date + 1 day)`) for both owner and participant bookings, paired with the circular overlap math to correctly determine whether the time ranges actually collide.
+- **Files changed**: `server/core/bookingService/conflictDetection.ts`
+
+### Double-Rollback Crash Masking in Webhook Handler (Medium)
+- **Root cause**: If `executeDeferredActions` threw after the transaction was already committed, the catch block blindly ran `ROLLBACK` on a connection with no active transaction. PostgreSQL would raise a secondary warning/error that masked the original failure, destroying debuggability.
+- **Fix**: Added `isCommitted` flag to track transaction state. The catch block only rolls back if the transaction hasn't been committed. Post-commit errors from deferred actions are logged without re-throwing (since the DB changes are already persisted). Applied to both `processStripeWebhook` and `replayStripeEvent`.
+- **Files changed**: `server/core/stripe/webhooks/index.ts`
+
+### Notes on Other Reported Issues
+- **Supabase JWT revocation**: The Supabase token is generated during login but the frontend never stores or uses it for direct database access. No real attack surface exists currently. If direct Supabase queries are added in the future, short-lived tokens with session-gated refresh should be implemented.
+- **Trust proxy / IP spoofing**: `trust proxy` is set to `1` (trust only the immediate upstream proxy), which is the correct and secure setting for Replit's single-proxy architecture. This does not allow client-supplied `X-Forwarded-For` spoofing.
+
 ## [8.97.54] - 2026-03-26
 
 ### Deferred Action Loss — Webhook Outbox Recovery (Critical)

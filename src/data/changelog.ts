@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.55",
+    date: "2026-03-26",
+    title: "Critical Security & Booking Safety Fixes",
+    changes: [
+      "Critical: Fixed staff password check endpoint leaking internal database schema information to unauthenticated users",
+      "Critical: Fixed cross-midnight booking overlap detection — late-night bookings (e.g., 11pm-1am) now correctly detect collisions with early-morning bookings",
+      "Fixed: Staff and admin users can now book simulators (were previously blocked by tier-based authorization)",
+      "Fixed: Deleted or banned members are now immediately logged out instead of retaining access until their cookie expires",
+      "Fixed: Booking conflict queries now check the prior day to catch overhanging cross-midnight reservations",
+      "Fixed: Stripe webhook handler no longer crashes with a double-rollback when post-commit side effects fail",
+    ]
+  },
+  {
     version: "8.97.54",
     date: "2026-03-26",
     title: "Data Safety & Webhook Reliability Fixes",

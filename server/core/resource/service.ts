@@ -401,15 +401,17 @@ export async function createBookingRequest(params: {
     tier: users.tier,
     tags: users.tags,
     firstName: users.firstName,
-    lastName: users.lastName
+    lastName: users.lastName,
+    role: users.role
   })
     .from(users)
     .where(eq(users.email, resolvedEmail));
   
   const user = userResult[0];
   const userTier = user?.tier || null;
+  const userRole = user?.role || undefined;
   
-  const isMemberAuthorized = await isAuthorizedForMemberBooking(userTier);
+  const isMemberAuthorized = await isAuthorizedForMemberBooking(userTier, userRole);
   
   if (!isMemberAuthorized) {
     throw new AppError(402, 'Membership upgrade required', {

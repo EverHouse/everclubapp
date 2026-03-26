@@ -250,6 +250,7 @@ export async function processStripeWebhook(
 
   const resourceId = extractResourceId(event);
   const client = await pool.connect();
+  let isCommitted = false;
 
   try {
     await client.query('BEGIN');
@@ -276,6 +277,7 @@ export async function processStripeWebhook(
     const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object, event.data.previous_attributes);
 
     await client.query('COMMIT');
+    isCommitted = true;
     logger.info(`[Stripe Webhook] Event ${event.id} committed successfully`);
 
     const failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
@@ -295,9 +297,13 @@ export async function processStripeWebhook(
     }
 
   } catch (handlerError: unknown) {
-    await client.query('ROLLBACK');
-    logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id}), rolled back:`, { error: getErrorMessage(handlerError) });
-    throw handlerError;
+    if (!isCommitted) {
+      await client.query('ROLLBACK').catch(rbErr =>
+        logger.error(`[Stripe Webhook] Rollback also failed for ${event.id}:`, { error: getErrorMessage(rbErr as Error) })
+      );
+    }
+    logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id})${isCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { error: getErrorMessage(handlerError) });
+    if (!isCommitted) throw handlerError;
   } finally {
     safeRelease(client);
   }
@@ -312,6 +318,7 @@ export async function replayStripeEvent(
 
   const resourceId = extractResourceId(event);
   const client = await pool.connect();
+  let replayCommitted = false;
 
   try {
     await client.query('BEGIN');
@@ -340,15 +347,21 @@ export async function replayStripeEvent(
     const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object, event.data.previous_attributes);
 
     await client.query('COMMIT');
+    replayCommitted = true;
     logger.info(`[Stripe Webhook Replay] Event ${event.id} committed successfully`);
 
     await executeDeferredActions(deferredActions);
 
     return { success: true, eventType: event.type, message: `Successfully replayed event ${event.id} (${event.type})` };
   } catch (handlerError: unknown) {
-    await client.query('ROLLBACK');
-    logger.error(`[Stripe Webhook Replay] Handler failed for ${event.type} (${event.id}), rolled back:`, { error: getErrorMessage(handlerError) });
-    throw handlerError;
+    if (!replayCommitted) {
+      await client.query('ROLLBACK').catch(rbErr =>
+        logger.error(`[Stripe Webhook Replay] Rollback also failed for ${event.id}:`, { error: getErrorMessage(rbErr as Error) })
+      );
+    }
+    logger.error(`[Stripe Webhook Replay] Handler failed for ${event.type} (${event.id})${replayCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { error: getErrorMessage(handlerError) });
+    if (!replayCommitted) throw handlerError;
+    return { success: true, eventType: event.type, message: `Event committed but deferred actions failed: ${getErrorMessage(handlerError)}` };
   } finally {
     safeRelease(client);
   }

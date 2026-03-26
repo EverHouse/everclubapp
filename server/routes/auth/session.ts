@@ -1,7 +1,7 @@
 import { logger, logAndRespond } from '../../core/logger';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { eq, and, sql, isNotNull } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { users, staffUsers } from '../../../shared/schema';
 import { isProduction } from '../../core/db';
@@ -94,6 +94,11 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
           sessionDirty = true;
         }
       }
+    } else {
+      return req.session.destroy(() => {
+        res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
+        logAndRespond(req, res, 401, 'Account no longer exists');
+      });
     }
   } catch {
     logger.debug('[Auth] Failed to fetch user data for session enrichment');
@@ -158,7 +163,7 @@ sessionRouter.get('/api/auth/check-staff-admin', authRateLimiterByIp, async (req
     const staffResult = await db.select({
       id: staffUsers.id,
       role: staffUsers.role,
-      hasPassword: isNotNull(staffUsers.passwordHash)
+      hasPassword: sql<boolean>`${staffUsers.passwordHash} IS NOT NULL`
     })
       .from(staffUsers)
       .where(and(

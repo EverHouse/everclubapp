@@ -68,22 +68,28 @@ export function timePeriodsOverlap(
 
   if (s1 === null || e1 === null || s2 === null || e2 === null) return false;
   
-  // Handle cross-midnight: if end < start, add 24 hours to end
-  if (e1 < s1) e1 += 1440;
-  if (e2 < s2) e2 += 1440;
-  
-  return s1 < e2 && s2 < e1;
+  if (e1 <= s1) e1 += 1440;
+  if (e2 <= s2) e2 += 1440;
+
+  if (s1 < e2 && s2 < e1) return true;
+
+  const s1Next = s1 + 1440;
+  const e1Next = e1 + 1440;
+  if (s1Next < e2 && s2 < e1Next) return true;
+
+  const s2Next = s2 + 1440;
+  const e2Next = e2 + 1440;
+  if (s1 < e2Next && s2Next < e1) return true;
+
+  return false;
 }
 
 /**
  * Find bookings that conflict with the specified time slot for a member.
  * 
- * Handles cross-midnight bookings (e.g., 11pm-1am) on the SAME DATE via timePeriodsOverlap().
- * 
- * NOTE: Adjacent-date cross-midnight conflicts are not checked because:
- * - Club operating hours are 8:30 AM - 10:00 PM (closes before midnight)
- * - Cross-midnight bookings cannot be created through normal booking flows
- * - If overnight bookings become needed, extend this to query adjacent dates
+ * Handles cross-midnight bookings (e.g., 11pm-1am) by:
+ * 1. Querying the requested date AND the prior day (to catch overhanging late-night bookings)
+ * 2. Using timePeriodsOverlap() with circular overlap logic for correct cross-midnight math
  */
 export async function findConflictingBookings(
   memberEmail: string,
@@ -115,7 +121,7 @@ export async function findConflictingBookings(
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
-          AND br.request_date = ${date}
+          AND br.request_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND br.status = ANY(${OCCUPIED_STATUSES})
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `),
@@ -135,7 +141,7 @@ export async function findConflictingBookings(
         LEFT JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON bs.resource_id = r.id
         WHERE bp.user_id = ${memberId}
-          AND bs.session_date = ${date}
+          AND bs.session_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND bp.invite_status = 'accepted'
           AND (br.id IS NULL OR br.status = ANY(${OCCUPIED_STATUSES}))
           ${excludeBookingId ? sql`AND (br.id IS NULL OR br.id != ${excludeBookingId})` : sql``}
