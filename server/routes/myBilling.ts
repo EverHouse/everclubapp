@@ -976,8 +976,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const [stripeResult, legacyResult] = await Promise.all([
-      db.execute(sql`SELECT 
+    const stripeResult = await db.execute(sql`SELECT 
         spi.id,
         spi.stripe_payment_intent_id,
         spi.amount_cents,
@@ -993,22 +992,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
        WHERE LOWER(u.email) = ${userEmail}
          AND spi.status IN ('succeeded', 'refunded')
        ORDER BY spi.created_at DESC
-       LIMIT 200`),
-      db.execute(sql`SELECT 
-        lp.id,
-        lp.item_name,
-        lp.item_category,
-        lp.item_total_cents,
-        lp.quantity,
-        lp.sale_date,
-        lp.payment_method,
-        lp.is_comp
-       FROM legacy_purchases lp
-       WHERE LOWER(lp.member_email) = ${userEmail}
-         AND (lp.item_category = 'guest_pass' OR lp.payment_method = 'guest_pass')
-       ORDER BY lp.sale_date DESC
-       LIMIT 500`),
-    ]);
+       LIMIT 200`);
 
     const purchases: Array<{
       id: string;
@@ -1038,30 +1022,6 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
         source: 'Stripe',
         stripePaymentIntentId: row.stripe_payment_intent_id as string,
         bookingId: row.booking_id as number | null,
-      });
-    }
-
-    const paymentMethodLabels: Record<string, string> = {
-      credit_card: 'Mindbody',
-      amex: 'Mindbody',
-      cash: 'Cash',
-      comp: 'Comp',
-      misc: 'Mindbody',
-    };
-
-    for (const row of legacyResult.rows as Array<Record<string, unknown>>) {
-      const method = (row.payment_method as string)?.toLowerCase() || '';
-      purchases.push({
-        id: `legacy-${row.id}`,
-        type: 'legacy',
-        itemName: row.item_name as string,
-        itemCategory: (row.item_category as string) || 'other',
-        amountCents: row.item_total_cents as number,
-        date: row.sale_date as string,
-        status: (row.is_comp as boolean) ? 'comp' : 'paid',
-        source: paymentMethodLabels[method] || 'Mindbody',
-        quantity: (row.quantity as number) > 1 ? (row.quantity as number) : undefined,
-        stripePaymentIntentId: null,
       });
     }
 
