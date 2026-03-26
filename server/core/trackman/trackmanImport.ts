@@ -1558,6 +1558,15 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   });
                   cancelledCount = conflictIds.length;
                   for (const cid of conflictIds) {
+                    try { await cancelPendingPaymentIntentsForBooking(cid); } catch (e) {
+                      logger.warn('[Trackman Import] Cancel PIs failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(e) } });
+                    }
+                    try { await refundSucceededPaymentIntentsForBooking(cid); } catch (e) {
+                      logger.warn('[Trackman Import] Refund PIs failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(e) } });
+                    }
+                    try { await voidBookingInvoice(cid); } catch (e) {
+                      logger.warn('[Trackman Import] Void invoice failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(e) } });
+                    }
                     voidBookingPass(cid).catch(err =>
                       logger.warn('[Trackman Import] Void pass failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(err) } })
                     );
@@ -1696,6 +1705,15 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   });
                   cancelledCount = conflictIds.length;
                   for (const cid of conflictIds) {
+                    try { await cancelPendingPaymentIntentsForBooking(cid); } catch (e) {
+                      logger.warn('[Trackman Import] Cancel PIs failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(e) } });
+                    }
+                    try { await refundSucceededPaymentIntentsForBooking(cid); } catch (e) {
+                      logger.warn('[Trackman Import] Refund PIs failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(e) } });
+                    }
+                    try { await voidBookingInvoice(cid); } catch (e) {
+                      logger.warn('[Trackman Import] Void invoice failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(e) } });
+                    }
                     voidBookingPass(cid).catch(err =>
                       logger.warn('[Trackman Import] Void pass failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(err) } })
                     );

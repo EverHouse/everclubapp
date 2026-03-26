@@ -161,28 +161,45 @@ async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload
 }
 
 async function markJobCompleted(jobId: number): Promise<void> {
-  await queryWithRetry(
-    `UPDATE job_queue SET status = 'completed', processed_at = NOW(), locked_at = NULL, locked_by = NULL WHERE id = $1`,
-    [jobId],
-    3
-  );
+  try {
+    await queryWithRetry(
+      `UPDATE job_queue SET status = 'completed', processed_at = NOW(), locked_at = NULL, locked_by = NULL WHERE id = $1`,
+      [jobId],
+      3
+    );
+  } catch (primaryErr) {
+    logger.warn('[JobQueue] markJobCompleted failed on primary pool, falling back to direct pool', { extra: { jobId, error: getErrorMessage(primaryErr) } });
+    await queryWithRetryDirect(
+      `UPDATE job_queue SET status = 'completed', processed_at = NOW(), locked_at = NULL, locked_by = NULL WHERE id = $1`,
+      [jobId],
+      2
+    );
+  }
 }
 
 async function markJobFailed(jobId: number, error: string, retryCount: number, maxRetries: number): Promise<void> {
-  if (retryCount + 1 >= maxRetries) {
-    await queryWithRetry(
-      `UPDATE job_queue SET status = 'failed', last_error = $1, retry_count = retry_count + 1, locked_at = NULL, locked_by = NULL WHERE id = $2`,
-      [error, jobId],
-      3
-    );
-  } else {
-    const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 60000);
-    const nextScheduledIso = new Date(Date.now() + backoffMs).toISOString();
-    await queryWithRetry(
-      `UPDATE job_queue SET last_error = $1, retry_count = retry_count + 1, scheduled_for = $2::timestamptz, locked_at = NULL, locked_by = NULL WHERE id = $3`,
-      [error, nextScheduledIso, jobId],
-      3
-    );
+  const doUpdate = async (queryFn: typeof queryWithRetry) => {
+    if (retryCount + 1 >= maxRetries) {
+      await queryFn(
+        `UPDATE job_queue SET status = 'failed', last_error = $1, retry_count = retry_count + 1, locked_at = NULL, locked_by = NULL WHERE id = $2`,
+        [error, jobId],
+        3
+      );
+    } else {
+      const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 60000);
+      const nextScheduledIso = new Date(Date.now() + backoffMs).toISOString();
+      await queryFn(
+        `UPDATE job_queue SET last_error = $1, retry_count = retry_count + 1, scheduled_for = $2::timestamptz, locked_at = NULL, locked_by = NULL WHERE id = $3`,
+        [error, nextScheduledIso, jobId],
+        3
+      );
+    }
+  };
+  try {
+    await doUpdate(queryWithRetry);
+  } catch (primaryErr) {
+    logger.warn('[JobQueue] markJobFailed failed on primary pool, falling back to direct pool', { extra: { jobId, error: getErrorMessage(primaryErr) } });
+    await doUpdate(queryWithRetryDirect);
   }
 }
 

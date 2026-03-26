@@ -131,27 +131,31 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
         if (existingTimer) clearTimeout(existingTimer);
 
         const MAX_RETRIES = 10;
+        const RECOVERY_INTERVAL = 60000;
+        const delay = retries < MAX_RETRIES
+          ? Math.min(1000 * Math.pow(2, retries), 30000) + Math.random() * 1000
+          : RECOVERY_INTERVAL + Math.random() * 5000;
         if (retries < MAX_RETRIES) {
-          const delay = Math.min(1000 * Math.pow(2, retries), 30000) + Math.random() * 1000;
           retryCountRef.current.set(table, retries + 1);
-          const timer = setTimeout(() => {
-            if (!mountedRef.current) return;
-            retryTimerRef.current.delete(table);
-            const currentChannel = channelsRef.current.get(table);
-            if (currentChannel) {
-              try {
-                supabase.removeChannel(currentChannel);
-              } catch (_e) {
-                // intentionally empty
-              }
-              channelsRef.current.delete(table);
-            }
-            subscribeToTable(supabase, table);
-          }, delay);
-          retryTimerRef.current.set(table, timer);
         } else {
-          console.error(`[Supabase Realtime] Max retries (${MAX_RETRIES}) reached for ${table}, giving up`);
+          retryCountRef.current.set(table, 0);
+          console.warn(`[Supabase Realtime] Max retries (${MAX_RETRIES}) reached for ${table}, will retry in ${Math.round(delay / 1000)}s`);
         }
+        const timer = setTimeout(() => {
+          if (!mountedRef.current) return;
+          retryTimerRef.current.delete(table);
+          const currentChannel = channelsRef.current.get(table);
+          if (currentChannel) {
+            try {
+              supabase.removeChannel(currentChannel);
+            } catch (_e) {
+              // intentionally empty
+            }
+            channelsRef.current.delete(table);
+          }
+          subscribeToTable(supabase, table);
+        }, delay);
+        retryTimerRef.current.set(table, timer);
       } else if (status === 'CLOSED') {
         channelsRef.current.delete(table);
       }
