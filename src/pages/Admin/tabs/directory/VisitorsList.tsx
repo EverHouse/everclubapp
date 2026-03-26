@@ -74,8 +74,8 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
         const lastDate = v.lastActivityAt || v.lastPurchaseDate || v.lastGuestDate;
         if (!lastDate) return { label: 'Never Visited', className: 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400' };
         const daysSince = (Date.now() - Date.parse(lastDate)) / (1000 * 60 * 60 * 24);
-        if (daysSince <= 90) return { label: 'Active', className: 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' };
-        return { label: 'Inactive', className: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' };
+        if (daysSince <= 90) return { label: 'Recent', className: 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' };
+        return { label: 'Lapsed', className: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' };
     };
 
     const sortedVisitors = useMemo(() => {
@@ -233,8 +233,8 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                     aria-label="Filter by activity"
                                 >
                                     <option value="all">All</option>
-                                    <option value="active">Active (last 90 days)</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="active">Recent (last 90 days)</option>
+                                    <option value="inactive">Lapsed</option>
                                     <option value="never">Never Visited</option>
                                 </select>
                             </div>
