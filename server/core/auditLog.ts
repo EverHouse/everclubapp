@@ -199,6 +199,8 @@ export type AuditAction =
   | 'undo_cancel_subscription'
   | 'create_tier_feature'
   | 'update_tier_feature'
+  | 'delete_tier'
+  | 'delete_fee_product'
   | 'delete_tier_feature'
   | 'update_tier_feature_value'
   | 'mindbody_csv_import'
@@ -376,7 +378,9 @@ export type ResourceType =
   | 'booking_request'
   | 'wellness_enrollment'
   | 'event_rsvp'
-  | 'payment_intent';
+  | 'payment_intent'
+  | 'membership_tier'
+  | 'fee_product';
 
 interface AuditLogParams {
   staffEmail: string;

@@ -234,9 +234,10 @@ router.delete('/api/fee-products/:id', isAdmin, async (req, res) => {
 
     logFromRequest(req, {
       action: 'delete_fee_product',
-      targetType: 'fee_product',
-      targetId: String(fee.slug),
-      details: `Deleted fee product "${fee.name}" (${fee.slug})`,
+      resourceType: 'fee_product',
+      resourceId: String(fee.slug),
+      resourceName: String(fee.name),
+      details: { slug: String(fee.slug), name: String(fee.name) },
     });
 
     logger.info(`[Fee Delete] Deleted fee product "${fee.name}" (id=${id})`);
@@ -286,9 +287,10 @@ router.delete('/api/membership-tiers/:id', isAdmin, async (req, res) => {
 
     logFromRequest(req, {
       action: 'delete_tier',
-      targetType: 'membership_tier',
-      targetId: tierSlug,
-      details: `Deleted membership tier "${tierName}" (${tierSlug})`,
+      resourceType: 'membership_tier',
+      resourceId: tierSlug,
+      resourceName: tierName,
+      details: { slug: tierSlug, name: tierName },
     });
 
     logger.info(`[Tier Delete] Deleted tier "${tierName}" (id=${id})`);

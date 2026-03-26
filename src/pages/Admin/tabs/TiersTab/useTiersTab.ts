@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials } from '../../../../hooks/queries/useFetch';
+import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials, ApiError } from '../../../../hooks/queries/useFetch';
 import { useUndoAction } from '../../../../hooks/useUndoAction';
 import { useToast } from '../../../../components/Toast';
 import { useConfirmDialog } from '../../../../components/ConfirmDialog';
@@ -482,7 +482,14 @@ export function useTiersTab() {
                     showToast(`Cannot delete "${itemName}" — ${count} member${count === 1 ? ' is' : 's are'} still on it. Move them first.`, 'error');
                     return;
                 }
-            } catch {
+            } catch (err) {
+                if (err instanceof ApiError && err.status === 404) {
+                    showToast(`"${itemName}" has already been deleted`, 'info');
+                    setIsEditing(false);
+                    setSelectedTier(null);
+                    queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
+                    return;
+                }
                 showToast('Failed to check member count', 'error');
                 return;
             }
