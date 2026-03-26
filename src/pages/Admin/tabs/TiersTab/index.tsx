@@ -62,6 +62,8 @@ const TiersTab: React.FC = () => {
                     error={tab.error}
                     saveTierMutation={tab.saveTierMutation}
                     handleSave={tab.handleSave}
+                    handleDelete={tab.handleDelete}
+                    isCreatingItem={tab.isCreating}
                     stripePrices={tab.stripePrices}
                     loadingPrices={tab.loadingPrices}
                     tierFeatures={tab.tierFeatures}

@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.61",
+    date: "2026-03-26",
+    title: "Frontend Delete Button for Tiers & Fee Products",
+    changes: [
+      "Feature: Added Delete button to the tier/fee product editor drawer footer (left-aligned, red text, hidden when creating new items)",
+      "Feature: Delete flow checks active member count before allowing tier deletion — blocks with toast if members remain",
+      "Feature: Confirmation dialog (danger variant) warns about permanent deletion and Stripe product archival before proceeding",
+      "Feature: On successful delete, editor drawer closes and tier/fee product lists refresh automatically",
+      "Fix: Member count pre-check now uses same matching logic as actual delete (tier name, case-insensitive, excludes only archived/merged) — prevents false-positive 'safe to delete' results",
+    ]
+  },
+  {
     version: "8.97.60",
     date: "2026-03-26",
     title: "Fee Products Extraction & Post-Merge Verification",

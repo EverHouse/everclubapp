@@ -206,6 +206,99 @@ router.post('/api/fee-products', isAdmin, async (req, res) => {
   }
 });
 
+router.delete('/api/fee-products/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await db.execute(sql`SELECT id, name, slug, stripe_product_id FROM fee_products WHERE id = ${Number(id)}`);
+    if (!existing.rows.length) {
+      return res.status(404).json({ error: 'Fee product not found' });
+    }
+
+    const fee = existing.rows[0] as Record<string, unknown>;
+    const stripeProductId = fee.stripe_product_id ? String(fee.stripe_product_id) : null;
+
+    if (stripeProductId) {
+      try {
+        const { getStripeClient } = await import('../core/stripe/client');
+        const stripe = await getStripeClient();
+        await stripe.products.update(stripeProductId, { active: false });
+        logger.info(`[Fee Delete] Archived Stripe product ${stripeProductId} for fee "${fee.name}"`);
+      } catch (stripeErr) {
+        logger.warn(`[Fee Delete] Could not archive Stripe product ${stripeProductId}: ${getErrorMessage(stripeErr)}`);
+      }
+    }
+
+    await db.execute(sql`DELETE FROM fee_products WHERE id = ${Number(id)}`);
+    invalidateQueryCache(TIERS_CACHE_KEY);
+
+    logFromRequest(req, {
+      action: 'delete_fee_product',
+      targetType: 'fee_product',
+      targetId: String(fee.slug),
+      details: `Deleted fee product "${fee.name}" (${fee.slug})`,
+    });
+
+    logger.info(`[Fee Delete] Deleted fee product "${fee.name}" (id=${id})`);
+    res.json({ success: true, deleted: fee.name });
+  } catch (error: unknown) {
+    logger.error('Fee product delete error', { error: getErrorMessage(error) });
+    res.status(500).json({ error: 'Failed to delete fee product' });
+  }
+});
+
+router.delete('/api/membership-tiers/:id', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await db.execute(sql`SELECT id, name, slug, stripe_product_id FROM membership_tiers WHERE id = ${Number(id)}`);
+    if (!existing.rows.length) {
+      return res.status(404).json({ error: 'Tier not found' });
+    }
+
+    const tier = existing.rows[0] as Record<string, unknown>;
+    const tierName = String(tier.name);
+    const tierSlug = String(tier.slug);
+
+    const memberCount = await db.execute(sql`SELECT count(*)::int as count FROM users WHERE LOWER(membership_tier) = LOWER(${tierName}) AND membership_status NOT IN ('archived', 'merged')`);
+    const count = Number((memberCount.rows[0] as Record<string, unknown>).count || 0);
+    if (count > 0) {
+      return res.status(409).json({ error: `Cannot delete tier "${tierName}" — ${count} member${count > 1 ? 's are' : ' is'} still on it. Move them to another tier first.` });
+    }
+
+    const stripeProductId = tier.stripe_product_id ? String(tier.stripe_product_id) : null;
+    if (stripeProductId) {
+      try {
+        const { getStripeClient } = await import('../core/stripe/client');
+        const stripe = await getStripeClient();
+        await stripe.products.update(stripeProductId, { active: false });
+        logger.info(`[Tier Delete] Archived Stripe product ${stripeProductId} for tier "${tierName}"`);
+      } catch (stripeErr) {
+        logger.warn(`[Tier Delete] Could not archive Stripe product ${stripeProductId}: ${getErrorMessage(stripeErr)}`);
+      }
+    }
+
+    await db.execute(sql`DELETE FROM membership_tiers WHERE id = ${Number(id)}`);
+    invalidateTierCache(tierName);
+    invalidateTierCache(tierSlug);
+    invalidateQueryCache(TIERS_CACHE_KEY);
+    await invalidateTierRegistry();
+
+    logFromRequest(req, {
+      action: 'delete_tier',
+      targetType: 'membership_tier',
+      targetId: tierSlug,
+      details: `Deleted membership tier "${tierName}" (${tierSlug})`,
+    });
+
+    logger.info(`[Tier Delete] Deleted tier "${tierName}" (id=${id})`);
+    res.json({ success: true, deleted: tierName });
+  } catch (error: unknown) {
+    logger.error('Membership tier delete error', { error: getErrorMessage(error) });
+    res.status(500).json({ error: 'Failed to delete membership tier' });
+  }
+});
+
 // PUBLIC ROUTE - tier limits needed by booking UI
 router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
   try {
@@ -267,11 +360,16 @@ router.get('/api/membership-tiers/:id', async (req, res) => {
 router.get('/api/membership-tiers/:id/member-count', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const tierRow = await db.execute(sql`SELECT name FROM membership_tiers WHERE id = ${Number(id)}`);
+    if (!tierRow.rows.length) {
+      return res.status(404).json({ error: 'Tier not found' });
+    }
+    const tierName = String((tierRow.rows[0] as Record<string, unknown>).name);
     const result = await db.execute(sql`
       SELECT COUNT(*)::int AS count
       FROM users
-      WHERE tier_id = ${id}
-        AND membership_status IN ('active', 'trialing', 'past_due')
+      WHERE LOWER(membership_tier) = LOWER(${tierName})
+        AND membership_status NOT IN ('archived', 'merged')
     `);
     res.json({ count: (result.rows[0] as { count: number }).count });
   } catch (error: unknown) {

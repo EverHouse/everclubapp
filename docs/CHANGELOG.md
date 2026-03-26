@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.61] - 2026-03-26
+
+### Frontend Delete Button for Tiers & Fee Products
+- **What**: Added a "Delete" button to the tier/fee product editor drawer, wired to the existing `DELETE /api/membership-tiers/:id` and `DELETE /api/fee-products/:id` backend endpoints.
+- **Safety**: For tiers, the frontend pre-checks the member count — if any non-archived members are on the tier, deletion is blocked with a toast message. A danger-variant confirmation dialog warns about permanent deletion and Stripe product archival.
+- **UX**: Delete button is left-aligned in the drawer footer (red text), only visible when editing (hidden during creation). On success, the drawer closes and lists refresh.
+- **Fix**: Aligned `/api/membership-tiers/:id/member-count` pre-check with delete route logic — now matches by tier name (case-insensitive) and excludes only archived/merged statuses, matching the server-side 409 guard exactly.
+- **Files changed**: `src/pages/Admin/tabs/TiersTab/useTiersTab.ts`, `src/pages/Admin/tabs/TiersTab/TierEditorDrawer.tsx`, `src/pages/Admin/tabs/TiersTab/index.tsx`, `server/routes/membershipTiers.ts`
+
 ## [8.97.60] - 2026-03-26
 
 ### Fee Products Table Extraction (Task #226)

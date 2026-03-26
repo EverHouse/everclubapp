@@ -469,6 +469,50 @@ export function useTiersTab() {
         pullFromStripeMutation.mutate();
     };
 
+    const handleDelete = async () => {
+        if (!selectedTier || !selectedTier.id) return;
+
+        const itemName = selectedTier.name || 'this item';
+        const isFee = isFeeProduct;
+
+        if (!isFee) {
+            try {
+                const { count } = await fetchWithCredentials<{ count: number }>(`/api/membership-tiers/${selectedTier.id}/member-count`);
+                if (count > 0) {
+                    showToast(`Cannot delete "${itemName}" — ${count} member${count === 1 ? ' is' : 's are'} still on it. Move them first.`, 'error');
+                    return;
+                }
+            } catch {
+                showToast('Failed to check member count', 'error');
+                return;
+            }
+        }
+
+        const confirmed = await confirm({
+            title: `Delete ${isFee ? 'Fee Product' : 'Tier'}`,
+            message: `Permanently delete "${itemName}"? This will also archive the linked Stripe product. This cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            variant: 'danger',
+        });
+        if (!confirmed) return;
+
+        try {
+            const url = isFee
+                ? `/api/fee-products/${selectedTier.id}`
+                : `/api/membership-tiers/${selectedTier.id}`;
+            await deleteWithCredentials<{ success: boolean }>(url);
+            showToast(`"${itemName}" deleted`, 'success');
+            setIsEditing(false);
+            setSelectedTier(null);
+            queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
+            queryClient.invalidateQueries({ queryKey: ['fee-products'] });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Delete failed';
+            showToast(msg, 'error');
+        }
+    };
+
     return {
         queryClient,
         activeSubTab,
@@ -509,6 +553,7 @@ export function useTiersTab() {
         openCreateOneTime,
         openEdit,
         handleSave,
+        handleDelete,
         handleHighlightToggle,
         handleSyncStripe,
         handlePullFromStripe,

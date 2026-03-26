@@ -18,6 +18,8 @@ interface TierEditorDrawerProps {
     error: string | null;
     saveTierMutation: { isPending: boolean };
     handleSave: () => void;
+    handleDelete?: () => void;
+    isCreatingItem?: boolean;
     stripePrices: StripePrice[];
     loadingPrices: boolean;
     tierFeatures: TierFeature[];
@@ -47,6 +49,8 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
     error,
     saveTierMutation,
     handleSave,
+    handleDelete,
+    isCreatingItem,
     stripePrices,
     tierFeatures,
     featuresLoading,
@@ -74,21 +78,31 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
             title={isCreating ? (isMembershipTier ? 'New Subscription' : 'New Product') : `Edit: ${selectedTier?.name || ''}`}
             maxHeight="full"
             stickyFooter={
-                <div className="flex gap-3 justify-end p-4">
-                    <button 
-                        onClick={() => { setIsEditing(false); setIsCreating(false); }} 
-                        className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
-                    >
-                        Cancel
-                    </button>
-                    <button 
-                        onClick={handleSave} 
-                        disabled={saveTierMutation.isPending}
-                        className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {saveTierMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
-                        {saveTierMutation.isPending ? 'Saving...' : 'Save Changes'}
-                    </button>
+                <div className="flex justify-between p-4">
+                    {!isCreatingItem && handleDelete ? (
+                        <button
+                            onClick={handleDelete}
+                            className="px-4 py-2.5 text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors text-sm"
+                        >
+                            Delete
+                        </button>
+                    ) : <div />}
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => { setIsEditing(false); setIsCreating(false); }} 
+                            className="px-5 py-2.5 text-gray-500 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSave} 
+                            disabled={saveTierMutation.isPending}
+                            className="px-6 py-2.5 bg-primary text-white rounded-xl font-bold shadow-md hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {saveTierMutation.isPending && <Icon name="progress_activity" className="animate-spin text-sm" />}
+                            {saveTierMutation.isPending ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
                 </div>
             }
         >
