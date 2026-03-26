@@ -131,11 +131,11 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
 
         if (memberTab === 'visitors') {
             if (visitorTypeFilter !== 'all') {
-                const typeLabels: Record<string, string> = { 'NEW': 'New (Staff Added)', 'classpass': 'ClassPass', 'sim_walkin': 'Sim Walk-In', 'private_lesson': 'Private Lesson', 'day_pass': 'Day Pass', 'guest': 'Guest', 'lead': 'Lead' };
+                const typeLabels: Record<string, string> = { 'NEW': 'Staff Added', 'day_pass': 'Day Pass', 'guest': 'Guest' };
                 filters.push({ key: 'type', label: `Type: ${typeLabels[visitorTypeFilter] || visitorTypeFilter}`, onRemove: () => { setVisitorTypeFilter('all'); setVisitorsPage(1); } });
             }
             if (visitorSourceFilter !== 'all') {
-                const sourceLabels: Record<string, string> = { 'APP': 'App', 'hubspot': 'HubSpot', 'mindbody': 'MindBody', 'stripe': 'Stripe' };
+                const sourceLabels: Record<string, string> = { 'APP': 'App (Staff Added)', 'hubspot': 'HubSpot', 'stripe': 'Stripe' };
                 filters.push({ key: 'source', label: `Source: ${sourceLabels[visitorSourceFilter] || visitorSourceFilter}`, onRemove: () => { setVisitorSourceFilter('all'); setVisitorsPage(1); } });
             }
             if (purchaseFilter !== 'all') {

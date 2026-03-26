@@ -4,17 +4,8 @@ import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 
-interface PurchaseHistoryRow {
-  item_name: string;
-  activity_date: string;
-}
-
-interface GuestActivityRow {
-  activity_date: string;
-}
-
-export type VisitorType = 'classpass' | 'sim_walkin' | 'private_lesson' | 'guest' | 'day_pass' | 'lead' | 'golfnow' | 'private_event';
-export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'legacy_purchase' | 'trackman_auto_match';
+export type VisitorType = 'classpass' | 'sim_walkin' | 'private_lesson' | 'guest' | 'day_pass' | 'golfnow' | 'private_event';
+export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'trackman_auto_match';
 
 interface UpdateVisitorTypeParams {
   email: string;
@@ -62,7 +53,7 @@ export async function updateVisitorType({
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
-          AND (visitor_type IS NULL OR visitor_type = 'lead')
+          AND (visitor_type IS NULL OR visitor_type IN ('lead', 'NEW'))
         RETURNING id
       `);
     } else {
@@ -77,7 +68,7 @@ export async function updateVisitorType({
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
-          AND (visitor_type IS NULL OR visitor_type = 'lead' OR visitor_type = 'guest')
+          AND (visitor_type IS NULL OR visitor_type IN ('lead', 'NEW') OR visitor_type = 'guest')
         RETURNING id
       `);
     }
@@ -129,7 +120,7 @@ export async function updateVisitorTypeByUserId(
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
-          AND (visitor_type IS NULL OR visitor_type = 'lead')
+          AND (visitor_type IS NULL OR visitor_type IN ('lead', 'NEW'))
         RETURNING id
       `);
     } else {
@@ -144,7 +135,7 @@ export async function updateVisitorTypeByUserId(
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
-          AND (visitor_type IS NULL OR visitor_type = 'lead' OR visitor_type = 'guest')
+          AND (visitor_type IS NULL OR visitor_type IN ('lead', 'NEW') OR visitor_type = 'guest')
         RETURNING id
       `);
     }
@@ -167,36 +158,11 @@ export async function calculateVisitorTypeFromHistory(email: string): Promise<Vi
   const normalizedEmail = email.toLowerCase().trim();
   
   try {
-    const _purchaseQuery = `
-      SELECT 
-        item_name,
-        sale_date as activity_date
-      FROM legacy_purchases
-      WHERE LOWER(member_email) = $1
-      ORDER BY sale_date DESC
-      LIMIT 1
-    `;
-    
-    const _guestQuery = `
-      SELECT 
-        bs.session_date::timestamp as activity_date
-      FROM booking_participants bp
-      JOIN guests g ON bp.guest_id = g.id
-      JOIN booking_sessions bs ON bp.session_id = bs.id
-      WHERE LOWER(g.email) = $1
-        AND bp.participant_type = 'guest'
-      ORDER BY bs.session_date DESC
-      LIMIT 1
-    `;
-    
-    const [purchaseResult, guestResult] = await Promise.all([
+    const [dayPassResult, guestResult] = await Promise.all([
       db.execute(sql`
-        SELECT 
-          item_name,
-          sale_date as activity_date
-        FROM legacy_purchases
-        WHERE LOWER(member_email) = ${normalizedEmail}
-        ORDER BY sale_date DESC
+        SELECT 1
+        FROM day_pass_purchases
+        WHERE LOWER(purchaser_email) = ${normalizedEmail}
         LIMIT 1
       `),
       db.execute(sql`
@@ -212,53 +178,18 @@ export async function calculateVisitorTypeFromHistory(email: string): Promise<Vi
       `)
     ]);
     
-    const lastPurchase = purchaseResult.rows[0];
+    const hasDayPassPurchase = dayPassResult.rows.length > 0;
     const lastGuestAppearance = guestResult.rows[0];
     
-    let purchaseType: VisitorType | null = null;
-    let purchaseDate: Date | null = null;
-    
-    if (lastPurchase) {
-      const typedPurchase = lastPurchase as unknown as PurchaseHistoryRow;
-      const itemName = (String(typedPurchase.item_name || '')).toLowerCase();
-      purchaseDate = new Date(String(typedPurchase.activity_date));
-      
-      if (itemName.includes('classpass')) {
-        purchaseType = 'classpass';
-      } else if (itemName.includes('simulator walk-in') || itemName.includes('sim walk-in')) {
-        purchaseType = 'sim_walkin';
-      } else if (itemName.includes('private lesson')) {
-        purchaseType = 'private_lesson';
-      } else if (itemName.includes('day pass')) {
-        purchaseType = 'day_pass';
-      }
+    if (hasDayPassPurchase) {
+      return 'day_pass';
     }
     
-    let guestDate: Date | null = null;
     if (lastGuestAppearance) {
-      guestDate = new Date(String((lastGuestAppearance as unknown as GuestActivityRow).activity_date));
-    }
-    
-    if (!purchaseType && !guestDate) {
-      return null;
-    }
-    
-    if (purchaseType && !guestDate) {
-      return purchaseType;
-    }
-    
-    if (!purchaseType && guestDate) {
       return 'guest';
     }
     
-    if (purchaseDate && guestDate) {
-      if (guestDate > purchaseDate) {
-        return 'guest';
-      }
-      return purchaseType;
-    }
-    
-    return purchaseType || null;
+    return null;
   } catch (error: unknown) {
     logger.error('[VisitorType] Error calculating visitor type from history:', { error: getErrorMessage(error) });
     return null;

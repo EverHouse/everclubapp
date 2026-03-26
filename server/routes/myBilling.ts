@@ -1005,6 +1005,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
         lp.is_comp
        FROM legacy_purchases lp
        WHERE LOWER(lp.member_email) = ${userEmail}
+         AND (lp.item_category = 'guest_pass' OR lp.payment_method = 'guest_pass')
        ORDER BY lp.sale_date DESC
        LIMIT 500`),
     ]);

@@ -76,22 +76,16 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
     let sourceClause = sql``;
     if (sourceFilter === 'stripe') {
       sourceClause = sql`AND u.stripe_customer_id IS NOT NULL 
-        AND u.mindbody_client_id IS NULL 
-        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'
         AND u.data_source IS DISTINCT FROM 'APP'`;
-    } else if (sourceFilter === 'mindbody') {
-      sourceClause = sql`AND (u.mindbody_client_id IS NOT NULL OR u.legacy_source = 'mindbody_import')`;
     } else if (sourceFilter === 'hubspot') {
       sourceClause = sql`AND u.hubspot_id IS NOT NULL 
         AND u.stripe_customer_id IS NULL 
-        AND u.mindbody_client_id IS NULL
-        AND u.legacy_source IS DISTINCT FROM 'mindbody_import'
         AND u.data_source IS DISTINCT FROM 'APP'`;
     } else if (sourceFilter === 'APP') {
       sourceClause = sql`AND u.data_source = 'APP'`;
     }
     
-    const validTypeFilters = ['day_pass', 'guest', 'lead', 'classpass', 'sim_walkin', 'private_lesson', 'NEW'] as const;
+    const validTypeFilters = ['day_pass', 'guest', 'NEW'] as const;
     const safeTypeFilter = validTypeFilters.includes(typeFilter as typeof validTypeFilters[number]) ? (typeFilter as string) : null;
     const typeClauseCount = safeTypeFilter ? sql`AND computed_type = ${safeTypeFilter}` : sql``;
     const typeClauseMain = safeTypeFilter ? sql`AND effective_type = ${safeTypeFilter}` : sql``;
@@ -107,20 +101,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
     
     const countResult = await db.execute(sql`
       WITH 
-      purchase_types AS (
-        SELECT DISTINCT ON (LOWER(member_email))
-          LOWER(member_email) as email,
-          CASE 
-            WHEN item_name ILIKE '%classpass%' THEN 'classpass'
-            WHEN item_name ILIKE '%sim%walk%' OR item_name ILIKE '%simulator walk%' THEN 'sim_walkin'
-            WHEN item_name ILIKE '%private lesson%' THEN 'private_lesson'
-            WHEN item_name ILIKE '%day pass%' THEN 'day_pass'
-            ELSE NULL
-          END as lp_type,
-          sale_date as lp_date
-        FROM legacy_purchases
-        ORDER BY LOWER(member_email), sale_date DESC NULLS LAST
-      ),
       guest_appearances AS (
         SELECT DISTINCT ON (LOWER(g.email))
           LOWER(g.email) as email,
@@ -131,20 +111,22 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         WHERE bp.participant_type = 'guest'
         ORDER BY LOWER(g.email), bs.session_date DESC
       ),
+      day_pass_buyers AS (
+        SELECT DISTINCT LOWER(purchaser_email) as email
+        FROM day_pass_purchases
+      ),
       visitor_data AS (
         SELECT u.id,
           COALESCE(
             u.visitor_type,
             CASE 
-              WHEN pt.lp_type IS NOT NULL AND ga.bp_date IS NOT NULL THEN
-                CASE WHEN pt.lp_date >= ga.bp_date THEN pt.lp_type ELSE 'guest' END
-              WHEN pt.lp_type IS NOT NULL THEN pt.lp_type
+              WHEN dpb.email IS NOT NULL THEN 'day_pass'
               WHEN ga.bp_date IS NOT NULL THEN 'guest'
-              ELSE 'lead'
+              ELSE 'NEW'
             END
           ) as computed_type
         FROM users u
-        LEFT JOIN purchase_types pt ON LOWER(u.email) = pt.email
+        LEFT JOIN day_pass_buyers dpb ON LOWER(u.email) = dpb.email
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
@@ -160,20 +142,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
     
     const visitorsWithPurchases = await db.execute(sql`
       WITH 
-      purchase_types AS (
-        SELECT DISTINCT ON (LOWER(member_email))
-          LOWER(member_email) as email,
-          CASE 
-            WHEN item_name ILIKE '%classpass%' THEN 'classpass'
-            WHEN item_name ILIKE '%sim%walk%' OR item_name ILIKE '%simulator walk%' THEN 'sim_walkin'
-            WHEN item_name ILIKE '%private lesson%' THEN 'private_lesson'
-            WHEN item_name ILIKE '%day pass%' THEN 'day_pass'
-            ELSE NULL
-          END as lp_type,
-          sale_date as lp_date
-        FROM legacy_purchases
-        ORDER BY LOWER(member_email), sale_date DESC NULLS LAST
-      ),
       guest_appearances AS (
         SELECT DISTINCT ON (LOWER(g.email))
           LOWER(g.email) as email,
@@ -191,9 +159,9 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           u.first_name,
           u.last_name,
           u.phone,
-          (COALESCE(dpp_agg.purchase_count, 0) + COALESCE(lp_agg.purchase_count, 0))::int as purchase_count,
-          (COALESCE(dpp_agg.total_spent_cents, 0) + COALESCE(lp_agg.total_spent_cents, 0))::bigint as total_spent_cents,
-          GREATEST(dpp_agg.last_purchase_date, lp_agg.last_purchase_date) as last_purchase_date,
+          COALESCE(dpp_agg.purchase_count, 0)::int as purchase_count,
+          COALESCE(dpp_agg.total_spent_cents, 0)::bigint as total_spent_cents,
+          dpp_agg.last_purchase_date,
           u.membership_status,
           u.role,
           u.stripe_customer_id,
@@ -213,26 +181,18 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           COALESCE(
             u.visitor_type,
             CASE 
-              WHEN pt.lp_type IS NOT NULL AND ga.bp_date IS NOT NULL THEN
-                CASE WHEN pt.lp_date >= ga.bp_date THEN pt.lp_type ELSE 'guest' END
-              WHEN pt.lp_type IS NOT NULL THEN pt.lp_type
+              WHEN dpp_agg.purchase_count > 0 THEN 'day_pass'
               WHEN ga.bp_date IS NOT NULL THEN 'guest'
-              ELSE 'lead'
+              ELSE 'NEW'
             END
           ) as effective_type
         FROM users u
-        LEFT JOIN purchase_types pt ON LOWER(u.email) = pt.email
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
         LEFT JOIN (
           SELECT LOWER(purchaser_email) as email, COUNT(*)::int as purchase_count, SUM(amount_cents) as total_spent_cents, MAX(purchased_at) as last_purchase_date
           FROM day_pass_purchases
           GROUP BY LOWER(purchaser_email)
         ) dpp_agg ON LOWER(u.email) = dpp_agg.email
-        LEFT JOIN (
-          SELECT LOWER(member_email) as email, COUNT(*)::int as purchase_count, SUM(item_total_cents) as total_spent_cents, MAX(sale_date) as last_purchase_date
-          FROM legacy_purchases
-          GROUP BY LOWER(member_email)
-        ) lp_agg ON LOWER(u.email) = lp_agg.email
         LEFT JOIN (
           SELECT LOWER(COALESCE(g.email, '')) as email, COUNT(DISTINCT bp.id)::int as guest_count, MAX(bs.session_date) as last_guest_date
           FROM booking_participants bp
@@ -255,48 +215,36 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       OFFSET ${pageOffset}
     `);
     
-    const getSource = (row: VisitorRow): 'mindbody' | 'hubspot' | 'stripe' | 'app' => {
+    const getSource = (row: VisitorRow): 'hubspot' | 'stripe' | 'app' => {
       if (row.data_source === 'APP') return 'app';
-      const hasMindbodyData = row.mindbody_client_id || row.legacy_source === 'mindbody_import';
       const hasStripeData = !!row.stripe_customer_id;
       const hasHubspotData = !!row.hubspot_id;
       if (row.billing_provider === 'stripe' && hasStripeData) return 'stripe';
-      if (hasMindbodyData) return 'mindbody';
-      if (hasStripeData && !hasMindbodyData) return 'stripe';
+      if (hasStripeData) return 'stripe';
       if (hasHubspotData) return 'hubspot';
-      if (row.billing_provider === 'mindbody') return 'mindbody';
       if (row.billing_provider === 'stripe') return 'stripe';
       if (row.stripe_customer_id) return 'stripe';
       if (row.hubspot_id) return 'hubspot';
       return 'app';
     };
     
-    type VisitorTypeValue = 'NEW' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
+    type VisitorTypeValue = 'NEW' | 'day_pass' | 'guest';
     const getType = (row: VisitorRow): VisitorTypeValue => {
       if (row.effective_type) {
         const et = row.effective_type as string;
-        if (et === 'NEW') return 'NEW';
-        if (et === 'classpass') return 'classpass';
-        if (et === 'sim_walkin') return 'sim_walkin';
-        if (et === 'private_lesson') return 'private_lesson';
         if (et === 'day_pass_buyer' || et === 'day_pass') return 'day_pass';
         if (et === 'guest') return 'guest';
-        if (et === 'lead') return 'lead';
+        if (et === 'NEW') return 'NEW';
       }
       if (row.visitor_type) {
-        if (row.visitor_type === 'NEW') return 'NEW';
-        if (row.visitor_type === 'classpass') return 'classpass';
-        if (row.visitor_type === 'sim_walkin') return 'sim_walkin';
-        if (row.visitor_type === 'private_lesson') return 'private_lesson';
         if (row.visitor_type === 'day_pass_buyer' || row.visitor_type === 'day_pass') return 'day_pass';
         if (row.visitor_type === 'guest') return 'guest';
-        if (row.visitor_type === 'lead') return 'lead';
       }
       const purchaseCount = parseInt(row.purchase_count as string, 10) || 0;
       const guestCount = parseInt(row.guest_count as string, 10) || 0;
       if (purchaseCount > 0) return 'day_pass';
       if (guestCount > 0) return 'guest';
-      return 'lead';
+      return 'NEW';
     };
     
     interface VisitorRow {
@@ -787,7 +735,7 @@ router.post('/api/visitors/backfill-types', isAdmin, async (req, res) => {
       WHERE LOWER(u.email) = dpp.email
       AND (u.role = 'visitor' OR u.membership_status IN ('visitor', 'non-member'))
       AND u.role NOT IN ('admin', 'staff')
-      AND (u.visitor_type IS NULL OR u.visitor_type = 'lead')
+      AND (u.visitor_type IS NULL OR u.visitor_type IN ('lead', 'NEW'))
       RETURNING u.id
     `);
     
@@ -823,7 +771,7 @@ router.post('/api/visitors/backfill-types', isAdmin, async (req, res) => {
     const leadResult = await db.execute(sql`
       UPDATE users
       SET 
-        visitor_type = 'lead',
+        visitor_type = 'NEW',
         updated_at = NOW()
       WHERE (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
       AND role NOT IN ('admin', 'staff')

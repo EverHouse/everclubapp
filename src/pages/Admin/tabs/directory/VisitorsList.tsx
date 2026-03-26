@@ -240,13 +240,9 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                     aria-label="Filter by type"
                                 >
                                     <option value="all">All Types</option>
-                                    <option value="NEW">New (Staff Added)</option>
-                                    <option value="classpass">ClassPass</option>
-                                    <option value="sim_walkin">Sim Walk-In</option>
-                                    <option value="private_lesson">Private Lesson</option>
                                     <option value="day_pass">Day Pass</option>
-                                    <option value="guest">Guests</option>
-                                    <option value="lead">Leads</option>
+                                    <option value="guest">Guest</option>
+                                    <option value="NEW">Staff Added</option>
                                 </select>
                             </div>
 
@@ -261,7 +257,6 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                     <option value="all">All Sources</option>
                                     <option value="APP">App (Staff Added)</option>
                                     <option value="hubspot">HubSpot</option>
-                                    <option value="mindbody">MindBody</option>
                                     <option value="stripe">Stripe</option>
                                 </select>
                             </div>
@@ -368,32 +363,22 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                     <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                v.type === 'classpass'
-                                                    ? 'bg-[#e8ecd8] dark:bg-[#6b7a3d]/20 text-[#5a6a2c] dark:text-[#a8b87a]'
-                                                    : v.type === 'sim_walkin'
-                                                    ? 'bg-[#e8ecd8] dark:bg-[#6b7a3d]/20 text-[#5a6a2c] dark:text-[#a8b87a]'
-                                                    : v.type === 'private_lesson'
-                                                    ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400'
-                                                    : v.type === 'day_pass'
+                                                v.type === 'day_pass'
                                                     ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
                                                     : v.type === 'guest'
                                                     ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                                     : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
                                             }`}>
-                                                {v.type === 'classpass' ? 'ClassPass'
-                                                    : v.type === 'sim_walkin' ? 'Sim Walk-In'
-                                                    : v.type === 'private_lesson' ? 'Private Lesson'
-                                                    : v.type === 'day_pass' ? 'Day Pass'
+                                                {v.type === 'day_pass' ? 'Day Pass'
                                                     : v.type === 'guest' ? 'Guest'
-                                                    : 'Lead'}
+                                                    : 'Staff Added'}
                                             </span>
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                 v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
                                                 v.source === 'stripe' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400' :
-                                                v.source === 'mindbody' ? 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400' :
                                                 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
                                             }`}>
-                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : v.source === 'mindbody' ? 'MindBody' : 'App'}
+                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : 'App'}
                                             </span>
                                             {v.totalSpentCents > 0 && (
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -499,34 +484,24 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                         <td style={{ width: '28%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate max-w-0">{v.email || '-'}</td>
                                         <td style={{ width: '12%' }} className="p-3">
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                v.type === 'classpass'
-                                                    ? 'bg-[#e8ecd8] dark:bg-[#6b7a3d]/20 text-[#5a6a2c] dark:text-[#a8b87a]'
-                                                    : v.type === 'sim_walkin'
-                                                    ? 'bg-[#e8ecd8] dark:bg-[#6b7a3d]/20 text-[#5a6a2c] dark:text-[#a8b87a]'
-                                                    : v.type === 'private_lesson'
-                                                    ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400'
-                                                    : v.type === 'day_pass'
+                                                v.type === 'day_pass'
                                                     ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
                                                     : v.type === 'guest'
                                                     ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
                                                     : 'bg-gray-100 dark:bg-gray-500/20 text-gray-600 dark:text-gray-400'
                                             }`}>
-                                                {v.type === 'classpass' ? 'ClassPass'
-                                                    : v.type === 'sim_walkin' ? 'Sim Walk-In'
-                                                    : v.type === 'private_lesson' ? 'Private Lesson'
-                                                    : v.type === 'day_pass' ? 'Day Pass'
+                                                {v.type === 'day_pass' ? 'Day Pass'
                                                     : v.type === 'guest' ? 'Guest'
-                                                    : 'Lead'}
+                                                    : 'Staff Added'}
                                             </span>
                                         </td>
                                         <td style={{ width: '14%' }} className="p-3">
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                 v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
                                                 v.source === 'stripe' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400' :
-                                                v.source === 'mindbody' ? 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-400' :
                                                 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
                                             }`}>
-                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : v.source === 'mindbody' ? 'MindBody' : 'App'}
+                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : 'App'}
                                             </span>
                                         </td>
                                         <td style={{ width: '12%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400">{v.purchaseCount || 0}</td>

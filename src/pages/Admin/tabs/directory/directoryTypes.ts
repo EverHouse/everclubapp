@@ -4,8 +4,8 @@ export type MemberTab = 'active' | 'former' | 'visitors' | 'team';
 
 export type BillingFilter = 'All' | 'Individual' | 'Group' | 'Stripe' | 'Mindbody' | 'Family Add-on' | 'Comped';
 
-export type VisitorType = 'all' | 'NEW' | 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
-export type VisitorSource = 'all' | 'mindbody' | 'hubspot' | 'stripe' | 'APP';
+export type VisitorType = 'all' | 'NEW' | 'day_pass' | 'guest';
+export type VisitorSource = 'all' | 'hubspot' | 'stripe' | 'APP';
 export type VisitorSortField = 'name' | 'email' | 'type' | 'source' | 'lastActivity' | 'createdAt' | 'purchases';
 
 export type StaffRole = 'staff' | 'admin' | 'golf_instructor';
@@ -59,8 +59,8 @@ export interface Visitor {
     lastActivityAt: string | null;
     lastActivitySource: string | null;
     createdAt: string | null;
-    source: 'mindbody' | 'hubspot' | 'stripe' | 'app';
-    type: 'classpass' | 'sim_walkin' | 'private_lesson' | 'day_pass' | 'guest' | 'lead';
+    source: 'hubspot' | 'stripe' | 'app';
+    type: 'day_pass' | 'guest' | 'NEW';
 }
 
 export interface VisitorPurchase {

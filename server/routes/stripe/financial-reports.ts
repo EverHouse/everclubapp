@@ -84,6 +84,7 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
         lp.is_comp
        FROM legacy_purchases lp
        WHERE LOWER(lp.member_email) = ${email.toLowerCase()}
+         AND (lp.item_category = 'guest_pass' OR lp.payment_method = 'guest_pass')
        ORDER BY lp.sale_date DESC
        LIMIT 200`),
     ]);
