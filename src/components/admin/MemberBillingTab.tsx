@@ -210,6 +210,7 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
             migrationRequestedBy={billing.billingInfo!.migrationRequestedBy}
             hasCardOnFile={billing.migrationEligibility.hasCardOnFile}
             tierHasStripePrice={billing.migrationEligibility.tierHasStripePrice}
+            membershipStatus={billing.billingInfo!.membershipStatus}
             onInitiateMigration={() => billing.setShowMigrationDialog(true)}
             onCancelMigration={billing.handleCancelMigration}
             isMigrationLoading={billing.isMigrationLoading}

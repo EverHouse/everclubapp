@@ -103,6 +103,7 @@ export interface BillingInfo {
   migrationBillingStartDate?: string | null;
   migrationRequestedBy?: string | null;
   migrationTierSnapshot?: string | null;
+  membershipStatus?: string | null;
 }
 
 export interface OutstandingData {

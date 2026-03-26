@@ -283,7 +283,10 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
           if (recentlyManuallyFixed) {
             logger.info(`[MemberSync] MANUAL FIX PROTECTED: Skipping status/tier update for ${email} — manually fixed recently`);
           } else if (hasPendingMigration && isMindBodyBilled && isCurrentlyActive && status !== 'active') {
-            logger.info(`[MemberSync] Skipping deactivation cascade for ${email} — pending migration to Stripe`);
+            logger.info(`[MemberSync] Skipping deactivation cascade for ${email} — pending migration to Stripe. Setting mindbody_cancellation_detected_at.`);
+            await retryDbOperation(() => db.execute(
+              sql`UPDATE users SET mindbody_cancellation_detected_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email.toLowerCase()} AND mindbody_cancellation_detected_at IS NULL`
+            ), email);
           } else if (existingUser[0]?.billingProvider === 'stripe') {
             stripeProtectedCount++;
             logger.info(`[MemberSync] APP DB PRIMARY: Skipping status/tier update for Stripe-billed member ${email} (HubSpot status: ${status})`);

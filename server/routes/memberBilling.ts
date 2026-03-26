@@ -169,6 +169,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       migrationBillingStartDate: member.migration_billing_start_date || null,
       migrationRequestedBy: member.migration_requested_by || null,
       migrationTierSnapshot: member.migration_tier_snapshot || null,
+      membershipStatus: member.membership_status || null,
     };
 
     if (member.billing_provider === 'stripe' && member.stripe_customer_id) {
@@ -1014,6 +1015,10 @@ router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, asyn
       return res.status(400).json({ error: `Member billing provider is '${member.billing_provider}', not 'mindbody'. Migration is only for MindBody members.` });
     }
 
+    if (member.membership_status !== 'active') {
+      return res.status(400).json({ error: `Member is no longer active (status: ${member.membership_status || 'unknown'}). Non-active members should be reactivated through the standard paths.` });
+    }
+
     if (member.migration_status === 'pending') {
       return res.status(400).json({ error: 'This member already has a pending migration' });
     }
@@ -1059,6 +1064,7 @@ router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, asyn
       migration_requested_by = ${staffEmail},
       migration_tier_snapshot = ${currentTier},
       billing_migration_requested_at = NOW(),
+      mindbody_cancellation_detected_at = NULL,
       updated_at = NOW()
     WHERE LOWER(email) = ${email}`);
 
@@ -1114,6 +1120,7 @@ router.post('/api/member-billing/:email/cancel-migration', isStaffOrAdmin, async
 
     await db.execute(sql`UPDATE users SET 
       migration_status = 'cancelled',
+      mindbody_cancellation_detected_at = NULL,
       updated_at = NOW()
     WHERE LOWER(email) = ${email}`);
 

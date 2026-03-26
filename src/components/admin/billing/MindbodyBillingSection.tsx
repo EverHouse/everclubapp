@@ -33,6 +33,7 @@ interface MindbodyBillingSectionProps {
   migrationRequestedBy?: string | null;
   hasCardOnFile?: boolean;
   tierHasStripePrice?: boolean;
+  membershipStatus?: string | null;
   onInitiateMigration?: () => void;
   onCancelMigration?: () => void;
   isMigrationLoading?: boolean;
@@ -51,6 +52,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
   migrationRequestedBy,
   hasCardOnFile = false,
   tierHasStripePrice = true,
+  membershipStatus,
   onInitiateMigration,
   onCancelMigration,
   isMigrationLoading = false,
@@ -153,6 +155,7 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
     }
 
     if (effectiveStatus === 'failed') {
+      const isNonActive = membershipStatus && membershipStatus !== 'active';
       return (
         <div className={`p-4 rounded-xl ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
           <div className="flex items-start gap-3">
@@ -163,7 +166,12 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
               <p className={`text-sm font-medium ${isDark ? 'text-red-300' : 'text-red-700'}`}>
                 Migration Failed
               </p>
-              {onInitiateMigration && (
+              {isNonActive && (
+                <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Member is no longer active — use reactivation instead
+                </p>
+              )}
+              {onInitiateMigration && !isNonActive && (
                 <button
                   onClick={onInitiateMigration}
                   disabled={isMigrationLoading}
@@ -179,6 +187,36 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
                   Retry Migration
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (membershipStatus && membershipStatus !== 'active') {
+      return (
+        <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+          <div className="flex items-start gap-3">
+            <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${isDark ? 'bg-gray-500/20' : 'bg-gray-100'}`}>
+              <Icon name="swap_horiz" className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Migrate to Stripe Billing
+              </p>
+              <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Member is no longer active — use reactivation instead
+              </p>
+              <button
+                disabled
+                title="Member is no longer active"
+                className={`tactile-btn inline-flex items-center gap-1.5 mt-3 px-4 py-2 rounded-lg text-sm font-medium opacity-50 cursor-not-allowed ${
+                  isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'
+                }`}
+              >
+                <Icon name="swap_horiz" className="text-base" />
+                Migrate to Stripe
+              </button>
             </div>
           </div>
         </div>

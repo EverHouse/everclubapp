@@ -22,6 +22,7 @@ interface MigrationUser {
   migration_billing_start_date: Date | null;
   migration_requested_by: string | null;
   migration_tier_snapshot: string | null;
+  mindbody_cancellation_detected_at: Date | null;
 }
 
 export async function executePendingMigration(userId: string, email: string): Promise<{
@@ -50,20 +51,6 @@ export async function executePendingMigration(userId: string, email: string): Pr
     if (user.migration_status !== 'pending' && user.migration_status !== 'processing') {
       logger.warn(`${prefix} Migration not pending/processing for ${email}, status: ${user.migration_status}`);
       return { success: false, error: `Migration status is '${user.migration_status}', expected 'pending' or 'processing'` };
-    }
-
-    if (user.membership_status !== 'active') {
-      logger.warn(`${prefix} Member ${email} is no longer active (status: ${user.membership_status}), failing migration`);
-      await db.execute(sql`
-        UPDATE users SET migration_status = 'failed', updated_at = NOW()
-        WHERE id = ${userId}
-      `);
-      await notifyAllStaff(
-        'Migration Failed — Member No Longer Active',
-        `Billing migration failed for ${email}: membership status is '${user.membership_status}'. The member may have been cancelled by staff.`,
-        'billing_migration'
-      );
-      return { success: false, error: `Member is no longer active (status: ${user.membership_status})` };
     }
 
     const stripe = await getStripeClient();
@@ -199,6 +186,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
       await db.execute(sql`
         UPDATE users SET migration_status = 'completed',
           stripe_subscription_id = ${subscription.id},
+          mindbody_cancellation_detected_at = NULL,
           updated_at = NOW()
         WHERE id = ${userId}
       `);
@@ -242,7 +230,8 @@ export async function executePendingMigration(userId: string, email: string): Pr
 
       await db.execute(sql`
         UPDATE users SET billing_provider = 'manual', migration_status = 'failed',
-          stripe_subscription_id = NULL, updated_at = NOW()
+          stripe_subscription_id = NULL, mindbody_cancellation_detected_at = NULL,
+          updated_at = NOW()
         WHERE id = ${userId}
       `);
 
@@ -281,7 +270,8 @@ export async function processPendingMigrations(): Promise<{
              first_name, last_name,
              migration_status, migration_billing_start_date,
              migration_requested_by, migration_tier_snapshot,
-             billing_migration_requested_at
+             billing_migration_requested_at,
+             mindbody_cancellation_detected_at
       FROM users
       WHERE migration_status = 'pending'
       ORDER BY billing_migration_requested_at ASC
@@ -301,9 +291,9 @@ export async function processPendingMigrations(): Promise<{
     for (const row of pendingResult.rows) {
       const user = row as unknown as MigrationUser & { billing_migration_requested_at: Date | null };
 
-      const membershipNoLongerActive = user.membership_status !== 'active';
+      const hasDetectedCancellation = !!user.mindbody_cancellation_detected_at;
       const providerNoLongerMindbody = user.billing_provider !== 'mindbody';
-      const mindbodyCancellationDetected = membershipNoLongerActive || providerNoLongerMindbody;
+      const mindbodyCancellationDetected = hasDetectedCancellation || providerNoLongerMindbody;
 
       const billingDateArrived = user.migration_billing_start_date
         ? user.migration_billing_start_date.getTime() <= now.getTime()
@@ -314,7 +304,7 @@ export async function processPendingMigrations(): Promise<{
       }
 
       if (!mindbodyCancellationDetected) {
-        logger.info(`${prefix} Skipping ${user.email} — MindBody still active (status: ${user.membership_status}, provider: ${user.billing_provider})`);
+        logger.info(`${prefix} Skipping ${user.email} — MindBody cancellation not yet detected (provider: ${user.billing_provider}, cancellation flag: ${hasDetectedCancellation})`);
         result.skipped++;
         continue;
       }

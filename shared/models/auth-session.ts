@@ -105,6 +105,7 @@ export const users = pgTable("users", {
   migrationRequestedBy: text("migration_requested_by"),
   migrationTierSnapshot: text("migration_tier_snapshot"),
   migrationStatus: text("migration_status").$type<MigrationStatus>(),
+  mindbodyCancellationDetectedAt: timestamp("mindbody_cancellation_detected_at"),
   requiresCardUpdate: boolean("requires_card_update").default(false),
   lastManualFixAt: timestamp("last_manual_fix_at"),
   lastManualFixBy: varchar("last_manual_fix_by"),
