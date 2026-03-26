@@ -183,10 +183,14 @@ router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, r
     const result = await devConfirmBooking({
       bookingId,
       staffEmail: getSessionUser(req)?.email || 'unknown'
-    });
+    }) as Record<string, unknown>;
 
     if (result.error && result.statusCode) {
-      return res.status(result.statusCode).json({ error: result.error });
+      const responsePayload: Record<string, unknown> = { error: result.error };
+      if (result.conflictDetails) {
+        responsePayload.conflictDetails = result.conflictDetails;
+      }
+      return res.status(result.statusCode as number).json(responsePayload);
     }
 
     await logFromRequest(req, {

@@ -57,7 +57,9 @@ export async function devConfirmBooking(params: DevConfirmParams) {
 
   // eslint-disable-next-line no-useless-assignment
   let resolvedTotalFeeCents = 0;
-  const { sessionId, totalFeeCents, dateStr, timeStr, participantEmails } = await db.transaction(async (tx) => {
+  let transactionResult: { sessionId: number | null; totalFeeCents: number; dateStr: string; timeStr: string; participantEmails: string[] };
+  try {
+  transactionResult = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('approve_booking_' || ${String(bookingId)}))`);
 
     if (booking.resource_id && booking.request_date) {
@@ -242,7 +244,56 @@ export async function devConfirmBooking(params: DevConfirmParams) {
 
     return { sessionId, totalFeeCents, dateStr, timeStr, participantEmails };
   });
+  } catch (txError: unknown) {
+    const errMsg = getErrorMessage(txError);
+    const cause = (txError as { cause?: { code?: string } })?.cause;
+    const isOverlap = cause?.code === '23P01' || errMsg.includes('booking_requests_no_overlap') || errMsg.includes('23P01');
+    if (isOverlap) {
+      logger.warn('[Dev Confirm] Overlap constraint violation — querying conflicting booking', {
+        extra: { bookingId, resourceId: booking.resource_id, date: booking.request_date }
+      });
+      try {
+        const conflicting = await db.execute(sql`
+          SELECT br.id, br.user_email, br.user_name, br.start_time, br.end_time, br.status, r.name as resource_name
+          FROM booking_requests br
+          LEFT JOIN resources r ON r.id = br.resource_id
+          WHERE br.resource_id = ${booking.resource_id}
+            AND br.request_date = ${booking.request_date}
+            AND br.status IN ('approved', 'confirmed')
+            AND br.id != ${bookingId}
+            AND br.start_time < ${booking.end_time}
+            AND br.end_time > ${booking.start_time}
+          LIMIT 1
+        `);
+        if (conflicting.rows.length > 0) {
+          const conflict = conflicting.rows[0] as { id: number; user_email: string; user_name: string | null; start_time: string; end_time: string; status: string; resource_name: string | null };
+          const bayName = conflict.resource_name || `Bay ${booking.resource_id}`;
+          const conflictTime = `${String(conflict.start_time).substring(0, 5)}–${String(conflict.end_time).substring(0, 5)}`;
+          const conflictMember = conflict.user_name || conflict.user_email || 'Unknown';
+          return {
+            error: `Cannot confirm: overlaps with booking #${conflict.id} (${conflictMember}, ${bayName}, ${conflictTime}). Cancel or reschedule the conflicting booking first.`,
+            statusCode: 409,
+            conflictDetails: {
+              conflictingBookingId: conflict.id,
+              memberName: conflictMember,
+              bayName,
+              time: conflictTime,
+              status: conflict.status
+            }
+          };
+        }
+      } catch (queryErr: unknown) {
+        logger.error('[Dev Confirm] Failed to query conflicting booking', { extra: { error: getErrorMessage(queryErr) } });
+      }
+      return {
+        error: 'Cannot confirm: this booking overlaps with another approved booking on the same bay and time.',
+        statusCode: 409
+      };
+    }
+    throw txError;
+  }
 
+  const { sessionId, totalFeeCents, dateStr, timeStr, participantEmails } = transactionResult;
   resolvedTotalFeeCents = totalFeeCents ?? 0;
   if (sessionId) {
     try {

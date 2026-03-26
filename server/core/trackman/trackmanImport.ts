@@ -1526,6 +1526,89 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             skippedRows++;
             continue;
           }
+          const insertErrMsg = getErrorMessage(insertErr) || '';
+          const insertErrCause = (insertErr as { cause?: { code?: string } })?.cause;
+          const isOverlap = insertErrCause?.code === '23P01' || insertErrMsg.includes('booking_requests_no_overlap') || insertErrMsg.includes('23P01');
+          if (isOverlap) {
+            logger.info(`[Trackman Import] Overlap constraint on insert for ${row.bookingId} — cancelling conflicting bookings (Trackman is authoritative)`, {
+              extra: { trackmanBookingId: row.bookingId, date: bookingDate, time: startTime, endTime, resourceId: parsedBayId }
+            });
+            try {
+              const txResult = await db.transaction(async (tx) => {
+                const conflicting = await tx.execute(sql`
+                  SELECT id, user_email, status FROM booking_requests
+                  WHERE resource_id = ${parsedBayId}
+                    AND request_date = ${bookingDate}
+                    AND status IN ('pending', 'approved', 'confirmed', 'pending_approval')
+                    AND start_time < ${endTime}
+                    AND end_time > ${startTime}
+                    AND (trackman_booking_id IS NULL OR trackman_booking_id != ${row.bookingId})
+                  FOR UPDATE`);
+                const conflictRows = conflicting.rows as { id: number; user_email: string; status: string }[];
+                let cancelledCount = 0;
+                if (conflictRows.length > 0) {
+                  const conflictIds = conflictRows.map(r => r.id);
+                  await tx.execute(sql`
+                    UPDATE booking_requests SET status = 'cancelled', updated_at = NOW(),
+                      staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman import ${row.bookingId}]`}
+                    WHERE id = ANY(${sql`ARRAY[${sql.join(conflictIds.map((id: number) => sql`${id}`), sql`, `)}]::int[]`})
+                      AND status IN ('pending', 'approved', 'confirmed', 'pending_approval')`);
+                  logger.info(`[Trackman Import] Cancelled ${conflictIds.length} conflicting bookings`, {
+                    extra: { trackmanBookingId: row.bookingId, cancelledIds: conflictIds }
+                  });
+                  cancelledCount = conflictIds.length;
+                  for (const cid of conflictIds) {
+                    voidBookingPass(cid).catch(err =>
+                      logger.warn('[Trackman Import] Void pass failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(err) } })
+                    );
+                  }
+                }
+                const retryInsert = await tx.execute(sql`INSERT INTO booking_requests
+                  (user_email, user_name, user_id, resource_id, request_date, start_time, end_time,
+                   duration_minutes, notes, status, created_at, trackman_booking_id,
+                   guest_count, trackman_player_count, declared_player_count,
+                   origin, last_sync_source, last_trackman_sync_at)
+                  VALUES (${matchedEmail}, ${row.userName}, ${insertUserId}, ${parsedBayId}, ${bookingDate}, ${startTime}, ${endTime},
+                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] ${row.notes}`}, ${matchedEmail ? 'approved' : normalizedStatus}, ${originalBookedDate || new Date()}, ${row.bookingId},
+                          ${actualGuestCount}, ${row.playerCount}, ${row.playerCount},
+                          'trackman_import', 'trackman_import', NOW())
+                  ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+                    last_trackman_sync_at = NOW(), updated_at = NOW()
+                  RETURNING id`);
+                return { retryInsert, cancelledCount };
+              });
+              cancelledBookings += txResult.cancelledCount;
+              if ((txResult.retryInsert.rows as Array<{ id: number }>).length > 0) {
+                matchedRows++;
+                continue;
+              }
+            } catch (retryErr: unknown) {
+              logger.error(`[Trackman Import] Failed to resolve overlap for ${row.bookingId} — creating unmatched booking for staff resolution`, {
+                extra: { trackmanBookingId: row.bookingId, error: getErrorMessage(retryErr) }
+              });
+              try {
+                await db.execute(sql`INSERT INTO booking_requests
+                  (user_email, user_name, resource_id, request_date, start_time, end_time,
+                   duration_minutes, notes, status, created_at, trackman_booking_id,
+                   trackman_player_count, declared_player_count, is_unmatched, trackman_customer_notes,
+                   origin, last_sync_source, last_trackman_sync_at)
+                  VALUES ('', ${row.userName}, ${parsedBayId}, ${bookingDate}, ${startTime}, ${endTime},
+                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] [UNMATCHED - overlap could not be auto-resolved] ${row.notes}`}, ${normalizedStatus}, ${originalBookedDate || new Date()}, ${row.bookingId},
+                          ${row.playerCount}, ${row.playerCount}, true, ${`Original: ${row.userName} / ${row.userEmail}. Overlap auto-resolve failed.`},
+                          'trackman_import', 'trackman_import', NOW())
+                  ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+                    last_trackman_sync_at = NOW(), updated_at = NOW()
+                  RETURNING id`);
+                logger.info(`[Trackman Import] Created unmatched fallback booking for ${row.bookingId} after overlap resolution failure`);
+                unmatchedRows++;
+                continue;
+              } catch (fallbackErr: unknown) {
+                logger.error(`[Trackman Import] Fallback unmatched insert also failed for ${row.bookingId}: ${getErrorMessage(fallbackErr)}`);
+              }
+            }
+            skippedRows++;
+            continue;
+          }
           const errDetails = getErrorMessage(insertErr) || getErrorCode(insertErr) || 'no details';
           logger.error(`[Trackman Import] Insert error for ${row.bookingId}: ${getErrorMessage(insertErr)} | Details: ${errDetails}`);
           throw insertErr;
@@ -1581,8 +1664,64 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           logger.info(`[Trackman Import] Created unmatched booking #${unmatchedInsertResult[0]?.id} to block slot (Trackman ID: ${row.bookingId})`);
         } catch (unmatchedErr: unknown) {
-          if (!getErrorMessage(unmatchedErr)?.includes('duplicate key')) {
-            logger.error(`[Trackman Import] Error creating unmatched booking for ${row.bookingId}: ${getErrorMessage(unmatchedErr)}`);
+          const unmatchedErrMsg = getErrorMessage(unmatchedErr) || '';
+          const unmatchedCause = (unmatchedErr as { cause?: { code?: string } })?.cause;
+          const isUnmatchedOverlap = unmatchedCause?.code === '23P01' || unmatchedErrMsg.includes('booking_requests_no_overlap') || unmatchedErrMsg.includes('23P01');
+          if (isUnmatchedOverlap) {
+            logger.info(`[Trackman Import] Overlap on unmatched insert for ${row.bookingId} — cancelling conflicting bookings (Trackman is authoritative)`, {
+              extra: { trackmanBookingId: row.bookingId, date: bookingDate, time: startTime, endTime, resourceId: parsedBayId }
+            });
+            try {
+              const unmatchedTxResult = await db.transaction(async (tx) => {
+                const conflicting = await tx.execute(sql`
+                  SELECT id, user_email, status FROM booking_requests
+                  WHERE resource_id = ${parsedBayId}
+                    AND request_date = ${bookingDate}
+                    AND status IN ('pending', 'approved', 'confirmed', 'pending_approval')
+                    AND start_time < ${endTime}
+                    AND end_time > ${startTime}
+                    AND (trackman_booking_id IS NULL OR trackman_booking_id != ${row.bookingId})
+                  FOR UPDATE`);
+                const conflictRows = conflicting.rows as { id: number; user_email: string; status: string }[];
+                let cancelledCount = 0;
+                if (conflictRows.length > 0) {
+                  const conflictIds = conflictRows.map(r => r.id);
+                  await tx.execute(sql`
+                    UPDATE booking_requests SET status = 'cancelled', updated_at = NOW(),
+                      staff_notes = COALESCE(staff_notes, '') || ${`\n[Auto-cancelled: superseded by Trackman import ${row.bookingId}]`}
+                    WHERE id = ANY(${sql`ARRAY[${sql.join(conflictIds.map((id: number) => sql`${id}`), sql`, `)}]::int[]`})
+                      AND status IN ('pending', 'approved', 'confirmed', 'pending_approval')`);
+                  logger.info(`[Trackman Import] Cancelled ${conflictIds.length} conflicting bookings for unmatched insert`, {
+                    extra: { trackmanBookingId: row.bookingId, cancelledIds: conflictIds }
+                  });
+                  cancelledCount = conflictIds.length;
+                  for (const cid of conflictIds) {
+                    voidBookingPass(cid).catch(err =>
+                      logger.warn('[Trackman Import] Void pass failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: cid, error: getErrorMessage(err) } })
+                    );
+                  }
+                }
+                await tx.execute(sql`INSERT INTO booking_requests
+                  (user_email, user_name, resource_id, request_date, start_time, end_time,
+                   duration_minutes, notes, status, created_at, trackman_booking_id,
+                   trackman_player_count, declared_player_count, is_unmatched, trackman_customer_notes,
+                   origin, last_sync_source, last_trackman_sync_at)
+                  VALUES ('', ${row.userName}, ${parsedBayId}, ${bookingDate}, ${startTime}, ${endTime},
+                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] [UNMATCHED - requires staff resolution] ${row.notes}`}, ${normalizedStatus}, ${row.bookedDate ? new Date(row.bookedDate.replace(' ', 'T') + ':00') : new Date()}, ${row.bookingId},
+                          ${row.playerCount}, ${row.playerCount}, true, ${`Original name: ${row.userName}, Original email: ${row.userEmail}`},
+                          'trackman_import', 'trackman_import', NOW())
+                  ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
+                    last_trackman_sync_at = NOW(), updated_at = NOW()
+                  RETURNING id`);
+                return cancelledCount;
+              });
+              cancelledBookings += unmatchedTxResult;
+              logger.info(`[Trackman Import] Created unmatched booking after resolving overlap (Trackman ID: ${row.bookingId})`);
+            } catch (retryErr: unknown) {
+              logger.error(`[Trackman Import] Failed to resolve overlap for unmatched ${row.bookingId}: ${getErrorMessage(retryErr)}`);
+            }
+          } else if (!unmatchedErrMsg.includes('duplicate key')) {
+            logger.error(`[Trackman Import] Error creating unmatched booking for ${row.bookingId}: ${unmatchedErrMsg}`);
           }
         }
         
