@@ -2,6 +2,38 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.50] - 2026-03-26
+
+### Session Fixation Vulnerability Fix (Critical)
+- **Root cause**: All login routes (`password-login`, `dev-login`, OTP verify, Google sign-in, Apple sign-in, passkey auth) assigned `req.session.user = member` without calling `req.session.regenerate()` first. An attacker could pre-set a session cookie, trick a victim into logging in, then hijack the authenticated session.
+- **Fix**: Created `regenerateSession()` helper in `server/routes/auth/helpers.ts`. All 8 login code paths now call `await regenerateSession(req, member)` before saving, which destroys the old session and creates a new one with a fresh ID.
+- **Files changed**: `server/routes/auth/helpers.ts`, `server/routes/auth/session.ts`, `server/routes/auth/otp.ts`, `server/routes/auth-google.ts`, `server/routes/auth-apple.ts`, `server/routes/auth-passkey.ts`
+
+### Bcrypt CPU Exhaustion (DoS) Fix (High)
+- **Root cause**: `/api/auth/password-login` passed user-provided passwords directly to `bcrypt.compare()` without length validation. Bcrypt is CPU-intensive; a 50,000-character password could exhaust server CPU.
+- **Fix**: Added `password.length > 72` check before bcrypt comparison (bcrypt truncates at 72 bytes anyway).
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Dangling Promises Fix (High)
+- **Root cause**: `first_login_at` database updates were fire-and-forget (`db.execute(...).catch(...)`) in password-login, dev-login, OTP, and passkey routes. Unhandled background promises can cause connection pool exhaustion or silent failures.
+- **Fix**: Changed all to `await db.execute(...)` wrapped in try/catch.
+- **Files changed**: `server/routes/auth/session.ts`, `server/routes/auth/otp.ts`, `server/routes/auth-passkey.ts`
+
+### CSP Style-src Nonce Conflict Fix (Medium)
+- **Root cause**: `style-src` directive had both `'unsafe-inline'` and `'nonce-${nonce}'`. Per CSP Level 3, when a nonce is present, browsers ignore `'unsafe-inline'`, breaking React inline styles and third-party CSS injections.
+- **Fix**: Removed `'nonce-${nonce}'` from `style-src`, keeping `'unsafe-inline'` which React requires.
+- **Files changed**: `server/middleware/security.ts`
+
+### Session Save Race Condition Fix (Medium)
+- **Root cause**: `GET /api/auth/session` called `req.session.save()` and `res.json()` independently when session was dirty. The response could be sent before the save completed, causing stale session state.
+- **Fix**: Response is now sent inside the `save()` callback, ensuring the session persists before the client receives data.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Member Login Hint (Low)
+- **Root cause**: When a member (not staff) accidentally tried the password login form, they got a generic "Invalid email or password" error with no guidance.
+- **Fix**: If the email isn't found in `staffUsers` but exists in `users`, return "Members should log in using the email link or OTP method."
+- **Files changed**: `server/routes/auth/session.ts`
+
 ## [8.97.49] - 2026-03-26
 
 ### QR Check-in SQL Fix (Critical)

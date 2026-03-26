@@ -10,6 +10,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { logger, logAndRespond } from '../core/logger';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
 import { isStaffOrAdmin } from '../replit_integrations/auth';
+import { regenerateSession } from './auth/helpers';
 
 const router = Router();
 
@@ -144,7 +145,7 @@ router.post('/api/auth/google/verify', requireGoogleConfig, authRateLimiterByIp,
       dateOfBirth: user.dateOfBirth || null,
     };
 
-    req.session.user = member as unknown as typeof req.session.user;
+    await regenerateSession(req, member as Record<string, unknown>);
 
     if (!user.googleId || user.googleId !== googleUser.sub) {
       const existingGoogleLink = await db.select({ id: users.id, email: users.email })
@@ -291,7 +292,7 @@ router.post('/api/auth/google/callback', requireGoogleConfig, async (req, res) =
       dateOfBirth: user.dateOfBirth || null,
     };
 
-    req.session.user = member as unknown as typeof req.session.user;
+    await regenerateSession(req, member as Record<string, unknown>);
 
     if (!user.googleId || user.googleId !== googleUser.sub) {
       const existingGoogleLink = await db.select({ id: users.id, email: users.email })

@@ -22,6 +22,7 @@ import {
   isStaffOrAdminEmail,
   upsertUserWithTier,
   createSupabaseToken,
+  regenerateSession,
 } from './helpers';
 import {
   checkOtpRequestLimit,
@@ -623,8 +624,6 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
       return res.status(500).json({ error: 'Failed to resolve member identity' });
     }
 
-    req.session.user = member;
-
     const supabaseToken = await createSupabaseToken(member as unknown as { id: string; email: string; role: string; firstName?: string; lastName?: string });
     
     const dbUserId = await upsertUserWithTier({
@@ -641,10 +640,15 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
     
     if (dbUserId && dbUserId !== member.id) {
       member.id = dbUserId;
-      req.session.user = member;
     }
-    
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch((err) => logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } }));
+
+    try {
+      await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`);
+    } catch (err) {
+      logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } });
+    }
+
+    await regenerateSession(req, member as Record<string, unknown>);
 
     (async () => {
       try {

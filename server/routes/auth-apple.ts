@@ -9,6 +9,7 @@ import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger, logAndRespond } from '../core/logger';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
+import { regenerateSession } from './auth/helpers';
 
 const router = Router();
 
@@ -160,7 +161,7 @@ router.post('/api/auth/apple/verify', requireAppleConfig, authRateLimiterByIp, a
       dateOfBirth: user.dateOfBirth || null,
     };
 
-    req.session.user = member as unknown as typeof req.session.user;
+    await regenerateSession(req, member as Record<string, unknown>);
 
     const appleFirstName = appleUser?.name?.firstName;
     const appleLastName = appleUser?.name?.lastName;

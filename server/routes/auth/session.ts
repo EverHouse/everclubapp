@@ -19,6 +19,7 @@ import {
   getUserRole,
   upsertUserWithTier,
   createSupabaseToken,
+  regenerateSession,
 } from './helpers';
 
 export const sessionRouter = Router();
@@ -89,13 +90,7 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
     logger.debug('[Auth] Failed to fetch user data for session enrichment');
   }
 
-  if (sessionDirty) {
-    req.session.save((err) => {
-      if (err) logger.warn('[Auth] Failed to persist session update', { error: getErrorMessage(err) });
-    });
-  }
-
-  res.json({
+  const sessionResponse = {
     authenticated: true,
     member: {
       id: sessionUser.id,
@@ -111,7 +106,16 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
       dateOfBirth: sessionUser.dateOfBirth || null,
       lifetimeVisits
     }
-  });
+  };
+
+  if (sessionDirty) {
+    req.session.save((err) => {
+      if (err) logger.warn('[Auth] Failed to persist session update', { error: getErrorMessage(err) });
+      res.json(sessionResponse);
+    });
+  } else {
+    res.json(sessionResponse);
+  }
 });
 
 sessionRouter.post('/api/auth/ws-token', authRateLimiterByIp, async (req, res) => {
@@ -175,6 +179,10 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     if (!email || !password) {
       return logAndRespond(req, res, 400, 'Email and password are required');
     }
+
+    if (password.length > 72) {
+      return logAndRespond(req, res, 401, 'Invalid email or password');
+    }
     
     const normalizedEmail = normalizeEmail(email);
     
@@ -202,6 +210,10 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     }
     
     if (!userRecord) {
+      const isMember = await db.select({ id: users.id }).from(users).where(sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`).limit(1);
+      if (isMember.length > 0) {
+        return logAndRespond(req, res, 400, 'Members should log in using the email link or OTP method.');
+      }
       return logAndRespond(req, res, 401, 'Invalid email or password');
     }
     
@@ -265,8 +277,6 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
       expires_at: Date.now() + sessionTtl
     };
     
-    req.session.user = member;
-
     const supabaseToken = await createSupabaseToken(member);
     
     const dbUserId2 = await upsertUserWithTier({
@@ -283,10 +293,15 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     
     if (dbUserId2 && dbUserId2 !== member.id) {
       member.id = dbUserId2;
-      req.session.user = member;
     }
-    
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch((err) => logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } }));
+
+    try {
+      await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`);
+    } catch (err) {
+      logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } });
+    }
+
+    await regenerateSession(req, member);
 
     req.session.save((err) => {
       if (err) {
@@ -388,11 +403,15 @@ sessionRouter.post('/api/auth/dev-login', async (req, res) => {
       expires_at: Date.now() + sessionTtl
     };
     
-    req.session.user = member as SessionUser;
-
     const supabaseToken = await createSupabaseToken({ ...member, email: member.email as string });
-    
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`).catch((err) => logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } }));
+
+    try {
+      await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`);
+    } catch (err) {
+      logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } });
+    }
+
+    await regenerateSession(req, member as Record<string, unknown>);
 
     req.session.save((err) => {
       if (err) {

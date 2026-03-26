@@ -18,6 +18,7 @@ import { normalizeEmail } from '../core/utils/emailNormalization';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import { getSessionUser } from '../types/session';
 import { logger, logAndRespond } from '../core/logger';
+import { regenerateSession } from './auth/helpers';
 import { isProduction } from '../core/db';
 import { isAuthenticated } from '../replit_integrations/auth';
 import { authRateLimiterByIp } from '../middleware/rateLimiting';
@@ -301,10 +302,13 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
       dateOfBirth: user.dateOfBirth ?? null,
     };
 
-    req.session.user = member;
+    try {
+      await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE id = ${user.id} AND first_login_at IS NULL`);
+    } catch (err) {
+      logger.warn('[Passkey] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } });
+    }
 
-    db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE id = ${user.id} AND first_login_at IS NULL`)
-      .catch((err) => logger.warn('[Passkey] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } }));
+    await regenerateSession(req, member as Record<string, unknown>);
 
     const supabaseToken = await createSupabaseToken(member as unknown as { id: string; email: string; role: string; firstName?: string; lastName?: string });
 

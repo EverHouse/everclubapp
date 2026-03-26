@@ -8,6 +8,24 @@ import { getSupabaseAdmin, isSupabaseAvailable } from '../../core/supabase/clien
 import { normalizeEmail, getAlternateDomainEmail } from '../../core/utils/emailNormalization';
 import { getErrorMessage } from '../../utils/errorUtils';
 import crypto from 'crypto';
+import type { Request } from 'express';
+
+export function regenerateSession(req: Request, userData: Record<string, unknown>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const oldSession = req.session;
+    req.session.regenerate((err) => {
+      if (err) {
+        logger.error('[Auth] Session regeneration failed', { error: getErrorMessage(err) });
+        return reject(err);
+      }
+      req.session.user = userData as typeof req.session.user;
+      if (oldSession.cookie) {
+        req.session.cookie.maxAge = oldSession.cookie.maxAge;
+      }
+      resolve();
+    });
+  });
+}
 
 export interface StaffUserData {
   id: number;

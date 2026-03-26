@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.50",
+    date: "2026-03-26",
+    title: "Security Hardening",
+    changes: [
+      "Security: All login methods (password, OTP, Google, Apple, passkey) now regenerate the session ID on sign-in, preventing session fixation attacks",
+      "Security: Password login now rejects excessively long passwords before processing, preventing potential CPU exhaustion",
+      "Security: Fixed Content Security Policy so inline styles work correctly in all modern browsers",
+      "Fixed: Session data now saves reliably before sending responses, eliminating a race condition",
+      "Fixed: Background database updates during login are now properly awaited instead of fire-and-forget",
+      "Improved: Members who accidentally try the staff password login now get a helpful redirect message",
+    ]
+  },
+  {
     version: "8.97.49",
     date: "2026-03-26",
     title: "Bug Fixes",
