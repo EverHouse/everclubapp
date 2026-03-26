@@ -173,6 +173,8 @@ const SimulatorTab: React.FC = () => {
     const [staffNotes, setStaffNotes] = useState('');
     const [suggestedTime, setSuggestedTime] = useState('');
     const [declineAvailableSlots, setDeclineAvailableSlots] = useState<string[]>([]);
+    const [declineSlotsLoading, setDeclineSlotsLoading] = useState(false);
+    const [declineSlotsError, setDeclineSlotsError] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [availabilityStatus, setAvailabilityStatus] = useState<'checking' | 'available' | 'conflict' | null>(null);
@@ -767,25 +769,57 @@ const SimulatorTab: React.FC = () => {
         let cancelled = false;
 
         const fetchDeclineSlots = async (bookingDate: string, resourceId: number) => {
+            setDeclineSlotsLoading(true);
+            setDeclineSlotsError(null);
             try {
-                const blocks = await fetchWithCredentials<Array<{ block_type?: string; start_time?: string }>>(`/api/bays/${resourceId}/availability?date=${bookingDate}`);
+                const response = await fetchWithCredentials<{
+                    bookings: Array<{ start_time: string; end_time: string }>;
+                    blocks: Array<{ start_time: string; end_time: string; block_type?: string }>;
+                }>(`/api/bays/${resourceId}/availability?date=${bookingDate}`);
                 if (cancelled) return;
-                const available = blocks
-                    .filter((b) => b.block_type === 'available' || !b.block_type)
-                    .map((b) => b.start_time?.substring(0, 5))
-                    .filter((s): s is string => !!s);
+
+                const busySlots = [
+                    ...(response.bookings || []),
+                    ...(response.blocks || []),
+                ];
+
+                const parseTime = (t: string): number => {
+                    const [h, m] = t.split(':').map(Number);
+                    return h * 60 + m;
+                };
+
+                const openMin = 8 * 60 + 30;
+                const closeMin = 22 * 60;
+                const available: string[] = [];
+                for (let t = openMin; t + 30 <= closeMin; t += 30) {
+                    const slotEnd = t + 30;
+                    const conflicts = busySlots.some((b) => {
+                        const bStart = parseTime(b.start_time);
+                        const bEnd = parseTime(b.end_time);
+                        return t < bEnd && slotEnd > bStart;
+                    });
+                    if (!conflicts) {
+                        const hh = String(Math.floor(t / 60)).padStart(2, '0');
+                        const mm = String(t % 60).padStart(2, '0');
+                        available.push(`${hh}:${mm}`);
+                    }
+                }
                 setDeclineAvailableSlots(available);
             } catch (err: unknown) {
                 console.error('Failed to fetch available slots:', err);
                 if (!cancelled) {
                     setDeclineAvailableSlots([]);
+                    setDeclineSlotsError('Could not load available time slots. You can still decline without suggesting an alternative.');
                 }
+            } finally {
+                if (!cancelled) setDeclineSlotsLoading(false);
             }
         };
 
         if (actionModal === 'decline' && selectedRequest) {
             setSuggestedTime('');
             setDeclineAvailableSlots([]);
+            setDeclineSlotsError(null);
             if (selectedRequest.resource_id) {
                 fetchDeclineSlots(selectedRequest.request_date, selectedRequest.resource_id);
             }
@@ -1261,12 +1295,24 @@ const SimulatorTab: React.FC = () => {
                     {actionModal === 'decline' && selectedRequest?.status !== BOOKING_STATUS.APPROVED && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suggest Alternative Time (Optional)</label>
+                            {declineSlotsError && (
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">{declineSlotsError}</p>
+                            )}
                             <select
                                 value={suggestedTime || ''}
                                 onChange={(e) => setSuggestedTime(e.target.value)}
-                                className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white"
+                                disabled={declineSlotsLoading || !!declineSlotsError}
+                                className="w-full p-3 rounded-lg border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 text-primary dark:text-white disabled:opacity-50"
                             >
-                                <option value="">Select alternative time...</option>
+                                <option value="">
+                                    {declineSlotsLoading
+                                        ? 'Loading available times...'
+                                        : declineSlotsError
+                                            ? 'Unavailable'
+                                            : declineAvailableSlots.length === 0
+                                                ? 'No available times'
+                                                : 'Select alternative time...'}
+                                </option>
                                 {declineAvailableSlots.map((time) => (
                                     <option key={time} value={time}>
                                         {formatTime12Hour(time)}

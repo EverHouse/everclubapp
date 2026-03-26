@@ -33,7 +33,9 @@ import { fetchWithCredentials, putWithCredentials, postWithCredentials, deleteWi
 import Icon from '../../components/icons/Icon';
 
 const TabLoadingFallback = () => (
-  <PageLoadingSpinner />
+  <div className="min-h-[60vh]">
+    <PageLoadingSpinner />
+  </div>
 );
 
 const AdminDashboard: React.FC = () => {
@@ -268,7 +270,7 @@ const AdminDashboard: React.FC = () => {
       
       {createPortal(headerContent, document.getElementById('header-root') ?? document.body)}
 
-      <main className="flex-1 px-4 md:px-8 pt-[calc(max(env(safe-area-inset-top,0px),env(titlebar-area-height,0px))+112px)] relative z-0 md:ml-20 xl:ml-64 w-full md:w-auto">
+      <main className="flex-1 px-4 md:px-8 pt-[calc(max(env(safe-area-inset-top,0px),env(titlebar-area-height,0px))+112px)] relative z-0 md:ml-20 xl:ml-64 w-full md:w-auto min-h-screen">
         <PullToRefresh onRefresh={handleAdminRefresh}>
           <TabTransition activeKey={activeTab}>
             {activeTab === 'training' ? (

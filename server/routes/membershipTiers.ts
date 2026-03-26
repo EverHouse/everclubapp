@@ -102,7 +102,7 @@ router.get('/api/membership-tiers', async (req, res) => {
     res.json(result.rows);
   } catch (error: unknown) {
     logger.error('Membership tiers fetch error', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to fetch membership tiers' });
+    res.status(500).json([]);
   }
 });
 
