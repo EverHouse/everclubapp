@@ -624,8 +624,6 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
       return res.status(500).json({ error: 'Failed to resolve member identity' });
     }
 
-    const supabaseToken = await createSupabaseToken(member as unknown as { id: string; email: string; role: string; firstName?: string; lastName?: string });
-    
     const dbUserId = await upsertUserWithTier({
       email: member.email,
       tierName: member.tier ?? '',
@@ -641,6 +639,8 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
     if (dbUserId && dbUserId !== member.id) {
       member.id = dbUserId;
     }
+
+    const supabaseToken = await createSupabaseToken(member as unknown as { id: string; email: string; role: string; firstName?: string; lastName?: string });
 
     try {
       await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`);

@@ -44,7 +44,10 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
   }
   
   if (sessionUser.expires_at && Date.now() > sessionUser.expires_at) {
-    return logAndRespond(req, res, 401, 'Session expired');
+    return req.session.destroy(() => {
+      res.clearCookie('connect.sid');
+      logAndRespond(req, res, 401, 'Session expired');
+    });
   }
   
   const freshRole = await getUserRole(sessionUser.email);
@@ -276,8 +279,6 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
       expires_at: Date.now() + sessionTtl
     };
     
-    const supabaseToken = await createSupabaseToken(member);
-    
     const dbUserId2 = await upsertUserWithTier({
       email: member.email,
       tierName: member.tier ?? '',
@@ -293,6 +294,8 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     if (dbUserId2 && dbUserId2 !== member.id) {
       member.id = dbUserId2;
     }
+
+    const supabaseToken = await createSupabaseToken(member);
 
     try {
       await db.execute(sql`UPDATE users SET first_login_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${member.email}) AND first_login_at IS NULL`);

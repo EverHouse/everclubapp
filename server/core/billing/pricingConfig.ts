@@ -86,6 +86,12 @@ export function updateCorporateVolumePricing(tiers: VolumeTier[], basePrice: num
   logger.info('[PricingConfig] Corporate volume pricing updated from Stripe:', { extra: { detail: { tiers: _corporateVolumeTiers, basePrice: _corporateBasePrice } } });
 }
 
+/**
+ * Updates the family discount percentage in memory.
+ * NOTE: This is safe for single-instance deployments (Replit).
+ * If horizontally scaled, persist to DB and read at billing time.
+ * Stripe webhook (coupon.updated) and startup sync both call this.
+ */
 export function updateFamilyDiscountPercent(percent: number): void {
   _familyDiscountPercent = percent;
   logger.info('[PricingConfig] Family discount updated from Stripe:', { extra: { detail: { percent } } });

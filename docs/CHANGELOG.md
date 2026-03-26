@@ -2,6 +2,28 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.52] - 2026-03-26
+
+### Login Token Ordering Fix (Critical — per audit, Low actual risk)
+- **Root cause**: In password-login and OTP verify routes, `createSupabaseToken(member)` was called *before* `upsertUserWithTier()`. The audit flagged this as a JWT ID mismatch. On review, `createSupabaseToken()` uses `user.email` (not `user.id`) for Supabase auth calls, so the token content was unaffected. However, `member.id` is stored in the session immediately after, so reordering ensures the session always has the finalized ID before any downstream use.
+- **Fix**: Moved `upsertUserWithTier()` and the ID reconciliation *before* `createSupabaseToken()` in both password-login and OTP verify routes.
+- **Files changed**: `server/routes/auth/session.ts`, `server/routes/auth/otp.ts`
+
+### Zombie Session Accumulation (Medium)
+- **Root cause**: `GET /api/auth/session` returned 401 for expired sessions but did not destroy them in the session store. Sessions with a custom `expires_at` TTL shorter than the store's default maxAge would accumulate as unrecoverable zombie records.
+- **Fix**: Now calls `req.session.destroy()` and clears the cookie before returning 401 on expiry.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Participant Conflict Blindspot via Strict JOIN (Low)
+- **Root cause**: The participant conflict query used `JOIN booking_requests br ON br.session_id = bs.id`, which silently dropped booking sessions created manually (without a formal booking request). Participants in those sessions would not show as conflicting, allowing double-bookings.
+- **Fix**: Changed to `LEFT JOIN booking_requests` with `(br.id IS NULL OR br.status = ANY(OCCUPIED_STATUSES))`, treating sessions without a formal request as occupied by default.
+- **Files changed**: `server/core/bookingService/conflictDetection.ts`
+
+### Family Discount Pricing — In-Memory Safety Note
+- **Root cause**: Audit flagged that `updateFamilyDiscountPercent()` stores the FAMILY20 coupon discount in memory, which wouldn't sync across multiple instances. However, Replit runs a single process.
+- **Fix**: Added documentation comment. The value is already synced from Stripe on startup (`getOrCreateFamilyCoupon()`) and updated via webhook. No code change needed for current deployment model.
+- **Files changed**: `server/core/billing/pricingConfig.ts`
+
 ## [8.97.51] - 2026-03-26
 
 ### Privilege Escalation via Stale WebSocket Token (High)

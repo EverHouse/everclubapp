@@ -122,23 +122,23 @@ export async function findConflictingBookings(
 
       memberId ? db.execute(sql`
         SELECT 
-          br.id as booking_id,
+          COALESCE(br.id, -bs.id) as booking_id,
           COALESCE(r.name, 'Unknown Resource') as resource_name,
           bs.session_date as request_date,
           bs.start_time,
           bs.end_time,
-          br.user_name as owner_name,
-          br.user_email as owner_email,
+          COALESCE(br.user_name, 'Unknown') as owner_name,
+          COALESCE(br.user_email, '') as owner_email,
           bp.invite_status
         FROM booking_participants bp
         JOIN booking_sessions bs ON bp.session_id = bs.id
-        JOIN booking_requests br ON br.session_id = bs.id
+        LEFT JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON bs.resource_id = r.id
         WHERE bp.user_id = ${memberId}
           AND bs.session_date = ${date}
           AND bp.invite_status = 'accepted'
-          AND br.status = ANY(${OCCUPIED_STATUSES})
-          ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
+          AND (br.id IS NULL OR br.status = ANY(${OCCUPIED_STATUSES}))
+          ${excludeBookingId ? sql`AND (br.id IS NULL OR br.id != ${excludeBookingId})` : sql``}
       `) : Promise.resolve({ rows: [] }),
     ]);
 

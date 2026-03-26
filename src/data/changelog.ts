@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.52",
+    date: "2026-03-26",
+    title: "Auth & Booking Integrity Fixes",
+    changes: [
+      "Fixed: Login tokens are now created with the correct user ID, preventing access issues for new users",
+      "Fixed: Expired sessions are now fully cleaned up instead of accumulating in the database",
+      "Fixed: Booking conflict checks now catch participants in manually created sessions, preventing double-bookings",
+    ]
+  },
+  {
     version: "8.97.51",
     date: "2026-03-26",
     title: "Security Hardening (Part 2)",
