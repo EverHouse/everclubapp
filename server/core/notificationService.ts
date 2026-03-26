@@ -121,17 +121,17 @@ function buildPushTag(type: NotificationType, relatedId?: number): string {
 
 function buildStaffRoute(type: NotificationType): string {
   if (type === 'cancellation_pending' || type === 'cancellation_stuck' || type === 'attendance' || type === 'trackman_cancelled_link') return '/admin/bookings';
-  if (type.startsWith('booking') || type === 'day_pass' || type === 'guest_pass') return '/admin/bookings';
+  if (type.startsWith('booking') || type === 'day_pass' || type === 'guest_pass' || type === 'trackman_booking') return '/admin/bookings';
   if (type.startsWith('wellness')) return '/admin/calendar';
   if (type.startsWith('event')) return '/admin/calendar';
   if (type.startsWith('payment') || type === 'outstanding_balance' || type === 'billing' || type === 'billing_alert' || type === 'billing_migration' || type === 'terminal_refund' || type === 'terminal_dispute' || type === 'terminal_dispute_closed' || type === 'terminal_payment_canceled' || type === 'funds_added' || type === 'card_expiring' || type === 'fee_waived' || type === 'membership_failed' || type === 'membership_past_due') return '/admin/financials';
   if (type === 'membership_renewed' || type === 'membership_cancelled' || type === 'membership_terminated' || type === 'membership_cancellation' || type === 'new_member' || type === 'trial_expired' || type === 'trial_ending') return '/admin/directory';
-  if (type === 'member_status_change' || type === 'staff_note' || type === 'account_deletion') return '/admin/members';
+  if (type === 'member_status_change' || type === 'membership_tier_change' || type === 'staff_note' || type === 'account_deletion') return '/admin/members';
   if (type === 'tour' || type === 'tour_scheduled' || type === 'tour_reminder') return '/admin/tours';
   if (type === 'bug_report') return '/admin/bugs';
   if (type === 'import_failure' || type === 'integration_error') return '/admin/data-integrity';
   if (type === 'waiver_review') return '/admin/waivers';
-  if (type === 'trackman_unmatched' || type === 'trackman_booking') return '/admin/trackman';
+  if (type === 'trackman_unmatched') return '/admin/trackman';
   if (type === 'closure' || type === 'closure_today' || type === 'closure_created') return '/admin/notices';
   if (type === 'announcement') return '/admin/updates';
   if (type === 'system') return '/admin/data-integrity';

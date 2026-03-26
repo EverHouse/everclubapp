@@ -717,7 +717,7 @@ export async function ensureDatabaseConstraints() {
               'booking_cancelled', 'booking_cancelled_by_staff', 'booking_cancelled_via_trackman',
               'booking_invite', 'booking_update', 'booking_updated', 'booking_confirmed',
               'booking_auto_confirmed', 'booking_checked_in', 'booking_created',
-              'booking_participant_added', 'booking_request',
+              'booking_participant_added', 'booking_request', 'booking_pending',
               'closure', 'closure_today', 'closure_created',
               'wellness_booking', 'wellness_enrollment', 'wellness_cancellation',
               'wellness_reminder', 'wellness_class', 'wellness',
@@ -731,12 +731,13 @@ export async function ensureDatabaseConstraints() {
               'outstanding_balance', 'fee_waived',
               'membership_renewed', 'membership_failed', 'membership_past_due',
               'membership_cancelled', 'membership_terminated', 'membership_cancellation',
+              'membership_tier_change',
               'billing', 'billing_alert', 'billing_migration',
               'day_pass', 'new_member', 'member_status_change',
               'card_expiring', 'staff_note', 'account_deletion',
               'terminal_refund', 'terminal_dispute', 'terminal_dispute_closed',
               'terminal_payment_canceled',
-              'funds_added', 'trial_expired',
+              'funds_added', 'trial_expired', 'trial_ending',
               'waiver_review', 'cancellation_pending', 'cancellation_stuck',
               'bug_report', 'import_failure', 'integration_error', 'attendance'
             ));

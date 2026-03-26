@@ -149,6 +149,7 @@ const UpdatesTab: React.FC = () => {
             membership_cancellation: '/admin/directory',
             new_member: '/admin/directory',
             member_status_change: '/admin/members',
+            membership_tier_change: '/admin/members',
             card_expiring: '/admin/financials',
             trial_expired: '/admin/directory',
             trial_ending: '/admin/directory',

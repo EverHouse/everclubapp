@@ -77,7 +77,7 @@ async function processOnboardingNudges(): Promise<void> {
     lastNudgeDate = null;
     try {
       const { notifyAllStaff } = await import('../core/staffNotifications');
-      await notifyAllStaff('Onboarding Nudge Failed', `Scheduler error: ${getErrorMessage(error)}`, 'system_error');
+      await notifyAllStaff('Onboarding Nudge Failed', `Scheduler error: ${getErrorMessage(error)}`, 'system');
     } catch {
       logger.error('[Onboarding Nudge] Failed to send staff alert for scheduler failure');
     }
