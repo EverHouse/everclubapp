@@ -29,6 +29,10 @@ export const sessionRouter = Router();
 
 // PUBLIC ROUTE - destroy session (no auth check, harmless if called unauthenticated)
 sessionRouter.post('/api/auth/logout', (req, res) => {
+  if (!req.session) {
+    res.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
+    return res.json({ success: true, message: 'Already logged out' });
+  }
   req.session.destroy((err) => {
     if (err) {
       return logAndRespond(req, res, 500, 'Failed to logout', err);

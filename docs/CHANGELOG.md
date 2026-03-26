@@ -2,6 +2,27 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.57] - 2026-03-26
+
+### Booking Race Condition — Simultaneous Double-Booking (Critical)
+- **Root cause**: Conflict detection relied on application-level SELECT queries. When multiple users clicked "Book" for the same time slot simultaneously, each request's SELECT ran before the other's INSERT, so both saw no conflict and both bookings were created — double-booking the simulator.
+- **Fix**: Updated the PostgreSQL `booking_requests_no_overlap` exclusion constraint (GiST index) to cover `checked_in` status in addition to `pending`, `approved`, and `confirmed`. Created a `booking_time_range()` helper function that correctly computes timestamp ranges for cross-midnight bookings (extending `end_time` to the next day when it's earlier than `start_time`). The database now hard-rejects overlapping bookings regardless of application timing.
+- **Note**: `attended` bookings are excluded from the constraint because they are immutable historical records with pre-existing overlaps in legacy data.
+- **Files changed**: `drizzle/0066_update_booking_exclusion_statuses.sql`
+
+### Logout Crash on Missing Session (Medium)
+- **Root cause**: `POST /api/auth/logout` called `req.session.destroy()` without checking if `req.session` existed. Bots or users without session cookies could trigger a `TypeError` that bypassed Express error handlers and potentially crashed the Node.js worker process.
+- **Fix**: Added a null guard — if `req.session` is undefined, the endpoint clears the cookie and returns success immediately.
+- **Files changed**: `server/routes/auth/session.ts`
+
+### Conflict Detection Crash on Missing Email (Low)
+- **Root cause**: `findConflictingBookings()` called `memberEmail.trim()` without validating the input. If an upstream handler passed `undefined` or `null` (e.g., during a guest flow), it would throw a `TypeError`.
+- **Fix**: Added an early guard that returns no conflicts for falsy email values, and wrapped the value in `String()` for defensive coercion.
+- **Files changed**: `server/core/bookingService/conflictDetection.ts`
+
+### Time Regex — Already Fixed
+- **Assessment**: The time-parsing regex already includes an optional seconds group (`(?:\d{2})?`), correctly handling both `HH:MM` (frontend) and `HH:MM:SS` (PostgreSQL driver) formats. No code change needed.
+
 ## [8.97.56] - 2026-03-26
 
 ### Cryptographic Timing Attack — User Enumeration (Critical)

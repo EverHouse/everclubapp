@@ -649,8 +649,8 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
   } catch (error: unknown) {
     const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
-    if (constraint.type === 'unique') {
-      return res.status(409).json({ error: 'This time slot may have just been booked. Please refresh and try again.' });
+    if (constraint.type === 'unique' || constraint.type === 'exclusion') {
+      return res.status(409).json({ error: 'This time slot was just booked by someone else. Please refresh and pick a different time.' });
     }
     if (constraint.type === 'foreign_key') {
       return res.status(400).json({ error: 'Referenced record not found. Please refresh and try again.' });

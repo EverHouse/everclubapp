@@ -184,11 +184,12 @@ function isRetryableError(error: unknown): boolean {
   return _isRetryableError(error);
 }
 
-export function isConstraintError(error: unknown): { type: 'unique' | 'foreign_key' | null, detail?: string } {
+export function isConstraintError(error: unknown): { type: 'unique' | 'foreign_key' | 'exclusion' | null, detail?: string } {
   const code = getErrorCode(error);
   const detail = getErrorDetail(error);
   if (code === '23505') return { type: 'unique', detail };
   if (code === '23503') return { type: 'foreign_key', detail };
+  if (code === '23P01') return { type: 'exclusion', detail };
   return { type: null };
 }
 

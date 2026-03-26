@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.57",
+    date: "2026-03-26",
+    title: "Booking Race Condition Fix & Crash Prevention",
+    changes: [
+      "Critical: Database exclusion constraint now prevents simultaneous double-bookings on the same simulator (race condition fix)",
+      "Fixed: Cross-midnight bookings are now handled correctly by the exclusion constraint via a helper function",
+      "Fixed: All booking creation endpoints now return a clear 409 'slot just booked' message instead of crashing with a 500 error on overlap",
+      "Fixed: Logout endpoint no longer crashes when called without an active session",
+      "Fixed: Conflict detection gracefully handles missing member email instead of crashing",
+    ]
+  },
+  {
     version: "8.97.56",
     date: "2026-03-26",
     title: "Timing Attack Defense, CSP Cache Fix & Webhook Dead Letter Queue",

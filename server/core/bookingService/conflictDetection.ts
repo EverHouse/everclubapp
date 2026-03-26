@@ -98,8 +98,11 @@ export async function findConflictingBookings(
   endTime: string,
   excludeBookingId?: number
 ): Promise<ConflictCheckResult> {
+  if (!memberEmail) {
+    return { hasConflict: false, conflicts: [] };
+  }
   const conflicts: ConflictingBooking[] = [];
-  const normalizedEmail = memberEmail.trim().toLowerCase();
+  const normalizedEmail = String(memberEmail).trim().toLowerCase();
 
   try {
     const memberResult = await db.execute(
