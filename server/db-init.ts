@@ -2399,6 +2399,36 @@ export async function setupInstantDataTriggers(): Promise<void> {
   logger.info('[DB Init] Instant data triggers created');
 }
 
+export async function deleteOrphanHubSpotVisitors(): Promise<void> {
+  try {
+    const result = await db.execute(sql`
+      WITH zero_activity AS (
+        SELECT u.id, u.email
+        FROM users u
+        WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
+        AND u.role NOT IN ('admin', 'staff')
+        AND u.last_activity_at IS NULL
+        AND LOWER(u.email) NOT IN (SELECT LOWER(COALESCE(g.email,'')) FROM booking_participants bp LEFT JOIN guests g ON bp.guest_id = g.id WHERE bp.participant_type = 'guest')
+        AND LOWER(u.email) NOT IN (SELECT LOWER(u2.email) FROM booking_participants bp JOIN users u2 ON bp.user_id = u2.id WHERE bp.participant_type = 'guest')
+        AND LOWER(u.email) NOT IN (SELECT LOWER(purchaser_email) FROM day_pass_purchases)
+        AND LOWER(u.email) NOT IN (SELECT LOWER(user_email) FROM booking_requests)
+      ),
+      safe_to_delete AS (
+        SELECT za.id FROM zero_activity za
+        WHERE za.id NOT IN (SELECT user_id FROM booking_requests WHERE user_id IS NOT NULL)
+        AND za.id NOT IN (SELECT user_id FROM booking_participants WHERE user_id IS NOT NULL)
+      )
+      DELETE FROM users WHERE id IN (SELECT id FROM safe_to_delete)
+    `);
+    const count = result.rowCount ?? 0;
+    if (count > 0) {
+      logger.info(`[DB Init] Deleted ${count} orphan HubSpot-imported visitors with zero activity`);
+    }
+  } catch (err: unknown) {
+    logger.warn(`[DB Init] Failed to delete orphan HubSpot visitors: ${getErrorMessage(err)}`);
+  }
+}
+
 export async function clearStaleVisitorTypes(): Promise<void> {
   try {
     const result = await db.execute(sql`

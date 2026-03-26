@@ -251,7 +251,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             return null;
           }
           
-          if (!existingUser[0] && skipStatuses.includes(status) && !contact.properties.mindbody_client_id) {
+          if (!existingUser[0] && skipStatuses.includes(status)) {
             skippedNonTransacting++;
             return null;
           }
