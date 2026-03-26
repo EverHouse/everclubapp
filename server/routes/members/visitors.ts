@@ -971,7 +971,7 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
     await db.execute(sql`DELETE FROM guest_passes WHERE LOWER(member_email) = ${visitorEmail}`);
     deletionLog.push('guest_passes');
     
-    await db.execute(sql`DELETE FROM account_deletion_requests WHERE user_id = ${id}`);
+    await db.execute(sql`DELETE FROM account_deletion_requests WHERE LOWER(email) = ${visitorEmail}`);
     deletionLog.push('account_deletion_requests');
     
     await db.execute(sql`DELETE FROM data_export_requests WHERE LOWER(user_email) = ${visitorEmail}`);
