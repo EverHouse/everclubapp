@@ -26,6 +26,8 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
 
   const channelsRef = useRef<Map<string, RealtimeChannel>>(new Map());
   const mountedRef = useRef(true);
+  const retryCountRef = useRef<Map<string, number>>(new Map());
+  const retryTimerRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   // eslint-disable-next-line react-hooks/purity
   const instanceId = useMemo(() => Math.random().toString(36).slice(2, 8), []);
 
@@ -118,9 +120,38 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
     channel.subscribe((status, err) => {
       if (!mountedRef.current) return;
 
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      if (status === 'SUBSCRIBED') {
+        retryCountRef.current.set(table, 0);
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        const retries = retryCountRef.current.get(table) || 0;
         const errMsg = err ? ` (${err.message || err})` : '';
-        console.warn(`[Supabase Realtime] ${status} for ${table}${errMsg} — SDK will auto-recover`);
+        console.warn(`[Supabase Realtime] ${status} for ${table}${errMsg} — scheduling reconnect (attempt ${retries + 1})`);
+
+        const existingTimer = retryTimerRef.current.get(table);
+        if (existingTimer) clearTimeout(existingTimer);
+
+        const MAX_RETRIES = 10;
+        if (retries < MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, retries), 30000) + Math.random() * 1000;
+          retryCountRef.current.set(table, retries + 1);
+          const timer = setTimeout(() => {
+            if (!mountedRef.current) return;
+            retryTimerRef.current.delete(table);
+            const currentChannel = channelsRef.current.get(table);
+            if (currentChannel) {
+              try {
+                supabase.removeChannel(currentChannel);
+              } catch (_e) {
+                // intentionally empty
+              }
+              channelsRef.current.delete(table);
+            }
+            subscribeToTable(supabase, table);
+          }, delay);
+          retryTimerRef.current.set(table, timer);
+        } else {
+          console.error(`[Supabase Realtime] Max retries (${MAX_RETRIES}) reached for ${table}, giving up`);
+        }
       } else if (status === 'CLOSED') {
         channelsRef.current.delete(table);
       }
@@ -143,8 +174,11 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
     }
 
     const channels = channelsRef.current;
+    const retryTimers = retryTimerRef.current;
     return () => {
       mountedRef.current = false;
+      retryTimers.forEach((timer) => clearTimeout(timer));
+      retryTimers.clear();
       channels.forEach((channel) => {
         try {
           supabase.removeChannel(channel);

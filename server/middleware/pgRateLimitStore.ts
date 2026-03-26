@@ -124,12 +124,40 @@ export class PgRateLimitStore implements Store {
     const cutoff = new Date(Date.now() - this.windowMs * 2);
     try {
       if ((pool as unknown as Pool).waitingCount > 5) {
+        logger.debug('[PgRateLimitStore] Skipping cleanup — pool under pressure', {
+          extra: { waitingCount: (pool as unknown as Pool).waitingCount }
+        });
         return;
       }
-      await pool.query(
-        `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
-        [`${this.prefix}:%`, cutoff]
-      );
+      const maxAttempts = 2;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
+            await client.query(`SET LOCAL statement_timeout = '5000'`);
+            await client.query(
+              `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
+              [`${this.prefix}:%`, cutoff]
+            );
+            await client.query('COMMIT');
+          } catch (txErr) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw txErr;
+          } finally {
+            client.release();
+          }
+          break;
+        } catch (err: unknown) {
+          const errMsg = String(err);
+          const isRetryable = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
+            errMsg.includes('connection') || errMsg.includes('ETIMEDOUT');
+          if (!isRetryable || attempt === maxAttempts) {
+            throw err;
+          }
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+        }
+      }
     } catch (err: unknown) {
       logger.warn('[PgRateLimitStore] cleanup failed', { extra: { error: String(err) } });
     } finally {

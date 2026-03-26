@@ -238,6 +238,37 @@ export async function queryWithRetry<T extends QueryResultRow = Record<string, u
   throw lastError;
 }
 
+export async function queryWithRetryDirect<T extends QueryResultRow = Record<string, unknown>>(
+  queryText: string,
+  params?: unknown[],
+  maxRetries: number = 3
+): Promise<QueryResult<T>> {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await directPool.query<T>(queryText, params);
+    } catch (error: unknown) {
+      lastError = error;
+
+      if (!isRetryableError(error) || attempt === maxRetries) {
+        throw error;
+      }
+
+      const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000);
+      logger.warn(`[Database] Retrying direct query (attempt ${attempt}/${maxRetries}) after ${delay}ms`, {
+        extra: {
+          errorMessage: getErrorMessage(error),
+          isConnectionError: isConnectionError(error),
+        },
+      });
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
 export function getPoolStatus() {
   return {
     total: pool.totalCount,

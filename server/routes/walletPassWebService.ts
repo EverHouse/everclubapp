@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, inArray } from 'drizzle-orm';
 import { walletPassDeviceRegistrations, walletPassAuthTokens } from '../../shared/schema';
 import { validateAuthToken } from '../walletPass/apnPushService';
 import { logger } from '../core/logger';
@@ -127,6 +127,30 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       }
     }
     if (!authValid) {
+      const registeredSerials = deviceRegistrations.map(r => r.serialNumber);
+      const memberIdsForDevice = await db.select({ memberId: walletPassAuthTokens.memberId })
+        .from(walletPassAuthTokens)
+        .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
+
+      if (memberIdsForDevice.length > 0) {
+        const memberIds = [...new Set(memberIdsForDevice.map(r => r.memberId))];
+        const fallbackResult = await db.select({ id: walletPassAuthTokens.id })
+          .from(walletPassAuthTokens)
+          .where(and(
+            eq(walletPassAuthTokens.authToken, authToken),
+            inArray(walletPassAuthTokens.memberId, memberIds),
+          ))
+          .limit(1);
+
+        if (fallbackResult.length > 0) {
+          authValid = true;
+          logger.info('[WalletPass WebService] Auth validated via fallback (token belongs to same member)', {
+            extra: { deviceLibraryId, passTypeId, registeredSerials }
+          });
+        }
+      }
+    }
+    if (!authValid) {
       logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
         extra: { deviceLibraryId, passTypeId, registeredSerials: deviceRegistrations.map(r => r.serialNumber) }
       });
@@ -191,7 +215,36 @@ router.get('/v1/passes/:passTypeId/:serialNumber', async (req, res) => {
       return res.status(401).send('Unauthorized');
     }
 
-    const isValid = await validateAuthToken(serialNumber, authToken);
+    let isValid = await validateAuthToken(serialNumber, authToken);
+    if (!isValid) {
+      const tokenOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
+        .from(walletPassAuthTokens)
+        .where(eq(walletPassAuthTokens.authToken, authToken))
+        .limit(1);
+
+      if (tokenOwner.length > 0) {
+        const serialOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
+          .from(walletPassAuthTokens)
+          .where(eq(walletPassAuthTokens.serialNumber, serialNumber))
+          .limit(1);
+
+        if (serialOwner.length > 0 && serialOwner[0].memberId === tokenOwner[0].memberId) {
+          isValid = true;
+          logger.info('[WalletPass WebService] Pass auth validated via member fallback (token serial drift)', {
+            extra: { passTypeId, serialNumber }
+          });
+
+          await db.update(walletPassAuthTokens)
+            .set({ authToken, updatedAt: new Date() })
+            .where(eq(walletPassAuthTokens.serialNumber, serialNumber))
+            .catch((repairErr: unknown) => {
+              logger.warn('[WalletPass WebService] Failed to repair auth token mapping', {
+                extra: { serialNumber, error: getErrorMessage(repairErr) }
+              });
+            });
+        }
+      }
+    }
     if (!isValid) {
       return res.status(401).send('Unauthorized');
     }

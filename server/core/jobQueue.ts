@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { queryWithRetry } from './db';
+import { queryWithRetry, queryWithRetryDirect } from './db';
 import { getErrorMessage } from '../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 import { schedulerTracker } from './schedulerTracker';
@@ -119,9 +119,7 @@ export async function queueJobs(
 async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload: Record<string, unknown>; retryCount: number; maxRetries: number }>> {
   const nowIso = new Date().toISOString();
   const lockExpiryIso = new Date(Date.now() - LOCK_TIMEOUT_MS).toISOString();
-  
-  const result = await queryWithRetry(
-    `UPDATE job_queue
+  const claimQuery = `UPDATE job_queue
      SET locked_at = $1::timestamptz, locked_by = $2
      WHERE id IN (
        SELECT id FROM job_queue
@@ -132,10 +130,23 @@ async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload
        LIMIT $5
        FOR UPDATE SKIP LOCKED
      )
-     RETURNING id, job_type, payload, retry_count, max_retries`,
-    [nowIso, WORKER_ID, nowIso, lockExpiryIso, BATCH_SIZE],
-    3
-  );
+     RETURNING id, job_type, payload, retry_count, max_retries`;
+  const claimParams = [nowIso, WORKER_ID, nowIso, lockExpiryIso, BATCH_SIZE];
+
+  let result;
+  try {
+    result = await queryWithRetry(claimQuery, claimParams, 3);
+  } catch (primaryErr: unknown) {
+    const errMsg = getErrorMessage(primaryErr);
+    const isPoolIssue = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
+      errMsg.includes('ETIMEDOUT') || errMsg.includes('pool') || errMsg.includes('connection');
+    if (isPoolIssue) {
+      logger.warn('[JobQueue] Primary pool failed for claim, falling back to direct pool', { error: errMsg });
+      result = await queryWithRetryDirect(claimQuery, claimParams, 2);
+    } else {
+      throw primaryErr;
+    }
+  }
   
   return result.rows.map((r) => {
     const row = r as unknown as JobRow;
@@ -396,6 +407,8 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
 
 let processingInterval: ReturnType<typeof setInterval> | null = null;
 let isProcessingJobs = false;
+let consecutiveFailures = 0;
+const MAX_BACKOFF_MULTIPLIER = 6;
 
 export async function processJobs(): Promise<number> {
   const jobs = await claimJobs();
@@ -428,12 +441,33 @@ export function startJobProcessor(intervalMs: number = 5000): void {
       if (isProcessingJobs) {
         return;
       }
+
+      if (consecutiveFailures > 0) {
+        const skipCycles = Math.min(consecutiveFailures, MAX_BACKOFF_MULTIPLIER);
+        const shouldSkip = Math.random() > (1 / (skipCycles + 1));
+        if (shouldSkip) {
+          return;
+        }
+      }
+
       isProcessingJobs = true;
       try {
         await processJobs();
         schedulerTracker.recordRun('Job Queue Processor', true);
+        if (consecutiveFailures > 0) {
+          logger.info(`[JobQueue] Recovered after ${consecutiveFailures} consecutive failure(s)`);
+          consecutiveFailures = 0;
+        }
       } catch (error: unknown) {
-        logger.error('[JobQueue] Processing error:', { error: getErrorMessage(error) });
+        consecutiveFailures++;
+        const errMsg = getErrorMessage(error);
+        const isConnectionIssue = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
+          errMsg.includes('connection') || errMsg.includes('ETIMEDOUT') || errMsg.includes('pool');
+        if (isConnectionIssue && consecutiveFailures <= 3) {
+          logger.warn(`[JobQueue] Connection issue (attempt ${consecutiveFailures}), backing off:`, { error: errMsg });
+        } else {
+          logger.error('[JobQueue] Processing error:', { error: errMsg });
+        }
         schedulerTracker.recordRun('Job Queue Processor', false, String(error));
       } finally {
         isProcessingJobs = false;
