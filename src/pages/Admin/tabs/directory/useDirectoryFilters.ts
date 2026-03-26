@@ -63,8 +63,13 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
                 setFiltersOpen(false);
             }
         };
+        const handleScroll = () => setFiltersOpen(false);
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
     }, [filtersOpen]);
 
     useEffect(() => {
@@ -74,8 +79,13 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
                 setSortOpen(false);
             }
         };
+        const handleScroll = () => setSortOpen(false);
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        window.addEventListener('scroll', handleScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
     }, [sortOpen]);
 
     const currentMembers = useMemo(() => memberTab === 'active' ? (members || []) : (formerMembers || []), [memberTab, members, formerMembers]);
