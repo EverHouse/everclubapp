@@ -64,8 +64,17 @@ export const MindbodyBillingSection: React.FC<MindbodyBillingSectionProps> = ({
     }).format(amount / 100);
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+  const formatDate = (timestamp: number | string) => {
+    let date: Date;
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp > 9999999999) {
+      date = new Date(timestamp);
+    } else {
+      date = new Date(timestamp * 1000);
+    }
+    if (isNaN(date.getTime())) return 'Unknown';
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',

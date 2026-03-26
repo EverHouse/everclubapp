@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.63] - 2026-03-26
+
+### Billing Section Date & Tier Match Fixes
+- **Fix**: `formatDate` in `MindbodyBillingSection.tsx` now handles ISO date strings, Unix timestamps in seconds, and milliseconds — previously only handled Unix seconds, causing "Invalid Date" when the backend returned serialized `Date` objects (ISO strings).
+- **Fix (Task #252 merged)**: Migration status endpoint `tierHasStripePrice` query now uses `LOWER()` and matches on both `slug` and `name` columns — previously did exact `slug` match against display-name tier values (e.g., "Core" vs "core"), always returning false.
+- **Files changed**: `src/components/admin/billing/MindbodyBillingSection.tsx`, `server/routes/memberBilling.ts`
+
 ## [8.97.62] - 2026-03-26
 
 ### Fee Product Stripe & Price Sync Gaps Fixed

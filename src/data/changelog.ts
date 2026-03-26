@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.63",
+    date: "2026-03-26",
+    title: "Billing Section Date & Tier Match Fixes",
+    changes: [
+      "Fix: Stripe One-Off Purchases in Mindbody billing section now display correct dates — backend sends ISO date strings but frontend was treating them as Unix timestamps, resulting in 'Invalid Date'",
+      "Fix (Task #252): Tier Stripe pricing check now uses case-insensitive matching on both slug and name columns — previously Core/Premium/etc always showed 'This tier doesn't have Stripe pricing configured' for Mindbody members",
+    ]
+  },
+  {
     version: "8.97.62",
     date: "2026-03-26",
     title: "Fee Product Stripe & Price Sync Gaps Fixed",
