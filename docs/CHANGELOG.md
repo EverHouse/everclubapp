@@ -2,6 +2,21 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.60] - 2026-03-26
+
+### Fee Products Table Extraction (Task #226)
+- **What**: Extracted 5 fee/pass products (guest fee, simulator overage, day pass golf sim, day pass coworking, corporate volume pricing) from the overloaded `membership_tiers` table into a dedicated `fee_products` table.
+- **Why**: `membership_tiers` mixed subscription tiers with one-time fee products, causing confusing admin UX and webhook routing conflicts. Fee products have different lifecycles and fields than subscription tiers.
+- **Migration**: Startup migration copies fee rows from `membership_tiers` → `fee_products` (ON CONFLICT DO NOTHING), then deactivates and clears Stripe IDs on the old rows. Drizzle migration `0067_add_fee_products.sql` also available.
+- **API**: New CRUD endpoints at `/api/fee-products` (staff read, admin write). Frontend `saveFeeProductMutation` routes fee saves to the new endpoint.
+- **Webhook**: `catalog.ts` handler checks `fee_products` FIRST, then `membership_tiers` (subscription-only), preventing stale row matches.
+- **Files changed**: `shared/models/membership.ts`, `server/loaders/startup.ts`, `server/routes/membershipTiers.ts`, `server/core/stripe/webhooks/handlers/catalog.ts`, `server/core/stripe/productCreation.ts`, `server/core/stripe/autoPush.ts`, `server/core/billing/bookingInvoiceService.ts`, `server/core/billing/guestPassConsumer.ts`, `server/routes/pricing.ts`, `server/routes/dayPasses.ts`, `server/routes/stripe/admin.ts`, `server/routes/stripe/quick-charge.ts`, `server/routes/stripe/member-payments/guest-passes.ts`, `server/routes/myBilling.ts`, `server/routes/dataIntegrity/sync.ts`, `server/core/stripe/environmentValidation.ts`, `src/pages/Admin/tabs/TiersTab/`
+
+### Post-Merge Fix: Fee Products Verification Query
+- **Root cause**: Startup verification query used `slug = ANY(${FEE_SLUGS_REQUIRED})` via Drizzle's `sql` template literal, which expanded the JS array as individual params `($1,$2,$3,$4,$5)` instead of a PostgreSQL array — causing `op ANY/ALL (array) requires array on right side` error.
+- **Fix**: Changed to `sql.raw()` with an explicit `ARRAY[...]::varchar[]` cast for the hardcoded slug constants.
+- **Files changed**: `server/loaders/startup.ts`
+
 ## [8.97.59] - 2026-03-26
 
 ### "Groundhog Day" Booking Blackout — False Conflicts Across Days (Critical)

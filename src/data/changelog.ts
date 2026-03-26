@@ -8,6 +8,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.60",
+    date: "2026-03-26",
+    title: "Fee Products Extraction & Post-Merge Verification",
+    changes: [
+      "Feature: Extracted 5 fee/pass products (guest fee, simulator overage, day passes, corporate pricing) from membership_tiers into dedicated fee_products table",
+      "Feature: Added fee_products CRUD API (GET/PUT/POST /api/fee-products) with admin-only write access",
+      "Feature: Stripe webhook catalog handler now checks fee_products first, preventing stale membership_tiers row matches",
+      "Feature: Frontend fee product saves now route to /api/fee-products endpoint",
+      "Fix: Corrected fee_products startup verification query — PostgreSQL ANY() operator now receives proper array type instead of tuple",
+      "Infra: Old membership_tiers fee rows deactivated and Stripe IDs cleared after migration to prevent dual-source conflicts",
+    ]
+  },
+  {
     version: "8.97.59",
     date: "2026-03-26",
     title: "Booking Blackout Fix, Privilege Escalation Block & Webhook Crash Guard",
