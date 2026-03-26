@@ -5,7 +5,6 @@ import { updateVisitorType, VisitorType } from './typeService';
 import { getMemberTierByEmail } from '../tierService';
 import { recordUsage, ensureSessionForBooking } from '../bookingService/sessionManager';
 
-import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../../shared/utils/dateUtils';
@@ -27,12 +26,11 @@ export interface PurchaseMatch {
   email: string;
   firstName: string | null;
   lastName: string | null;
-  mindbodyClientId: string | null;
   purchaseId: number;
   itemName: string;
   itemCategory: string;
   saleDate: Date;
-  source?: 'legacy' | 'day_pass'; // Which table the purchase came from
+  source?: 'day_pass';
 }
 
 export interface AutoMatchResult {
@@ -49,12 +47,12 @@ export interface AutoMatchResult {
 const BOOKING_TYPE_MAPPINGS: Record<string, BookingTypeInfo> = {
   classpass: {
     keyword: 'classpass',
-    visitorType: 'classpass',
+    visitorType: 'guest',
     legacyCategories: ['lesson']
   },
   golfnow: {
     keyword: 'golfnow',
-    visitorType: 'golfnow',
+    visitorType: 'guest',
     legacyCategories: []
   },
   day_pass: {
@@ -64,27 +62,27 @@ const BOOKING_TYPE_MAPPINGS: Record<string, BookingTypeInfo> = {
   },
   private_lesson: {
     keyword: 'private lesson',
-    visitorType: 'private_lesson',
+    visitorType: 'guest',
     legacyCategories: ['lesson']
   },
   kids_lesson: {
     keyword: 'kids lesson',
-    visitorType: 'private_lesson',
+    visitorType: 'guest',
     legacyCategories: ['lesson']
   },
   sim_walkin: {
     keyword: 'sim walk-in',
-    visitorType: 'sim_walkin',
+    visitorType: 'day_pass',
     legacyCategories: ['sim_walk_in', 'guest_sim_fee']
   },
   sim_walkin_alt: {
     keyword: 'walk-in',
-    visitorType: 'sim_walkin',
+    visitorType: 'day_pass',
     legacyCategories: ['sim_walk_in', 'guest_sim_fee']
   },
   sim_walkin_alt2: {
     keyword: 'simulator walk',
-    visitorType: 'sim_walkin',
+    visitorType: 'day_pass',
     legacyCategories: ['sim_walk_in', 'guest_sim_fee']
   },
   guest_sim: {
@@ -173,85 +171,43 @@ export async function matchBookingToPurchase(
     const minTime = `${String(minHour).padStart(2, '0')}:00:00`;
     const maxTime = `${String(maxHour).padStart(2, '0')}:59:59`;
 
-    // Query 2: FIX for "Day Pass Ignore" bug - also search day_pass_purchases table
-    // GUARD: Only query day_pass_purchases when there's explicit day-pass signal in the notes
-    // Check parsed bookingType or explicit keywords in notes - NOT just default fallback categories
     const parsed = parseBookingNotes(notes);
     const dayPassKeywords = ['day pass', 'daypass', 'walk-in', 'walkin', 'sim walk'];
     const notesLower = (notes || '').toLowerCase();
     const hasExplicitDayPassSignal = 
-      parsed.bookingType?.visitorType === 'sim_walkin' ||
+      parsed.bookingType?.visitorType === 'day_pass' ||
       categories.includes('day_pass') ||
       dayPassKeywords.some(kw => notesLower.includes(kw));
-    const shouldQueryDayPass = hasExplicitDayPassSignal;
     
-    let dayPassResult: { rows: Record<string, unknown>[] } = { rows: [] };
-    
-    if (shouldQueryDayPass) {
-      dayPassResult = await db.execute(sql`
-        SELECT 
-          dp.id as purchase_id,
-          'day_pass' as source,
-          'Day Pass' as item_name,
-          'day_pass' as item_category,
-          dp.purchased_at as sale_date,
-          dp.purchaser_email as member_email,
-          NULL as mindbody_client_id,
-          u.id as user_id,
-          u.email,
-          u.first_name,
-          u.last_name,
-          ABS(EXTRACT(EPOCH FROM (dp.purchased_at::time - ${startTime}::time))) as time_diff
-        FROM day_pass_purchases dp
-        LEFT JOIN users u ON LOWER(u.email) = LOWER(dp.purchaser_email)
-        WHERE (DATE(dp.booking_date) = ${dateStr} OR DATE(dp.purchased_at) = ${dateStr})
-          AND dp.status NOT IN ('redeemed', 'expired', 'cancelled')
-          AND dp.remaining_uses > 0
-          AND (u.archived_at IS NULL OR u.id IS NULL)
-          AND dp.purchased_at::time BETWEEN ${minTime}::time AND ${maxTime}::time
-        ORDER BY time_diff ASC
-        LIMIT 1
-      `);
+    if (!hasExplicitDayPassSignal) {
+      return null;
     }
-
-    // Execute legacy query
-    const legacyResult = await db.execute(sql`
+    
+    const dayPassResult = await db.execute(sql`
       SELECT 
-        lp.id as purchase_id,
-        'legacy' as source,
-        lp.item_name,
-        lp.item_category,
-        lp.sale_date,
-        lp.member_email,
-        lp.mindbody_client_id,
+        dp.id as purchase_id,
+        'day_pass' as source,
+        'Day Pass' as item_name,
+        'day_pass' as item_category,
+        dp.purchased_at as sale_date,
+        dp.purchaser_email as member_email,
         u.id as user_id,
         u.email,
         u.first_name,
         u.last_name,
-        ABS(EXTRACT(EPOCH FROM (lp.sale_date::time - ${startTime}::time))) as time_diff
-      FROM legacy_purchases lp
-      LEFT JOIN users u ON LOWER(u.email) = LOWER(lp.member_email) 
-        OR u.mindbody_client_id = lp.mindbody_client_id
-      WHERE DATE(lp.sale_date) = ${dateStr}
-        AND lp.item_category = ANY(${toTextArrayLiteral(categories)}::text[])
-        AND lp.linked_booking_session_id IS NULL
-        AND lp.linked_at IS NULL
-        AND lp.sale_date::time BETWEEN ${minTime}::time AND ${maxTime}::time
+        ABS(EXTRACT(EPOCH FROM (dp.purchased_at::time - ${startTime}::time))) as time_diff
+      FROM day_pass_purchases dp
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(dp.purchaser_email)
+      WHERE (DATE(dp.booking_date) = ${dateStr} OR DATE(dp.purchased_at) = ${dateStr})
+        AND dp.status NOT IN ('redeemed', 'expired', 'cancelled')
+        AND dp.remaining_uses > 0
         AND (u.archived_at IS NULL OR u.id IS NULL)
+        AND dp.purchased_at::time BETWEEN ${minTime}::time AND ${maxTime}::time
       ORDER BY time_diff ASC
       LIMIT 1
     `);
     
-    // Pick the best match - prefer day_pass (modern) if same time, otherwise pick closest
-    let row: Record<string, unknown> | null = null;
-    if (legacyResult.rows.length > 0 && dayPassResult.rows.length > 0) {
-      // Both found - pick the one closer to booking time
-      row = ((dayPassResult.rows[0] as Record<string, unknown>).time_diff as number) <= ((legacyResult.rows[0] as Record<string, unknown>).time_diff as number)
-        ? dayPassResult.rows[0] as Record<string, unknown>
-        : legacyResult.rows[0] as Record<string, unknown>;
-    } else {
-      row = (dayPassResult.rows[0] as Record<string, unknown>) || (legacyResult.rows[0] as Record<string, unknown>) || null;
-    }
+    const row = (dayPassResult.rows[0] as Record<string, unknown>) || null;
     
     if (!row) {
       return null;
@@ -261,12 +217,11 @@ export async function matchBookingToPurchase(
       email: (row.email || row.member_email) as string,
       firstName: row.first_name as string | null,
       lastName: row.last_name as string | null,
-      mindbodyClientId: row.mindbody_client_id as string | null,
       purchaseId: row.purchase_id as number,
       itemName: row.item_name as string,
       itemCategory: row.item_category as string,
       saleDate: row.sale_date as Date,
-      source: row.source as 'legacy' | 'day_pass'
+      source: 'day_pass' as const
     };
   } catch (error: unknown) {
     logger.error('[AutoMatch] Error matching booking to purchase:', { error: getErrorMessage(error) });
@@ -466,7 +421,6 @@ export async function autoMatchSingleBooking(
           email: purchaseMatch.email,
           firstName: purchaseMatch.firstName ?? undefined,
           lastName: purchaseMatch.lastName ?? undefined,
-          mindbodyClientId: purchaseMatch.mindbodyClientId ?? undefined
         });
         userId = visitor.id as string;
       }
@@ -512,7 +466,6 @@ export async function autoMatchSingleBooking(
       return result;
     }
 
-    // Fallback: create GolfNow or ClassPass visitor
     const isGolfNow = parsed.bookingType?.keyword === 'golfnow';
     const isClassPass = parsed.bookingType?.keyword === 'classpass';
     
@@ -521,14 +474,13 @@ export async function autoMatchSingleBooking(
       if (visitorEmail) {
         const user = await findMatchingUser({ email: visitorEmail });
         if (user) {
-          const visitorType: VisitorType = isClassPass ? 'classpass' : 'golfnow';
           const visitorLabel = isClassPass ? 'ClassPass Visitor' : 'GolfNow Visitor';
           const sessionId = await maybeCreateSession(user.id as string, visitorEmail, userName || visitorLabel);
           await resolveBookingWithUser(bookingId, user.id as string, visitorEmail, staffEmail, sessionId);
           result.matched = true;
           result.matchType = isClassPass ? 'classpass_visitor' : 'golfnow_fallback';
           result.visitorEmail = visitorEmail;
-          result.visitorType = visitorType;
+          result.visitorType = 'guest';
           if (sessionId) result.sessionId = sessionId;
           return result;
         }
@@ -565,79 +517,49 @@ async function resolveBookingWithUser(
   });
 }
 
-// Link purchase to a real booking session (for future bookings)
-// FIX: Handle both legacy_purchases and day_pass_purchases tables based on source
-async function linkPurchaseToSession(purchaseId: number | string, sessionId: number, source?: 'legacy' | 'day_pass', trackmanBookingId?: string): Promise<void> {
-  if (source === 'day_pass') {
-    // Day pass uses status='redeemed', remaining_uses, and trackman_booking_id for audit trail
-    // Only store actual trackman_booking_id, not sessionId (they are different identifiers)
-    // Guard: prevent duplicate linking by checking trackman_booking_id not already set to different value
-    const result = await db.execute(sql`
-      UPDATE day_pass_purchases
-      SET 
-        status = CASE WHEN remaining_uses <= 1 THEN 'redeemed' ELSE status END,
-        remaining_uses = GREATEST(0, COALESCE(remaining_uses, 1) - 1),
-        trackman_booking_id = CASE 
-          WHEN ${trackmanBookingId || null}::text IS NOT NULL THEN COALESCE(trackman_booking_id, ${trackmanBookingId || null})
-          ELSE trackman_booking_id
-        END,
-        updated_at = NOW()
-      WHERE id = ${purchaseId} 
-        AND (remaining_uses > 0 OR remaining_uses IS NULL)
-        AND (trackman_booking_id IS NULL OR trackman_booking_id = ${trackmanBookingId || null} OR ${trackmanBookingId || null} IS NULL)
-    `);
-    
-    if (result.rowCount === 0) {
-      logger.warn(`[AutoMatch] Day pass ${purchaseId} not updated - may be exhausted or already linked to different booking`);
-    } else {
-      logger.info(`[AutoMatch] Linked day pass purchase ${purchaseId} to session ${sessionId}${trackmanBookingId ? ` (trackman: ${trackmanBookingId})` : ''}`);
-    }
+async function linkPurchaseToSession(purchaseId: number | string, sessionId: number, _source?: 'day_pass', trackmanBookingId?: string): Promise<void> {
+  const result = await db.execute(sql`
+    UPDATE day_pass_purchases
+    SET 
+      status = CASE WHEN remaining_uses <= 1 THEN 'redeemed' ELSE status END,
+      remaining_uses = GREATEST(0, COALESCE(remaining_uses, 1) - 1),
+      trackman_booking_id = CASE 
+        WHEN ${trackmanBookingId || null}::text IS NOT NULL THEN COALESCE(trackman_booking_id, ${trackmanBookingId || null})
+        ELSE trackman_booking_id
+      END,
+      updated_at = NOW()
+    WHERE id = ${purchaseId} 
+      AND (remaining_uses > 0 OR remaining_uses IS NULL)
+      AND (trackman_booking_id IS NULL OR trackman_booking_id = ${trackmanBookingId || null} OR ${trackmanBookingId || null} IS NULL)
+  `);
+  
+  if (result.rowCount === 0) {
+    logger.warn(`[AutoMatch] Day pass ${purchaseId} not updated - may be exhausted or already linked to different booking`);
   } else {
-    await db.execute(sql`
-      UPDATE legacy_purchases
-      SET 
-        linked_booking_session_id = ${sessionId},
-        linked_at = NOW()
-      WHERE id = ${purchaseId}
-    `);
-    logger.info(`[AutoMatch] Linked legacy purchase ${purchaseId} to session ${sessionId}`);
+    logger.info(`[AutoMatch] Linked day pass purchase ${purchaseId} to session ${sessionId}${trackmanBookingId ? ` (trackman: ${trackmanBookingId})` : ''}`);
   }
 }
 
-// Mark purchase as used without linking to session (for historical bookings)
-// We use linked_at/status to prevent re-matching but don't set linked_booking_session_id
-// FIX: Handle both legacy_purchases and day_pass_purchases tables based on source
-async function markPurchaseAsUsed(purchaseId: number | string, unmatchedBookingId: number, source?: 'legacy' | 'day_pass', trackmanBookingId?: string): Promise<void> {
-  if (source === 'day_pass') {
-    // Use trackman_booking_id for audit trail (only store actual trackman ID, not synthetic values)
-    // Guard: prevent duplicate linking by checking trackman_booking_id not already set to different value
-    const result = await db.execute(sql`
-      UPDATE day_pass_purchases
-      SET 
-        status = CASE WHEN remaining_uses <= 1 THEN 'redeemed' ELSE status END,
-        remaining_uses = GREATEST(0, COALESCE(remaining_uses, 1) - 1),
-        trackman_booking_id = CASE 
-          WHEN ${trackmanBookingId || null}::text IS NOT NULL THEN COALESCE(trackman_booking_id, ${trackmanBookingId || null})
-          ELSE trackman_booking_id
-        END,
-        updated_at = NOW()
-      WHERE id = ${purchaseId} 
-        AND (remaining_uses > 0 OR remaining_uses IS NULL)
-        AND (trackman_booking_id IS NULL OR trackman_booking_id = ${trackmanBookingId || null} OR ${trackmanBookingId || null} IS NULL)
-    `);
-    
-    if (result.rowCount === 0) {
-      logger.warn(`[AutoMatch] Day pass ${purchaseId} not updated - may be exhausted or already linked to different booking`);
-    } else {
-      logger.info(`[AutoMatch] Marked day pass purchase ${purchaseId} as redeemed (historical, unmatched booking ${unmatchedBookingId})`);
-    }
+async function markPurchaseAsUsed(purchaseId: number | string, unmatchedBookingId: number, _source?: 'day_pass', trackmanBookingId?: string): Promise<void> {
+  const result = await db.execute(sql`
+    UPDATE day_pass_purchases
+    SET 
+      status = CASE WHEN remaining_uses <= 1 THEN 'redeemed' ELSE status END,
+      remaining_uses = GREATEST(0, COALESCE(remaining_uses, 1) - 1),
+      trackman_booking_id = CASE 
+        WHEN ${trackmanBookingId || null}::text IS NOT NULL THEN COALESCE(trackman_booking_id, ${trackmanBookingId || null})
+        ELSE trackman_booking_id
+      END,
+      updated_at = NOW()
+    WHERE id = ${purchaseId} 
+      AND (remaining_uses > 0 OR remaining_uses IS NULL)
+      AND (trackman_booking_id IS NULL OR trackman_booking_id = ${trackmanBookingId || null} OR ${trackmanBookingId || null} IS NULL)
+  `);
+  
+  if (result.rowCount === 0) {
+    logger.warn(`[AutoMatch] Day pass ${purchaseId} not updated - may be exhausted or already linked to different booking`);
   } else {
-    await db.execute(sql`
-      UPDATE legacy_purchases
-      SET linked_at = NOW()
-      WHERE id = ${purchaseId} AND linked_at IS NULL
-    `);
-    logger.info(`[AutoMatch] Marked legacy purchase ${purchaseId} as used (historical, unmatched booking ${unmatchedBookingId})`);
+    logger.info(`[AutoMatch] Marked day pass purchase ${purchaseId} as redeemed (historical, unmatched booking ${unmatchedBookingId})`);
   }
 }
 
@@ -814,17 +736,10 @@ async function autoMatchBookingRequests(
         continue;
       }
       
-      // Determine visitor type based on content
       let visitorType: VisitorType = 'guest';
       
-      if (lowerName.includes('golfnow') || allNotes.includes('golfnow')) {
-        visitorType = 'golfnow';
-      } else if (lowerName.includes('classpass') || allNotes.includes('classpass')) {
-        visitorType = 'classpass';
-      } else if (lowerName.includes('lesson') || allNotes.includes('lesson')) {
-        visitorType = 'private_lesson';
-      } else if (lowerName.includes('walk-in') || lowerName.includes('walk in')) {
-        visitorType = 'sim_walkin';
+      if (lowerName.includes('walk-in') || lowerName.includes('walk in') || lowerName.includes('day pass') || allNotes.includes('day pass')) {
+        visitorType = 'day_pass';
       }
       
       // Parse name - extract actual person name from booking name if possible

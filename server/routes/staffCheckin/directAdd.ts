@@ -10,7 +10,7 @@ import { logFromRequest, logPaymentAudit } from '../../core/auditLog';
 import { PRICING } from '../../core/billing/pricingConfig';
 import { enforceSocialTierRules } from '../../core/bookingService/tierRules';
 import { broadcastBookingRosterUpdate } from '../../core/websocket';
-import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
+import { ensureSessionForBooking, createOrFindGuest } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
@@ -223,10 +223,17 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
         });
       }
 
+      const guestId = await createOrFindGuest(
+        guestName,
+        guestEmail || undefined,
+        undefined,
+        booking.owner_email
+      );
+
       await db.execute(sql`
         INSERT INTO booking_participants 
-          (session_id, participant_type, display_name, payment_status, cached_fee_cents, used_guest_pass, slot_duration)
-        VALUES (${sessionId}, 'guest', ${guestName}, 'pending', ${PRICING.GUEST_FEE_CENTS}, false, ${slotDuration})
+          (session_id, guest_id, participant_type, display_name, payment_status, cached_fee_cents, used_guest_pass, slot_duration)
+        VALUES (${sessionId}, ${guestId}, 'guest', ${guestName}, 'pending', ${PRICING.GUEST_FEE_CENTS}, false, ${slotDuration})
       `);
 
       await logPaymentAudit({

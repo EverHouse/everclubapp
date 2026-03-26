@@ -37,7 +37,7 @@ const visitorsQuerySchema = z.object({
   order: z.enum(['asc', 'desc']).optional(),
   limit: z.string().regex(/^\d+$/).optional(),
   offset: z.string().regex(/^\d+$/).optional(),
-  typeFilter: z.string().optional(),
+  activityFilter: z.enum(['active', 'inactive', 'never']).optional(),
   search: z.string().optional(),
   archived: z.enum(['true', 'false']).optional(),
 }).passthrough();
@@ -45,7 +45,7 @@ const visitorsQuerySchema = z.object({
 router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), async (req, res) => {
   try {
     const vq = (req as Request & { validatedQuery: z.infer<typeof visitorsQuerySchema> }).validatedQuery;
-    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', search = '' } = vq;
+    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', activityFilter, search = '' } = vq;
     const pageLimit = Math.min(parseInt(limit, 10) || 100, 500);
     const pageOffset = Math.max(parseInt(offset, 10) || 0, 0);
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
@@ -73,10 +73,22 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       : sql`AND u.archived_at IS NULL`;
     
     
-    const validTypeFilters = ['day_pass', 'guest', 'NEW'] as const;
-    const safeTypeFilter = validTypeFilters.includes(typeFilter as typeof validTypeFilters[number]) ? (typeFilter as string) : null;
-    const typeClauseCount = safeTypeFilter ? sql`AND computed_type = ${safeTypeFilter}` : sql``;
-    const typeClauseMain = safeTypeFilter ? sql`AND effective_type = ${safeTypeFilter}` : sql``;
+    const validActivityFilters = ['active', 'inactive', 'never'] as const;
+    const safeActivityFilter = activityFilter && validActivityFilters.includes(activityFilter as typeof validActivityFilters[number]) ? activityFilter : null;
+    const activityClauseCount = safeActivityFilter === 'active'
+      ? sql`AND has_no_activity = FALSE AND last_activity > NOW() - INTERVAL '90 days'`
+      : safeActivityFilter === 'inactive'
+      ? sql`AND has_no_activity = FALSE AND last_activity <= NOW() - INTERVAL '90 days'`
+      : safeActivityFilter === 'never'
+      ? sql`AND has_no_activity = TRUE`
+      : sql``;
+    const activityClauseMain = safeActivityFilter === 'active'
+      ? sql`AND has_no_activity = FALSE AND last_activity > NOW() - INTERVAL '90 days'`
+      : safeActivityFilter === 'inactive'
+      ? sql`AND has_no_activity = FALSE AND last_activity <= NOW() - INTERVAL '90 days'`
+      : safeActivityFilter === 'never'
+      ? sql`AND has_no_activity = TRUE`
+      : sql``;
     
     const searchPattern = searchTerm ? `%${searchTerm}%` : null;
     const searchClause = searchPattern
@@ -90,14 +102,22 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
     const countResult = await db.execute(sql`
       WITH 
       guest_appearances AS (
-        SELECT DISTINCT ON (LOWER(g.email))
-          LOWER(g.email) as email,
-          bs.session_date::timestamp as bp_date
+        SELECT LOWER(COALESCE(g.email, '')) as email,
+          MAX(bs.session_date)::timestamp as bp_date
         FROM booking_participants bp
-        JOIN guests g ON bp.guest_id = g.id
+        LEFT JOIN guests g ON bp.guest_id = g.id
         JOIN booking_sessions bs ON bp.session_id = bs.id
         WHERE bp.participant_type = 'guest'
-        ORDER BY LOWER(g.email), bs.session_date DESC
+        GROUP BY LOWER(COALESCE(g.email, ''))
+      ),
+      user_participant_appearances AS (
+        SELECT LOWER(u2.email) as email,
+          MAX(bs.session_date)::timestamp as bp_date
+        FROM booking_participants bp
+        JOIN booking_sessions bs ON bp.session_id = bs.id
+        JOIN users u2 ON bp.user_id = u2.id
+        WHERE bp.participant_type = 'guest'
+        GROUP BY LOWER(u2.email)
       ),
       day_pass_buyers AS (
         SELECT DISTINCT LOWER(purchaser_email) as email
@@ -105,17 +125,22 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       ),
       visitor_data AS (
         SELECT u.id,
-          COALESCE(
-            u.visitor_type,
-            CASE 
-              WHEN dpb.email IS NOT NULL THEN 'day_pass'
-              WHEN ga.bp_date IS NOT NULL THEN 'guest'
-              ELSE 'NEW'
-            END
-          ) as computed_type
+          CASE 
+            WHEN dpb.email IS NOT NULL THEN 'day_pass'
+            WHEN ga.bp_date IS NOT NULL OR upa.bp_date IS NOT NULL THEN 'guest'
+            ELSE 'NEW'
+          END as computed_type,
+          GREATEST(COALESCE(u.last_activity_at, '1970-01-01'::timestamp), COALESCE(ga.bp_date, '1970-01-01'::timestamp), COALESCE(upa.bp_date, '1970-01-01'::timestamp), COALESCE(dpp_max.last_purchase_date, '1970-01-01'::timestamp)) as last_activity,
+          CASE WHEN u.last_activity_at IS NULL AND ga.bp_date IS NULL AND upa.bp_date IS NULL AND dpp_max.last_purchase_date IS NULL THEN TRUE ELSE FALSE END as has_no_activity
         FROM users u
         LEFT JOIN day_pass_buyers dpb ON LOWER(u.email) = dpb.email
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
+        LEFT JOIN user_participant_appearances upa ON LOWER(u.email) = upa.email
+        LEFT JOIN (
+          SELECT LOWER(purchaser_email) as email, MAX(purchased_at) as last_purchase_date
+          FROM day_pass_purchases
+          GROUP BY LOWER(purchaser_email)
+        ) dpp_max ON LOWER(u.email) = dpp_max.email
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
         ${archiveClause}
@@ -123,21 +148,29 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       )
       SELECT COUNT(*)::int as total
       FROM visitor_data
-      WHERE 1=1 ${typeClauseCount}
+      WHERE 1=1 ${activityClauseCount}
     `);
     const totalCount = (countResult.rows[0] as { total: number })?.total || 0;
     
     const visitorsWithPurchases = await db.execute(sql`
       WITH 
       guest_appearances AS (
-        SELECT DISTINCT ON (LOWER(g.email))
-          LOWER(g.email) as email,
-          bs.session_date::timestamp as bp_date
+        SELECT LOWER(COALESCE(g.email, '')) as email,
+          MAX(bs.session_date)::timestamp as bp_date
         FROM booking_participants bp
-        JOIN guests g ON bp.guest_id = g.id
+        LEFT JOIN guests g ON bp.guest_id = g.id
         JOIN booking_sessions bs ON bp.session_id = bs.id
         WHERE bp.participant_type = 'guest'
-        ORDER BY LOWER(g.email), bs.session_date DESC
+        GROUP BY LOWER(COALESCE(g.email, ''))
+      ),
+      user_participant_appearances AS (
+        SELECT LOWER(u2.email) as email,
+          MAX(bs.session_date)::timestamp as bp_date
+        FROM booking_participants bp
+        JOIN booking_sessions bs ON bp.session_id = bs.id
+        JOIN users u2 ON bp.user_id = u2.id
+        WHERE bp.participant_type = 'guest'
+        GROUP BY LOWER(u2.email)
       ),
       visitor_base AS (
         SELECT 
@@ -153,8 +186,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           u.role,
           u.stripe_customer_id,
           u.hubspot_id,
-          u.mindbody_client_id,
-          u.legacy_source,
           u.billing_provider,
           u.visitor_type,
           u.last_activity_at,
@@ -165,16 +196,16 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           u.archived_by,
           COALESCE(guest_agg.guest_count, 0)::int as guest_count,
           guest_agg.last_guest_date,
-          COALESCE(
-            u.visitor_type,
-            CASE 
-              WHEN dpp_agg.purchase_count > 0 THEN 'day_pass'
-              WHEN ga.bp_date IS NOT NULL THEN 'guest'
-              ELSE 'NEW'
-            END
-          ) as effective_type
+          CASE 
+            WHEN dpp_agg.purchase_count > 0 THEN 'day_pass'
+            WHEN ga.bp_date IS NOT NULL OR upa.bp_date IS NOT NULL THEN 'guest'
+            ELSE 'NEW'
+          END as effective_type,
+          GREATEST(COALESCE(u.last_activity_at, '1970-01-01'::timestamp), COALESCE(ga.bp_date, '1970-01-01'::timestamp), COALESCE(upa.bp_date, '1970-01-01'::timestamp), COALESCE(dpp_agg.last_purchase_date, '1970-01-01'::timestamp)) as last_activity,
+          CASE WHEN u.last_activity_at IS NULL AND ga.bp_date IS NULL AND upa.bp_date IS NULL AND dpp_agg.last_purchase_date IS NULL THEN TRUE ELSE FALSE END as has_no_activity
         FROM users u
         LEFT JOIN guest_appearances ga ON LOWER(u.email) = ga.email
+        LEFT JOIN user_participant_appearances upa ON LOWER(u.email) = upa.email
         LEFT JOIN (
           SELECT LOWER(purchaser_email) as email, COUNT(*)::int as purchase_count, SUM(amount_cents) as total_spent_cents, MAX(purchased_at) as last_purchase_date
           FROM day_pass_purchases
@@ -195,7 +226,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       )
       SELECT *, effective_type as computed_type
       FROM visitor_base
-      WHERE 1=1 ${typeClauseMain}
+      WHERE 1=1 ${activityClauseMain}
       ORDER BY ${orderByClause}
       LIMIT ${pageLimit}
       OFFSET ${pageOffset}
@@ -208,11 +239,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         const et = row.effective_type as string;
         if (et === 'day_pass_buyer' || et === 'day_pass') return 'day_pass';
         if (et === 'guest') return 'guest';
-        if (et === 'NEW') return 'NEW';
-      }
-      if (row.visitor_type) {
-        if (row.visitor_type === 'day_pass_buyer' || row.visitor_type === 'day_pass') return 'day_pass';
-        if (row.visitor_type === 'guest') return 'guest';
       }
       const purchaseCount = parseInt(row.purchase_count as string, 10) || 0;
       const guestCount = parseInt(row.guest_count as string, 10) || 0;
@@ -236,8 +262,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       role: string | null;
       stripe_customer_id: string | null;
       hubspot_id: string | null;
-      mindbody_client_id: string | null;
-      legacy_source: string | null;
       billing_provider: string | null;
       visitor_type: string | null;
       last_activity_at: string | null;
@@ -248,6 +272,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       archived_by: string | null;
       effective_type: string | null;
       computed_type: string | null;
+      last_activity: string | null;
     }
     const visitors = (visitorsWithPurchases.rows as unknown as VisitorRow[]).map((row: VisitorRow) => ({
       id: row.id,
@@ -264,7 +289,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       role: row.role,
       stripeCustomerId: row.stripe_customer_id,
       hubspotId: row.hubspot_id,
-      mindbodyClientId: row.mindbody_client_id,
       lastActivityAt: row.last_activity_at,
       lastActivitySource: row.last_activity_source,
       createdAt: row.created_at,

@@ -6,7 +6,7 @@ import {
     type BillingFilter,
     type SortField,
     type SortDirection,
-    type VisitorType,
+    type ActivityFilter,
     type VisitorSortField,
 } from './directoryTypes';
 
@@ -33,7 +33,7 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
     const [sortOpen, setSortOpen] = useState(false);
     const sortPopoverRef = useRef<HTMLDivElement>(null);
 
-    const [visitorTypeFilter, setVisitorTypeFilter] = useState<VisitorType>('all');
+    const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all');
     const [visitorSearchQuery, setVisitorSearchQuery] = useState('');
     const [debouncedVisitorSearch, setDebouncedVisitorSearch] = useState('');
     const [visitorSortField, setVisitorSortField] = useState<VisitorSortField>('lastActivity');
@@ -103,7 +103,7 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
 
     const clearAllFilters = useCallback(() => {
         if (memberTab === 'visitors') {
-            setVisitorTypeFilter('all');
+            setActivityFilter('all');
             setPurchaseFilter('all');
             setVisitorsPage(1);
         } else if (memberTab === 'former') {
@@ -127,9 +127,9 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
         const filters: Array<{ key: string; label: string; onRemove: () => void }> = [];
 
         if (memberTab === 'visitors') {
-            if (visitorTypeFilter !== 'all') {
-                const typeLabels: Record<string, string> = { 'NEW': 'Staff Added', 'day_pass': 'Day Pass', 'guest': 'Guest' };
-                filters.push({ key: 'type', label: `Type: ${typeLabels[visitorTypeFilter] || visitorTypeFilter}`, onRemove: () => { setVisitorTypeFilter('all'); setVisitorsPage(1); } });
+            if (activityFilter !== 'all') {
+                const activityLabels: Record<string, string> = { 'active': 'Active (last 90 days)', 'inactive': 'Inactive', 'never': 'Never Visited' };
+                filters.push({ key: 'activity', label: `Activity: ${activityLabels[activityFilter] || activityFilter}`, onRemove: () => { setActivityFilter('all'); setVisitorsPage(1); } });
             }
             if (purchaseFilter !== 'all') {
                 filters.push({ key: 'purchases', label: `Purchases: ${purchaseFilter === 'purchasers' ? 'Purchasers' : 'Non-Purchasers'}`, onRemove: () => { setPurchaseFilter('all'); setVisitorsPage(1); } });
@@ -149,7 +149,7 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
         }
 
         return filters;
-    }, [memberTab, tierFilter, statusFilter, membershipStatusFilter, appUsageFilter, billingFilter, discountFilter, visitorTypeFilter, purchaseFilter, showRecentlyAdded]);
+    }, [memberTab, tierFilter, statusFilter, membershipStatusFilter, appUsageFilter, billingFilter, discountFilter, activityFilter, purchaseFilter, showRecentlyAdded]);
 
     const activeFilterCount = activeFilters.length;
 
@@ -195,8 +195,6 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
                 filtered = filtered.filter(m => !!m.billingGroupId);
             } else if (billingFilter === 'Stripe') {
                 filtered = filtered.filter(m => m.billingProvider === 'stripe');
-            } else if (billingFilter === 'Mindbody') {
-                filtered = filtered.filter(m => m.billingProvider === 'mindbody');
             } else if (billingFilter === 'Family Add-on') {
                 filtered = filtered.filter(m => m.billingProvider === 'family_addon');
             } else if (billingFilter === 'Comped') {
@@ -300,7 +298,7 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
         filterPopoverRef,
         sortOpen, setSortOpen,
         sortPopoverRef,
-        visitorTypeFilter, setVisitorTypeFilter,
+        activityFilter, setActivityFilter,
         visitorSearchQuery, setVisitorSearchQuery,
         debouncedVisitorSearch,
         visitorSortField, setVisitorSortField,

@@ -2398,3 +2398,21 @@ export async function setupInstantDataTriggers(): Promise<void> {
 
   logger.info('[DB Init] Instant data triggers created');
 }
+
+export async function clearStaleVisitorTypes(): Promise<void> {
+  try {
+    const result = await db.execute(sql`
+      UPDATE users
+      SET visitor_type = NULL, updated_at = NOW()
+      WHERE visitor_type IS NOT NULL
+        AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
+        AND role NOT IN ('admin', 'staff', 'member')
+    `);
+    const count = result.rowCount ?? 0;
+    if (count > 0) {
+      logger.info(`[DB Init] Cleared stale visitor_type for ${count} visitor-role users`);
+    }
+  } catch (err: unknown) {
+    logger.warn(`[DB Init] Failed to clear stale visitor types: ${getErrorMessage(err)}`);
+  }
+}

@@ -1,4 +1,4 @@
-import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, seedTierFeatures, fixFunctionSearchPaths, validateTierHierarchy, setupInstantDataTriggers } from '../db-init';
+import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, seedTierFeatures, fixFunctionSearchPaths, validateTierHierarchy, setupInstantDataTriggers, clearStaleVisitorTypes } from '../db-init';
 import { seedTrainingSections } from '../routes/training';
 import { getStripeSync } from '../core/stripe';
 import { getStripeEnvironmentInfo, getStripeClient } from '../core/stripe/client';
@@ -148,6 +148,13 @@ export async function runStartupTasks(): Promise<void> {
       } catch (err: unknown) {
         logger.error('[Startup] Instant data triggers failed', { error: getErrorMessage(err) });
         startupHealth.warnings.push(`Instant data triggers: ${getErrorMessage(err)}`);
+      }
+    },
+    async () => {
+      try {
+        await clearStaleVisitorTypes();
+      } catch (err: unknown) {
+        logger.warn(`[Startup] Clear stale visitor types failed (non-critical): ${getErrorMessage(err)}`);
       }
     },
     async () => {

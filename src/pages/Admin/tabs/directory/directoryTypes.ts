@@ -2,14 +2,14 @@ export type SortField = 'name' | 'tier' | 'visits' | 'joinDate' | 'lastVisit';
 export type SortDirection = 'asc' | 'desc';
 export type MemberTab = 'active' | 'former' | 'visitors' | 'team';
 
-export type BillingFilter = 'All' | 'Individual' | 'Group' | 'Stripe' | 'Mindbody' | 'Family Add-on' | 'Comped';
+export type BillingFilter = 'All' | 'Individual' | 'Group' | 'Stripe' | 'Family Add-on' | 'Comped';
 
-export type VisitorType = 'all' | 'NEW' | 'day_pass' | 'guest';
-export type VisitorSortField = 'name' | 'email' | 'type' | 'lastActivity' | 'createdAt' | 'purchases';
+export type ActivityFilter = 'all' | 'active' | 'inactive' | 'never';
+export type VisitorSortField = 'name' | 'email' | 'activity' | 'lastActivity' | 'createdAt' | 'purchases';
 
 export type StaffRole = 'staff' | 'admin' | 'golf_instructor';
 
-export const BILLING_OPTIONS = ['All', 'Individual', 'Group', 'Stripe', 'Mindbody', 'Family Add-on', 'Comped'] as const;
+export const BILLING_OPTIONS = ['All', 'Individual', 'Group', 'Stripe', 'Family Add-on', 'Comped'] as const;
 
 export const SORT_OPTIONS: { value: SortField; label: string }[] = [
     { value: 'name', label: 'Name A-Z' },
@@ -54,7 +54,6 @@ export interface Visitor {
     role: string | null;
     stripeCustomerId: string | null;
     hubspotId: string | null;
-    mindbodyClientId: string | null;
     lastActivityAt: string | null;
     lastActivitySource: string | null;
     createdAt: string | null;
@@ -107,7 +106,7 @@ export interface SyncResponse {
 export const directoryKeys = {
     all: ['directory'] as const,
     syncStatus: () => [...directoryKeys.all, 'sync-status'] as const,
-    visitors: (params: { type?: VisitorType; search?: string; page?: number; archived?: string }) => 
+    visitors: (params: { activity?: ActivityFilter; search?: string; page?: number; archived?: string }) => 
         [...directoryKeys.all, 'visitors', params] as const,
     team: () => [...directoryKeys.all, 'team'] as const,
     visitorPurchases: (visitorId: string) => [...directoryKeys.all, 'visitor-purchases', visitorId] as const,
