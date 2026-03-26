@@ -5,8 +5,7 @@ export type MemberTab = 'active' | 'former' | 'visitors' | 'team';
 export type BillingFilter = 'All' | 'Individual' | 'Group' | 'Stripe' | 'Mindbody' | 'Family Add-on' | 'Comped';
 
 export type VisitorType = 'all' | 'NEW' | 'day_pass' | 'guest';
-export type VisitorSource = 'all' | 'hubspot' | 'stripe' | 'APP';
-export type VisitorSortField = 'name' | 'email' | 'type' | 'source' | 'lastActivity' | 'createdAt' | 'purchases';
+export type VisitorSortField = 'name' | 'email' | 'type' | 'lastActivity' | 'createdAt' | 'purchases';
 
 export type StaffRole = 'staff' | 'admin' | 'golf_instructor';
 
@@ -59,7 +58,6 @@ export interface Visitor {
     lastActivityAt: string | null;
     lastActivitySource: string | null;
     createdAt: string | null;
-    source: 'hubspot' | 'stripe' | 'app';
     type: 'day_pass' | 'guest' | 'NEW';
 }
 
@@ -109,7 +107,7 @@ export interface SyncResponse {
 export const directoryKeys = {
     all: ['directory'] as const,
     syncStatus: () => [...directoryKeys.all, 'sync-status'] as const,
-    visitors: (params: { type?: VisitorType; source?: VisitorSource; search?: string; page?: number; archived?: string }) => 
+    visitors: (params: { type?: VisitorType; search?: string; page?: number; archived?: string }) => 
         [...directoryKeys.all, 'visitors', params] as const,
     team: () => [...directoryKeys.all, 'team'] as const,
     visitorPurchases: (visitorId: string) => [...directoryKeys.all, 'visitor-purchases', visitorId] as const,

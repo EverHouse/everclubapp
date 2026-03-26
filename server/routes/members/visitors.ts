@@ -38,7 +38,6 @@ const visitorsQuerySchema = z.object({
   limit: z.string().regex(/^\d+$/).optional(),
   offset: z.string().regex(/^\d+$/).optional(),
   typeFilter: z.string().optional(),
-  sourceFilter: z.string().optional(),
   search: z.string().optional(),
   archived: z.enum(['true', 'false']).optional(),
 }).passthrough();
@@ -46,7 +45,7 @@ const visitorsQuerySchema = z.object({
 router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), async (req, res) => {
   try {
     const vq = (req as Request & { validatedQuery: z.infer<typeof visitorsQuerySchema> }).validatedQuery;
-    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', sourceFilter = 'all', search = '' } = vq;
+    const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', typeFilter = 'all', search = '' } = vq;
     const pageLimit = Math.min(parseInt(limit, 10) || 100, 500);
     const pageOffset = Math.max(parseInt(offset, 10) || 0, 0);
     const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
@@ -73,17 +72,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       ? sql`AND u.archived_at IS NOT NULL` 
       : sql`AND u.archived_at IS NULL`;
     
-    let sourceClause = sql``;
-    if (sourceFilter === 'stripe') {
-      sourceClause = sql`AND u.stripe_customer_id IS NOT NULL 
-        AND u.data_source IS DISTINCT FROM 'APP'`;
-    } else if (sourceFilter === 'hubspot') {
-      sourceClause = sql`AND u.hubspot_id IS NOT NULL 
-        AND u.stripe_customer_id IS NULL 
-        AND u.data_source IS DISTINCT FROM 'APP'`;
-    } else if (sourceFilter === 'APP') {
-      sourceClause = sql`AND u.data_source = 'APP'`;
-    }
     
     const validTypeFilters = ['day_pass', 'guest', 'NEW'] as const;
     const safeTypeFilter = validTypeFilters.includes(typeFilter as typeof validTypeFilters[number]) ? (typeFilter as string) : null;
@@ -131,7 +119,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
         ${archiveClause}
-        ${sourceClause}
         ${searchClause}
       )
       SELECT COUNT(*)::int as total
@@ -204,7 +191,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')
         AND u.role NOT IN ('admin', 'staff')
         ${archiveClause}
-        ${sourceClause}
         ${searchClause}
       )
       SELECT *, effective_type as computed_type
@@ -215,18 +201,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       OFFSET ${pageOffset}
     `);
     
-    const getSource = (row: VisitorRow): 'hubspot' | 'stripe' | 'app' => {
-      if (row.data_source === 'APP') return 'app';
-      const hasStripeData = !!row.stripe_customer_id;
-      const hasHubspotData = !!row.hubspot_id;
-      if (row.billing_provider === 'stripe' && hasStripeData) return 'stripe';
-      if (hasStripeData) return 'stripe';
-      if (hasHubspotData) return 'hubspot';
-      if (row.billing_provider === 'stripe') return 'stripe';
-      if (row.stripe_customer_id) return 'stripe';
-      if (row.hubspot_id) return 'hubspot';
-      return 'app';
-    };
     
     type VisitorTypeValue = 'NEW' | 'day_pass' | 'guest';
     const getType = (row: VisitorRow): VisitorTypeValue => {
@@ -294,7 +268,6 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       lastActivityAt: row.last_activity_at,
       lastActivitySource: row.last_activity_source,
       createdAt: row.created_at,
-      source: getSource(row),
       type: getType(row),
       archivedAt: row.archived_at || null,
       archivedBy: row.archived_by || null,

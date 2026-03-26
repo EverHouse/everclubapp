@@ -7,7 +7,6 @@ import Icon from '../../../../components/icons/Icon';
 import type {
     Visitor,
     VisitorType,
-    VisitorSource,
     VisitorSortField,
     SortDirection,
 } from './directoryTypes';
@@ -23,8 +22,6 @@ interface VisitorsListProps {
     setVisitorSearchQuery: (q: string) => void;
     visitorTypeFilter: VisitorType;
     setVisitorTypeFilter: (t: VisitorType) => void;
-    visitorSourceFilter: VisitorSource;
-    setVisitorSourceFilter: (s: VisitorSource) => void;
     visitorSortField: VisitorSortField;
     setVisitorSortField: (f: VisitorSortField) => void;
     visitorSortDirection: SortDirection;
@@ -55,8 +52,6 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
     setVisitorSearchQuery,
     visitorTypeFilter,
     setVisitorTypeFilter,
-    visitorSourceFilter,
-    setVisitorSourceFilter,
     visitorSortField,
     setVisitorSortField,
     visitorSortDirection,
@@ -105,15 +100,6 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                     else if (!typeA) comparison = 1;
                     else if (!typeB) comparison = -1;
                     else comparison = typeA.localeCompare(typeB);
-                    break;
-                    }
-                case 'source': {
-                    const sourceA = a.source || '';
-                    const sourceB = b.source || '';
-                    if (!sourceA && !sourceB) comparison = 0;
-                    else if (!sourceA) comparison = 1;
-                    else if (!sourceB) comparison = -1;
-                    else comparison = sourceA.localeCompare(sourceB);
                     break;
                     }
                 case 'lastActivity': {
@@ -247,21 +233,6 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                             </div>
 
                             <div className="space-y-1.5">
-                                <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Source</span>
-                                <select
-                                    value={visitorSourceFilter}
-                                    onChange={(e) => { setVisitorSourceFilter(e.target.value as VisitorSource); setVisitorsPage(1); }}
-                                    className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-surface-dark text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                    aria-label="Filter by source"
-                                >
-                                    <option value="all">All Sources</option>
-                                    <option value="APP">App (Staff Added)</option>
-                                    <option value="hubspot">HubSpot</option>
-                                    <option value="stripe">Stripe</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-1.5">
                                 <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase">Purchases</span>
                                 <div className="flex flex-wrap gap-1.5">
                                     {(['all', 'purchasers', 'non-purchasers'] as const).map(option => (
@@ -327,7 +298,7 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                 <EmptyState
                     icon="group"
                     title="No contacts found"
-                    description={visitorTypeFilter !== 'all' || visitorSourceFilter !== 'all'
+                    description={visitorTypeFilter !== 'all'
                         ? 'Try adjusting your filters to find contacts'
                         : 'Non-member contacts, day pass buyers, and leads will appear here'}
                     variant="compact"
@@ -373,13 +344,6 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                                     : v.type === 'guest' ? 'Guest'
                                                     : 'Staff Added'}
                                             </span>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
-                                                v.source === 'stripe' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400' :
-                                                'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
-                                            }`}>
-                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : 'App'}
-                                            </span>
                                             {v.totalSpentCents > 0 && (
                                                 <span className="text-xs text-gray-500 dark:text-gray-400">
                                                     ${(v.totalSpentCents / 100).toFixed(2)} spent
@@ -421,24 +385,22 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                     <div className="h-full overflow-y-auto">
                         <table className="w-full" style={{ tableLayout: 'fixed' }}>
                             <colgroup>
-                                <col style={{ width: '20%' }} />
-                                <col style={{ width: '28%' }} />
-                                <col style={{ width: '12%' }} />
+                                <col style={{ width: '22%' }} />
+                                <col style={{ width: '30%' }} />
                                 <col style={{ width: '14%' }} />
-                                <col style={{ width: '12%' }} />
-                                <col style={{ width: '14%' }} />
+                                <col style={{ width: '16%' }} />
+                                <col style={{ width: '18%' }} />
                             </colgroup>
                             <thead className="sticky top-0 z-10">
                                 <tr>
-                                    <td colSpan={6} className="p-0">
+                                    <td colSpan={5} className="p-0">
                                         <div className="flex items-center bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
                                             {([
-                                                ['name', 'Name', '20%'],
-                                                ['email', 'Email', '28%'],
-                                                ['type', 'Type', '12%'],
-                                                ['source', 'Source', '14%'],
-                                                ['purchases', 'Purchases', '12%'],
-                                                ['lastActivity', 'Last Activity', '14%'],
+                                                ['name', 'Name', '22%'],
+                                                ['email', 'Email', '30%'],
+                                                ['type', 'Type', '14%'],
+                                                ['purchases', 'Purchases', '16%'],
+                                                ['lastActivity', 'Last Activity', '18%'],
                                             ] as [VisitorSortField, string, string][]).map(([field, label, width]) => (
                                                 <div
                                                     key={field + label}
@@ -451,10 +413,10 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                                             setVisitorSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
                                                         } else {
                                                             setVisitorSortField(field);
-                                                            setVisitorSortDirection(field === 'name' || field === 'email' || field === 'type' || field === 'source' ? 'asc' : 'desc');
+                                                            setVisitorSortDirection(field === 'name' || field === 'email' || field === 'type' ? 'asc' : 'desc');
                                                         }
                                                     }}
-                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (visitorSortField === field) { setVisitorSortDirection(prev => prev === 'asc' ? 'desc' : 'asc'); } else { setVisitorSortField(field); setVisitorSortDirection(field === 'name' || field === 'email' || field === 'type' || field === 'source' ? 'asc' : 'desc'); } } }}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (visitorSortField === field) { setVisitorSortDirection(prev => prev === 'asc' ? 'desc' : 'asc'); } else { setVisitorSortField(field); setVisitorSortDirection(field === 'name' || field === 'email' || field === 'type' ? 'asc' : 'desc'); } } }}
                                                 >
                                                     <div className="flex items-center gap-1 whitespace-nowrap">
                                                         {label}
@@ -478,11 +440,11 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); } }}
                                         className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
                                     >
-                                        <td style={{ width: '20%' }} className="p-3 font-medium text-primary dark:text-white">
+                                        <td style={{ width: '22%' }} className="p-3 font-medium text-primary dark:text-white">
                                             {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
                                         </td>
-                                        <td style={{ width: '28%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate max-w-0">{v.email || '-'}</td>
-                                        <td style={{ width: '12%' }} className="p-3">
+                                        <td style={{ width: '30%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate max-w-0">{v.email || '-'}</td>
+                                        <td style={{ width: '14%' }} className="p-3">
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                                 v.type === 'day_pass'
                                                     ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'
@@ -495,17 +457,8 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                                                     : 'Staff Added'}
                                             </span>
                                         </td>
-                                        <td style={{ width: '14%' }} className="p-3">
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                                v.source === 'hubspot' ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400' :
-                                                v.source === 'stripe' ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400' :
-                                                'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400'
-                                            }`}>
-                                                {v.source === 'hubspot' ? 'HubSpot' : v.source === 'stripe' ? 'Stripe' : 'App'}
-                                            </span>
-                                        </td>
-                                        <td style={{ width: '12%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400">{v.purchaseCount || 0}</td>
-                                        <td style={{ width: '14%' }} className="p-3 text-sm text-gray-500 dark:text-gray-400">{formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</td>
+                                        <td style={{ width: '16%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400">{v.purchaseCount || 0}</td>
+                                        <td style={{ width: '18%' }} className="p-3 text-sm text-gray-500 dark:text-gray-400">{formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</td>
                                     </tr>
                                 ))}
                             </tbody>

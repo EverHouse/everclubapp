@@ -6,7 +6,6 @@ import { useToast } from '../../../../components/Toast';
 import {
     type MemberTab,
     type VisitorType,
-    type VisitorSource,
     type Visitor,
     type TeamMember,
     type VisitorPurchase,
@@ -56,7 +55,6 @@ export function useIncrementalLoad<T>(items: T[], threshold: number = VIRTUALIZA
 interface UseDirectoryDataParams {
     memberTab: MemberTab;
     visitorTypeFilter: VisitorType;
-    visitorSourceFilter: VisitorSource;
     debouncedVisitorSearch: string;
     visitorsPage: number;
     visitorArchiveView: 'active' | 'archived';
@@ -69,7 +67,6 @@ interface UseDirectoryDataParams {
 export function useDirectoryData({
     memberTab,
     visitorTypeFilter,
-    visitorSourceFilter,
     debouncedVisitorSearch,
     visitorsPage,
     visitorArchiveView,
@@ -108,7 +105,6 @@ export function useDirectoryData({
     } = useQuery({
         queryKey: directoryKeys.visitors({ 
             type: visitorTypeFilter, 
-            source: visitorSourceFilter, 
             search: debouncedVisitorSearch, 
             page: visitorsPage,
             archived: visitorArchiveView,
@@ -118,7 +114,6 @@ export function useDirectoryData({
             params.set('limit', VISITORS_PAGE_SIZE.toString());
             params.set('offset', ((visitorsPage - 1) * VISITORS_PAGE_SIZE).toString());
             if (visitorTypeFilter !== 'all') params.set('typeFilter', visitorTypeFilter);
-            if (visitorSourceFilter !== 'all') params.set('sourceFilter', visitorSourceFilter);
             if (debouncedVisitorSearch.trim()) params.set('search', debouncedVisitorSearch.trim());
             if (visitorArchiveView === 'archived') params.set('archived', 'true');
             return fetchWithCredentials<VisitorsResponse>(`/api/visitors?${params.toString()}`);

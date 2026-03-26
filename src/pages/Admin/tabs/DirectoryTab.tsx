@@ -47,7 +47,6 @@ const DirectoryTab: React.FC = () => {
     const data = useDirectoryData({
         memberTab,
         visitorTypeFilter: filters.visitorTypeFilter,
-        visitorSourceFilter: filters.visitorSourceFilter,
         debouncedVisitorSearch: filters.debouncedVisitorSearch,
         visitorsPage: filters.visitorsPage,
         visitorArchiveView: filters.visitorArchiveView,
@@ -302,8 +301,6 @@ const DirectoryTab: React.FC = () => {
                         setVisitorSearchQuery={filters.setVisitorSearchQuery}
                         visitorTypeFilter={filters.visitorTypeFilter}
                         setVisitorTypeFilter={filters.setVisitorTypeFilter}
-                        visitorSourceFilter={filters.visitorSourceFilter}
-                        setVisitorSourceFilter={filters.setVisitorSourceFilter}
                         visitorSortField={filters.visitorSortField}
                         setVisitorSortField={filters.setVisitorSortField}
                         visitorSortDirection={filters.visitorSortDirection}

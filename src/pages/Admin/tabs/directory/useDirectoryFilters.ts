@@ -7,7 +7,6 @@ import {
     type SortField,
     type SortDirection,
     type VisitorType,
-    type VisitorSource,
     type VisitorSortField,
 } from './directoryTypes';
 
@@ -35,7 +34,6 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
     const sortPopoverRef = useRef<HTMLDivElement>(null);
 
     const [visitorTypeFilter, setVisitorTypeFilter] = useState<VisitorType>('all');
-    const [visitorSourceFilter, setVisitorSourceFilter] = useState<VisitorSource>('all');
     const [visitorSearchQuery, setVisitorSearchQuery] = useState('');
     const [debouncedVisitorSearch, setDebouncedVisitorSearch] = useState('');
     const [visitorSortField, setVisitorSortField] = useState<VisitorSortField>('lastActivity');
@@ -106,7 +104,6 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
     const clearAllFilters = useCallback(() => {
         if (memberTab === 'visitors') {
             setVisitorTypeFilter('all');
-            setVisitorSourceFilter('all');
             setPurchaseFilter('all');
             setVisitorsPage(1);
         } else if (memberTab === 'former') {
@@ -134,10 +131,6 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
                 const typeLabels: Record<string, string> = { 'NEW': 'Staff Added', 'day_pass': 'Day Pass', 'guest': 'Guest' };
                 filters.push({ key: 'type', label: `Type: ${typeLabels[visitorTypeFilter] || visitorTypeFilter}`, onRemove: () => { setVisitorTypeFilter('all'); setVisitorsPage(1); } });
             }
-            if (visitorSourceFilter !== 'all') {
-                const sourceLabels: Record<string, string> = { 'APP': 'App (Staff Added)', 'hubspot': 'HubSpot', 'stripe': 'Stripe' };
-                filters.push({ key: 'source', label: `Source: ${sourceLabels[visitorSourceFilter] || visitorSourceFilter}`, onRemove: () => { setVisitorSourceFilter('all'); setVisitorsPage(1); } });
-            }
             if (purchaseFilter !== 'all') {
                 filters.push({ key: 'purchases', label: `Purchases: ${purchaseFilter === 'purchasers' ? 'Purchasers' : 'Non-Purchasers'}`, onRemove: () => { setPurchaseFilter('all'); setVisitorsPage(1); } });
             }
@@ -156,7 +149,7 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
         }
 
         return filters;
-    }, [memberTab, tierFilter, statusFilter, membershipStatusFilter, appUsageFilter, billingFilter, discountFilter, visitorTypeFilter, visitorSourceFilter, purchaseFilter, showRecentlyAdded]);
+    }, [memberTab, tierFilter, statusFilter, membershipStatusFilter, appUsageFilter, billingFilter, discountFilter, visitorTypeFilter, purchaseFilter, showRecentlyAdded]);
 
     const activeFilterCount = activeFilters.length;
 
@@ -308,7 +301,6 @@ export function useDirectoryFilters({ members, formerMembers, memberTab }: UseDi
         sortOpen, setSortOpen,
         sortPopoverRef,
         visitorTypeFilter, setVisitorTypeFilter,
-        visitorSourceFilter, setVisitorSourceFilter,
         visitorSearchQuery, setVisitorSearchQuery,
         debouncedVisitorSearch,
         visitorSortField, setVisitorSortField,
