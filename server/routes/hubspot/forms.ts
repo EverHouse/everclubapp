@@ -1,6 +1,5 @@
 import { logger } from '../../core/logger';
 import { Router } from 'express';
-import { isProduction } from '../../core/db';
 import { db } from '../../db';
 import { formSubmissions } from '../../../shared/schema';
 import { sql } from 'drizzle-orm';
@@ -224,7 +223,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
     
     res.json({ success: true, message: result.inlineMessage || 'Form submitted successfully' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('HubSpot form submission error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('HubSpot form submission error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Form submission failed' });
   }
 });

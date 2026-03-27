@@ -5,7 +5,6 @@ import { Client } from '@hubspot/api-client';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { getHubSpotClientWithFallback } from '../integrations';
-import { isProduction } from '../db';
 import { getStripeClient } from '../stripe/client';
 import { retryableHubSpotRequest } from '../hubspot/request';
 import type {
@@ -168,7 +167,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
   try {
     stripe = await getStripeClient();
   } catch (err: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Stripe API error for tier reconciliation:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] Stripe API error for tier reconciliation:', { error: getErrorMessage(err) });
     return {
       checkName: 'Tier Reconciliation',
       status: 'warning',
@@ -190,7 +189,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
     const hsResult = await getHubSpotClientWithFallback();
     hubspot = hsResult.client;
   } catch (err: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] HubSpot API error for tier reconciliation:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] HubSpot API error for tier reconciliation:', { error: getErrorMessage(err) });
   }
 
   const appMembersResult = await db.execute(sql`
@@ -339,7 +338,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
         });
       }
     } catch (err: unknown) {
-      if (!isProduction) logger.error(`[DataIntegrity] Error checking tier reconciliation for ${member.email}:`, { extra: { detail: getErrorMessage(err) } });
+      logger.error(`[DataIntegrity] Error checking tier reconciliation for ${member.email}:`, { extra: { detail: getErrorMessage(err) } });
     }
   };
 

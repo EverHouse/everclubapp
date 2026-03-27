@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { isProduction } from '../core/db';
 import { isStaffOrAdmin, isAdmin } from '../core/middleware';
 import { broadcastCafeMenuUpdate } from '../core/websocket';
 import { logFromRequest } from '../core/auditLog';
@@ -85,7 +84,7 @@ router.get('/api/cafe-menu', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Cafe menu error', { error: getErrorMessage(error) });
+    logger.error('Cafe menu error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch cafe menu' });
   }
 });
@@ -139,7 +138,7 @@ router.post('/api/cafe-menu', isStaffOrAdmin, validateBody(cafeItemSchema), asyn
     logFromRequest(req, 'create_cafe_item', 'cafe', String(newItem.id), newItem.name || name, {});
     res.status(201).json({ ...newItem, synced, syncError });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Cafe item creation error', { error: getErrorMessage(error) });
+    logger.error('Cafe item creation error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create cafe item' });
   }
 });
@@ -207,7 +206,7 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, validateBody(cafeItemUpdateSche
     logFromRequest(req, 'update_cafe_item', 'cafe', String(id), name, {});
     res.json({ ...updatedItem, synced, syncError });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Cafe item update error', { error: getErrorMessage(error) });
+    logger.error('Cafe item update error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to update cafe item' });
   }
 });
@@ -294,7 +293,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'delete_cafe_item', 'cafe', String(id), existing[0].name || undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Cafe item delete error', { error: getErrorMessage(error) });
+    logger.error('Cafe item delete error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to delete cafe item' });
   }
 });
@@ -370,7 +369,7 @@ router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
       totalAfter: existingCount + inserted
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Cafe seed error', { error: getErrorMessage(error) });
+    logger.error('Cafe seed error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to seed cafe menu' });
   }
 });

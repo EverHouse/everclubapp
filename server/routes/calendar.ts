@@ -1,6 +1,5 @@
 import { logger } from '../core/logger';
 import { Router } from 'express';
-import { isProduction } from '../core/db';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getGoogleCalendarClient } from '../core/integrations';
@@ -70,7 +69,7 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
       availableSlots: result.slots.filter(s => s.available)
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Conference calendar availability error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Conference calendar availability error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch conference room availability' });
   }
 });
@@ -89,7 +88,7 @@ router.get('/api/calendars', async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Calendar list error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar list error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to list calendars' });
   }
 });
@@ -127,7 +126,7 @@ router.get('/api/calendar/availability', async (req, res) => {
       })),
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Calendar availability error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar availability error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch calendar availability', details: safeErrorDetail(error) });
   }
 });

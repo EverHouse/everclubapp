@@ -532,7 +532,7 @@ router.get('/api/member/dashboard/announcements', isAuthenticated, async (req, r
       .where(
         and(
           eq(announcements.isActive, true),
-          sql`show_as_banner = true`,
+          eq(announcements.showAsBanner, true),
           or(
             isNull(announcements.startsAt),
             lte(announcements.startsAt, now)
@@ -938,7 +938,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
           .where(
             and(
               eq(announcements.isActive, true),
-              sql`show_as_banner = true`,
+              eq(announcements.showAsBanner, true),
               or(
                 isNull(announcements.startsAt),
                 lte(announcements.startsAt, now)

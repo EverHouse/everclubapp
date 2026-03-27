@@ -4,7 +4,6 @@ import { eq, sql, desc } from 'drizzle-orm';
 import crypto from 'crypto';
 import { db } from '../../db';
 import { users, dayPassPurchases } from '../../../shared/schema';
-import { isProduction } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
@@ -324,7 +323,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       visitors
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Visitors list error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Visitors list error', { error: new Error(getErrorMessage(error)) });
     res.status(500).json({ error: 'Failed to fetch visitors' });
   }
 });
@@ -376,7 +375,7 @@ router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
       total: purchases.length
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Visitor purchases error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Visitor purchases error', { error: new Error(getErrorMessage(error)) });
     res.status(500).json({ error: 'Failed to fetch visitor purchases' });
   }
 });

@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.74",
+    date: "2026-03-27",
+    title: "Production Error Visibility & Announcements Fix",
+    changes: [
+      "Fix: Error messages in the Merch tab, Cafe menu, Calendar, Bookings, and many other areas were being completely hidden in the live app — if something broke, staff and admins would see a generic failure with no way to diagnose the cause. Errors are now always logged so issues can be identified and resolved quickly.",
+      "Fix: The announcements banner query was using a fragile database filter that could fail under certain conditions. Replaced with a proper type-safe query to prevent dashboard announcement crashes.",
+    ]
+  },
+  {
     version: "8.97.73",
     date: "2026-03-27",
     title: "Fix Menu Overlapping Device Status Bar",

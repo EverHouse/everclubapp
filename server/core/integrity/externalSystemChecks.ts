@@ -1,7 +1,6 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
-import { isProduction } from '../db';
 import { getErrorMessage } from '../../utils/errorUtils';
 import type { IntegrityCheckResult, IntegrityIssue } from './core';
 
@@ -122,7 +121,7 @@ export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
       });
     }
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Cross-system drift check error:', { error: error as Error });
+    logger.error('[DataIntegrity] Cross-system drift check error:', { error: error as Error });
     issues.push({
       category: 'sync_mismatch',
       severity: 'info',
@@ -213,7 +212,7 @@ export async function checkEmailDeliveryHealth(): Promise<IntegrityCheckResult> 
       });
     }
   } catch (error: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] Email delivery health check error:', { error: error as Error });
+    logger.error('[DataIntegrity] Email delivery health check error:', { error: error as Error });
   }
 
   return {

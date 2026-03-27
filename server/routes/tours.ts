@@ -1,6 +1,5 @@
 import { logger } from '../core/logger';
 import { Router } from 'express';
-import { isProduction } from '../core/db';
 import { db } from '../db';
 import { tours, dismissedHubspotMeetings } from '../../shared/schema';
 import { eq, gte, asc, desc, and, sql, or, ilike } from 'drizzle-orm';
@@ -143,7 +142,7 @@ router.get('/api/tours', isStaffOrAdmin, async (req, res) => {
     const result = await query.limit(200);
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tours fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tours fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch tours' });
   }
 });
@@ -159,7 +158,7 @@ router.get('/api/tours/today', isStaffOrAdmin, async (req, res) => {
       .orderBy(asc(tours.startTime));
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Today tours fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Today tours fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch today tours' });
   }
 });
@@ -204,7 +203,7 @@ router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tour check-in error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour check-in error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to check in tour' });
   }
 });
@@ -291,7 +290,7 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tour status update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour status update error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to update tour status' });
   }
 });
@@ -301,7 +300,7 @@ router.post('/api/tours/sync', isStaffOrAdmin, async (req, res) => {
     const result = await syncToursFromHubSpot();
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tours sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tours sync error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to sync tours' });
   }
 });
@@ -339,7 +338,7 @@ router.post('/api/tours/book', checkoutRateLimiter, async (req, res) => {
     
     res.json({ id: newTour.id, message: 'Tour request created' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tour booking error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour booking error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create tour request' });
   }
 });
@@ -395,7 +394,7 @@ router.patch('/api/tours/:id/confirm', checkoutRateLimiter, async (req, res) => 
     
     res.json(updated);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tour confirm error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour confirm error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to confirm tour' });
   }
 });
@@ -459,7 +458,7 @@ router.get('/api/tours/needs-review', isStaffOrAdmin, async (req, res) => {
     
     res.json({ unmatchedMeetings });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Tours needs-review error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tours needs-review error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch HubSpot meetings needing review' });
   }
 });
@@ -506,7 +505,7 @@ router.post('/api/tours/link-hubspot', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, tour: updated });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Link HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Link HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to link HubSpot meeting to tour' });
   }
 });
@@ -546,7 +545,7 @@ router.post('/api/tours/create-from-hubspot', isStaffOrAdmin, async (req, res) =
     
     res.json({ success: true, tour: newTour });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Create from HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Create from HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create tour from HubSpot meeting' });
   }
 });
@@ -574,7 +573,7 @@ router.post('/api/tours/dismiss-hubspot', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, dismissed });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Dismiss HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Dismiss HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to dismiss HubSpot meeting' });
   }
 });
@@ -681,7 +680,7 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
         guestEmail = contact.properties.email || null;
         guestPhone = contact.properties.phone || null;
       } catch (e: unknown) {
-        if (!isProduction) logger.warn('[HubSpot] Failed to fetch contact', { extra: { contactId, e } });
+        logger.warn('[HubSpot] Failed to fetch contact', { extra: { contactId, e } });
       }
     }
     
@@ -830,7 +829,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
           guestEmail = contact.properties.email || null;
           guestPhone = contact.properties.phone || null;
         } catch (e: unknown) {
-          if (!isProduction) logger.warn('[HubSpot Sync] Failed to fetch contact', { extra: { contactId, e } });
+          logger.warn('[HubSpot Sync] Failed to fetch contact', { extra: { contactId, e } });
         }
       }
       

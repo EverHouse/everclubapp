@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { users, membershipTiers } from '../../../shared/schema';
-import { isProduction, pool, safeRelease } from '../../core/db';
+import { pool, safeRelease } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { getTierRank } from './helpers';
@@ -220,7 +220,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
       warning: stripeSync.warning
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Member tier update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member tier update error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to update member tier' });
   }
 });
@@ -343,7 +343,7 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
     
     return res.status(400).json({ error: 'No active billing found for this member.' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Member suspend error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member suspend error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to suspend member' });
   }
 });
@@ -582,7 +582,7 @@ router.delete('/api/members/:email', isAdmin, async (req, res) => {
       }
     }).catch(err => logger.error('[Admin] Audit log failed for archive_member', { extra: { normalizedEmail, error: getErrorMessage(err) } }));
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Member archive error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member archive error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to archive member' });
   }
 });
@@ -1055,7 +1055,7 @@ router.post('/api/members/:email/anonymize', isStaffOrAdmin, async (req, res) =>
       message: 'Member data anonymized successfully. Financial records preserved for compliance.'
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Member anonymize error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member anonymize error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to anonymize member data' });
   }
 });
@@ -1092,7 +1092,7 @@ router.get('/api/members/add-options', isStaffOrAdmin, async (req, res) => {
         }))
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Add options error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Add options error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch add member options' });
   }
 });

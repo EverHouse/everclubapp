@@ -1,5 +1,4 @@
 import pRetry, { AbortError } from 'p-retry';
-import { isProduction } from '../db';
 
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -28,7 +27,7 @@ export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<
         return await fn();
       } catch (error: unknown) {
         if (isRateLimitError(error)) {
-          if (!isProduction) logger.warn('HubSpot Rate Limit hit, retrying...');
+          logger.warn('HubSpot Rate Limit hit, retrying...');
           throw error;
         }
         throw new AbortError(getErrorMessage(error));

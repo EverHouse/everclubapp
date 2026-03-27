@@ -534,7 +534,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               }
             }
           } catch (err: unknown) {
-            if (!isProduction) logger.error(`[MemberSync] Error fetching merged contacts:`, { error: getErrorMessage(err) });
+            logger.error(`[MemberSync] Error fetching merged contacts:`, { error: getErrorMessage(err) });
           }
           
           if (i + BATCH_SIZE < allMergedIds.length) {

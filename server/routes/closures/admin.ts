@@ -3,7 +3,6 @@ import { Router } from 'express';
 import { db } from '../../db';
 import { facilityClosures, availabilityBlocks } from '../../../shared/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { isProduction } from '../../core/db';
 import { logFromRequest } from '../../core/auditLog';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getCalendarIdByName, syncInternalCalendarToClosures, backfillCalendarExtendedProperties, CALENDAR_CONFIG } from '../../core/calendar/index';
@@ -109,7 +108,7 @@ router.post('/api/closures/sync', isStaffOrAdmin, async (req, res) => {
       stats: result
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Manual closure sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Manual closure sync error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to sync closures' });
   }
 });

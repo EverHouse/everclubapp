@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.74] - 2026-03-27
+
+### Production Error Visibility & Announcements Fix
+- **Fix (Critical)**: 77 error/warning log statements across the server were gated behind `if (!isProduction)`, making ALL errors invisible in the production deployment. This directly caused the `/api/merch` 500 errors and `/api/member/dashboard/announcements` 500 errors to go undiagnosed all day. Removed the production guard from all `logger.error()` and `logger.warn()` calls so errors are always logged regardless of environment. Cleaned up 13 now-unused `isProduction` imports.
+- **Fix**: Dashboard announcements query used raw SQL `show_as_banner = true` (unqualified column name) instead of the proper Drizzle ORM column reference `eq(announcements.showAsBanner, true)`. Fixed in both the dedicated announcements endpoint and the legacy monolithic dashboard endpoint.
+- **Files changed**: `server/routes/merch.ts`, `server/routes/cafe.ts`, `server/routes/calendar.ts`, `server/routes/tours.ts`, `server/routes/waivers.ts`, `server/routes/hubspot/forms.ts`, `server/routes/hubspot/contacts.ts`, `server/routes/hubspot/shared.ts`, `server/routes/closures/crud.ts`, `server/routes/closures/admin.ts`, `server/routes/members/dashboard.ts`, `server/routes/members/admin-actions.ts`, `server/routes/members/visitors.ts`, `server/routes/members/communications.ts`, `server/routes/tierFeatures.ts`, `server/core/memberSyncRelevant.ts`, `server/core/memberSyncOperations.ts`, `server/core/memberSyncCommLogs.ts`, `server/core/integrity/externalSystemChecks.ts`, `server/core/integrity/stripeChecks.ts`, `server/core/integrity/hubspotChecks.ts`, `server/core/integrity/memberChecks.ts`, `server/core/integrity/core.ts`, `server/core/hubspot/request.ts`, `server/core/hubspot/members.ts`
+
 ## [8.97.73] - 2026-03-27
 
 ### Fix Menu Overlapping Device Status Bar

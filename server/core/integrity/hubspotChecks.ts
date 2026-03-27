@@ -25,7 +25,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
     const result = await getHubSpotClientWithFallback();
     hubspot = result.client;
   } catch (err: unknown) {
-    if (!isProduction) logger.error('[DataIntegrity] HubSpot API error:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] HubSpot API error:', { error: getErrorMessage(err) });
     issues.push({
       category: 'sync_mismatch',
       severity: 'info',

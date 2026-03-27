@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { isProduction } from '../core/db';
 import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
@@ -79,7 +78,7 @@ router.get('/api/merch', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Merch items error', { error: getErrorMessage(error) });
+    logger.error('Merch items error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to fetch merch items' });
   }
 });
@@ -136,7 +135,7 @@ router.post('/api/merch', isStaffOrAdmin, validateBody(merchItemSchema), async (
     logFromRequest(req, 'create_merch_item', 'merch', String(newItem.id), newItem.name || name, {});
     res.status(201).json({ ...newItem, synced, syncError });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Merch item creation error', { error: getErrorMessage(error) });
+    logger.error('Merch item creation error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to create merch item' });
   }
 });
@@ -207,7 +206,7 @@ router.put('/api/merch/:id', isStaffOrAdmin, validateBody(merchItemUpdateSchema)
     logFromRequest(req, 'update_merch_item', 'merch', String(id), name, {});
     res.json({ ...updatedItem, synced, syncError });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Merch item update error', { error: getErrorMessage(error) });
+    logger.error('Merch item update error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to update merch item' });
   }
 });
@@ -251,7 +250,7 @@ router.delete('/api/merch/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'delete_merch_item', 'merch', String(id), existing[0].name || undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Merch item delete error', { error: getErrorMessage(error) });
+    logger.error('Merch item delete error', { error: getErrorMessage(error) });
     res.status(500).json({ error: 'Failed to delete merch item' });
   }
 });

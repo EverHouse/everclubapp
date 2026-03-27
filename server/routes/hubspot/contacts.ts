@@ -1,6 +1,5 @@
 import { logger } from '../../core/logger';
 import { Router, Request } from 'express';
-import { isProduction } from '../../core/db';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { db } from '../../db';
@@ -123,7 +122,7 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, validateQuery(hubspotContact
       const promise = fetchAllHubSpotContacts(forceRefresh)
         .then(() => {})
         .catch(err => {
-          if (!isProduction) logger.warn('[HubSpot] Background full sync failed', { extra: { error: getErrorMessage(err) } });
+          logger.warn('[HubSpot] Background full sync failed', { extra: { error: getErrorMessage(err) } });
         })
         .finally(() => {
           setBackgroundRefreshInProgress(false);
@@ -203,7 +202,7 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
       joinDate: normalizeDateToYYYYMMDD(contact.properties.createdate) || null
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('API error', { error: new Error(getErrorMessage(error)) });
+    logger.error('API error', { error: new Error(getErrorMessage(error)) });
     res.status(500).json({ error: 'Request failed' });
   }
 });

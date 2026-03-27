@@ -206,7 +206,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               synced++;
             } catch (err: unknown) {
               errors++;
-              if (!isProduction) logger.error('[CommLogs] Error processing call:', { error: getErrorMessage(err) });
+              logger.error('[CommLogs] Error processing call:', { error: getErrorMessage(err) });
             }
           })
         )
@@ -342,7 +342,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           synced++;
         } catch (err: unknown) {
           errors++;
-          if (!isProduction) logger.error('[CommLogs] Error processing SMS:', { error: getErrorMessage(err) });
+          logger.error('[CommLogs] Error processing SMS:', { error: getErrorMessage(err) });
         }
       }
       

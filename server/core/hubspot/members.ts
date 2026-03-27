@@ -1,6 +1,5 @@
 import { db } from '../../db';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../../utils/errorUtils';
-import { isProduction } from '../db';
 import { getHubSpotClient } from '../integrations';
 import { sql } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './request';
@@ -163,7 +162,7 @@ export async function findOrCreateHubSpotContact(
       throw error;
     }
     
-    if (!isProduction) logger.warn('[HubSpot] Error searching for contact, will create new one:', { error: getErrorMessage(error) });
+    logger.warn('[HubSpot] Error searching for contact, will create new one:', { error: getErrorMessage(error) });
   }
   
   if (isHubSpotReadOnly()) {

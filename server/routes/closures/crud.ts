@@ -1,6 +1,5 @@
 import { logger, logAndRespond } from '../../core/logger';
 import { Router } from 'express';
-import { isProduction } from '../../core/db';
 import { db } from '../../db';
 import { facilityClosures, users, announcements, noticeTypes, closureReasons, notifications } from '../../../shared/schema';
 import { eq, desc, or, isNull, and } from 'drizzle-orm';
@@ -42,7 +41,7 @@ router.get('/api/notice-types', async (req, res) => {
     setCache(cacheKey, results, STATIC_CACHE_TTL_MS);
     res.json(results);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Notice types fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Notice types fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch notice types' });
   }
 });
@@ -72,7 +71,7 @@ router.post('/api/notice-types', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'create_notice_type', 'notice_type', String(result.id), result.name, {});
     res.status(201).json(result);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Notice type creation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Notice type creation error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create notice type' });
   }
 });
@@ -265,7 +264,7 @@ router.delete('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'delete_closure_reason', 'closure_reason', String(id), undefined, {});
     res.json({ success: true, message: 'Closure reason deactivated' });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Closure reason delete error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Closure reason delete error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to delete closure reason' });
   }
 });
@@ -281,7 +280,7 @@ router.get('/api/closures', async (req, res) => {
       .limit(500);
     res.json(results);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Closures fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Closures fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch closures' });
   }
 });
@@ -313,7 +312,7 @@ router.get('/api/closures/needs-review', isStaffOrAdmin, async (req, res) => {
     
     res.json(withMissingFields);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Needs review closures fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Needs review closures fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to fetch closures needing review' });
   }
 });
@@ -499,7 +498,7 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
       internalCalendarId: internalEventIds
     });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Closure create error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Closure create error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to create closure' });
   }
 });
@@ -565,7 +564,7 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Closure delete error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Closure delete error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to delete closure' });
   }
 });
@@ -885,7 +884,7 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    if (!isProduction) logger.error('Closure update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Closure update error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to update closure' });
   }
 });
