@@ -143,7 +143,7 @@ const SocialLink: React.FC<{href: string; icon: 'instagram' | 'linkedin' | 'tikt
       href={href} 
       target="_blank" 
       rel="noreferrer" 
-      className="w-11 h-11 rounded-full border border-[#E7E7DC]/30 backdrop-blur-[20px] bg-white/10 flex items-center justify-center hover:bg-[#E7E7DC] hover:text-[#293515] hover:scale-[1.1] active:scale-95 transition-all duration-[400ms] ease-in-out cursor-pointer text-[#E7E7DC]"
+      className="w-11 h-11 rounded-full border border-[#E7E7DC]/30 backdrop-blur-[20px] bg-white/10 flex items-center justify-center hover:bg-[#E7E7DC] hover:text-[#293515] hover:scale-[1.1] active:scale-95 transition-interactive duration-[400ms] ease-in-out cursor-pointer text-[#E7E7DC]"
       aria-label={icon}
     >
       <IconComponent />

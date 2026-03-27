@@ -78,7 +78,7 @@ const PwaSmartBanner: React.FC<PwaSmartBannerProps> = ({
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 transition-gpu duration-300 ${
         dismissed ? 'opacity-0 -translate-y-full' : 'opacity-100 translate-y-0'
       }`}
       style={{ zIndex: 'var(--z-nav)' }}

@@ -189,14 +189,14 @@ const Landing: React.FC = () => {
           <div className={`flex flex-wrap gap-5 ${heroAnimPlayed ? '' : 'animate-hero-cta'}`}>
             <Link
               to="/tour"
-              className="border border-white/60 bg-white text-primary px-8 py-3.5 uppercase tracking-[0.2em] text-[10px] font-medium transition-all duration-[600ms] hover:bg-white/90"
+              className="border border-white/60 bg-white text-primary px-8 py-3.5 uppercase tracking-[0.2em] text-[10px] font-medium transition-colors duration-[600ms] hover:bg-white/90"
               style={{ fontFamily: 'var(--font-label)' }}
             >
               Book a Tour
             </Link>
             <Link
               to="/membership"
-              className="border border-white/30 bg-transparent hover:border-white/60 text-white px-8 py-3.5 uppercase tracking-[0.2em] text-[10px] font-light transition-all duration-[600ms]"
+              className="border border-white/30 bg-transparent hover:border-white/60 text-white px-8 py-3.5 uppercase tracking-[0.2em] text-[10px] font-light transition-colors duration-[600ms]"
               style={{ fontFamily: 'var(--font-label)' }}
             >
               Explore Membership
@@ -287,7 +287,7 @@ const Landing: React.FC = () => {
                 </h2>
                 <Link
                   to="/private-hire/inquire"
-                  className="px-8 py-3.5 border border-white/40 text-white text-[10px] uppercase tracking-[0.25em] font-light hover:border-white/70 transition-all duration-[600ms] inline-block"
+                  className="px-8 py-3.5 border border-white/40 text-white text-[10px] uppercase tracking-[0.25em] font-light hover:border-white/70 transition-colors duration-[600ms] inline-block"
                   style={{ fontFamily: 'var(--font-label)' }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -413,7 +413,7 @@ const Landing: React.FC = () => {
                     </ul>
                     <Link
                       to={linkTo}
-                      className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary dark:text-white border border-primary/30 dark:border-white/30 hover:border-primary/60 dark:hover:border-white/60 transition-all duration-[600ms]"
+                      className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary dark:text-white border border-primary/30 dark:border-white/30 hover:border-primary/60 dark:hover:border-white/60 transition-colors duration-[600ms]"
                       style={{ fontFamily: 'var(--font-label)' }}
                     >
                       View Details
@@ -444,7 +444,7 @@ const Landing: React.FC = () => {
                   </ul>
                   <Link
                     to={linkTo}
-                    className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/60 dark:text-white/60 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-all duration-[600ms]"
+                    className="block text-center py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/60 dark:text-white/60 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-colors duration-[600ms]"
                     style={{ fontFamily: 'var(--font-label)' }}
                   >
                     View Details
@@ -484,7 +484,7 @@ const Landing: React.FC = () => {
           </p>
           <Link
             to="/tour"
-            className="inline-block px-12 py-4 border border-primary/30 dark:border-white/30 text-primary dark:text-white text-[10px] uppercase tracking-[0.25em] font-normal hover:border-primary dark:hover:border-white transition-all duration-[600ms]"
+            className="inline-block px-12 py-4 border border-primary/30 dark:border-white/30 text-primary dark:text-white text-[10px] uppercase tracking-[0.25em] font-normal hover:border-primary dark:hover:border-white transition-colors duration-[600ms]"
             style={{ fontFamily: 'var(--font-label)' }}
           >
             Book Your Private Tour

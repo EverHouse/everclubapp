@@ -91,7 +91,7 @@ const FAQ: React.FC = () => {
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide scroll-fade-right">
             <button
               onClick={() => setSelectedCategory(null)}
-              className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-[4px] text-sm font-semibold transition-all duration-fast ${
+              className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-[4px] text-sm font-semibold transition-colors duration-fast ${
                 selectedCategory === null
                   ? 'bg-primary text-white'
                   : 'bg-white/60 dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-white/80 dark:hover:bg-white/10'
@@ -103,7 +103,7 @@ const FAQ: React.FC = () => {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-[4px] text-sm font-semibold transition-all duration-fast whitespace-nowrap ${
+                className={`tactile-btn flex-shrink-0 px-4 py-2 rounded-[4px] text-sm font-semibold transition-colors duration-fast whitespace-nowrap ${
                   selectedCategory === category
                     ? 'bg-primary text-white'
                     : 'bg-white/60 dark:bg-white/5 text-primary/70 dark:text-white/70 hover:bg-white/80 dark:hover:bg-white/10'

@@ -32,7 +32,7 @@ const TiersTab: React.FC = () => {
                     <button
                         key={t.key}
                         onClick={() => tab.setActiveSubTab(t.key)}
-                        className={`flex items-center gap-1 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
+                        className={`flex items-center gap-1 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors duration-fast flex-shrink-0 ${
                             tab.activeSubTab === t.key
                                 ? 'bg-white dark:bg-white/10 text-primary dark:text-white shadow-sm'
                                 : 'text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-white'

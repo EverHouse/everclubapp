@@ -315,13 +315,13 @@ const MemberEvents: React.FC = () => {
                   <MotionListItem 
                     key={event.id}
                     index={index}
-                    className={`accordion-item-wrapper rounded-xl overflow-hidden transition-all duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'}`}
+                    className={`accordion-item-wrapper rounded-xl overflow-hidden transition-colors duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'}`}
                   >
                     <button 
                       onClick={() => handleCardClick(event.id)}
                       aria-expanded={isExpanded}
                       aria-label={`${event.title} on ${event.date} at ${event.time}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
-                      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'tactile-btn'}`}
+                      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-colors duration-fast text-left ${isExpanded ? '' : 'tactile-btn'}`}
                     >
                       <div className="flex gap-3 items-start">
                         <div className="flex-1 min-w-0">
@@ -341,7 +341,7 @@ const MemberEvents: React.FC = () => {
                                 Cancelling
                               </span>
                             ) : isRsvpd ? (
-                              <span className="w-fit text-[10px] font-bold uppercase tracking-widest bg-accent text-brand-green px-2 py-0.5 rounded-[4px] whitespace-nowrap transition-all duration-fast">Going</span>
+                              <span className="w-fit text-[10px] font-bold uppercase tracking-widest bg-accent text-brand-green px-2 py-0.5 rounded-[4px] whitespace-nowrap transition-colors duration-fast">Going</span>
                             ) : event.source === 'eventbrite' ? (
                               <span className="w-fit text-[10px] font-bold uppercase tracking-widest bg-[#F05537]/20 text-[#F05537] px-2 py-0.5 rounded-[4px] whitespace-nowrap">Ticketed</span>
                             ) : (

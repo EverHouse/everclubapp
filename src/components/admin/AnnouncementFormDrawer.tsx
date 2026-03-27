@@ -105,13 +105,13 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
     >
       <div className="p-5 space-y-4">
         <input 
-          className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+          className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
           placeholder="Title" 
           value={formData.title || ''} 
           onChange={e => setFormData({...formData, title: e.target.value})} 
         />
         <textarea 
-          className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none" 
+          className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast resize-none" 
           placeholder="Description" 
           rows={3} 
           value={formData.desc || ''} 
@@ -130,7 +130,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
             role="switch"
             aria-checked={formData.notifyMembers || false}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-fast ease-in-out ${formData.notifyMembers ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-fast ease-in-out ${formData.notifyMembers ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
         
@@ -146,7 +146,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
             role="switch"
             aria-checked={formData.showAsBanner || false}
           >
-            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-fast ease-in-out ${formData.showAsBanner ? 'translate-x-5' : 'translate-x-0'}`} />
+            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-fast ease-in-out ${formData.showAsBanner ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
         
@@ -155,7 +155,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
             <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1.5 block">Start Date</label>
             <input 
               type="date" 
-              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
               value={formData.startDate || ''} 
               onChange={e => setFormData({...formData, startDate: e.target.value})} 
             />
@@ -164,7 +164,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
             <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1.5 block">End Date</label>
             <input 
               type="date" 
-              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
               value={formData.endDate || ''} 
               onChange={e => setFormData({...formData, endDate: e.target.value})} 
             />
@@ -183,7 +183,7 @@ export const AnnouncementFormDrawer: React.FC<AnnouncementFormDrawerProps> = ({
           {formData.linkType === 'external' && (
             <input 
               type="url" 
-              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
               placeholder="https://example.com" 
               value={formData.linkTarget || ''} 
               onChange={e => setFormData({...formData, linkTarget: e.target.value})} 

@@ -61,7 +61,7 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
             key={mins}
             onClick={() => { haptic.selection(); setDuration(mins); setExpandedHour(null); setHasUserSelectedDuration(true); }}
             aria-pressed={duration === mins}
-            className={`relative p-3 rounded-[4px] border transition-all duration-fast ease-spring-smooth active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
+            className={`relative p-3 rounded-[4px] border transition-interactive duration-fast ease-spring-smooth active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
               duration === mins
                 ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
                 : isLowTime

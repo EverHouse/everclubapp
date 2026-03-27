@@ -348,7 +348,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
             <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Coupon ID (Optional)</label>
             <input
               type="text"
-              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
               value={newCoupon.id}
               onChange={e => setNewCoupon({ ...newCoupon, id: e.target.value })}
               placeholder="Auto-generate if blank (e.g., SUMMER20)"
@@ -359,7 +359,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
             <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Name / Description</label>
             <input
               type="text"
-              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
               value={newCoupon.name}
               onChange={e => setNewCoupon({ ...newCoupon, name: e.target.value })}
               placeholder="e.g., Summer Sale 20% Off"
@@ -370,7 +370,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
             <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Promotion Code (Optional)</label>
             <input
               type="text"
-              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast uppercase"
+              className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast uppercase"
               value={newCoupon.promotionCode}
               onChange={e => setNewCoupon({ ...newCoupon, promotionCode: e.target.value.toUpperCase() })}
               placeholder="e.g., WELCOME50 (shareable code for /join page)"
@@ -386,7 +386,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
               <button
                 type="button"
                 onClick={() => setNewCoupon({ ...newCoupon, discountType: 'percent' })}
-                className={`flex-1 px-4 py-3 rounded-xl border-2 transition-all duration-fast ${
+                className={`flex-1 px-4 py-3 rounded-xl border-2 transition-colors duration-fast ${
                   newCoupon.discountType === 'percent'
                     ? 'border-primary bg-primary/10 text-primary dark:text-white'
                     : 'border-gray-200 dark:border-white/20 text-gray-600 dark:text-gray-400'
@@ -398,7 +398,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
               <button
                 type="button"
                 onClick={() => setNewCoupon({ ...newCoupon, discountType: 'amount' })}
-                className={`flex-1 px-4 py-3 rounded-xl border-2 transition-all duration-fast ${
+                className={`flex-1 px-4 py-3 rounded-xl border-2 transition-colors duration-fast ${
                   newCoupon.discountType === 'amount'
                     ? 'border-primary bg-primary/10 text-primary dark:text-white'
                     : 'border-gray-200 dark:border-white/20 text-gray-600 dark:text-gray-400'
@@ -417,7 +417,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                 type="number"
                 min="1"
                 max="100"
-                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 value={newCoupon.percentOff}
                 onChange={e => setNewCoupon({ ...newCoupon, percentOff: Math.min(100, Math.max(1, parseInt(e.target.value, 10) || 1)) })}
               />
@@ -429,7 +429,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                 type="number"
                 min="0.01"
                 step="0.01"
-                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 value={(newCoupon.amountOffCents / 100).toFixed(2)}
                 onChange={e => setNewCoupon({ ...newCoupon, amountOffCents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
               />
@@ -444,7 +444,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                   key={d}
                   type="button"
                   onClick={() => setNewCoupon({ ...newCoupon, duration: d })}
-                  className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-all duration-fast ${
+                  className={`px-3 py-2 rounded-xl border-2 text-sm font-medium transition-colors duration-fast ${
                     newCoupon.duration === d
                       ? 'border-primary bg-primary/10 text-primary dark:text-white'
                       : 'border-gray-200 dark:border-white/20 text-gray-600 dark:text-gray-400'
@@ -463,7 +463,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                 type="number"
                 min="1"
                 max="24"
-                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 value={newCoupon.durationInMonths}
                 onChange={e => setNewCoupon({ ...newCoupon, durationInMonths: Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 1)) })}
               />
@@ -523,7 +523,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
               <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Coupon Name</label>
               <input
                 type="text"
-                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
                 placeholder="e.g., Summer Sale 20% Off"

@@ -223,8 +223,8 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                 }
             >
                 <div className="p-5 space-y-4">
-                    <input aria-label="Title" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" placeholder="Title" value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} />
-                    <textarea aria-label="Description" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none" placeholder="Description" rows={3} value={newItem.desc || ''} onChange={e => setNewItem({...newItem, desc: e.target.value})} />
+                    <input aria-label="Title" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" placeholder="Title" value={newItem.title || ''} onChange={e => setNewItem({...newItem, title: e.target.value})} />
+                    <textarea aria-label="Description" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast resize-none" placeholder="Description" rows={3} value={newItem.desc || ''} onChange={e => setNewItem({...newItem, desc: e.target.value})} />
                     
                     <div className="flex items-center justify-between py-2">
                         <div className="flex-1">
@@ -238,7 +238,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                             role="switch"
                             aria-checked={newItem.notifyMembers || false}
                         >
-                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-fast ease-in-out ${newItem.notifyMembers ? 'translate-x-5' : 'translate-x-0'}`} />
+                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-fast ease-in-out ${newItem.notifyMembers ? 'translate-x-5' : 'translate-x-0'}`} />
                         </button>
                     </div>
                     
@@ -254,18 +254,18 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                             role="switch"
                             aria-checked={newItem.showAsBanner || false}
                         >
-                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-fast ease-in-out ${newItem.showAsBanner ? 'translate-x-5' : 'translate-x-0'}`} />
+                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform duration-fast ease-in-out ${newItem.showAsBanner ? 'translate-x-5' : 'translate-x-0'}`} />
                         </button>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1.5 block">Start Date</label>
-                            <input aria-label="Start date" type="date" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" value={newItem.startDate || ''} onChange={e => setNewItem({...newItem, startDate: e.target.value})} />
+                            <input aria-label="Start date" type="date" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" value={newItem.startDate || ''} onChange={e => setNewItem({...newItem, startDate: e.target.value})} />
                         </div>
                         <div>
                             <label className="text-[10px] font-bold uppercase text-gray-500 dark:text-gray-400 mb-1.5 block">End Date</label>
-                            <input aria-label="End date" type="date" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" value={newItem.endDate || ''} onChange={e => setNewItem({...newItem, endDate: e.target.value})} />
+                            <input aria-label="End date" type="date" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" value={newItem.endDate || ''} onChange={e => setNewItem({...newItem, endDate: e.target.value})} />
                         </div>
                     </div>
                     
@@ -281,7 +281,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                         {newItem.linkType === 'external' && (
                             <input 
                                 type="url" 
-                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                 placeholder="https://example.com" 
                                 value={newItem.linkTarget || ''} 
                                 onChange={e => setNewItem({...newItem, linkTarget: e.target.value})} 
@@ -401,7 +401,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     const idB = parseInt(b.id, 10) || 0;
                     return idB - idA;
                 }).map((item, index) => (
-                    <div key={item.id} onClick={() => openEdit(item)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(item); } }} role="button" tabIndex={0} className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-all duration-fast tactile-row ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}>
+                    <div key={item.id} onClick={() => openEdit(item)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(item); } }} role="button" tabIndex={0} className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-colors duration-fast tactile-row ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}>
                         <div>
                             <div className="flex items-center gap-2 mb-1.5">
                                 <span className="w-2 h-2 rounded-full bg-accent"></span>

@@ -33,7 +33,7 @@ const ProductCard: React.FC<{
   <button
     key={product.productId}
     onClick={onClick}
-    className={`tactile-card flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-all duration-fast text-center active:scale-95 ${
+    className={`tactile-card flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-interactive duration-fast text-center active:scale-95 ${
       isAdded ? 'scale-95 ring-2 ring-emerald-400/50' : ''
     }`}
   >
@@ -156,7 +156,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
                     key={cartProduct.productId}
                     onClick={() => !outOfStock && addToCart(cartProduct)}
                     disabled={outOfStock}
-                    className={`tactile-card flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 transition-all duration-fast text-center ${
+                    className={`tactile-card flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-primary/10 dark:border-white/10 transition-colors duration-fast text-center ${
                       outOfStock
                         ? 'opacity-50 cursor-not-allowed'
                         : `hover:bg-white/80 dark:hover:bg-white/10 active:scale-95 ${addedProductId === cartProduct.productId ? 'scale-95 ring-2 ring-emerald-400/50' : ''}`

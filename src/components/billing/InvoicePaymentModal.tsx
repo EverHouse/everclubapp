@@ -298,7 +298,7 @@ export function InvoicePaymentModal({
         type="button"
         onClick={handleFormSubmit}
         disabled={isProcessing}
-        className="flex-1 py-4 rounded-xl backdrop-blur-md transition-all duration-normal flex items-center justify-center gap-2 group border bg-emerald-100/60 text-emerald-900 border-emerald-200 hover:bg-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-500/20 dark:hover:bg-emerald-900/60 disabled:opacity-50 font-semibold tactile-btn"
+        className="flex-1 py-4 rounded-xl backdrop-blur-md transition-colors duration-normal flex items-center justify-center gap-2 group border bg-emerald-100/60 text-emerald-900 border-emerald-200 hover:bg-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:border-emerald-500/20 dark:hover:bg-emerald-900/60 disabled:opacity-50 font-semibold tactile-btn"
       >
         {isProcessing ? (
           <>
@@ -403,7 +403,7 @@ export function InvoicePaymentModal({
                   <div className="space-y-3">
                     <button
                       onClick={handleSavedCardPayment}
-                      className={`w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all tactile-btn ${
+                      className={`w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-colors tactile-btn ${
                         isDark
                           ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200/60'

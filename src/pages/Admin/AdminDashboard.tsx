@@ -181,7 +181,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   const headerContent = (
-    <header className="fixed top-0 left-0 right-0 md:left-20 xl:left-64 h-20 flex items-center justify-between px-4 md:px-6 bg-[#293515] shadow-md transition-all duration-fast text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)', paddingTop: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))', boxSizing: 'content-box' }}>
+    <header className="fixed top-0 left-0 right-0 md:left-20 xl:left-64 h-20 flex items-center justify-between px-4 md:px-6 bg-[#293515] shadow-md transition-colors duration-fast text-[#F2F2EC] pointer-events-auto" style={{ zIndex: 'var(--z-header)', paddingTop: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))', boxSizing: 'content-box' }}>
       <div className="flex items-center flex-shrink-0 w-[88px] md:w-0 h-full">
         <button 
           onClick={() => setIsMobileSidebarOpen(true)}
@@ -712,8 +712,8 @@ const StaffTrainingGuide: React.FC = () => {
                             )}
                         </div>
 
-                        <div className={`overflow-hidden transition-all duration-normal ${isPrinting || expandedSection === String(section.id) ? 'max-h-[5000px]' : 'max-h-0'}`}>
-                            <div className="px-5 pb-5 space-y-4 print:pt-2">
+                        <div className={`cls-safe-collapse ${isPrinting || expandedSection === String(section.id) ? 'cls-safe-visible' : ''}`}>
+                            <div className="cls-safe-inner px-5 pb-5 space-y-4 print:pt-2">
                                 {section.steps.map((step, index) => (
                                     <div key={index} className="flex gap-4">
                                         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-primary dark:text-white print:bg-gray-100 print:text-gray-700">

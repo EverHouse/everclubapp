@@ -42,7 +42,7 @@ export const ClosureReasonsSection: React.FC<ClosureReasonsSectionProps> = ({
                 <button
                     onClick={handleAddClosureReason}
                     disabled={!newReasonLabel.trim() || addClosureReasonMutation.isPending}
-                    className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
+                    className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-fast flex items-center justify-center gap-1.5"
                 >
                     <Icon name="add" className="text-base" />
                     Add
@@ -139,7 +139,7 @@ export const NoticeTypesSection: React.FC<NoticeTypesSectionProps> = ({
                 <button
                     onClick={handleAddNoticeType}
                     disabled={!newNoticeTypeName.trim() || addNoticeTypeMutation.isPending}
-                    className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast flex items-center justify-center gap-1.5"
+                    className="tactile-btn px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-fast flex items-center justify-center gap-1.5"
                 >
                     <Icon name="add" className="text-base" />
                     Add
@@ -237,7 +237,7 @@ export const EditReasonDrawer: React.FC<EditReasonDrawerProps> = ({
                     value={reasonDrawerData?.label || ''}
                     onChange={(e) => setReasonDrawerData(prev => prev ? { ...prev, label: e.target.value } : null)}
                     placeholder="e.g., Private Event, Maintenance"
-                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 />
             </div>
             <div>
@@ -246,7 +246,7 @@ export const EditReasonDrawer: React.FC<EditReasonDrawerProps> = ({
                     type="number"
                     value={reasonDrawerData?.sortOrder || 100}
                     onChange={(e) => setReasonDrawerData(prev => prev ? { ...prev, sortOrder: parseInt(e.target.value, 10) || 100 } : null)}
-                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Lower numbers appear first in dropdown menus</p>
             </div>
@@ -302,7 +302,7 @@ export const EditNoticeTypeDrawer: React.FC<EditNoticeTypeDrawerProps> = ({
                     value={noticeTypeDrawerData?.name || ''}
                     onChange={(e) => setNoticeTypeDrawerData(prev => prev ? { ...prev, name: e.target.value } : null)}
                     placeholder="e.g., Maintenance, Holiday"
-                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 />
             </div>
             <div>
@@ -311,7 +311,7 @@ export const EditNoticeTypeDrawer: React.FC<EditNoticeTypeDrawerProps> = ({
                     type="number"
                     value={noticeTypeDrawerData?.sortOrder || 100}
                     onChange={(e) => setNoticeTypeDrawerData(prev => prev ? { ...prev, sortOrder: parseInt(e.target.value, 10) || 100 } : null)}
-                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Lower numbers appear first in dropdown menus</p>
             </div>

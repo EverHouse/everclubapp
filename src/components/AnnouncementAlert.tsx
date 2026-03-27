@@ -115,7 +115,7 @@ const AnnouncementAlert: React.FC = () => {
     <div className="cls-safe-inner">
     {latestAnnouncement ? (
     <article 
-      className={`mb-6 p-4 rounded-xl border cursor-pointer transition-all duration-normal ease-spring-smooth ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none`}
+      className={`mb-6 p-4 rounded-xl border cursor-pointer transition-colors duration-normal ease-spring-smooth ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none`}
       onClick={handleViewAll}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}

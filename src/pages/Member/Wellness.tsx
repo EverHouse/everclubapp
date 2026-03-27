@@ -510,7 +510,7 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
               <div className="flex justify-center pt-2 pb-4">
                 <button
                   onClick={() => setDisplayCount(prev => prev + LOAD_MORE_COUNT)}
-                  className={`tactile-btn px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-fast cursor-pointer ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
+                  className={`tactile-btn px-6 py-2.5 rounded-xl font-bold text-sm transition-colors duration-fast cursor-pointer ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
                 >
                   Show More ({sortedClasses.length - displayCount} remaining)
                 </button>
@@ -538,7 +538,7 @@ const MedSpaView: React.FC<{isDark?: boolean}> = ({ isDark = true }) => (
          href="https://www.amarieaesthetics.co" 
          target="_blank" 
          rel="noopener noreferrer"
-         className={`tactile-btn w-full py-3.5 rounded-xl font-bold tracking-wide transition-all duration-fast flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-lavender text-primary hover:bg-lavender/90' : 'bg-primary text-white hover:bg-primary/90'}`}
+         className={`tactile-btn w-full py-3.5 rounded-xl font-bold tracking-wide transition-colors duration-fast flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-lavender text-primary hover:bg-lavender/90' : 'bg-primary text-white hover:bg-primary/90'}`}
        >
          <Icon name="calendar_add_on" className="text-[20px]" />
          Book with Amarie
@@ -720,13 +720,13 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
 
   return (
   <div 
-    className={`accordion-item-wrapper rounded-xl relative overflow-hidden transition-all duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'} ${isPending ? 'ring-2 ring-offset-2 ring-offset-transparent animate-pulse' : ''} ${isCancelling ? 'ring-red-500/50' : isRsvping ? (showJoinWaitlist ? 'ring-amber-500/50' : 'ring-green-500/50') : ''}`}
+    className={`accordion-item-wrapper rounded-xl relative overflow-hidden transition-colors duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'} ${isPending ? 'ring-2 ring-offset-2 ring-offset-transparent animate-pulse' : ''} ${isCancelling ? 'ring-red-500/50' : isRsvping ? (showJoinWaitlist ? 'ring-amber-500/50' : 'ring-green-500/50') : ''}`}
   >
     <button 
       onClick={onToggle}
       aria-expanded={isExpanded}
       aria-label={`${title} on ${date} at ${formattedTime.time} ${formattedTime.period}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
-      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-all duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
+      className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-transform duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}
     >
       <div className="flex gap-3 items-start">
         <div className="flex-1 min-w-0">
@@ -767,7 +767,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className={`tactile-btn w-full py-2.5 rounded-lg font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:bg-brand-green/90'}`}
+            className={`tactile-btn w-full py-2.5 rounded-lg font-bold text-sm transition-colors duration-fast flex items-center justify-center gap-2 cursor-pointer ${isDark ? 'bg-white text-brand-green hover:bg-white/90' : 'bg-brand-green text-white hover:bg-brand-green/90'}`}
           >
             <span>Learn More</span>
             <Icon name="open_in_new" className="text-sm" />
@@ -780,7 +780,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
           <button 
             onClick={(e) => { e.stopPropagation(); if (!isCancelDisabled) onCancel(); }}
             disabled={isCancelling || isCancelDisabled}
-            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all duration-fast border flex items-center justify-center gap-2 ${isDark ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-500/50 text-red-500 hover:bg-red-500/10'} ${isCancelling || isCancelDisabled ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
+            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-interactive duration-fast border flex items-center justify-center gap-2 ${isDark ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-500/50 text-red-500 hover:bg-red-500/10'} ${isCancelling || isCancelDisabled ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'}`}
           >
             {isCancelling && <LoadingSpinner />}
             {isCancelDisabled ? (isOnWaitlist ? 'On Waitlist' : 'Confirmed') : isCancelling ? (isOnWaitlist ? 'Leaving Waitlist...' : 'Cancelling...') : isOnWaitlist ? 'Leave Waitlist' : 'Cancel'}
@@ -793,7 +793,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
           <button 
             onClick={(e) => { e.stopPropagation(); onBook(); }}
             disabled={isRsvping}
-            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all duration-fast flex items-center justify-center gap-2 ${isRsvping ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'} ${showJoinWaitlist ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : (isDark ? 'bg-white text-brand-green' : 'bg-brand-green text-white')}`}
+            className={`w-full py-2.5 rounded-lg font-bold text-sm transition-transform duration-fast flex items-center justify-center gap-2 ${isRsvping ? 'opacity-70 cursor-not-allowed' : 'active:scale-[0.98]'} ${showJoinWaitlist ? 'bg-amber-500/20 text-amber-500 border border-amber-500/50' : (isDark ? 'bg-white text-brand-green' : 'bg-brand-green text-white')}`}
           >
             {isRsvping && <LoadingSpinner className={showJoinWaitlist ? '' : (isDark ? 'text-brand-green' : 'text-white')} />}
             {isRsvping ? (showJoinWaitlist ? 'Joining Waitlist...' : 'Confirming...') : showJoinWaitlist ? 'Join Waitlist' : 'RSVP'}

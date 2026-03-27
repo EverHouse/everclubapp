@@ -44,25 +44,19 @@
   animation: checkmarkScale 0.35s var(--m3-standard) 0.8s;
 }
 
-/* Card Removal Animation */
+/* Card Removal Animation — GPU-only (transform + opacity) */
 @keyframes cardSlideOut {
   0% {
     opacity: 1;
-    transform: translateX(0);
-    max-height: 200px;
+    transform: translateX(0) scaleY(1);
   }
   50% {
     opacity: 0;
-    transform: translateX(-20px);
+    transform: translateX(-20px) scaleY(1);
   }
   100% {
     opacity: 0;
-    transform: translateX(-20px);
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    margin-top: 0;
-    margin-bottom: 0;
+    transform: translateX(-20px) scaleY(0);
   }
 }
 
@@ -79,7 +73,9 @@
 
 .animate-card-remove {
   animation: cardSlideOut 0.35s var(--m3-standard-accel) forwards;
-  overflow: hidden;
+  transform-origin: top center;
+  contain: layout style;
+  will-change: transform, opacity;
 }
 
 .animate-card-fade-out {
@@ -103,24 +99,49 @@
   animation: counterPop 0.3s var(--spring-bounce);
 }
 
-/* Notification Badge Pulse */
+/* Notification Badge Pulse — GPU-friendly (no box-shadow animation) */
 @keyframes badgePulse {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
   }
   70% {
     transform: scale(1.05);
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
   }
 }
 
 .animate-badge-pulse {
   animation: badgePulse 2s ease-in-out infinite;
+  position: relative;
+}
+
+.animate-badge-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid rgba(239, 68, 68, 0.7);
+  opacity: 0;
+  animation: badgePulseRing 2s ease-in-out infinite;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@keyframes badgePulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 
 /* One-time attention pulse for new notifications */
@@ -1643,17 +1664,7 @@ html.dark .border-accessible {
   }
 }
 
-/* Accordion expand animation */
-@keyframes accordionExpand {
-  0% {
-    max-height: 0;
-    opacity: 0;
-  }
-  100% {
-    max-height: 300px;
-    opacity: 1;
-  }
-}
+/* (accordionExpand removed — superseded by grid-based .accordion-content) */
 
 /* Pop In Animation - Used across the app (horizontal-aligned, no vertical offset) */
 @keyframes segmentCheckIn {
@@ -1758,8 +1769,8 @@ html.dark .border-accessible {
 }
 
 @keyframes toast-progress {
-  0% { width: 100%; }
-  100% { width: 0%; }
+  0% { transform: scaleX(1); }
+  100% { transform: scaleX(0); }
 }
 
 @keyframes fadeInOut {
@@ -2344,6 +2355,48 @@ html.dark .border-accessible {
   backface-visibility: hidden;
 }
 
+/* Swipe shadow layer — pre-rendered, toggled via opacity (avoids paint on every frame) */
+.swipe-shadow-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.swipe-shadow-layer.active {
+  opacity: 1;
+}
+
+/* CSS containment for animated containers */
+.animate-list-item,
+[class*="animate-list-item-delay-"],
+.animate-content-enter,
+[class*="animate-content-enter-delay-"],
+.animate-pop-in,
+.animate-slide-up-stagger,
+.animate-page-enter,
+.page-fade-in {
+  contain: layout style;
+}
+
+.glass-modal-backdrop,
+.glass-overlay {
+  contain: strict;
+}
+
+.animate-slide-up-drawer,
+.animate-slide-in-right,
+.animate-slide-in-left,
+.animate-modal-slide-up,
+.animate-dialog-scale-in {
+  contain: layout style;
+  will-change: transform, opacity;
+}
+
 /* iOS Tap Feedback & Animation Utilities */
 .tap-target {
   min-width: 44px;
@@ -2835,6 +2888,13 @@ html.dark .border-accessible {
   transition-property: transform, opacity;
   transition-timing-function: var(--m3-standard);
   transition-duration: 200ms;
+}
+
+/* Interactive transition — covers only what buttons/cards need (no layout props) */
+.transition-interactive {
+  transition-property: transform, opacity, background-color, border-color, color, box-shadow;
+  transition-timing-function: var(--m3-standard);
+  transition-duration: 150ms;
 }
 
 /* Faster liquid glass transition for snappier feel */

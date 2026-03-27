@@ -64,7 +64,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
   if (!bannerAnnouncement || bannerDismissed || isBannerInitiallyDismissed) return null;
 
   return (
-    <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 transition-all duration-normal ease-spring-smooth ${bannerExiting ? 'opacity-0 scale-95 max-h-0 mb-0 py-0 overflow-hidden' : 'animate-pop-in max-h-[200px]'} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
+    <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${bannerExiting ? 'animate-card-fade-out overflow-hidden' : 'animate-pop-in'} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <Icon name="campaign" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-lavender' : 'text-primary'}`} />
         <div className="min-w-0 flex-1">

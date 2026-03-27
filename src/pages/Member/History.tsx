@@ -251,7 +251,7 @@ const History: React.FC = () => {
                   <div className="flex justify-center pt-3">
                     <button
                       onClick={() => setVisitsDisplayCount(prev => prev + LOAD_MORE)}
-                      className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-fast active:scale-[0.98] ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
+                      className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-interactive duration-fast active:scale-[0.98] ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
                     >
                       Show More ({visits.length - visitsDisplayCount} remaining)
                     </button>
@@ -452,7 +452,7 @@ const History: React.FC = () => {
                       <div className="flex justify-center pt-2 pb-2">
                         <button
                           onClick={() => setPaymentsMonthsCount(prev => prev + 3)}
-                          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-fast active:scale-[0.98] ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
+                          className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-interactive duration-fast active:scale-[0.98] ${isDark ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20' : 'bg-primary/5 text-primary hover:bg-primary/10 border border-primary/15'}`}
                         >
                           Show More Months ({sortedMonths.length - paymentsMonthsCount} remaining)
                         </button>

@@ -274,7 +274,7 @@ const FeesSubTab: React.FC<FeesSubTabProps> = ({ feeProducts, openEdit, openCrea
                                 tabIndex={0}
                                 onClick={() => openEdit(feeToTier(pass))}
                                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(feeToTier(pass)); } }}
-                                className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-all duration-fast"
+                                className="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-colors duration-fast"
                             >
                                 <div className="flex items-start justify-between">
                                     <div>

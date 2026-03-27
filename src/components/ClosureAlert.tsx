@@ -203,7 +203,7 @@ const ClosureAlert: React.FC = () => {
     <div className="cls-safe-inner">
     {closure ? (
     <div 
-      className={`mb-4 py-2 px-4 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-normal ease-spring-smooth ${
+      className={`mb-4 py-2 px-4 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-colors duration-normal ease-spring-smooth ${
         blocking
           ? (isDark ? 'bg-red-500/20 hover:bg-red-500/30' : 'bg-red-100 hover:bg-red-200')
           : (isDark ? 'bg-amber-500/20 hover:bg-amber-500/30' : 'bg-amber-100 hover:bg-amber-200')

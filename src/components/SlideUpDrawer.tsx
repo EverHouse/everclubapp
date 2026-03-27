@@ -260,7 +260,7 @@ export function SlideUpDrawer({
       >
         {!hideHandle && (
           <div className="flex flex-col items-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
-            <div className={`h-1 rounded-full transition-all duration-200 ease-out w-10 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
+            <div className={`h-1 rounded-full transition-colors duration-200 ease-out w-10 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
             {dismissible && dragOffset > 0 && (
               <div 
                 className="mt-1.5 flex items-center gap-1 select-none"

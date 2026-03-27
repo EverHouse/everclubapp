@@ -118,7 +118,7 @@ const AccountSection: React.FC<AccountSectionProps> = ({
             <div className="px-4 pb-4 pt-3">
               <button
                 onClick={handleStartEdit}
-                className={`tactile-btn w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-fast ${
+                className={`tactile-btn w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-fast ${
                   isDark 
                     ? 'bg-accent/20 text-accent hover:bg-accent/30' 
                     : 'bg-primary/10 text-primary hover:bg-primary/20'

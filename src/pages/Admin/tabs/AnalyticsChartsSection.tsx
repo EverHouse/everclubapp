@@ -197,7 +197,7 @@ export const TopMembersLeaderboard: React.FC<{ data: TopMember[] }> = ({ data })
             <div className="text-sm text-primary/90 dark:text-white/90 font-medium truncate">{member.memberName}</div>
             <div className="relative h-2 mt-1 rounded-full overflow-hidden bg-primary/5 dark:bg-white/10">
               <div
-                className="absolute inset-y-0 left-0 rounded-full transition-all"
+                className="absolute inset-y-0 left-0 rounded-full transition-gpu"
                 style={{
                   width: `${(member.totalHours / maxHours) * 100}%`,
                   backgroundColor: RESOURCE_COLORS[idx % RESOURCE_COLORS.length],

@@ -331,7 +331,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 {stripeCleanupProgress.totalCustomers > 0 && (
                   <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-normal"
+                      className="bg-blue-600 h-2 rounded-full transition-gpu duration-normal"
                       style={{ 
                         width: `${stripeCleanupProgress.phase === 'checking' 
                           ? Math.round((stripeCleanupProgress.checked / Math.max(1, stripeCleanupProgress.totalCustomers)) * 100)
@@ -425,7 +425,7 @@ const SyncToolsPanel: React.FC<SyncToolsPanelProps> = ({
                 {visitorArchiveProgress.totalVisitors > 0 && (
                   <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
                     <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-normal"
+                      className="bg-blue-600 h-2 rounded-full transition-gpu duration-normal"
                       style={{ 
                         width: `${visitorArchiveProgress.phase === 'checking_stripe' 
                           ? Math.round((visitorArchiveProgress.checked / Math.max(1, visitorArchiveProgress.totalVisitors)) * 100)

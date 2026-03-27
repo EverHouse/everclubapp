@@ -233,7 +233,7 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
                   setShowBugReport(true);
                 }}
                 style={{ fontFamily: 'var(--font-label)' }}
-                className={`tactile-row w-full flex items-center gap-4 px-4 py-3.5 text-left transition-all duration-normal leading-tight min-h-[48px] border-l-2 border-transparent ${
+                className={`tactile-row w-full flex items-center gap-4 px-4 py-3.5 text-left transition-colors duration-normal leading-tight min-h-[48px] border-l-2 border-transparent ${
                   isDark 
                     ? 'text-[#F2F2EC]/50 hover:text-[#F2F2EC]/80' 
                     : 'text-[#293515]/50 hover:text-[#293515]/80'
@@ -281,7 +281,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
       type="button"
       onClick={handleClick}
       style={{ '--stagger-index': staggerIndex, touchAction: 'pan-y', animationFillMode: 'both', fontFamily: 'var(--font-label)' } as React.CSSProperties}
-      className={`tactile-row flex items-center gap-4 px-4 py-3.5 text-left transition-all duration-normal animate-slide-up-stagger leading-tight min-h-[48px] ${
+      className={`tactile-row flex items-center gap-4 px-4 py-3.5 text-left transition-colors duration-normal animate-slide-up-stagger leading-tight min-h-[48px] ${
         isActive
           ? isDark 
             ? 'text-[#F2F2EC] font-semibold border-l-2 border-[#CCB8E4]' 

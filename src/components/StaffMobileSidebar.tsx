@@ -108,7 +108,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
         onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
         className={`
-          tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-fast
+          tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-fast
           ${isActive 
             ? 'text-white font-semibold border-l-2 border-[#CCB8E4]' 
             : 'text-white/50 hover:text-white/80 border-l-2 border-transparent'
@@ -181,7 +181,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
           <button
             onClick={() => { startNavigation(); navigate('/kiosk'); handleClose(); }}
             style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
-            className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-fast text-white/50 hover:text-white/80 border-l-2 border-transparent"
+            className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-fast text-white/50 hover:text-white/80 border-l-2 border-transparent"
           >
             <Icon name="qr_code_scanner" className="text-[18px]" />
             <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Kiosk Check-in</span>
@@ -189,7 +189,7 @@ export const StaffMobileSidebar: React.FC<StaffMobileSidebarProps> = ({
           <button
             onClick={() => setShowBugReport(true)}
             style={{ fontFamily: 'var(--font-label)' }}
-            className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-fast text-white/50 hover:text-white/80 border-l-2 border-transparent"
+            className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-fast text-white/50 hover:text-white/80 border-l-2 border-transparent"
           >
             <Icon name="bug_report" className="text-[18px]" />
             <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Report a Bug</span>

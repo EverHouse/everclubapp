@@ -344,8 +344,8 @@ export function TrackmanBookingModal({
     >
       <div className="relative overflow-hidden">
         <div
-          className={`p-4 space-y-5 transition-all duration-500 ease-out ${
-            autoApproved ? 'opacity-0 scale-95 max-h-0 overflow-hidden pointer-events-none' : 'opacity-100 scale-100'
+          className={`p-4 space-y-5 transition-gpu duration-500 ease-out ${
+            autoApproved ? 'opacity-0 scale-95 h-0 overflow-hidden pointer-events-none' : 'opacity-100 scale-100'
           }`}
           style={{ transformOrigin: 'top center' }}
         >
@@ -451,7 +451,7 @@ export function TrackmanBookingModal({
               value={externalId}
               onChange={(e) => setExternalId(e.target.value)}
               placeholder="e.g., 19510379"
-              className="w-full px-4 py-3 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
+              className="w-full px-4 py-3 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-colors duration-fast"
             />
             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               After creating the booking in Trackman, copy the Booking ID and paste it here.
@@ -487,7 +487,7 @@ export function TrackmanBookingModal({
             <button
               onClick={handleDevConfirm}
               disabled={isDevConfirming || autoApproved}
-              className="tactile-btn w-full py-2.5 px-4 bg-transparent text-green-700 dark:text-green-400 font-medium rounded-xl transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40 border border-dashed border-green-400 dark:border-green-500/50 hover:bg-green-50 dark:hover:bg-green-900/20 text-sm"
+              className="tactile-btn w-full py-2.5 px-4 bg-transparent text-green-700 dark:text-green-400 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40 border border-dashed border-green-400 dark:border-green-500/50 hover:bg-green-50 dark:hover:bg-green-900/20 text-sm"
             >
               {isDevConfirming ? (
                 <>
@@ -506,7 +506,7 @@ export function TrackmanBookingModal({
 
         {autoApproved && (
           <div
-            className={`p-6 flex flex-col items-center justify-center transition-all duration-500 ease-out ${
+            className={`p-6 flex flex-col items-center justify-center transition-gpu duration-500 ease-out ${
               showSuccessOverlay ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >

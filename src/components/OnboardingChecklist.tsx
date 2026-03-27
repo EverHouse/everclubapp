@@ -185,7 +185,7 @@ const OnboardingChecklist: React.FC = () => {
 
       <div className="w-full h-2 bg-primary/10 dark:bg-white/10 rounded-full mb-4 overflow-hidden">
         <div
-          className="h-full bg-accent rounded-full transition-all duration-emphasis"
+          className="h-full bg-accent rounded-full transition-gpu duration-emphasis"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
@@ -196,7 +196,7 @@ const OnboardingChecklist: React.FC = () => {
             key={step.key}
             onClick={() => !step.completed && handleStepAction(step)}
             disabled={step.completed}
-            className={`w-full flex items-center gap-3 px-6 py-3 rounded-[4px] transition-all duration-fast text-left tactile-row ${
+            className={`w-full flex items-center gap-3 px-6 py-3 rounded-[4px] transition-colors duration-fast text-left tactile-row ${
               step.completed
                 ? 'bg-accent/10 dark:bg-accent/5'
                 : 'hover:bg-primary/5 dark:hover:bg-white/5 cursor-pointer'

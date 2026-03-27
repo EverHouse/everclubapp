@@ -42,7 +42,7 @@ const DayPassSuccess: React.FC = () => {
           <div className="space-y-3">
             <button
               onClick={() => { startNavigation(); navigate('/'); }}
-              className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-primary px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition-all duration-fast"
+              className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-primary px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition-colors duration-fast"
             >
               <Icon name="home" className="text-[18px]" />
               Back to Home
@@ -50,7 +50,7 @@ const DayPassSuccess: React.FC = () => {
             
             <button
               onClick={() => { startNavigation(); navigate('/day-pass'); }}
-              className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-white dark:bg-white/5 border border-primary/20 dark:border-white/10 px-4 py-3.5 text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/10 transition-all duration-fast"
+              className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-white dark:bg-white/5 border border-primary/20 dark:border-white/10 px-4 py-3.5 text-sm font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/10 transition-colors duration-fast"
             >
               <Icon name="add" className="text-[18px]" />
               Buy Another Pass

@@ -385,7 +385,7 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                                         return (
                                             <div 
                                                 key={primary.id}
-                                                className={`p-4 rounded-xl border transition-all duration-fast ${
+                                                className={`p-4 rounded-xl border transition-colors duration-fast ${
                                                     isOptimistic 
                                                         ? 'bg-brand-green/10 dark:bg-brand-green/20 border-brand-green/30 animate-pulse' 
                                                         : isDeleting

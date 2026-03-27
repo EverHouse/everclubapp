@@ -154,7 +154,7 @@ const MerchTab: React.FC = () => {
                     <button
                         key={t}
                         onClick={() => setActiveType(t)}
-                        className={`flex-shrink-0 px-4 py-2 rounded-[4px] text-xs font-semibold transition-all duration-fast ${activeType === t ? 'bg-primary dark:bg-lavender text-white shadow-md' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'}`}
+                        className={`flex-shrink-0 px-4 py-2 rounded-[4px] text-xs font-semibold transition-colors duration-fast ${activeType === t ? 'bg-primary dark:bg-lavender text-white shadow-md' : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'}`}
                     >
                         {t}
                     </button>
@@ -163,19 +163,19 @@ const MerchTab: React.FC = () => {
 
             <ModalShell isOpen={isEditing} onClose={() => { setIsEditing(false); setShowDeleteConfirm(false); }} title={editId ? 'Item Details' : 'Add Merch Item'} showCloseButton={false}>
                 <div className="p-6 space-y-4">
-                    <input aria-label="Item name" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" placeholder="Item Name" value={newItem.name || ''} onChange={e => setNewItem({...newItem, name: e.target.value})} />
+                    <input aria-label="Item name" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" placeholder="Item Name" value={newItem.name || ''} onChange={e => setNewItem({...newItem, name: e.target.value})} />
                     <div className="grid grid-cols-2 gap-3">
-                        <input aria-label="Price" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" type="number" placeholder="Price" value={newItem.price || ''} onChange={e => setNewItem({...newItem, price: Number(e.target.value)})} />
-                        <select aria-label="Type" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" value={newItem.type || 'Apparel'} onChange={e => setNewItem({...newItem, type: e.target.value})}>
+                        <input aria-label="Price" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" type="number" placeholder="Price" value={newItem.price || ''} onChange={e => setNewItem({...newItem, price: Number(e.target.value)})} />
+                        <select aria-label="Type" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" value={newItem.type || 'Apparel'} onChange={e => setNewItem({...newItem, type: e.target.value})}>
                             {MERCH_TYPES.map(t => (
                                 <option key={t} value={t}>{t}</option>
                             ))}
                         </select>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
-                        <input aria-label="Sort order" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" type="number" placeholder="Sort Order" value={newItem.sortOrder ?? 0} onChange={e => setNewItem({...newItem, sortOrder: Number(e.target.value)})} />
-                        <input aria-label="Stock quantity" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" type="number" min="0" placeholder="Stock (empty=unlimited)" value={newItem.stockQuantity ?? ''} onChange={e => setNewItem({...newItem, stockQuantity: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value))})} />
-                        <input aria-label="Icon" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" placeholder="Icon (material symbol)" value={newItem.icon || ''} onChange={e => setNewItem({...newItem, icon: e.target.value})} />
+                        <input aria-label="Sort order" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" type="number" placeholder="Sort Order" value={newItem.sortOrder ?? 0} onChange={e => setNewItem({...newItem, sortOrder: Number(e.target.value)})} />
+                        <input aria-label="Stock quantity" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" type="number" min="0" placeholder="Stock (empty=unlimited)" value={newItem.stockQuantity ?? ''} onChange={e => setNewItem({...newItem, stockQuantity: e.target.value === '' ? undefined : Math.max(0, Number(e.target.value))})} />
+                        <input aria-label="Icon" className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" placeholder="Icon (material symbol)" value={newItem.icon || ''} onChange={e => setNewItem({...newItem, icon: e.target.value})} />
                     </div>
                     <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-700 dark:text-white/70">Image (Optional)</label>
@@ -200,7 +200,7 @@ const MerchTab: React.FC = () => {
                                 {uploadImageMutation.isPending ? 'Uploading...' : 'Upload'}
                             </button>
                             <input
-                                className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast text-sm"
+                                className="flex-1 border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast text-sm"
                                 placeholder="Or paste image URL"
                                 value={newItem.image || ''}
                                 onChange={e => setNewItem({...newItem, image: e.target.value})}
@@ -224,7 +224,7 @@ const MerchTab: React.FC = () => {
                             </div>
                         )}
                     </div>
-                    <textarea className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none" placeholder="Description" rows={3} value={newItem.description || ''} onChange={e => setNewItem({...newItem, description: e.target.value})} />
+                    <textarea className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast resize-none" placeholder="Description" rows={3} value={newItem.description || ''} onChange={e => setNewItem({...newItem, description: e.target.value})} />
                     {editId && newItem.isActive === false && (
                         <button
                             type="button"
@@ -310,7 +310,7 @@ const MerchTab: React.FC = () => {
 
             <button
                 onClick={openCreate}
-                className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary/90 transition-all hover:scale-105 flex items-center justify-center"
+                className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-primary text-white rounded-full shadow-lg hover:bg-primary/90 transition-interactive hover:scale-105 flex items-center justify-center"
                 aria-label="Add merch item"
             >
                 <Icon name="add" className="text-2xl" />

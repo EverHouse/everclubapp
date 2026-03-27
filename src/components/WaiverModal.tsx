@@ -131,7 +131,7 @@ export function WaiverModal({ isOpen, onComplete, currentVersion }: WaiverModalP
       <button
         onClick={handleSign}
         disabled={!agreed || isSubmitting}
-        className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-fast tactile-btn ${
+        className={`w-full py-3 px-4 rounded-xl font-semibold transition-colors duration-fast tactile-btn ${
           agreed && !isSubmitting
             ? isDark
               ? 'bg-[#a3e635] text-[#1a1d15] hover:bg-[#bef264]'
@@ -154,7 +154,7 @@ export function WaiverModal({ isOpen, onComplete, currentVersion }: WaiverModalP
       <button
         onClick={handleEmailCopy}
         disabled={isEmailing || emailSent}
-        className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-fast flex items-center justify-center gap-2 ${
+        className={`w-full py-2.5 px-4 rounded-xl text-sm font-medium transition-colors duration-fast flex items-center justify-center gap-2 ${
           emailSent
             ? isDark
               ? 'bg-white/5 text-[#a3e635]'

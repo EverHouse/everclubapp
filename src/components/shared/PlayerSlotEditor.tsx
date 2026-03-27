@@ -172,7 +172,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                 key={count}
                 onClick={() => onPlayerCountChange(count)}
                 aria-pressed={playerCount === count}
-                className={`flex-1 py-3 rounded-[4px] transition-all duration-fast active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
+                className={`flex-1 py-3 rounded-[4px] transition-interactive duration-fast active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
                   playerCount === count
                     ? (isDark ? 'bg-white text-primary' : 'bg-primary text-white')
                     : (isDark ? 'text-white/80 hover:bg-white/5 hover:text-white' : 'text-primary/80 hover:bg-black/5 hover:text-primary')
@@ -210,7 +210,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                       key={partner.id}
                       type="button"
                       onClick={() => handlePartnerSelect(partner)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-fast active:scale-95 border ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-transform duration-fast active:scale-95 border ${
                         isDark
                           ? 'bg-white/5 border-white/15 text-white/80 hover:bg-white/10 hover:border-white/25'
                           : 'bg-primary/5 border-primary/10 text-primary/80 hover:bg-primary/10 hover:border-primary/20'
@@ -240,7 +240,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTypeChange(index, 'member')}
-                        className={`px-3 py-1.5 text-xs font-medium transition-all duration-fast ${
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors duration-fast ${
                           slot.type === 'member'
                             ? (isDark ? 'bg-white text-primary' : 'bg-primary text-white')
                             : (isDark ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-black/5 text-primary/60 hover:bg-black/10')
@@ -251,7 +251,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTypeChange(index, 'guest')}
-                        className={`px-3 py-1.5 text-xs font-medium transition-all duration-fast ${
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors duration-fast ${
                           slot.type === 'guest'
                             ? (isDark ? 'bg-white text-primary' : 'bg-primary text-white')
                             : (isDark ? 'bg-white/5 text-white/60 hover:bg-white/10' : 'bg-black/5 text-primary/60 hover:bg-black/10')
@@ -312,7 +312,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                             placeholder="First name..."
                             value={slot.firstName}
                             onChange={(e) => updateSlot(index, { firstName: e.target.value, name: `${e.target.value} ${slot.lastName}`.trim() })}
-                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
+                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg border text-sm transition-colors duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
                               isDark 
                                 ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
                                 : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
@@ -323,7 +323,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                             placeholder="Last name..."
                             value={slot.lastName}
                             onChange={(e) => updateSlot(index, { lastName: e.target.value, name: `${slot.firstName} ${e.target.value}`.trim() })}
-                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
+                            className={`flex-1 min-w-0 px-3 py-2.5 rounded-lg border text-sm transition-colors duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
                               isDark 
                                 ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
                                 : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'
@@ -335,7 +335,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                           placeholder="Guest email..."
                           value={slot.email}
                           onChange={(e) => updateSlot(index, { email: e.target.value })}
-                          className={`w-full px-3 py-2.5 rounded-lg border text-sm transition-all duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
+                          className={`w-full px-3 py-2.5 rounded-lg border text-sm transition-colors duration-fast focus:ring-2 focus:ring-accent focus:outline-none ${
                             isDark 
                               ? 'bg-white/5 border-white/20 text-white placeholder:text-white/40' 
                               : 'bg-black/5 border-black/10 text-primary placeholder:text-primary/40'

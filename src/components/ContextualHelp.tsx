@@ -104,8 +104,8 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                   </div>
                 </div>
 
-                <div className={`overflow-hidden transition-all duration-normal ${isExpanded ? 'max-h-[5000px]' : 'max-h-0'}`}>
-                  <div className="px-5 pb-5 space-y-4">
+                <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
+                  <div className="cls-safe-inner px-5 pb-5 space-y-4">
                     {section.steps.map((step, index) => (
                       <div key={index} className="flex gap-4">
                         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-primary dark:text-white">

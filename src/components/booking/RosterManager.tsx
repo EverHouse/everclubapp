@@ -488,14 +488,14 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowAddMemberModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] bg-[#293515] text-white font-semibold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] bg-[#293515] text-white font-semibold text-sm transition-interactive duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
                 >
                   <Icon name="person_add" className="text-lg" />
                   Add Member
                 </button>
                 <button
                   onClick={() => setShowGuestPaymentChoiceModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] font-semibold text-sm transition-all duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] font-semibold text-sm transition-interactive duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
                 >
                   <Icon name="group_add" className="text-lg" />
                   Add Guest
@@ -658,7 +658,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                         haptic.light();
                         setShowPaymentModal(true);
                       }}
-                      className="w-full py-3 px-4 rounded-xl bg-primary text-white font-semibold text-sm transition-colors hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-2"
+                      className="w-full py-3 px-4 rounded-xl bg-primary text-white font-semibold text-sm transition-interactive hover:bg-primary/90 active:scale-[0.98] flex items-center justify-center gap-2"
                     >
                       <Icon name="credit_card" className="text-lg" />
                       Pay Now
@@ -790,7 +790,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               setShowConflictModal(false);
               setConflictDetails(null);
             }}
-            className="w-full py-3 px-4 rounded-xl bg-[#293515] text-white font-bold text-sm transition-all duration-fast hover:bg-[#3a4a20] active:scale-[0.98]"
+            className="w-full py-3 px-4 rounded-xl bg-[#293515] text-white font-bold text-sm transition-interactive duration-fast hover:bg-[#3a4a20] active:scale-[0.98]"
           >
             Understood
           </button>

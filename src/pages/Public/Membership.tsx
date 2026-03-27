@@ -145,7 +145,7 @@ const MembershipOverview: React.FC = () => {
 
           if (tier.is_popular) {
             return (
-              <div key={tier.id} className="relative flex flex-col p-6 backdrop-blur-xl bg-primary/90 rounded-xl overflow-hidden text-white border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.2),0_0_20px_rgba(41,53,21,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms]">
+              <div key={tier.id} className="relative flex flex-col p-6 backdrop-blur-xl bg-primary/90 rounded-xl overflow-hidden text-white border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.2),0_0_20px_rgba(41,53,21,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-transform duration-[400ms]">
                 <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none"></div>
                 <div className="flex justify-between items-start mb-4 relative z-10">
                   <div className="pr-2">
@@ -171,7 +171,7 @@ const MembershipOverview: React.FC = () => {
                 <div className="mt-auto relative z-10">
                   <button 
                     onClick={handleClick}
-                    className="w-full py-4 px-6 rounded-[4px] bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white/80 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+                    className="w-full py-4 px-6 rounded-[4px] bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white/80 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
                   >
                     {btnText}
                   </button>
@@ -254,7 +254,7 @@ const MembershipOverview: React.FC = () => {
         <div className="mt-8 text-center">
           <button 
             onClick={() => navigate('/membership/apply')}
-            className="tactile-btn px-8 py-4 rounded-[4px] bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]"
+            className="tactile-btn px-8 py-4 rounded-[4px] bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]"
           >
             Apply Now — Limited Membership
           </button>
@@ -277,7 +277,7 @@ const MembershipOverview: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
            <button 
              onClick={() => setSelectedPass('workspace')}
-             className={`flex flex-col gap-2 p-3 rounded-xl border transition-all duration-fast text-left ${selectedPass === 'workspace' ? 'bg-primary text-white border-primary shadow-md dark:shadow-black/20' : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02] text-primary dark:text-white'}`}
+             className={`flex flex-col gap-2 p-3 rounded-xl border transition-interactive duration-fast text-left ${selectedPass === 'workspace' ? 'bg-primary text-white border-primary shadow-md dark:shadow-black/20' : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02] text-primary dark:text-white'}`}
            >
               <Icon name="work" className={`font-light ${selectedPass === 'workspace' ? 'text-white' : 'text-primary dark:text-white'}`} />
               <div>
@@ -287,7 +287,7 @@ const MembershipOverview: React.FC = () => {
            </button>
            <button 
              onClick={() => setSelectedPass('sim')}
-             className={`flex flex-col gap-2 p-3 rounded-xl border transition-all duration-fast text-left ${selectedPass === 'sim' ? 'bg-primary text-white border-primary shadow-md dark:shadow-black/20' : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02] text-primary dark:text-white'}`}
+             className={`flex flex-col gap-2 p-3 rounded-xl border transition-interactive duration-fast text-left ${selectedPass === 'sim' ? 'bg-primary text-white border-primary shadow-md dark:shadow-black/20' : 'bg-white/40 dark:bg-white/5 border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:scale-[1.02] text-primary dark:text-white'}`}
            >
               <Icon name="sports_golf" className={`font-light ${selectedPass === 'sim' ? 'text-white' : 'text-primary dark:text-white'}`} />
               <div>
@@ -315,7 +315,7 @@ const MembershipOverview: React.FC = () => {
 };
 
 const MembershipCard: React.FC<{ title: string; price: string; suffix?: string; desc: string; features: string[]; onClick: () => void; btnText?: string; className?: string }> = ({ title, price, suffix="/mo", desc, features, onClick, btnText="Apply", className="" }) => (
-  <div className={`relative flex flex-col p-6 bg-white/50 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms] ${className}`}>
+  <div className={`relative flex flex-col p-6 bg-white/50 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-transform duration-[400ms] ${className}`}>
     <div className="mb-4">
       <h2 className="text-xl font-semibold text-primary dark:text-white mb-2">{title}</h2>
       <p className="text-sm text-primary/70 dark:text-white/70 leading-relaxed font-light">{desc}</p>
@@ -333,7 +333,7 @@ const MembershipCard: React.FC<{ title: string; price: string; suffix?: string; 
       ))}
     </ul>
     <div className="mt-auto">
-      <button onClick={onClick} className="w-full py-4 px-6 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20">
+      <button onClick={onClick} className="w-full py-4 px-6 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20">
         {btnText}
       </button>
     </div>
@@ -484,7 +484,7 @@ const Corporate: React.FC = () => {
 const DiscountRow: React.FC<{count: string; price: string; icon: string; isActive?: boolean}> = ({ count, price, icon, isActive }) => (
     <div className={`flex items-center justify-between p-5 transition-colors group ${isActive ? 'bg-primary/10 dark:bg-white/10' : 'hover:bg-white/40 dark:hover:bg-white/5'}`}>
         <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm dark:shadow-black/20 border group-hover:scale-105 transition-all duration-fast ${isActive ? 'bg-primary border-primary' : 'bg-white dark:bg-[#1a1d15] border-white dark:border-white/10'}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-sm dark:shadow-black/20 border group-hover:scale-105 transition-transform duration-fast ${isActive ? 'bg-primary border-primary' : 'bg-white dark:bg-[#1a1d15] border-white dark:border-white/10'}`}>
                 <span className={`text-xs font-bold ${isActive ? 'text-white' : 'text-primary/70 dark:text-white/70'}`}>{icon}</span>
             </div>
             <span className={`font-medium text-lg ${isActive ? 'text-primary dark:text-white font-semibold' : 'text-primary dark:text-white'}`}>{count} employees</span>
@@ -596,7 +596,7 @@ const CompareFeatures: React.FC = () => {
                     key={t} 
                     onClick={() => toggleTier(t)}
                     disabled={!isSelected && selectedTiers.length >= 3}
-                    className={`px-4 py-2 rounded-[4px] text-xs font-bold border flex items-center gap-1 transition-all duration-fast ${isSelected ? 'bg-primary text-white border-primary shadow-sm dark:shadow-black/20' : 'bg-white/30 dark:bg-white/5 text-primary/60 dark:text-white/60 border-primary/10 dark:border-white/10 hover:border-primary/20 dark:hover:border-white/20'} ${!isSelected && selectedTiers.length >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`px-4 py-2 rounded-[4px] text-xs font-bold border flex items-center gap-1 transition-colors duration-fast ${isSelected ? 'bg-primary text-white border-primary shadow-sm dark:shadow-black/20' : 'bg-white/30 dark:bg-white/5 text-primary/60 dark:text-white/60 border-primary/10 dark:border-white/10 hover:border-primary/20 dark:hover:border-white/20'} ${!isSelected && selectedTiers.length >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                     {isSelected && <Icon name="check" className="text-[14px]" />} {t}
                 </button>

@@ -92,7 +92,7 @@ const EditorialShowcase: React.FC<EditorialShowcaseProps> = ({
           {ctaLabel && ctaLink && (
             <Link
               to={ctaLink}
-              className="inline-flex items-center justify-center px-6 py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/70 dark:text-white/70 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-all duration-[600ms] w-fit"
+              className="inline-flex items-center justify-center px-6 py-3 text-[10px] uppercase tracking-[0.25em] font-normal text-primary/70 dark:text-white/70 border border-primary/15 dark:border-white/15 hover:border-primary/40 dark:hover:border-white/40 hover:text-primary dark:hover:text-white transition-colors duration-[600ms] w-fit"
               style={{ fontFamily: 'var(--font-label)' }}
             >
               {ctaLabel}

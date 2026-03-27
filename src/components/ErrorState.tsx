@@ -62,7 +62,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
               text-white 
               rounded-[4px] font-semibold 
               hover:scale-[1.02] active:scale-[0.98] 
-              transition-all duration-normal
+              transition-gpu duration-normal
               shadow-lg hover:shadow-xl
             `}
           >

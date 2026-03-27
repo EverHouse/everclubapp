@@ -136,7 +136,7 @@ const Gallery: React.FC = () => {
 
         <section className="px-6 py-10 text-center bg-bone dark:bg-[#141414]">
           <p className="text-primary/60 dark:text-white/60 text-sm mb-4">Like what you see?</p>
-          <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
+          <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
             Book Your Private Tour
           </Link>
         </section>
@@ -166,7 +166,7 @@ const FilterButton: React.FC<{label: string; active?: boolean; onClick?: () => v
         active 
         ? 'bg-primary text-white shadow-md dark:shadow-black/20' 
         : 'bg-white/40 dark:bg-white/5 text-primary dark:text-white border border-white/50 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 backdrop-blur-md'
-    } tactile-btn px-5 py-2.5 rounded-[4px] text-sm font-semibold transition-all duration-fast whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`}
+    } tactile-btn px-5 py-2.5 rounded-[4px] text-sm font-semibold transition-opacity duration-fast whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed`}
   >
     {label}
   </button>
@@ -205,7 +205,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
         )}
         <img 
           src={img} 
-          className={`absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-all duration-emphasis ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-gpu duration-emphasis ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
           alt={title || category || "Inside Ever Club — indoor golf and social club in Tustin, OC"}
           loading="lazy"
           fetchPriority="low"

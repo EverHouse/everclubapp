@@ -128,7 +128,7 @@ function SegmentedButtonInner<T extends string>({
               ref={(el) => setButtonRef(el, option.value)}
               onClick={() => handleSelect(option.value)}
               style={{ touchAction: 'manipulation' }}
-              className={`tactile-btn relative flex items-center justify-center gap-1.5 font-medium transition-all duration-fast focus:ring-2 focus:ring-inset focus:ring-accent focus:outline-none active:bg-primary/10 dark:active:bg-white/10 ${sizeStyles} ${
+              className={`tactile-btn relative flex items-center justify-center gap-1.5 font-medium transition-colors duration-fast focus:ring-2 focus:ring-inset focus:ring-accent focus:outline-none active:bg-primary/10 dark:active:bg-white/10 ${sizeStyles} ${
                 isSelected
                   ? 'text-primary dark:text-white'
                   : 'bg-transparent text-primary/70 dark:text-white/70 hover:bg-primary/5 dark:hover:bg-white/5'

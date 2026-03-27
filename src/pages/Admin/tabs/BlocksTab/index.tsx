@@ -26,7 +26,7 @@ const BlocksTab: React.FC = () => {
             <div className="flex items-center justify-between gap-3 flex-wrap animate-content-enter-delay-1">
                 <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative">
                     <div
-                        className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-all duration-normal"
+                        className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-colors duration-normal"
                         style={{
                             width: 'calc(50% - 4px)',
                             left: data.activeSubTab === 'notices' ? '4px' : 'calc(50% + 0px)',
@@ -60,7 +60,7 @@ const BlocksTab: React.FC = () => {
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => data.setShowClosureReasonsSection(!data.showClosureReasonsSection)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium backdrop-blur-sm border transition-all duration-fast tactile-btn ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium backdrop-blur-sm border transition-colors duration-fast tactile-btn ${
                                 data.showClosureReasonsSection
                                     ? 'bg-primary/10 dark:bg-white/15 border-primary/30 dark:border-white/20 text-primary dark:text-white'
                                     : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'
@@ -74,7 +74,7 @@ const BlocksTab: React.FC = () => {
                         </button>
                         <button
                             onClick={() => data.setShowNoticeTypesSection(!data.showNoticeTypesSection)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium backdrop-blur-sm border transition-all duration-fast tactile-btn ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium backdrop-blur-sm border transition-colors duration-fast tactile-btn ${
                                 data.showNoticeTypesSection
                                     ? 'bg-primary/10 dark:bg-white/15 border-primary/30 dark:border-white/20 text-primary dark:text-white'
                                     : 'bg-white/60 dark:bg-white/10 border-gray-200/50 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/15 text-gray-600 dark:text-white/70'

@@ -204,7 +204,7 @@ const PrivateHireInquire: React.FC = () => {
               </p>
               <Link 
                 to="/private-hire"
-                className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-fast"
+                className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform duration-fast"
               >
                 Back to Private Hire
               </Link>
@@ -212,9 +212,9 @@ const PrivateHireInquire: React.FC = () => {
           ) : (
             <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden animate-content-enter-delay-2">
               <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10 dark:border-white/10">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-fast ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>1</div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors duration-fast ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>1</div>
                 <div className="w-16 h-0.5 bg-primary/20 dark:bg-white/20" />
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-fast ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>2</div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors duration-fast ${step === 2 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>2</div>
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 md:p-8">
@@ -337,7 +337,7 @@ const PrivateHireInquire: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleNext}
-                      className="w-full py-4 bg-primary text-white rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-fast"
+                      className="w-full py-4 bg-primary text-white rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform duration-fast"
                     >
                       Next
                     </button>
@@ -485,14 +485,14 @@ const PrivateHireInquire: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleBack}
-                        className="tactile-btn flex-1 py-4 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-[4px] font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-all duration-fast"
+                        className="tactile-btn flex-1 py-4 bg-primary/10 dark:bg-white/10 text-primary dark:text-white rounded-[4px] font-semibold hover:bg-primary/20 dark:hover:bg-white/20 transition-colors duration-fast"
                       >
                         Previous
                       </button>
                       <button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 py-4 bg-primary text-white rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-all duration-fast disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-1 py-4 bg-primary text-white rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform duration-fast disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {loading ? (
                           <>

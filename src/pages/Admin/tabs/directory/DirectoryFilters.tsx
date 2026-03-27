@@ -176,7 +176,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
                                             <button
                                                 key={tier}
                                                 onClick={() => { setTierFilter(tier); setShowMissingTierOnly(false); }}
-                                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-all duration-fast flex-shrink-0 whitespace-nowrap ${
+                                                className={`tactile-btn px-2 py-0.5 rounded text-[11px] font-bold transition-colors duration-fast flex-shrink-0 whitespace-nowrap ${
                                                     tier === 'All' 
                                                         ? isSelected 
                                                             ? 'bg-primary dark:bg-lavender text-white' 

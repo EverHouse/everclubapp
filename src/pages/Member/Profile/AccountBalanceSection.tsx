@@ -69,7 +69,7 @@ const AccountBalanceSection: React.FC<AccountBalanceSectionProps> = ({
         ) : (
           <button
             onClick={() => setShowAddFunds(true)}
-            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-all duration-fast tactile-btn ${
+            className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm transition-colors duration-fast tactile-btn ${
               isDark 
                 ? 'bg-accent/20 text-accent hover:bg-accent/30' 
                 : 'bg-primary/10 text-primary hover:bg-primary/20'

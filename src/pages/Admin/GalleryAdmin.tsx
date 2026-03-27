@@ -255,7 +255,7 @@ const GalleryAdmin: React.FC = () => {
                     )}
                     <div className="space-y-4 mb-6">
                         <input 
-                            className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                            className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                             placeholder="Title (Optional)" 
                             aria-label="Title"
                             value={newItem.title || ''} 
@@ -299,7 +299,7 @@ const GalleryAdmin: React.FC = () => {
                             </div>
                         </div>
                         <input 
-                            className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                            className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                             placeholder="Image URL *" 
                             aria-label="Image URL"
                             value={newItem.imageUrl || ''} 
@@ -312,7 +312,7 @@ const GalleryAdmin: React.FC = () => {
                         )}
                         <div className="grid grid-cols-2 gap-3">
                             <select 
-                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                 value={newItem.category || 'venue'} 
                                 onChange={e => setNewItem({...newItem, category: e.target.value})}
                             >
@@ -321,7 +321,7 @@ const GalleryAdmin: React.FC = () => {
                                 ))}
                             </select>
                             <input 
-                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                 type="number" 
                                 placeholder="Sort Order" 
                                 value={newItem.sortOrder || 0} 
@@ -382,7 +382,7 @@ const GalleryAdmin: React.FC = () => {
                                     image.isActive 
                                         ? 'border-gray-200 dark:border-white/20' 
                                         : 'border-orange-200 dark:border-orange-800/30 opacity-60'
-                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-all duration-fast ease-out'}`}
+                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-gpu duration-fast ease-out'}`}
                             >
                                 <div className="aspect-square bg-gray-100 dark:bg-white/5 overflow-hidden relative">
                                     <img 

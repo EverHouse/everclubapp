@@ -200,7 +200,7 @@ function ConfirmDialogComponent({
           aria-modal="true"
           aria-labelledby="confirm-dialog-title"
           aria-describedby="confirm-dialog-message"
-          className={`relative w-full max-w-sm transform transition-all duration-normal ease-spring-smooth ${
+          className={`relative w-full max-w-sm transform transition-gpu duration-normal ease-spring-smooth ${
             isClosing ? 'scale-95 opacity-0' : 'animate-dialog-scale-in'
           }`}
         >
@@ -240,7 +240,7 @@ function ConfirmDialogComponent({
                   disabled={isLoading}
                   className={`
                     flex-1 px-4 py-3 rounded-xl font-medium text-sm
-                    transition-all duration-fast ease-out
+                    transition-gpu duration-fast ease-out
                     disabled:opacity-50 disabled:cursor-not-allowed tactile-btn
                     ${isDark 
                       ? 'text-white/70 hover:bg-white/5 active:bg-white/10' 
@@ -258,7 +258,7 @@ function ConfirmDialogComponent({
                   disabled={isLoading}
                   className={`
                     flex-1 px-4 py-3 rounded-xl font-medium text-sm
-                    transition-all duration-fast ease-out
+                    transition-gpu duration-fast ease-out
                     disabled:opacity-70 disabled:cursor-not-allowed tactile-btn
                     ${isDark ? variantConfig.dark : variantConfig.light}
                     flex items-center justify-center gap-2

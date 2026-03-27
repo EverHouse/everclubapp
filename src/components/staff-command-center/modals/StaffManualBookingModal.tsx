@@ -172,7 +172,7 @@ export function StaffManualBookingModal({
                 value={confDate}
                 onChange={(e) => setConfDate(e.target.value)}
                 min={getTodayPacific()}
-                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
+                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-colors duration-fast"
               />
             </div>
 
@@ -183,7 +183,7 @@ export function StaffManualBookingModal({
               <select
                 value={confDuration}
                 onChange={(e) => setConfDuration(Number(e.target.value))}
-                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
+                className="w-full px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-colors duration-fast"
               >
                 <option value={30}>30 minutes</option>
                 <option value={60}>60 minutes</option>
@@ -207,7 +207,7 @@ export function StaffManualBookingModal({
                 value={confStartTime}
                 onChange={(e) => setConfStartTime(e.target.value)}
                 step="900"
-                className="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-all duration-fast"
+                className="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-xl focus:ring-2 focus:ring-primary dark:focus:ring-[#CCB8E4] focus:border-transparent outline-none transition-colors duration-fast"
               />
               <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
                 {formatTime12Hour(confStartTime)} – {formatTime12Hour(calculateEndTime(confStartTime, confDuration))}

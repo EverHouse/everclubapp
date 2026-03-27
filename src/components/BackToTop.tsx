@@ -110,7 +110,7 @@ const BackToTop: React.FC<BackToTopProps> = ({
     >
       <button
         onClick={handleClick}
-        className="glass-button bg-black/80 dark:bg-black/70 text-white hover:scale-110 active:scale-95 transition-all duration-normal min-w-[44px] min-h-[44px] w-12 h-12 flex items-center justify-center shadow-lg"
+        className="glass-button bg-black/80 dark:bg-black/70 text-white hover:scale-110 active:scale-95 transition-transform duration-normal min-w-[44px] min-h-[44px] w-12 h-12 flex items-center justify-center shadow-lg"
         aria-label="Back to top"
         tabIndex={isVisible ? 0 : -1}
         aria-hidden={!isVisible}

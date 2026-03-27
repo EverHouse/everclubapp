@@ -43,7 +43,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
     <button 
       onClick={onClick}
       aria-pressed={selected}
-      className={`tactile-card w-full flex items-center p-4 rounded-xl cursor-pointer transition-all duration-fast active:scale-[0.98] border text-left focus:ring-2 focus:ring-accent focus:outline-none ${
+      className={`tactile-card w-full flex items-center p-4 rounded-xl cursor-pointer transition-interactive duration-fast active:scale-[0.98] border text-left focus:ring-2 focus:ring-accent focus:outline-none ${
         selected 
         ? (isDark ? 'bg-white/10 border-white/40 ring-1 ring-white/30' : 'bg-primary/5 border-primary/30 ring-1 ring-primary/20')
         : (isDark ? 'bg-transparent hover:bg-white/5 border-white/15' : 'bg-white hover:bg-black/5 border-black/10')
@@ -69,7 +69,7 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ resource, selected, onClick
         </div>
       </div>
 
-      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 transition-all ${
+      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 transition-colors ${
         selected 
           ? (isDark ? 'border-white bg-white' : 'border-primary bg-primary')
           : (isDark ? 'border-white/30' : 'border-black/20')

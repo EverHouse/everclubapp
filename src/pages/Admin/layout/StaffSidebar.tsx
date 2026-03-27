@@ -51,7 +51,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
         style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
         className={`
-          tactile-row relative w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-normal ease-out
+          tactile-row relative w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-normal ease-out
           ${isActive 
             ? 'text-white font-semibold border-l-2 border-[#CCB8E4]' 
             : 'text-white/50 hover:text-white/80 border-l-2 border-transparent group/nav'
@@ -111,7 +111,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
         <button
           onClick={() => { startNavigation(); navigate('/kiosk'); }}
           style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
-          className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-normal text-white/50 hover:text-white/80 border-l-2 border-transparent group/nav"
+          className="tactile-row w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-normal text-white/50 hover:text-white/80 border-l-2 border-transparent group/nav"
         >
           <Icon name="qr_code_scanner" className="text-[18px] group-hover/nav:text-white/70" />
           <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Kiosk Check-in</span>

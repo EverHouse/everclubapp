@@ -54,7 +54,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
               <div key={hourGroup.hour24}>
                 <button
                   onClick={() => { haptic.light(); setExpandedHour(isExpanded ? null : hourGroup.hour24); }}
-                  className={`w-full p-4 rounded-xl border text-left transition-all duration-fast active:scale-[0.99] flex items-center justify-between ${
+                  className={`w-full p-4 rounded-xl border text-left transition-transform duration-fast active:scale-[0.99] flex items-center justify-between ${
                     hasSelectedSlot
                       ? (isDark ? 'bg-white/10 border-white/30' : 'bg-primary/5 border-primary/20')
                       : isExpanded
@@ -78,8 +78,9 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                   )}
                 </button>
 
-                <div className={`grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 overflow-hidden transition-all duration-normal ease-out ${
-                  isExpanded ? 'max-h-[500px] opacity-100 mt-2 pl-6' : 'max-h-0 opacity-0'
+                <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
+                <div className={`cls-safe-inner grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 overflow-hidden transition-opacity duration-normal ease-out ${
+                  isExpanded ? 'opacity-100 mt-2 pl-6' : 'opacity-0'
                 }`}>
                   {hourGroup.slots.map((slot, slotIndex) => {
                     const isRequestedOnly = !slot.available && slot.requestedResourceDbIds.length > 0;
@@ -102,7 +103,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                         key={slot.id}
                         onClick={() => { haptic.light(); setSelectedSlot(slot); setSelectedResource(null); }}
                         aria-pressed={selectedSlot?.id === slot.id}
-                        className={`p-3 rounded-[4px] border text-left transition-all duration-fast active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
+                        className={`p-3 rounded-[4px] border text-left transition-interactive duration-fast active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
                           selectedSlot?.id === slot.id
                             ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
                             : (isDark ? 'bg-transparent text-white hover:bg-white/10 border-white/15' : 'bg-white text-primary hover:bg-black/5 border-black/10')
@@ -116,6 +117,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                       </button>
                     );
                   })}
+                </div>
                 </div>
               </div>
             );

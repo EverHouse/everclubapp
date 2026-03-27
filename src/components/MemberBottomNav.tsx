@@ -69,18 +69,18 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
                 className={`
                   tactile-btn flex-1 flex flex-col items-center gap-1 py-3.5 px-1 min-h-[48px] relative z-10 cursor-pointer
-                  select-none transition-all duration-normal ease-out active:scale-95
+                  select-none transition-transform duration-normal ease-out active:scale-95
                   focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-inset focus-visible:outline-none
                   ${isActive ? 'text-white' : 'text-white/50 hover:text-white/70'}
                 `}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
-                <Icon name={item.icon} className={`text-[20px] transition-all duration-normal pointer-events-none ${shouldFill ? 'filled' : ''}`} />
+                <Icon name={item.icon} className={`text-[20px] transition-colors duration-normal pointer-events-none ${shouldFill ? 'filled' : ''}`} />
                 <span className={`text-[9px] uppercase tracking-[0.2em] transition-colors duration-normal pointer-events-none translate-y-[1px] ${isActive ? 'font-semibold text-white' : 'font-medium'}`}>
                   {item.label}
                 </span>
-                <div className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white transition-all duration-normal ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
+                <div className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white transition-gpu duration-normal ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`} />
               </button>
             );
           })}

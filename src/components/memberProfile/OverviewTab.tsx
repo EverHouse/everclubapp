@@ -20,7 +20,7 @@ const CopyButton: React.FC<{ value: string; isDark: boolean }> = ({ value, isDar
     <button
       onClick={handleCopy}
       title={copied ? 'Copied!' : 'Copy'}
-      className={`w-5 h-5 min-w-[20px] flex items-center justify-center rounded transition-all tactile-btn ${
+      className={`w-5 h-5 min-w-[20px] flex items-center justify-center rounded transition-colors tactile-btn ${
         copied
           ? 'text-green-500'
           : isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'

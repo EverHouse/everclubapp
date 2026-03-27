@@ -169,7 +169,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                             <button
                                                 onClick={(e) => handleEditClosure(closure, e)}
-                                                className={`p-2 rounded-xl transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast ${
+                                                className={`p-2 rounded-xl transition opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast ${
                                                     isIncomplete
                                                         ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30'
                                                         : blocking
@@ -219,7 +219,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                         <div className="flex gap-2 pt-2">
                                             <button
                                                 onClick={(e) => handleEditClosure(closure, e)}
-                                                className={`flex-1 py-2 px-4 rounded-xl font-medium transition-all duration-fast ${
+                                                className={`flex-1 py-2 px-4 rounded-xl font-medium transition-colors duration-fast ${
                                                     blocking
                                                         ? 'bg-red-500 text-white hover:bg-red-600'
                                                         : 'bg-amber-500 text-white hover:bg-amber-600'
@@ -229,7 +229,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                             </button>
                                             <button
                                                 onClick={(e) => handleDeleteClosure(closure.id, e)}
-                                                className="py-2 px-4 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20 transition-all duration-fast"
+                                                className="py-2 px-4 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-fast"
                                             >
                                                 Delete
                                             </button>
@@ -268,7 +268,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                 return (
                                     <div
                                         key={closure.id}
-                                        className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl overflow-hidden transition-all duration-fast opacity-70 hover:opacity-100 hover:shadow-sm group ${
+                                        className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl overflow-hidden transition-opacity duration-fast opacity-70 hover:opacity-100 hover:shadow-sm group ${
                                             blocking
                                                 ? 'border-l-4 border-l-red-500'
                                                 : 'border-l-4 border-l-amber-500'
@@ -314,7 +314,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 <div className="flex items-center gap-1 flex-shrink-0">
                                                     <button
                                                         onClick={(e) => handleEditClosure(closure, e)}
-                                                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast"
+                                                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast"
                                                     >
                                                         <Icon name="edit" className="text-base" />
                                                     </button>
@@ -333,13 +333,13 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={(e) => handleEditClosure(closure, e)}
-                                                        className="flex-1 py-2 px-3 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition-all duration-fast"
+                                                        className="flex-1 py-2 px-3 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition-colors duration-fast"
                                                     >
                                                         Edit
                                                     </button>
                                                     <button
                                                         onClick={(e) => handleDeleteClosure(closure.id, e)}
-                                                        className="py-2 px-3 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 text-sm hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-fast"
+                                                        className="py-2 px-3 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 text-sm hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-fast"
                                                     >
                                                         Delete
                                                     </button>

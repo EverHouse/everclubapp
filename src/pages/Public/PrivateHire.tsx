@@ -90,7 +90,7 @@ const PrivateHire: React.FC = () => {
              <div className={`flex flex-wrap gap-4 ${heroAnimPlayed ? '' : 'animate-hero-cta'} justify-center md:justify-start`}>
                <Link
                  to="/private-hire/inquire"
-                 className="border border-white/40 bg-transparent hover:bg-white/10 text-white px-6 py-3 uppercase tracking-[0.2em] text-[10px] font-medium transition-all drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+                 className="border border-white/40 bg-transparent hover:bg-white/10 text-white px-6 py-3 uppercase tracking-[0.2em] text-[10px] font-medium transition-colors drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
                  style={{ fontFamily: 'var(--font-label)' }}
                >
                  Plan Your Event
@@ -192,7 +192,7 @@ const PrivateHire: React.FC = () => {
 };
 
 const SpaceCard: React.FC<{ title: string; cap: string; img: string; tags: string[]; desc: string; index?: number }> = ({ title, cap, img, tags, desc, index = 0 }) => (
-  <div className="group relative flex flex-col rounded-xl overflow-hidden backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-[400ms] animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+  <div className="group relative flex flex-col rounded-xl overflow-hidden backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-transform duration-[400ms] animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
      <div className="h-56 bg-cover bg-center relative" style={{backgroundImage: `url("${img}")`}}>
         <div className="absolute inset-0 bg-gradient-to-t from-white/40 dark:from-black/40 to-transparent"></div>
         <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md border border-white/30 px-2 py-1.5 rounded-[4px] flex items-center gap-1 shadow-[0_0_12px_rgba(0,0,0,0.2)]">

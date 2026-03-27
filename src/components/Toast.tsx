@@ -80,6 +80,7 @@ const ProgressBar: React.FC<{ duration: number; isExiting: boolean; color: strin
         style={{
           backgroundColor: color,
           opacity: 0.6,
+          transformOrigin: 'left',
           animation: isExiting ? 'none' : `toast-progress ${duration}ms linear forwards`,
         }}
       />

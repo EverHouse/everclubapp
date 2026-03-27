@@ -896,7 +896,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <button 
             onClick={handleTopRightClick}
             disabled={isNavigating}
-            className={`min-w-[44px] min-h-[44px] px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-center gap-1.5 shrink ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full backdrop-blur-xl bg-white/15 border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] text-[11px] sm:text-xs font-semibold tracking-wide hover:bg-white/25 hover:border-white/50 transition-all duration-normal ${isNavigating ? 'opacity-70' : ''}`}
+            className={`min-w-[44px] min-h-[44px] px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-center gap-1.5 shrink ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-full backdrop-blur-xl bg-white/15 border border-white/40 shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] text-[11px] sm:text-xs font-semibold tracking-wide hover:bg-white/25 hover:border-white/50 transition-colors duration-normal ${isNavigating ? 'opacity-70' : ''}`}
             aria-label={user ? 'Go to dashboard' : 'Sign in'}
           >
             {isNavigating && (

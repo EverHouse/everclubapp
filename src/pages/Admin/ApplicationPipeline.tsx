@@ -212,7 +212,7 @@ const ApplicationPipeline: React.FC = () => {
         <button
           onClick={handleSyncFromHubSpot}
           disabled={isSyncing}
-          className="relative flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/15 transition-all duration-fast active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="relative flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/15 transition-interactive duration-fast active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Icon name={isSyncing ? 'progress_activity' : 'sync'} className={`text-[16px] ${isSyncing ? 'animate-spin' : ''}`} />
           <span className={isSyncing ? 'opacity-0' : 'opacity-100'}>{isSyncing ? 'Syncing…' : 'Sync from HubSpot'}</span>
@@ -227,7 +227,7 @@ const ApplicationPipeline: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveStatus(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-[4px] text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-[4px] text-[10px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-colors duration-fast flex-shrink-0 ${
               activeStatus === tab.id
                 ? 'bg-primary dark:bg-lavender text-white shadow-md'
                 : 'bg-white dark:bg-white/10 text-gray-600 dark:text-white/80 border border-gray-200 dark:border-white/25'
@@ -322,7 +322,7 @@ const ApplicationPipeline: React.FC = () => {
                       key={status}
                       onClick={() => handleUpdateStatus(status)}
                       disabled={isSaving || selectedApp.status === status}
-                      className={`px-3 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-all duration-fast disabled:opacity-50 ${
+                      className={`px-3 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-opacity duration-fast disabled:opacity-50 ${
                         selectedApp.status === status
                           ? 'bg-primary text-white'
                           : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-white/20'
@@ -373,7 +373,7 @@ const ApplicationPipeline: React.FC = () => {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Add internal notes about this application..."
                   rows={3}
-                  className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none text-sm"
+                  className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast resize-none text-sm"
                 />
                 <button
                   onClick={handleSaveNotes}

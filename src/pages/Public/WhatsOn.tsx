@@ -184,7 +184,7 @@ const WhatsOn: React.FC = () => {
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`tactile-btn px-4 py-2 min-h-[44px] rounded-[4px] text-sm font-bold whitespace-nowrap transition-all duration-fast flex-shrink-0 ${
+            className={`tactile-btn px-4 py-2 min-h-[44px] rounded-[4px] text-sm font-bold whitespace-nowrap transition-colors duration-fast flex-shrink-0 ${
               filter === f
                 ? 'bg-primary text-white'
                 : 'bg-white dark:bg-white/5 text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10'
@@ -217,14 +217,14 @@ const WhatsOn: React.FC = () => {
               <div 
                 key={itemId}
                 ref={isExpanded ? expandedRef : undefined}
-                className={`accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-all duration-fast animate-list-item-delay-${Math.min(index, 10)}`}
+                className={`accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-colors duration-fast animate-list-item-delay-${Math.min(index, 10)}`}
               >
                 <div 
                   onClick={() => setExpandedId(isExpanded ? null : itemId)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : itemId); } }}
-                  className={`flex gap-4 p-4 cursor-pointer transition-all duration-fast hover:bg-primary/5 dark:hover:bg-white/5`}
+                  className={`flex gap-4 p-4 cursor-pointer transition-colors duration-fast hover:bg-primary/5 dark:hover:bg-white/5`}
                 >
                   <div className="w-14 h-14 flex-shrink-0 flex flex-col items-center justify-center rounded-xl bg-[#EAEBE6] dark:bg-white/5 text-primary dark:text-white">
                     <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">{date.month}</span>
@@ -359,7 +359,7 @@ const WhatsOn: React.FC = () => {
 
       <section className="px-6 py-10 text-center">
         <p className="text-primary/60 dark:text-white/60 text-sm mb-4">Want to attend? Membership gives you access to all events and classes.</p>
-        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
+        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
           Book a Tour
         </Link>
       </section>

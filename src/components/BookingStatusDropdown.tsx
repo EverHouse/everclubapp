@@ -155,7 +155,7 @@ export function BookingStatusDropdown({
 
     if (currentStatus === 'checked_in') {
       const btnClass = isSm
-        ? 'text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-emerald-300 dark:hover:ring-emerald-600 transition-all cursor-pointer'
+        ? 'text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-emerald-300 dark:hover:ring-emerald-600 transition-colors cursor-pointer'
         : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
 
       return (
@@ -187,7 +187,7 @@ export function BookingStatusDropdown({
 
     if (currentStatus === 'attended') {
       const btnClass = isSm
-        ? 'text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-emerald-300 dark:hover:ring-emerald-600 transition-all cursor-pointer'
+        ? 'text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-emerald-300 dark:hover:ring-emerald-600 transition-colors cursor-pointer'
         : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
 
       return (
@@ -200,7 +200,7 @@ export function BookingStatusDropdown({
     }
 
     const btnClass = isSm
-      ? 'text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 transition-all cursor-pointer'
+      ? 'text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 transition-colors cursor-pointer'
       : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 cursor-pointer';
 
     return (

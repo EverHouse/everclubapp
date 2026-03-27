@@ -316,7 +316,7 @@ const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, 
       </p>
       <button
         onClick={() => { startNavigation(); navigate('/book'); }}
-        className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-fast hover:scale-[1.02] active:scale-[0.98] ${isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'}`}
+        className={`px-5 py-2 rounded-xl text-sm font-semibold transition-transform duration-fast hover:scale-[1.02] active:scale-[0.98] ${isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'}`}
       >
         Book a Session
       </button>

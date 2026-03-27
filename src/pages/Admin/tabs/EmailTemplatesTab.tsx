@@ -326,7 +326,7 @@ const EmailTemplatesTab: React.FC = () => {
                         <button
                           key={template.id}
                           onClick={() => selectTemplate(template)}
-                          className={`tactile-btn w-full text-left px-4 py-2.5 transition-all duration-fast ${
+                          className={`tactile-btn w-full text-left px-4 py-2.5 transition-colors duration-fast ${
                             isActive
                               ? 'bg-accent/20 dark:bg-accent/10 border-l-2 border-accent'
                               : 'hover:bg-primary/5 dark:hover:bg-white/5 border-l-2 border-transparent'

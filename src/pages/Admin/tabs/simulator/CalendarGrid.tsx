@@ -371,7 +371,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                 setCalendarDate(getTodayPacific());
                                                 setShowDatePicker(false);
                                             }}
-                                            className={`w-full py-3 px-4 rounded-lg text-base font-semibold hover:opacity-90 active:scale-95 transition-all duration-fast flex items-center justify-center gap-2 shadow-lg ${isDark ? 'bg-[#CCB8E4] text-[#1a1d15]' : 'bg-primary text-white'}`}
+                                            className={`w-full py-3 px-4 rounded-lg text-base font-semibold hover:opacity-90 active:scale-95 transition-gpu duration-fast flex items-center justify-center gap-2 shadow-lg ${isDark ? 'bg-[#CCB8E4] text-[#1a1d15]' : 'bg-primary text-white'}`}
                                         >
                                             <Icon name="today" className="text-lg" />
                                             Today
@@ -438,7 +438,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                             <span className="sm:hidden">T</span>
                         </div>
                         {sortedResources.map(resource => (
-                            <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-fast ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
+                            <div key={resource.id} className={`h-8 sm:h-10 flex items-center justify-center font-bold text-[10px] sm:text-xs text-primary dark:text-white text-center rounded-t-lg border border-gray-200 dark:border-white/25 px-0.5 shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-colors duration-fast ${resource.type === 'conference_room' ? 'bg-purple-100 dark:bg-purple-900/50 hover:bg-purple-150 dark:hover:bg-purple-900/60' : 'bg-white dark:bg-[#1a1f1a]'}`}>
                                 <span className="hidden sm:inline">{resource.type === 'conference_room' ? 'Conf' : resource.name.replace('Simulator Bay ', 'Bay ')}</span>
                                 <span className="sm:hidden">{resource.type === 'conference_room' ? 'CR' : resource.name.replace('Simulator Bay ', 'B')}</span>
                             </div>
@@ -537,7 +537,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                                         : pendingRequest
                                                                 ? 'bg-blue-50 dark:bg-blue-500/10 border-2 border-dashed border-blue-400 dark:border-blue-400/50 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20'
                                                                 : isConference ? 'group relative hover:z-40 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/15 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-500/10' : 'bg-white dark:bg-white/5 border border-gray-200 dark:border-white/15'
-                                            } transition-all duration-fast`}
+                                            } transition-colors duration-fast`}
                                             style={isEmptyCell ? {
                                                 backgroundImage: isDark 
                                                     ? 'radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)'

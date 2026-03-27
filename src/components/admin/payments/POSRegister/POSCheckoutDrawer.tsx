@@ -367,7 +367,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
           <button
             onClick={handleSavedCardCharge}
             disabled={isProcessing}
-            className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"
+            className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-opacity duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"
           >
             {isProcessing ? (
               <>

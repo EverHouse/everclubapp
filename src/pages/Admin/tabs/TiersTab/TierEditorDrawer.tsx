@@ -122,7 +122,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                             <div>
                                 <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Name</label>
                                 <input 
-                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                     value={selectedTier?.name || ''} 
                                     onChange={e => selectedTier && setSelectedTier({...selectedTier, name: e.target.value})} 
                                 />
@@ -130,7 +130,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                             <div>
                                 <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Price String</label>
                                 <input 
-                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                     value={selectedTier?.price_string || ''} 
                                     onChange={e => selectedTier && setSelectedTier({...selectedTier, price_string: e.target.value})} 
                                     placeholder="e.g., $199/mo"
@@ -140,7 +140,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                         <div>
                             <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Description</label>
                             <textarea 
-                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none" 
+                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast resize-none" 
                                 rows={2}
                                 value={selectedTier?.description || ''} 
                                 onChange={e => selectedTier && setSelectedTier({...selectedTier, description: e.target.value})} 
@@ -167,7 +167,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                 <div>
                                     <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Button Text</label>
                                     <input 
-                                        className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                        className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                         value={selectedTier?.button_text || ''} 
                                         onChange={e => selectedTier && setSelectedTier({...selectedTier, button_text: e.target.value})} 
                                     />
@@ -176,7 +176,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                     <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Sort Order</label>
                                     <input 
                                         type="number"
-                                        className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast" 
+                                        className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast" 
                                         value={selectedTier?.sort_order ?? 0} 
                                         onChange={e => selectedTier && setSelectedTier({...selectedTier, sort_order: parseInt(e.target.value, 10) || 0})} 
                                     />
@@ -211,7 +211,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                                             updated[idx] = e.target.value;
                                                             setSelectedTier({ ...selectedTier, highlighted_features: updated });
                                                         }}
-                                                        className="flex-1 px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25 text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                                        className="flex-1 px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-white/25 text-sm text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors"
                                                     />
                                                     <button
                                                         type="button"
@@ -316,7 +316,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                             <div>
                                                 <label className="text-[10px] uppercase font-bold text-gray-500 dark:text-gray-400">Link to Stripe Price</label>
                                                 <select
-                                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                                                    className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                                                     value=""
                                                     onChange={e => {
                                                         if (!selectedTier) return;
@@ -349,7 +349,7 @@ const TierEditorDrawer: React.FC<TierEditorDrawerProps> = ({
                                                 type="number"
                                                 min="0"
                                                 step="1"
-                                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                                                className="w-full border border-gray-200 dark:border-white/20 bg-gray-50 dark:bg-black/30 p-2.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                                                 value={selectedTier?.price_cents ?? ''}
                                                 onChange={e => {
                                                     if (!selectedTier) return;

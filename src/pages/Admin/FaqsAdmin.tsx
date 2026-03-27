@@ -238,7 +238,7 @@ const FaqsAdmin: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Question</label>
                             <input
-                                className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                                className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                                 placeholder="Enter the question"
                                 value={newItem.question || ''}
                                 onChange={e => setNewItem({ ...newItem, question: e.target.value })}
@@ -247,7 +247,7 @@ const FaqsAdmin: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Answer</label>
                             <textarea
-                                className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast resize-none"
+                                className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/60 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast resize-none"
                                 placeholder="Enter the answer"
                                 rows={4}
                                 value={newItem.answer || ''}
@@ -258,7 +258,7 @@ const FaqsAdmin: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
                                 <select
-                                    className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                                    className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                                     value={newItem.category || 'General'}
                                     onChange={e => setNewItem({ ...newItem, category: e.target.value })}
                                 >
@@ -274,7 +274,7 @@ const FaqsAdmin: React.FC = () => {
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sort Order</label>
                                 <input
                                     type="number"
-                                    className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all duration-fast"
+                                    className="w-full border border-gray-200 dark:border-white/25 bg-gray-50 dark:bg-black/30 p-3.5 rounded-xl text-primary dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-colors duration-fast"
                                     value={newItem.sortOrder ?? 0}
                                     onChange={e => setNewItem({ ...newItem, sortOrder: parseInt(e.target.value, 10) || 0 })}
                                 />
@@ -359,7 +359,7 @@ const FaqsAdmin: React.FC = () => {
                                     faq.isActive 
                                         ? 'border-gray-200 dark:border-white/20' 
                                         : 'border-amber-200 dark:border-amber-800/30 opacity-60'
-                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-all duration-fast ease-out'}`}
+                                } ${isDragging ? 'opacity-80 scale-[0.95] shadow-xl z-10 relative' : 'transition-gpu duration-fast ease-out'}`}
                             >
                                 <div className="flex items-start gap-3">
                                     <div className="w-11 h-11 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 touch-manipulation" role="img" aria-label="Drag to reorder">

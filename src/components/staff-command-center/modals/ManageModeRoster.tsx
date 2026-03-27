@@ -90,7 +90,7 @@ export function ManageModeRoster({
     return (
       <div 
         key={member.id ?? `slot-${member.slotNumber}`}
-        className={`relative p-3 rounded-xl border transition-all duration-fast ${
+        className={`relative p-3 rounded-xl border transition-colors duration-fast ${
           isOwner 
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
             : isGuestSlot
@@ -404,7 +404,7 @@ export function ManageModeRoster({
           onClick={() => handleManageModeQuickAddGuest(slotNumber)}
           style={{ marginTop: '8px' }}
           disabled={isQuickAddingGuest}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold text-sm transition-all duration-fast active:scale-[0.98] border border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 tactile-btn"
+          className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold text-sm transition-interactive duration-fast active:scale-[0.98] border border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 tactile-btn"
         >
           {isQuickAddingGuest ? (
             <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />

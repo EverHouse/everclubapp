@@ -166,7 +166,7 @@ export function GuestPaymentChoiceModal({
           <div key="locked-action" className="pt-2">
             <button
               onClick={handleClose}
-              className={`w-full py-3 rounded-xl font-semibold transition-all ${
+              className={`w-full py-3 rounded-xl font-semibold transition-colors ${
                 isDark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-gray-100 text-primary hover:bg-gray-200'
               }`}
             >
@@ -185,7 +185,7 @@ export function GuestPaymentChoiceModal({
               <button
                 onClick={() => { setSelectedMethod('guest_pass'); setStep('guest-info'); }}
                 disabled={loading || guestPassesRemaining <= 0}
-                className={`w-full p-4 rounded-xl border transition-all duration-fast flex items-start gap-4 active:scale-[0.98] ${
+                className={`w-full p-4 rounded-xl border transition-transform duration-fast flex items-start gap-4 active:scale-[0.98] ${
                   guestPassesRemaining > 0
                     ? isDark
                       ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
@@ -233,7 +233,7 @@ export function GuestPaymentChoiceModal({
               <button
                 onClick={() => { setSelectedMethod('pay_fee'); handleAddPaidGuest(); }}
                 disabled={loading}
-                className={`relative w-full p-4 rounded-xl border transition-all duration-fast flex items-start gap-4 active:scale-[0.98] ${
+                className={`relative w-full p-4 rounded-xl border transition-transform duration-fast flex items-start gap-4 active:scale-[0.98] ${
                   isDark
                     ? 'border-[#CCB8E4]/30 bg-[#CCB8E4]/10 hover:bg-[#CCB8E4]/15'
                     : 'border-[#CCB8E4]/60 bg-[#CCB8E4]/8 hover:bg-[#CCB8E4]/15'
@@ -325,7 +325,7 @@ export function GuestPaymentChoiceModal({
             <button
               onClick={handleUseGuestPass}
               disabled={!guestInfoValid || loading}
-              className={`relative w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-fast flex items-center justify-center gap-2 ${
+              className={`relative w-full py-3 px-4 rounded-xl font-semibold text-sm transition-colors duration-fast flex items-center justify-center gap-2 ${
                 guestInfoValid && !loading
                   ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]'
                   : isDark

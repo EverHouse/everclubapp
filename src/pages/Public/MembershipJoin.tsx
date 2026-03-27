@@ -164,7 +164,7 @@ const MembershipJoin: React.FC = () => {
                       setSelectedTier(tier.slug);
                       if (fieldErrors.tier) setFieldErrors(prev => ({ ...prev, tier: '' }));
                     }}
-                    className={`relative flex flex-col p-5 rounded-xl border-2 transition-all duration-200 text-left ${
+                    className={`relative flex flex-col p-5 rounded-xl border-2 transition-colors duration-200 text-left ${
                       isSelected
                         ? tier.isPopular
                           ? 'border-primary bg-primary/90 text-white shadow-lg scale-[1.02]'
@@ -326,7 +326,7 @@ const MembershipJoin: React.FC = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-4 px-6 rounded-[4px] bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-200 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-4 px-6 rounded-[4px] bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-200 active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>

@@ -153,7 +153,7 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
         type="button"
         onClick={handleClick}
         disabled={isDisabled}
-        className="flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/20 bg-black dark:bg-white px-3 py-1.5 text-xs font-medium text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90 transition-all duration-fast disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/20 bg-black dark:bg-white px-3 py-1.5 text-xs font-medium text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90 transition-colors duration-fast disabled:opacity-50"
         style={{ minHeight: 32 }}
       >
         {isLoading ? <Spinner size={12} /> : appleIcon}
@@ -167,7 +167,7 @@ const AppleSignInButton: React.FC<AppleSignInButtonProps> = ({
       type="button"
       onClick={handleClick}
       disabled={isDisabled}
-      className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+      className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
       style={{ minHeight: 44 }}
     >
       {isLoading ? <Spinner size={18} /> : appleIcon}

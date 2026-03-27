@@ -140,7 +140,7 @@ const DirectoryTab: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative">
                         <div
-                            className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-all duration-normal"
+                            className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-colors duration-normal"
                             style={{
                                 width: 'calc(25% - 4px)',
                                 left: memberTab === 'active' ? '4px'
@@ -375,7 +375,7 @@ const DirectoryTab: React.FC = () => {
                                     <button
                                         key={tier}
                                         onClick={() => setSelectedTierToAssign(tier)}
-                                        className={`w-full p-3 rounded-xl border-2 text-left transition-all duration-fast ${
+                                        className={`w-full p-3 rounded-xl border-2 text-left transition-colors duration-fast ${
                                             isSelected
                                                 ? 'border-primary dark:border-lavender'
                                                 : 'border-gray-200 dark:border-white/20 hover:border-gray-300 dark:hover:border-white/30'
@@ -417,7 +417,7 @@ const DirectoryTab: React.FC = () => {
                             <button
                                 onClick={handleAssignTier}
                                 disabled={!selectedTierToAssign || data.assignTierMutation.isPending}
-                                className="flex-1 px-4 py-2.5 rounded-xl bg-primary dark:bg-lavender text-white font-bold hover:opacity-90 transition-all duration-fast disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-primary dark:bg-lavender text-white font-bold hover:opacity-90 transition-opacity duration-fast disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {data.assignTierMutation.isPending ? (
                                     <>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 
 interface AnimatedCounterProps {
   value: number;
@@ -17,10 +17,15 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
   className = '',
   formatValue
 }) => {
-  const [displayValue, setDisplayValue] = useState(value);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const spanRef = useRef<HTMLSpanElement>(null);
   const previousValue = useRef(value);
   const animationFrame = useRef<number>(undefined);
+  const isAnimatingRef = useRef(false);
+
+  const formatDisplay = useCallback((v: number) => {
+    const formatted = formatValue ? formatValue(v) : v.toString();
+    return `${prefix}${formatted}${suffix}`;
+  }, [formatValue, prefix, suffix]);
 
   useEffect(() => {
     if (value === previousValue.current) return;
@@ -28,25 +33,30 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
     const startValue = previousValue.current;
     const endValue = value;
     const startTime = performance.now();
-    
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsAnimating(true);
+    const el = spanRef.current;
+
+    if (!el) {
+      previousValue.current = endValue;
+      return;
+    }
+
+    isAnimatingRef.current = true;
+    el.classList.add('animate-counter-change');
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
-      // Easing function (ease-out cubic)
       const easeOut = 1 - Math.pow(1 - progress, 3);
-      
       const currentValue = Math.round(startValue + (endValue - startValue) * easeOut);
-      setDisplayValue(currentValue);
+
+      el.textContent = formatDisplay(currentValue);
 
       if (progress < 1) {
         animationFrame.current = requestAnimationFrame(animate);
       } else {
-        setDisplayValue(endValue);
-        setIsAnimating(false);
+        el.textContent = formatDisplay(endValue);
+        isAnimatingRef.current = false;
+        el.classList.remove('animate-counter-change');
         previousValue.current = endValue;
       }
     };
@@ -58,13 +68,18 @@ const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
         cancelAnimationFrame(animationFrame.current);
       }
     };
-  }, [value, duration]);
+  }, [value, duration, formatDisplay]);
 
-  const formattedValue = formatValue ? formatValue(displayValue) : displayValue.toString();
+  useEffect(() => {
+    const el = spanRef.current;
+    if (el && !isAnimatingRef.current) {
+      el.textContent = formatDisplay(value);
+    }
+  }, [prefix, suffix, formatValue, value, formatDisplay]);
 
   return (
-    <span className={`${isAnimating ? 'animate-counter-change' : ''} ${className}`}>
-      {prefix}{formattedValue}{suffix}
+    <span ref={spanRef} className={className}>
+      {formatDisplay(value)}
     </span>
   );
 };

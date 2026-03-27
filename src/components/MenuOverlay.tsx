@@ -166,7 +166,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
                     className={`w-full group flex items-center justify-between px-4 py-3 min-h-[44px] rounded-[4px] glass-button border tactile-btn ${isDark ? 'border-white/20' : 'border-black/20'}`}
                 >
                     <span className={`text-sm uppercase tracking-[0.3em] font-semibold ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>Contact Us</span>
-                    <span className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full glass-button flex items-center justify-center group-hover:scale-110 transition-all duration-[400ms] ease-in-out">
+                    <span className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full glass-button flex items-center justify-center group-hover:scale-110 transition-transform duration-[400ms] ease-in-out">
                         <Icon name="arrow_forward" className={`${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`} />
                     </span>
                 </button>
@@ -200,7 +200,7 @@ const MenuLink: React.FC<MenuLinkProps> = ({ label, onClick, staggerIndex, isDar
       type="button"
       onClick={handleClick}
       style={{ '--stagger-index': staggerIndex, touchAction: 'pan-y', animationFillMode: 'both', fontFamily: 'var(--font-label)' } as React.CSSProperties}
-      className={`text-left text-sm uppercase tracking-[0.3em] font-medium py-4 transition-all duration-normal animate-slide-up-stagger leading-none min-h-[44px] hoverable-translate active:translate-x-2 tactile-row ${isDark ? 'text-[#F2F2EC]/70 hover:text-[#F2F2EC]' : 'text-[#293515]/70 hover:text-[#293515]'}`}
+      className={`text-left text-sm uppercase tracking-[0.3em] font-medium py-4 transition-interactive duration-normal animate-slide-up-stagger leading-none min-h-[44px] hoverable-translate active:translate-x-2 tactile-row ${isDark ? 'text-[#F2F2EC]/70 hover:text-[#F2F2EC]' : 'text-[#293515]/70 hover:text-[#293515]'}`}
     >
       {label}
     </button>

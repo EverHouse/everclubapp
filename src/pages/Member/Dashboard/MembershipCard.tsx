@@ -61,7 +61,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           role="button"
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
-          className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer transition-all duration-emphasis ease-out group animate-content-enter-delay-2 active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
+          className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer transition-transform duration-emphasis ease-out group animate-content-enter-delay-2 active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
         >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
@@ -287,7 +287,7 @@ const MembershipDetailsModal: React.FC<MembershipDetailsModalProps> = ({
                   }
                 }}
                 disabled={walletLoading}
-                className={`tactile-btn inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${walletLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                className={`tactile-btn inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-opacity duration-200 ${walletLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: '#000000',
                   color: '#FFFFFF',

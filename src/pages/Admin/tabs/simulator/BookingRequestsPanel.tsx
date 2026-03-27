@@ -34,7 +34,7 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
     return (
         <button
             onClick={() => setBookingSheet({ isOpen: true, trackmanBookingId: null, bookingId, mode: 'manage' as const })}
-            className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-all duration-fast"
+            className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-interactive duration-fast"
         >
             <Icon name="payments" className="text-lg" />
             ${Math.round(displayAmount)} Due
@@ -161,7 +161,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                     return (
                                         <div 
                                             key={`cancel-${item.id}`}
-                                            className="bg-red-50/80 dark:bg-red-500/10 p-4 rounded-xl border-2 border-red-300 dark:border-red-500/30 shadow-sm hover:shadow-md hover:bg-red-100/80 dark:hover:bg-red-500/20 hover:scale-[1.01] active:scale-[0.98] transition-colors duration-fast cursor-pointer"
+                                            className="bg-red-50/80 dark:bg-red-500/10 p-4 rounded-xl border-2 border-red-300 dark:border-red-500/30 shadow-sm hover:shadow-md hover:bg-red-100/80 dark:hover:bg-red-500/20 hover:scale-[1.01] active:scale-[0.98] transition-interactive duration-fast cursor-pointer"
                                             onClick={() => setBookingSheet({
                                                 isOpen: true,
                                                 trackmanBookingId: item.trackman_booking_id || null,
@@ -256,7 +256,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     });
                                                                 }
                                                             }}
-                                                            className="w-full mt-3 py-2 px-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-all duration-fast focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
+                                                            className="w-full mt-3 py-2 px-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-interactive duration-fast focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
                                                         >
                                                             <Icon name="check_circle" className="text-sm" />
                                                             Complete Cancellation
@@ -272,7 +272,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                 const actionState = actionInProgress[actionKey];
                                 const isActionPending = !!actionState;
                                 return (
-                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-fast cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''}`}>
+                                    <div key={`${req.source || 'request'}-${req.id}`} className={`bg-gray-50 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/25 shadow-sm hover:shadow-md hover:bg-gray-100 dark:hover:bg-white/10 transition-interactive duration-fast cursor-pointer active:scale-[0.98] ${isActionPending ? 'opacity-60 pointer-events-none' : ''}`}>
                                         {isActionPending && (
                                             <div className="flex items-center gap-2 mb-2 text-sm text-primary/70 dark:text-white/70">
                                                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -320,14 +320,14 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => setTrackmanModal({ isOpen: true, booking: req })}
-                                                className="tactile-btn flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 hover:shadow-md active:scale-95 transition-all duration-fast"
+                                                className="tactile-btn flex-1 py-2 px-3 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 hover:shadow-md active:scale-95 transition-interactive duration-fast"
                                             >
                                                 <Icon name="sports_golf" className="text-sm" />
                                                 Book on Trackman
                                             </button>
                                             <button
                                                 onClick={() => { setSelectedRequest(req); setActionModal('decline'); }}
-                                                className="tactile-btn flex-1 py-2 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-200 dark:hover:bg-red-900/50 hover:shadow-md active:scale-95 transition-all duration-fast"
+                                                className="tactile-btn flex-1 py-2 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-red-200 dark:hover:bg-red-900/50 hover:shadow-md active:scale-95 transition-interactive duration-fast"
                                             >
                                                 <Icon name="close" className="text-sm" />
                                                 Deny
@@ -351,7 +351,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                             <button
                                 key={filter}
                                 onClick={() => setScheduledFilter(filter)}
-                                className={`tactile-btn flex-shrink-0 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-all duration-fast ${
+                                className={`tactile-btn flex-shrink-0 px-3 py-1.5 rounded-[4px] text-xs font-semibold transition-colors duration-fast ${
                                     scheduledFilter === filter 
                                         ? 'bg-primary dark:bg-lavender text-white shadow-md' 
                                         : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/15'
@@ -437,7 +437,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     : isUnmatched 
                                                                         ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30 hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:shadow-md hover:scale-[1.01]' 
                                                                         : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
-                                                        } transition-all duration-fast`} 
+                                                        } transition-colors duration-fast`} 
                                                         style={{ '--stagger-index': index } as React.CSSProperties}
                                                         onClick={() => !isOptimisticNew && !isActionPending && setBookingSheet({
                                                             isOpen: true,
@@ -560,7 +560,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                             });
                                                                         }
                                                                     }}
-                                                                    className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-fast"
+                                                                    className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-interactive duration-fast"
                                                                 >
                                                                     <Icon name="check_circle" className="text-lg" />
                                                                     Complete Cancellation
@@ -578,7 +578,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                         importedName: booking.user_name || booking.userName,
                                                                         notes: booking.notes || booking.note
                                                                     })}
-                                                                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-all duration-fast"
+                                                                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-interactive duration-fast"
                                                                 >
                                                                     <Icon name="person_add" className="text-lg" />
                                                                     Assign Member
@@ -640,7 +640,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                             mode: 'manage' as const,
                                                                         });
                                                                     }}
-                                                                    className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-all duration-fast"
+                                                                    className="flex-1 py-2.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-blue-200 dark:hover:bg-blue-500/30 hover:shadow-md active:scale-95 transition-interactive duration-fast"
                                                                 >
                                                                     <Icon name="group_add" className="text-lg" />
                                                                     Roster {booking.filled_player_count || 0}/{booking.declared_player_count}

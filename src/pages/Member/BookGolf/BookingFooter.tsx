@@ -76,7 +76,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
           <button
             onClick={() => { haptic.heavy(); handleConfirm(); }}
             disabled={isBooking}
-            className="w-full py-4 rounded-xl font-bold text-lg shadow-glow transition-all duration-fast flex items-center justify-center gap-2 bg-accent text-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus:ring-2 focus:ring-white focus:outline-none"
+            className="w-full py-4 rounded-xl font-bold text-lg shadow-glow transition-interactive duration-fast flex items-center justify-center gap-2 bg-accent text-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus:ring-2 focus:ring-white focus:outline-none"
           >
             {isBooking ? (
               <><WalkingGolferSpinner size="sm" /><span>Booking...</span></>

@@ -134,7 +134,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
                                         onMouseEnter={() => prefetchMemberProfile(m.email)}
                                         onFocus={() => prefetchMemberProfile(m.email)}
-                                        className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+                                        className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
                                     >
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex-1">
@@ -177,7 +177,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                                 {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-fast active:scale-95"
+                                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-interactive duration-fast active:scale-95"
                                                     >
                                                         <Icon name="add_circle" className="text-[14px]" />
                                                         Assign Tier
@@ -187,7 +187,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                             {isAdmin && (
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
-                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-all duration-fast active:scale-95"
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-interactive duration-fast active:scale-95"
                                                 >
                                                     <Icon name="visibility" className="text-[14px]" />
                                                     View As
@@ -234,7 +234,7 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                                             {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-all duration-fast active:scale-95"
+                                                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-interactive duration-fast active:scale-95"
                                                 >
                                                     <Icon name="add_circle" className="text-[12px]" />
                                                     Assign

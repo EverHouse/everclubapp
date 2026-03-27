@@ -51,7 +51,7 @@ export const UpdateNotification: React.FC = () => {
 
   return (
     <div 
-      className={`fixed left-4 right-4 md:left-auto md:right-6 md:max-w-sm transition-all duration-normal ease-spring-smooth ${
+      className={`fixed left-4 right-4 md:left-auto md:right-6 md:max-w-sm transition-gpu duration-normal ease-spring-smooth ${
         isExiting ? 'opacity-0 scale-95 translate-y-[-8px]' : 'animate-pop-in'
       }`}
       style={{ 

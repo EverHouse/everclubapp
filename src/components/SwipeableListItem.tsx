@@ -44,11 +44,18 @@ export function SwipeableListItem({
   const [translateX, setTranslateX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [crossedTriggerThreshold, setCrossedTriggerThreshold] = useState<'left' | 'right' | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
   const startXRef = useRef(0);
   const startYRef = useRef(0);
   const isSwipingRef = useRef(false);
   const directionLockedRef = useRef<'horizontal' | 'vertical' | null>(null);
   const hasTriggeredHapticRef = useRef(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const liveTranslateRef = useRef(0);
+  const crossedRef = useRef<'left' | 'right' | null>(null);
+  const directionRef = useRef<'left' | 'right' | null>(null);
 
   const actionWidth = threshold;
   const maxLeftSwipe = leftActions.length > 0 ? actionWidth * leftActions.length : 0;
@@ -63,6 +70,8 @@ export function SwipeableListItem({
     isSwipingRef.current = false;
     directionLockedRef.current = null;
     hasTriggeredHapticRef.current = false;
+    crossedRef.current = null;
+    directionRef.current = null;
     setCrossedTriggerThreshold(null);
     setIsTransitioning(false);
   }, [disabled]);
@@ -97,80 +106,115 @@ export function SwipeableListItem({
         newTranslateX = -maxRightSwipe + (deltaX + maxRightSwipe) * 0.2;
       }
 
+      let newCrossed: 'left' | 'right' | null = null;
       if (deltaX > triggerThreshold && leftActions.length > 0) {
         if (!hasTriggeredHapticRef.current) {
           haptic.success();
           hasTriggeredHapticRef.current = true;
         }
-        setCrossedTriggerThreshold('right');
+        newCrossed = 'right';
       } else if (deltaX < -triggerThreshold && rightActions.length > 0) {
         if (!hasTriggeredHapticRef.current) {
           haptic.success();
           hasTriggeredHapticRef.current = true;
         }
-        setCrossedTriggerThreshold('left');
+        newCrossed = 'left';
       } else {
-        if (crossedTriggerThreshold !== null) {
+        if (crossedRef.current !== null) {
           hasTriggeredHapticRef.current = false;
         }
-        setCrossedTriggerThreshold(null);
       }
 
-      setTranslateX(newTranslateX);
+      if (newCrossed !== crossedRef.current) {
+        crossedRef.current = newCrossed;
+        setCrossedTriggerThreshold(newCrossed);
+      }
+
+      const newDir = newTranslateX > 0 ? 'right' : newTranslateX < 0 ? 'left' : null;
+      if (newDir !== directionRef.current) {
+        directionRef.current = newDir;
+        setSwipeDirection(newDir);
+      }
+
+      liveTranslateRef.current = newTranslateX;
+      const card = cardRef.current;
+      if (card) {
+        card.style.transform = `translateX(${newTranslateX}px) scale(${newTranslateX !== 0 ? 1.02 : 1})`;
+      }
+      const shadow = shadowRef.current;
+      if (shadow) {
+        shadow.classList.toggle('active', newTranslateX !== 0);
+      }
+      const overlay = overlayRef.current;
+      if (overlay) {
+        overlay.style.display = newTranslateX !== 0 ? 'block' : 'none';
+      }
     }
-  }, [disabled, leftActions.length, rightActions.length, maxLeftSwipe, maxRightSwipe, triggerThreshold, crossedTriggerThreshold, onSwipeStart]);
+  }, [disabled, leftActions.length, rightActions.length, maxLeftSwipe, maxRightSwipe, triggerThreshold, onSwipeStart]);
 
   const handleTouchEnd = useCallback(() => {
     if (disabled || !isSwipingRef.current) return;
     
     setIsTransitioning(true);
+    const currentTranslate = liveTranslateRef.current;
+    const currentCrossed = crossedRef.current;
+
+    const shadow = shadowRef.current;
+    if (shadow) shadow.classList.remove('active');
+    const overlay = overlayRef.current;
+    if (overlay) overlay.style.display = 'none';
     
-    if (crossedTriggerThreshold === 'right' && leftActions.length > 0) {
+    if (currentCrossed === 'right' && leftActions.length > 0) {
       setTranslateX(0);
+      setSwipeDirection(null);
       setCrossedTriggerThreshold(null);
       haptic.medium();
       leftActions[0].onClick();
-    } else if (crossedTriggerThreshold === 'left' && rightActions.length > 0) {
+    } else if (currentCrossed === 'left' && rightActions.length > 0) {
       setTranslateX(0);
+      setSwipeDirection(null);
       setCrossedTriggerThreshold(null);
       haptic.medium();
       rightActions[0].onClick();
-    } else if (translateX > threshold && leftActions.length > 0) {
+    } else if (currentTranslate > threshold && leftActions.length > 0) {
       setTranslateX(maxLeftSwipe);
+      setSwipeDirection('right');
       haptic.light();
-    } else if (translateX < -threshold && rightActions.length > 0) {
+    } else if (currentTranslate < -threshold && rightActions.length > 0) {
       setTranslateX(-maxRightSwipe);
+      setSwipeDirection('left');
       haptic.light();
     } else {
       setTranslateX(0);
+      setSwipeDirection(null);
     }
 
+    liveTranslateRef.current = 0;
+    directionRef.current = null;
     onSwipeEnd?.();
     isSwipingRef.current = false;
-  }, [disabled, translateX, threshold, leftActions, rightActions, maxLeftSwipe, maxRightSwipe, crossedTriggerThreshold, onSwipeEnd]);
+  }, [disabled, threshold, leftActions, rightActions, maxLeftSwipe, maxRightSwipe, onSwipeEnd]);
 
   const handleActionClick = (action: SwipeAction) => {
     haptic.medium();
     action.onClick();
     setIsTransitioning(true);
     setTranslateX(0);
+    setSwipeDirection(null);
   };
 
   const close = useCallback(() => {
     setIsTransitioning(true);
     setTranslateX(0);
+    setSwipeDirection(null);
   }, []);
 
-  const isSwipingLeft = translateX < 0;
-  const isSwipingRight = translateX > 0;
-  const showLeftActions = isSwipingRight && leftActions.length > 0;
-  const showRightActions = isSwipingLeft && rightActions.length > 0;
+  const showLeftActions = swipeDirection === 'right' && leftActions.length > 0;
+  const showRightActions = swipeDirection === 'left' && rightActions.length > 0;
+  const isOpen = translateX !== 0;
 
-  // Use a wrapper div that doesn't clip the border, with the action containers inside
-  // The action containers use their own overflow-hidden to clip themselves
   return (
     <div className={`relative ${isRemoving ? 'animate-card-remove' : ''}`}>
-      {/* Action containers positioned behind the card, clipped independently */}
       {leftActions.length > 0 && (
         <div 
           className={`absolute inset-0 flex items-stretch rounded-xl overflow-hidden transition-opacity duration-instant ${showLeftActions ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
@@ -184,7 +228,7 @@ export function SwipeableListItem({
                 <button
                   key={action.id}
                   onClick={() => handleActionClick(action)}
-                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-all duration-fast pointer-events-auto tactile-btn ${isExpanded ? 'scale-105' : ''}`}
+                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-transform duration-fast pointer-events-auto tactile-btn ${isExpanded ? 'scale-105' : ''}`}
                   style={{ 
                     width: isExpanded ? actionWidth * 1.2 : actionWidth,
                     minWidth: actionWidth 
@@ -215,7 +259,7 @@ export function SwipeableListItem({
                 <button
                   key={action.id}
                   onClick={() => handleActionClick(action)}
-                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-all duration-fast pointer-events-auto tactile-btn ${isExpanded ? 'scale-105' : ''}`}
+                  className={`flex flex-col items-center justify-center gap-1 min-h-[44px] ${colorClasses[action.color]} tap-target transition-transform duration-fast pointer-events-auto tactile-btn ${isExpanded ? 'scale-105' : ''}`}
                   style={{ 
                     width: isExpanded ? actionWidth * 1.2 : actionWidth,
                     minWidth: actionWidth 
@@ -231,23 +275,20 @@ export function SwipeableListItem({
         </div>
       )}
 
-      {/* Card container - no overflow-hidden so border shows fully */}
       <div
+        ref={cardRef}
         className={`relative ${isTransitioning ? 'transition-transform duration-fast ease-out' : ''}`}
         style={{
-          transform: `translateX(${translateX}px)${translateX !== 0 && !isTransitioning ? ' scale(1.02)' : ''}`,
-          boxShadow: translateX !== 0 && !isTransitioning ? '0 8px 24px rgba(0,0,0,0.12)' : 'none',
+          transform: `translateX(${isSwipingRef.current ? liveTranslateRef.current : translateX}px)${isSwipingRef.current && liveTranslateRef.current !== 0 ? ' scale(1.02)' : ''}`,
           zIndex: 2,
-          transition: isTransitioning ? undefined : 'box-shadow 0.15s ease'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={translateX !== 0 ? close : undefined}
+        onClick={isOpen ? close : undefined}
       >
-        {translateX !== 0 && !isTransitioning && (
-          <div className="absolute inset-0 rounded-xl bg-black/5 dark:bg-white/[0.08] pointer-events-none" style={{ zIndex: 3 }} />
-        )}
+        <div ref={shadowRef} className="swipe-shadow-layer" />
+        <div ref={overlayRef} className="absolute inset-0 rounded-xl bg-black/5 dark:bg-white/[0.08] pointer-events-none" style={{ zIndex: 3, display: 'none' }} />
         {children}
       </div>
     </div>

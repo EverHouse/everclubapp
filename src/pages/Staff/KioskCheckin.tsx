@@ -561,7 +561,7 @@ const KioskCheckin: React.FC = () => {
 
             <button
               onClick={handleStartCheckin}
-              className="tactile-btn group relative w-full max-w-xs py-3.5 rounded-xl text-lg font-semibold transition-all duration-300"
+              className="tactile-btn group relative w-full max-w-xs py-3.5 rounded-xl text-lg font-semibold transition-colors duration-300"
               style={{
                 background: 'rgba(139, 154, 107, 0.15)',
                 border: `1px solid ${CARD_BORDER}`,
@@ -792,7 +792,7 @@ const KioskCheckin: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowPaymentModal(true)}
-                  className="tactile-btn px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
+                  className="tactile-btn px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors duration-200"
                   style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
                 >
                   Pay Now
@@ -885,7 +885,7 @@ const KioskCheckin: React.FC = () => {
                   onChange={e => handlePasscodeDigitChange(i, e.target.value)}
                   onKeyDown={e => handlePasscodeKeyDown(i, e)}
                   disabled={passcodeChecking}
-                  className={`w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 bg-black/30 text-white outline-none transition-all duration-200 ${
+                  className={`w-14 h-16 text-center text-2xl font-bold rounded-xl border-2 bg-black/30 text-white outline-none transition-colors duration-200 ${
                     passcodeError
                       ? 'border-red-500 animate-shake'
                       : digit
@@ -913,7 +913,7 @@ const KioskCheckin: React.FC = () => {
             <button
               onClick={() => handlePasscodeSubmit(passcodeDigits)}
               disabled={passcodeChecking || passcodeDigits.some(d => !d)}
-              className="w-full py-3 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-30 mb-2"
+              className="w-full py-3 rounded-xl font-medium text-sm transition-opacity duration-200 disabled:opacity-30 mb-2"
               style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
             >
               {passcodeChecking ? 'Verifying...' : 'Submit'}

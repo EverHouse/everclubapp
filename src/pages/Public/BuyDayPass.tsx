@@ -185,7 +185,7 @@ const BuyDayPass: React.FC = () => {
                 <button
                   onClick={() => handlePurchase(tier)}
                   disabled={processingSlug !== null || !tier.stripePriceId}
-                  className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-primary px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition-all duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="tactile-btn w-full flex justify-center items-center gap-2 rounded-[4px] bg-primary px-4 py-3.5 text-sm font-bold text-white shadow-md hover:bg-primary/90 transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processingSlug === tier.slug ? (
                     <>
@@ -294,7 +294,7 @@ const BuyDayPass: React.FC = () => {
       <section className="px-6 py-10 text-center">
         <p className="text-primary/60 dark:text-white/60 text-sm mb-2">Loved your visit?</p>
         <p className="text-primary/80 dark:text-white/80 text-sm font-medium mb-4">Membership gives you unlimited access, priority booking, and a community of professionals.</p>
-        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
+        <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]">
           Book a Tour
         </Link>
       </section>

@@ -122,7 +122,7 @@ const PublicCafe: React.FC = () => {
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`tactile-btn px-4 py-2 rounded-[4px] text-sm font-bold whitespace-nowrap transition-all duration-fast flex-shrink-0 min-h-[44px] ${
+            className={`tactile-btn px-4 py-2 rounded-[4px] text-sm font-bold whitespace-nowrap transition-colors duration-fast flex-shrink-0 min-h-[44px] ${
               activeCategory === cat
                 ? 'bg-primary text-white'
                 : 'bg-white dark:bg-white/5 text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10'
@@ -154,14 +154,14 @@ const PublicCafe: React.FC = () => {
                   <div
                     key={item.id}
                     ref={isExpanded ? expandedRef : undefined}
-                    className={`accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-all duration-fast animate-list-item-delay-${Math.min(index, 10)}`}
+                    className={`accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-colors duration-fast animate-list-item-delay-${Math.min(index, 10)}`}
                   >
                     <div
                       onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedItemId(isExpanded ? null : item.id); } }}
-                      className={`flex justify-between items-center group p-3 cursor-pointer transition-all duration-fast hover:bg-primary/5 dark:hover:bg-white/5`}
+                      className={`flex justify-between items-center group p-3 cursor-pointer transition-colors duration-fast hover:bg-primary/5 dark:hover:bg-white/5`}
                     >
                       <div className="flex gap-4 flex-1 items-center">
                         <div className="w-14 h-14 flex-shrink-0 rounded-lg flex items-center justify-center overflow-hidden relative bg-[#EAEBE6] dark:bg-white/5 text-primary/40 dark:text-white/40">

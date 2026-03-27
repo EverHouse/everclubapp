@@ -463,7 +463,7 @@ const TrackmanTab: React.FC = () => {
           onDragLeave={handleDragLeave}
           onClick={() => !uploadMutation.isPending && fileInputRef.current?.click()}
           className={`
-            border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-fast
+            border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors duration-fast
             ${isDragging 
               ? 'border-accent bg-accent/10' 
               : 'border-primary/20 dark:border-white/20 hover:border-accent hover:bg-accent/5'}
@@ -485,7 +485,7 @@ const TrackmanTab: React.FC = () => {
                   </div>
                   <div className="w-full bg-primary/10 dark:bg-white/10 rounded-full h-2">
                     <div 
-                      className={`h-2 rounded-full transition-all duration-normal ${uploadProgress.phase === 'complete' ? 'bg-green-500' : 'bg-accent-dark dark:bg-accent'}`}
+                      className={`h-2 rounded-full transition-colors duration-normal ${uploadProgress.phase === 'complete' ? 'bg-green-500' : 'bg-accent-dark dark:bg-accent'}`}
                       style={{ width: `${uploadProgress.percent}%` }}
                     />
                   </div>
@@ -624,7 +624,7 @@ const TrackmanTab: React.FC = () => {
                   return (
                     <div 
                       key={booking.id} 
-                      className={`rounded-xl p-4 border transition-all duration-normal ${
+                      className={`rounded-xl p-4 border transition-colors duration-normal ${
                         isLinking 
                           ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30 opacity-75' 
                           : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'
@@ -1064,7 +1064,7 @@ const TrackmanTab: React.FC = () => {
                 <button
                   key={member.email || `member-${idx}`}
                   onClick={() => setFuzzyMatchModal(prev => prev ? { ...prev, selectedEmail: member.email } : null)}
-                  className={`w-full p-3 text-left rounded-xl transition-all duration-fast ${
+                  className={`w-full p-3 text-left rounded-xl transition-colors duration-fast ${
                     fuzzyMatchModal?.selectedEmail === member.email
                       ? 'bg-amber-100 dark:bg-amber-500/20 border-2 border-amber-500 shadow-md'
                       : 'bg-white/70 dark:bg-white/5 border border-primary/10 dark:border-white/25 hover:bg-white dark:hover:bg-white/10 hover:border-primary/20 dark:hover:border-white/20'
@@ -1124,7 +1124,7 @@ const TrackmanTab: React.FC = () => {
             <button
               onClick={handleResolveFuzzyMatch}
               disabled={!fuzzyMatchModal?.selectedEmail || resolveMutation.isPending}
-              className="px-6 py-2.5 rounded-full bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-fast"
+              className="px-6 py-2.5 rounded-full bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-fast"
             >
               {resolveMutation.isPending ? 'Resolving...' : 'Resolve with Selected Member'}
             </button>

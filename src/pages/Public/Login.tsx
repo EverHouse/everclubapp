@@ -422,7 +422,7 @@ const Login: React.FC = () => {
                     onChange={(e) => handleOtpChange(idx, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                     onPaste={(e) => handleOtpPaste(e, idx)}
-                    className="w-12 h-14 text-center text-2xl font-bold rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all duration-fast text-primary dark:text-white dark:bg-white/5"
+                    className="w-12 h-14 text-center text-2xl font-bold rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors duration-fast text-primary dark:text-white dark:bg-white/5"
                     disabled={loading}
                   />
                 ))}
@@ -501,7 +501,7 @@ const Login: React.FC = () => {
                       placeholder="Membership Email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-fast text-primary dark:text-white placeholder:text-primary/40 dark:placeholder-white/40 dark:bg-white/5"
+                      className="w-full px-4 py-3 rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-fast text-primary dark:text-white placeholder:text-primary/40 dark:placeholder-white/40 dark:bg-white/5"
                       required
                       autoFocus
                     />
@@ -519,7 +519,7 @@ const Login: React.FC = () => {
                         placeholder="Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-fast text-primary dark:text-white placeholder:text-primary/40 dark:placeholder-white/40 dark:bg-white/5"
+                        className="w-full px-4 py-3 rounded-xl border border-black/10 dark:border-white/10 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors duration-fast text-primary dark:text-white placeholder:text-primary/40 dark:placeholder-white/40 dark:bg-white/5"
                         required
                       />
                     </div>
@@ -529,7 +529,7 @@ const Login: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading || !password}
-                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <Icon name="login" />}
                       {loading ? 'Signing in...' : 'Sign In'}
@@ -538,7 +538,7 @@ const Login: React.FC = () => {
                     <button
                       type="submit"
                       disabled={loading || !email.includes('@')}
-                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <Icon name="dialpad" />}
                       {loading ? 'Sending...' : 'Send Verification Code'}
@@ -582,7 +582,7 @@ const Login: React.FC = () => {
                     type="button"
                     onClick={handlePasskeyLogin}
                     disabled={loading || googleLoading || appleLoading || passkeyLoading}
-                    className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                    className="tactile-btn flex w-full items-center justify-center gap-3 rounded-full border border-black/10 dark:border-white/20 bg-white dark:bg-black px-4 py-3 text-sm font-medium text-black dark:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
                     style={{ minHeight: 44 }}
                   >
                     <Icon name="fingerprint" className="text-lg" />
@@ -597,7 +597,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={handleRequestOTP}
                       disabled={loading}
-                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-gray-100 dark:bg-white/5 px-3 py-3 text-sm font-bold leading-6 text-primary dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all duration-fast active:scale-[0.98] disabled:opacity-50 mt-4"
+                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-gray-100 dark:bg-white/5 px-3 py-3 text-sm font-bold leading-6 text-primary dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50 mt-4"
                     >
                       <Icon name="dialpad" className="text-lg" />
                       Use Verification Code Instead
@@ -612,7 +612,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={() => handleDevLogin()}
                       disabled={devLoading || devMemberLoading}
-                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-amber-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-amber-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-amber-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-amber-600 transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       <Icon name="developer_mode" className="text-lg" />
                       {devLoading ? 'Logging in...' : 'Dev Login (Admin)'}
@@ -624,7 +624,7 @@ const Login: React.FC = () => {
                       type="button"
                       onClick={() => handleDevLogin('nicholasallanluu@gmail.com')}
                       disabled={devLoading || devMemberLoading}
-                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-purple-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-purple-600 transition-all duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="tactile-btn flex w-full justify-center items-center gap-2 rounded-[4px] bg-purple-500 px-3 py-3 text-sm font-bold leading-6 text-white hover:bg-purple-600 transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
                     >
                       <Icon name="person" className="text-lg" />
                       {devMemberLoading ? 'Logging in...' : 'Dev Login (Member)'}

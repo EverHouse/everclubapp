@@ -274,7 +274,7 @@ const Contact: React.FC = () => {
                href={appleMessagesUrl}
                target="_blank"
                rel="noreferrer"
-               className="tactile-card group flex items-center justify-between bg-zinc-700 p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-all duration-fast cursor-pointer"
+               className="tactile-card group flex items-center justify-between bg-zinc-700 p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-colors duration-fast cursor-pointer"
              >
                 <div className="flex items-center gap-4">
                      <div className="flex items-center justify-center size-12 rounded-full bg-white/10 text-white shrink-0">
@@ -332,7 +332,7 @@ const Contact: React.FC = () => {
                     <p className="text-primary/60 dark:text-white/60">Thank you for reaching out. Our team will respond to your inquiry shortly.</p>
                     <p className="text-primary/60 dark:text-white/60 mt-2">In the meantime, book a private tour to experience the club firsthand.</p>
                     <div className="mt-6">
-                      <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-all duration-normal active:scale-[0.98]">
+                      <Link to="/tour" className="inline-block px-8 py-4 bg-primary text-white rounded-[4px] font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-normal active:scale-[0.98]">
                         Book a Tour
                       </Link>
                     </div>
@@ -460,7 +460,7 @@ const Contact: React.FC = () => {
 const ContactCard: React.FC<{icon: string; title: string; value: string; href?: string}> = ({ icon, title, value, href }) => {
   const Wrapper = href ? 'a' : 'div';
   return (
-    <Wrapper href={href} className="tactile-card group flex items-center justify-between bg-white dark:bg-[#1a1d15] p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-all duration-fast cursor-pointer">
+    <Wrapper href={href} className="tactile-card group flex items-center justify-between bg-white dark:bg-[#1a1d15] p-4 rounded-xl border border-black/5 dark:border-white/10 shadow-sm dark:shadow-black/20 hover:shadow-md transition-colors duration-fast cursor-pointer">
        <div className="flex items-center gap-4">
             <div className="flex items-center justify-center size-12 rounded-full bg-bone dark:bg-white/5 text-primary dark:text-white shrink-0">
                 <Icon name={icon} className="text-[24px]" />

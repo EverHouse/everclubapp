@@ -61,7 +61,7 @@ const ConnectedAccountsSection: React.FC<ConnectedAccountsSectionProps> = ({
               <button
                 onClick={handleGoogleUnlink}
                 disabled={googleUnlinking}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-fast ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-fast ${
                   isDark 
                     ? 'bg-white/10 text-white/70 hover:bg-white/20' 
                     : 'bg-black/5 text-primary/70 hover:bg-black/10'
@@ -106,7 +106,7 @@ const ConnectedAccountsSection: React.FC<ConnectedAccountsSectionProps> = ({
               <button
                 onClick={handleAppleUnlink}
                 disabled={appleUnlinking}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-fast ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-fast ${
                   isDark 
                     ? 'bg-white/10 text-white/70 hover:bg-white/20' 
                     : 'bg-black/5 text-primary/70 hover:bg-black/10'

@@ -46,7 +46,7 @@ const POSRegister: React.FC = () => {
               pos.setDrawerOpen(true);
             }}
             disabled={!pos.canReview}
-            className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-opacity duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Icon name="shopping_cart_checkout" />
             Review & Charge
@@ -200,7 +200,7 @@ const POSRegister: React.FC = () => {
                   }
                 }}
                 disabled={pos.cartItems.length === 0}
-                className="px-6 py-3 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-6 py-3 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-opacity duration-fast flex items-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Icon name="shopping_cart_checkout" className="text-lg" />
                 Review
@@ -293,7 +293,7 @@ const POSRegister: React.FC = () => {
           <button
             onClick={() => pos.setDrawerOpen(true)}
             disabled={!pos.canReview}
-            className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-all duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl font-semibold bg-primary dark:bg-lavender text-white transition-opacity duration-fast flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Icon name="shopping_cart_checkout" />
             Review & Charge
