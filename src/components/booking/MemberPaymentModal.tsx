@@ -321,7 +321,7 @@ export function MemberPaymentModal({
                 <div className={`mt-3 pt-3 border-t ${isDark ? 'border-white/10' : 'border-primary/10'}`}>
                   <div className="flex items-center justify-between">
                     <span className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                      <Icon name="account_balance_wallet" className="text-sm align-middle mr-1" />
+                      <Icon name="account_balance_wallet" className="text-sm mr-1" />
                       Account Credit Applied
                     </span>
                     <span className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>

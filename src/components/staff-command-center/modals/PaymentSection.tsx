@@ -456,7 +456,7 @@ export function InlinePaymentBody({
             <Icon name="error" className="text-3xl text-red-500" />
             <p className="text-sm text-red-600 dark:text-red-400">Unable to load member payment info. Try closing and reopening this booking.</p>
             <button type="button" onClick={() => setInlinePaymentAction(null)} className="tactile-btn py-2 px-4 rounded-lg text-sm font-medium text-primary/70 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-              <Icon name="arrow_back" className="text-sm align-middle mr-1" />Go Back
+              <Icon name="arrow_back" className="text-sm mr-1" />Go Back
             </button>
           </div>
         );

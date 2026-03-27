@@ -188,7 +188,7 @@ export function PaymentStep({
 
             {(form.joinExistingGroup || (form.addGroupMembers && form.groupMembers.length > 0)) && (
               <div className={`p-3 rounded-lg text-sm text-center ${isDark ? 'bg-white/5 text-gray-400' : 'bg-emerald-50/50 text-gray-600 border border-gray-200'}`}>
-                <Icon name="info" className="text-sm align-middle mr-1" />
+                <Icon name="info" className="text-sm mr-1" />
                 Payment links are for individual memberships. To process a group membership, please use "Collect Payment Now".
               </div>
             )}

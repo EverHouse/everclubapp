@@ -198,7 +198,7 @@ export function VisitorFlow({
             onClick={onBookNow}
             className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors tactile-btn"
           >
-            <Icon name="calendar_add_on" className="text-sm mr-1 align-middle" />
+            <Icon name="calendar_add_on" className="text-sm mr-1" />
             Book Now
           </button>
         </div>

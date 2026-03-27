@@ -29,6 +29,9 @@ const Icon: React.FC<IconProps> = ({
 
   const computedSize = size ?? undefined;
 
+  const baseClasses = 'inline-block align-middle';
+  const mergedClassName = className ? `${baseClasses} ${className}` : baseClasses;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -36,7 +39,7 @@ const Icon: React.FC<IconProps> = ({
       width={computedSize ?? '1em'}
       height={computedSize ?? '1em'}
       fill="currentColor"
-      className={className}
+      className={mergedClassName}
       style={style}
       aria-hidden={ariaHidden}
     >

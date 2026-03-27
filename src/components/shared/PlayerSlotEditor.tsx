@@ -194,7 +194,7 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
             </div>
 
             <div className={`mb-3 p-3 rounded-lg text-sm ${isDark ? 'bg-blue-500/10 border border-blue-500/30 text-blue-300' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}>
-              <Icon name="info" className="text-sm mr-1 align-middle" />
+              <Icon name="info" className="text-sm mr-1" />
               Search and select each player below so staff can see who is in your group. Switch to Guest and provide their details to use your guest passes.
             </div>
 

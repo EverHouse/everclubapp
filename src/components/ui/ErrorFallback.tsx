@@ -69,7 +69,7 @@ function ErrorFallback({
                 onClick={handleRetry}
                 className="px-4 py-2 text-xs font-medium rounded-xl bg-accent/10 dark:bg-accent/20 text-accent hover:bg-accent/20 dark:hover:bg-accent/30 transition-colors"
               >
-                <Icon name="refresh" className="text-sm align-middle mr-1" />
+                <Icon name="refresh" className="text-sm mr-1" />
                 {retryLabel || 'Try Again'}
               </button>
             )}

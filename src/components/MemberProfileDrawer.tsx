@@ -1225,115 +1225,115 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     {mergePreview.recordsToMerge?.bookings !== undefined && (mergePreview.recordsToMerge.bookings?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="event_note" className="text-sm align-middle mr-1" />
+                        <Icon name="event_note" className="text-sm mr-1" />
                         Bookings: <strong>{mergePreview.recordsToMerge.bookings?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.visits !== undefined && (mergePreview.recordsToMerge.visits?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="check_circle" className="text-sm align-middle mr-1" />
+                        <Icon name="check_circle" className="text-sm mr-1" />
                         Visits: <strong>{mergePreview.recordsToMerge.visits?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.eventRsvps !== undefined && (mergePreview.recordsToMerge.eventRsvps?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="celebration" className="text-sm align-middle mr-1" />
+                        <Icon name="celebration" className="text-sm mr-1" />
                         Events: <strong>{mergePreview.recordsToMerge.eventRsvps?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.wellnessBookings !== undefined && (mergePreview.recordsToMerge.wellnessBookings?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="spa" className="text-sm align-middle mr-1" />
+                        <Icon name="spa" className="text-sm mr-1" />
                         Wellness: <strong>{mergePreview.recordsToMerge.wellnessBookings?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.memberNotes !== undefined && (mergePreview.recordsToMerge.memberNotes?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="sticky_note_2" className="text-sm align-middle mr-1" />
+                        <Icon name="sticky_note_2" className="text-sm mr-1" />
                         Notes: <strong>{mergePreview.recordsToMerge.memberNotes?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.notifications !== undefined && (mergePreview.recordsToMerge.notifications?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="notifications" className="text-sm align-middle mr-1" />
+                        <Icon name="notifications" className="text-sm mr-1" />
                         Notifications: <strong>{mergePreview.recordsToMerge.notifications?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.usageLedger !== undefined && (mergePreview.recordsToMerge.usageLedger?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="payments" className="text-sm align-middle mr-1" />
+                        <Icon name="payments" className="text-sm mr-1" />
                         Fees: <strong>{mergePreview.recordsToMerge.usageLedger?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.guestCheckIns !== undefined && (mergePreview.recordsToMerge.guestCheckIns?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="how_to_reg" className="text-sm align-middle mr-1" />
+                        <Icon name="how_to_reg" className="text-sm mr-1" />
                         Guest Check-ins: <strong>{mergePreview.recordsToMerge.guestCheckIns?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.bookingParticipants !== undefined && (mergePreview.recordsToMerge.bookingParticipants?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="group" className="text-sm align-middle mr-1" />
+                        <Icon name="group" className="text-sm mr-1" />
                         Booking Participants: <strong>{mergePreview.recordsToMerge.bookingParticipants?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.dayPassPurchases !== undefined && (mergePreview.recordsToMerge.dayPassPurchases?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="confirmation_number" className="text-sm align-middle mr-1" />
+                        <Icon name="confirmation_number" className="text-sm mr-1" />
                         Day Passes: <strong>{mergePreview.recordsToMerge.dayPassPurchases?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.legacyPurchases !== undefined && (mergePreview.recordsToMerge.legacyPurchases?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="receipt_long" className="text-sm align-middle mr-1" />
+                        <Icon name="receipt_long" className="text-sm mr-1" />
                         Legacy Purchases: <strong>{mergePreview.recordsToMerge.legacyPurchases?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.groupMembers !== undefined && (mergePreview.recordsToMerge.groupMembers?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="groups" className="text-sm align-middle mr-1" />
+                        <Icon name="groups" className="text-sm mr-1" />
                         Group Memberships: <strong>{mergePreview.recordsToMerge.groupMembers?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.pushSubscriptions !== undefined && (mergePreview.recordsToMerge.pushSubscriptions?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="notifications_active" className="text-sm align-middle mr-1" />
+                        <Icon name="notifications_active" className="text-sm mr-1" />
                         Push Subscriptions: <strong>{mergePreview.recordsToMerge.pushSubscriptions?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.dismissedNotices !== undefined && (mergePreview.recordsToMerge.dismissedNotices?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="visibility_off" className="text-sm align-middle mr-1" />
+                        <Icon name="visibility_off" className="text-sm mr-1" />
                         Dismissed Notices: <strong>{mergePreview.recordsToMerge.dismissedNotices?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.billingGroups !== undefined && (mergePreview.recordsToMerge.billingGroups?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="account_balance" className="text-sm align-middle mr-1" />
+                        <Icon name="account_balance" className="text-sm mr-1" />
                         Billing Groups: <strong>{mergePreview.recordsToMerge.billingGroups?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.bugReports !== undefined && (mergePreview.recordsToMerge.bugReports?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="bug_report" className="text-sm align-middle mr-1" />
+                        <Icon name="bug_report" className="text-sm mr-1" />
                         Bug Reports: <strong>{mergePreview.recordsToMerge.bugReports?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.dataExportRequests !== undefined && (mergePreview.recordsToMerge.dataExportRequests?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="download" className="text-sm align-middle mr-1" />
+                        <Icon name="download" className="text-sm mr-1" />
                         Data Exports: <strong>{mergePreview.recordsToMerge.dataExportRequests?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.hubspotDeals !== undefined && (mergePreview.recordsToMerge.hubspotDeals?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="handshake" className="text-sm align-middle mr-1" />
+                        <Icon name="handshake" className="text-sm mr-1" />
                         HubSpot Deals: <strong>{mergePreview.recordsToMerge.hubspotDeals?.source ?? 0}</strong>
                       </div>
                     )}
                     {mergePreview.recordsToMerge?.stripePaymentIntents !== undefined && (mergePreview.recordsToMerge.stripePaymentIntents?.source ?? 0) > 0 && (
                       <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <Icon name="credit_card" className="text-sm align-middle mr-1" />
+                        <Icon name="credit_card" className="text-sm mr-1" />
                         Payment Intents: <strong>{mergePreview.recordsToMerge.stripePaymentIntents?.source ?? 0}</strong>
                       </div>
                     )}
@@ -1342,7 +1342,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   {((mergePreview.conflicts && mergePreview.conflicts.length > 0) || (mergePreview.recommendations && mergePreview.recommendations.length > 0)) && (
                     <div className={`mt-3 p-2 rounded-lg ${isDark ? 'bg-amber-900/30' : 'bg-amber-50'}`}>
                       <p className={`text-xs font-medium ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
-                        <Icon name="warning" className="text-sm align-middle mr-1" />
+                        <Icon name="warning" className="text-sm mr-1" />
                         Conflicts/Recommendations:
                       </p>
                       <ul className={`text-xs mt-1 space-y-1 ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
@@ -1359,7 +1359,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
               )}
 
               <p className={`text-sm mb-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                <Icon name="warning" className="text-sm align-middle mr-1" />
+                <Icon name="warning" className="text-sm mr-1" />
                 This action cannot be undone. {member.name}'s account will be deleted after merging.
               </p>
               

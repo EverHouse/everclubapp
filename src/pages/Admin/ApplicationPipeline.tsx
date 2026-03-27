@@ -337,7 +337,7 @@ const ApplicationPipeline: React.FC = () => {
               {selectedApp.status === 'approved' && (
                 <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 rounded-xl p-4">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-green-700 dark:text-green-400 block mb-2">
-                    <Icon name="send" className="text-[12px] align-middle mr-1" />
+                    <Icon name="send" className="text-[12px] mr-1" />
                     Send Checkout Invite
                   </label>
                   <div className="flex gap-2">

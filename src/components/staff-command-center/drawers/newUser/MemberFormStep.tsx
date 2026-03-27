@@ -378,7 +378,7 @@ export function MemberFormStep({
               </select>
               {form.existingGroupId && (
                 <p className={`mt-2 text-sm ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                  <Icon name="info" className="text-sm align-middle mr-1" />
+                  <Icon name="info" className="text-sm mr-1" />
                   Member will be billed through the group's primary account with 20% family discount
                 </p>
               )}
@@ -554,7 +554,7 @@ export function MemberFormStep({
                     : 'border-gray-300 text-gray-600 hover:border-gray-400'
                 }`}
               >
-                <Icon name="add" className="text-sm mr-1 align-middle" />
+                <Icon name="add" className="text-sm mr-1" />
                 Add Another Member
               </button>
             </div>

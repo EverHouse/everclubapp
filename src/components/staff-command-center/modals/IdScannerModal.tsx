@@ -265,7 +265,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
           >
             <div className={`flex items-center justify-between p-4 border-b ${borderClass}`}>
               <h3 className={`text-xl font-bold ${textClass}`}>
-                <Icon name="badge" className="text-emerald-600 mr-2 align-middle" />
+                <Icon name="badge" className="text-emerald-600 mr-2" />
                 Scan ID
               </h3>
               <button
@@ -422,14 +422,14 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                           : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                       }`}
                     >
-                      <Icon name="refresh" className="text-sm mr-1 align-middle" />
+                      <Icon name="refresh" className="text-sm mr-1" />
                       Retake
                     </button>
                     <button
                       onClick={handleScanId}
                       className="tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                     >
-                      <Icon name="document_scanner" className="text-sm mr-1 align-middle" />
+                      <Icon name="document_scanner" className="text-sm mr-1" />
                       Scan ID
                     </button>
                   </div>
@@ -465,7 +465,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                             : 'bg-amber-500 hover:bg-amber-600 text-white'
                         }`}
                       >
-                        <Icon name="refresh" className="text-sm mr-1 align-middle" />
+                        <Icon name="refresh" className="text-sm mr-1" />
                         Retake Photo
                       </button>
                     </div>
@@ -567,7 +567,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                       onClick={handleUseInfo}
                       className="tactile-btn flex-1 py-2.5 px-4 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
                     >
-                      <Icon name="check" className="text-sm mr-1 align-middle" />
+                      <Icon name="check" className="text-sm mr-1" />
                       Use This Info
                     </button>
                   </div>

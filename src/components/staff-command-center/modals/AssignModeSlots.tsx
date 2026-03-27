@@ -152,7 +152,7 @@ export function AssignModeSlots({
                 />
                 <div className="px-1 py-1 rounded-lg bg-primary/5 dark:bg-white/5">
                   <p className="text-xs text-primary/60 dark:text-white/60">
-                    <Icon name="info" className="text-xs align-middle mr-0.5" />
+                    <Icon name="info" className="text-xs mr-0.5" />
                     {activeSlotIndex === 0
                       ? 'Will be created as Day Pass (Slot 1 owner)'
                       : 'Will be created as Member Guest'}

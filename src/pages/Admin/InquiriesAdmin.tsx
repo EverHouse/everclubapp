@@ -322,7 +322,7 @@ const InquiriesAdmin: React.FC = () => {
                                 disabled={isSaving || selectedInquiry.status === 'archived'}
                                 className="px-4 py-2 min-h-[44px] text-red-600 dark:text-red-400 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm disabled:opacity-50"
                             >
-                                <Icon name="archive" className="text-sm align-middle mr-1" />
+                                <Icon name="archive" className="text-sm mr-1" />
                                 Archive
                             </button>
                             <button onClick={() => setIsDetailOpen(false)} className="px-5 py-2 min-h-[44px] bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white font-bold rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors text-sm">
