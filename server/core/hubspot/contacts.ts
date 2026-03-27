@@ -355,9 +355,7 @@ export async function syncDayPassPurchaseToHubSpot(
         }
       }
 
-      if (!isProduction) {
-        logger.warn('[DayPassHubSpot] Error searching for contact, will create new one:', { error: getErrorMessage(error) });
-      }
+      logger.warn('[DayPassHubSpot] Error searching for contact, will create new one:', { error: getErrorMessage(error) });
     }
 
     // Step 2: Create new contact if not found

@@ -438,9 +438,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
           }
         } catch (err: unknown) {
           errors.push(`${member.email}: ${getErrorMessage(err)}`);
-          if (!isProduction) {
-            logger.error('[DataTools] Error checking visit count for', { extra: { email: member.email, error: getErrorMessage(err) } });
-          }
+          logger.error('[DataTools] Error checking visit count for', { extra: { email: member.email, error: getErrorMessage(err) } });
         }
       }));
       

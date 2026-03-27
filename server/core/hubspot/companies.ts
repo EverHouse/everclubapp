@@ -100,9 +100,7 @@ export async function syncCompanyToHubSpot(
           }
         }
 
-        if (!isProduction) {
-          logger.warn('[CompanyHubSpot] Error searching for company, will create new one:', { error: getErrorMessage(error) });
-        }
+        logger.warn('[CompanyHubSpot] Error searching for company, will create new one:', { error: getErrorMessage(error) });
       }
     }
 
@@ -167,9 +165,7 @@ export async function syncCompanyToHubSpot(
           }
         }
       } catch (error: unknown) {
-        if (!isProduction) {
-          logger.warn('[CompanyHubSpot] Error searching for contact:', { error: getErrorMessage(error) });
-        }
+        logger.warn('[CompanyHubSpot] Error searching for contact:', { error: getErrorMessage(error) });
       }
     }
 

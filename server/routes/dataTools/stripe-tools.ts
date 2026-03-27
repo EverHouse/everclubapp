@@ -207,9 +207,7 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
           }
         } catch (err: unknown) {
           errors.push(`${member.email}: ${getErrorMessage(err)}`);
-          if (!isProduction) {
-            logger.error('[DataTools] Error checking subscription for', { extra: { email: member.email, error: getErrorMessage(err) } });
-          }
+          logger.error('[DataTools] Error checking subscription for', { extra: { email: member.email, error: getErrorMessage(err) } });
         }
     }
     
@@ -668,9 +666,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
           }
         } catch (err: unknown) {
           errors.push(`${member.email}: ${getErrorMessage(err)}`);
-          if (!isProduction) {
-            logger.error('[DataTools] Error checking payment status for', { extra: { email: member.email, error: getErrorMessage(err) } });
-          }
+          logger.error('[DataTools] Error checking payment status for', { extra: { email: member.email, error: getErrorMessage(err) } });
         }
       }));
       
