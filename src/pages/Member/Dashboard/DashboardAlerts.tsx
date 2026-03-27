@@ -106,7 +106,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
           bannerExitTimer.current = setTimeout(() => {
             setBannerDismissed(true);
             bannerExitTimer.current = null;
-          }, 250);
+          }, 300);
         }}
         className={`p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${isDark ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-black/10 text-primary/60 hover:text-primary'}`}
         aria-label="Dismiss banner"

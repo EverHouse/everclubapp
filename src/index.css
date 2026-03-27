@@ -64,11 +64,28 @@
   0% {
     opacity: 1;
     transform: scale(1);
+    max-height: 200px;
+    margin-bottom: 1rem;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+  60% {
+    opacity: 0;
+    transform: scale(0.95);
   }
   100% {
     opacity: 0;
     transform: scale(0.95);
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
   }
+}
+
+.animate-card-fade-out {
+  animation: cardFadeOut 0.3s var(--m3-standard-accel) forwards;
+  overflow: hidden;
 }
 
 .animate-card-remove {
@@ -76,10 +93,6 @@
   transform-origin: top center;
   contain: layout style;
   will-change: transform, opacity;
-}
-
-.animate-card-fade-out {
-  animation: cardFadeOut 0.25s var(--m3-standard-accel) forwards;
 }
 
 /* Animated Counter */
