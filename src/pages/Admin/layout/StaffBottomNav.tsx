@@ -70,10 +70,10 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
               ${isActive ? 'text-white' : 'text-white/50 hover:text-white/70'}
             `}
           >
-            <div className="relative">
+            <div className="relative inline-flex items-center justify-center">
               <Icon name={item.icon} className={`text-[20px] transition-colors duration-normal pointer-events-none ${shouldFill ? 'filled' : ''}`} />
               {item.id === 'simulator' && pendingRequestsCount > 0 && (
-                <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-badge-pulse">
+                <span className="absolute -top-2 -right-3 min-w-[16px] h-4 px-1 flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full shadow-sm animate-badge-pulse">
                   {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
                 </span>
               )}
