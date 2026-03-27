@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.77] - 2026-03-27
+
+### Fix Migration Sync Script Preventing New Tables in Production
+- **Fix (Critical)**: The `scripts/sync-migration-tracking.ts` script was registering ALL journal entries (including new, unapplied migrations) as "already applied" in Drizzle's `__drizzle_migrations` tracking table during the build step. This prevented Drizzle's migration runner from executing new migrations during deployment. As a result, migrations 0064-0067 (`merch_items`, `webhook_dead_letter_queue`, `booking_exclusion_statuses` constraint update, `fee_products`) were never applied to the production database despite having valid SQL files.
+- **Root cause**: The sync script was designed to bootstrap the tracking table for databases that already had tables (applied via `db:push`), but it ran on every deployment and kept re-registering all entries — including genuinely new migrations that needed to be executed.
+- **Fix approach**: (1) If the tracking table already has entries, skip bulk registration entirely — new migrations will be handled by Drizzle's migration runner. (2) Added phantom detection: for known table-creating migrations, verify the table/function actually exists in the database. If a migration is tracked but its objects don't exist, remove the phantom tracking entry so the migration will run on next deploy. (3) During initial seed (empty tracking table), skip registering migrations whose target objects don't exist, letting Drizzle execute them normally.
+- **Files changed**: `scripts/sync-migration-tracking.ts`
+
 ## [8.97.76] - 2026-03-27
 
 ### Fix Notification Badge Position on Bottom Nav

@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.77",
+    date: "2026-03-27",
+    title: "Fix Missing Database Tables in Production",
+    changes: [
+      "Fix: Several recently added features (Merch/POS, webhook dead letter queue, fee products) were not working in production because their database tables were never created during deployment. The root cause was a migration tracking script that was incorrectly marking new migrations as 'already applied' before they actually ran. Fixed the script so new migrations are properly executed on future deployments.",
+    ]
+  },
+  {
     version: "8.97.76",
     date: "2026-03-27",
     title: "Fix Notification Badge Position on Bottom Nav",
