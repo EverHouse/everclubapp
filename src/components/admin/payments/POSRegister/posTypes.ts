@@ -8,8 +8,22 @@ export interface CartItem {
   icon: string;
 }
 
+export interface FeeProduct {
+  id: number;
+  name: string;
+  slug: string;
+  price_cents: number;
+  product_type: string;
+  fee_type: string;
+  is_active: boolean;
+  stripe_product_id: string | null;
+  stripe_price_id: string | null;
+  description: string | null;
+  button_text: string | null;
+}
+
 export type PaymentMethodType = 'online_card' | 'terminal' | 'saved_card';
-export type CategoryTab = 'all' | 'passes' | 'cafe' | 'merch';
+export type CategoryTab = 'all' | 'passes' | 'cafe' | 'merch' | 'products';
 
 export const PASS_PRODUCT_SLUGS = ['day-pass-coworking', 'day-pass-golf-sim', 'guest-pass'];
 
@@ -31,9 +45,21 @@ export const CAFE_CATEGORY_ICONS: Record<string, string> = {
 export const CATEGORY_TABS: { key: CategoryTab; label: string; icon: string }[] = [
   { key: 'all', label: 'All', icon: 'grid_view' },
   { key: 'passes', label: 'Passes', icon: 'confirmation_number' },
+  { key: 'products', label: 'Products', icon: 'sell' },
   { key: 'cafe', label: 'Cafe', icon: 'coffee' },
   { key: 'merch', label: 'Merch', icon: 'storefront' },
 ];
+
+export const POS_FEE_TYPES = ['general'];
+
+export function feeProductToCartProduct(item: FeeProduct) {
+  return {
+    productId: item.stripe_product_id || `fee_${item.id}`,
+    name: item.name,
+    priceCents: item.price_cents,
+    icon: 'sell',
+  };
+}
 
 export const CAFE_CATEGORY_ORDER = ['Breakfast', 'Dessert', 'Kids', 'Lunch', 'Shareables', 'Sides'];
 

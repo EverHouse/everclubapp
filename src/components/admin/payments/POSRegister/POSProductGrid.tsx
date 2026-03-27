@@ -14,6 +14,8 @@ interface POSProductGridProps {
   passProducts: { productId: string; name: string; priceCents: number; icon: string }[];
   passProductsLoading: boolean;
   passProductsError?: string | null;
+  feeProducts?: { productId: string; name: string; priceCents: number; icon: string }[];
+  feeProductsLoading?: boolean;
   cafeLoading: boolean;
   sortedCafeCategories: string[];
   groupedCafeItems: Record<string, CafeItem[]>;
@@ -64,6 +66,8 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
   passProducts,
   passProductsLoading,
   passProductsError,
+  feeProducts = [],
+  feeProductsLoading = false,
   cafeLoading,
   sortedCafeCategories,
   groupedCafeItems,
@@ -82,6 +86,31 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
       onClick={() => addToCart(product)}
     />
   );
+
+  if (activeTab === 'products') {
+    if (feeProductsLoading) {
+      return (
+        <div className={`grid ${gridCols} gap-2`}>
+          <SkeletonCards count={4} />
+        </div>
+      );
+    }
+
+    if (feeProducts.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <Icon name="sell" className="text-4xl text-primary/30 dark:text-white/30" />
+          <p className="text-primary/60 dark:text-white/60 font-medium">No products available</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`grid ${gridCols} gap-2`}>
+        {feeProducts.map(renderProductCard)}
+      </div>
+    );
+  }
 
   if (activeTab === 'merch') {
     if (merchLoading) {
@@ -155,6 +184,7 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
 
   if (activeTab === 'passes' || activeTab === 'all') {
     const showPasses = activeTab === 'all' || activeTab === 'passes';
+    const showProducts = activeTab === 'all';
     const showCafe = activeTab === 'all';
 
     return (
@@ -175,6 +205,19 @@ const POSProductGrid: React.FC<POSProductGridProps> = ({
                 : passProductsError
                   ? <div className="col-span-full text-center py-4 text-red-500 dark:text-red-400 text-sm">Failed to load passes. Please refresh.</div>
                   : passProducts.map(renderProductCard)}
+            </div>
+          </div>
+        )}
+        {showProducts && (feeProductsLoading || feeProducts.length > 0) && (
+          <div>
+            <h4 className="text-xs font-semibold text-primary/50 dark:text-white/50 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Icon name="sell" className="text-sm" />
+              Products
+            </h4>
+            <div className={`grid ${gridCols} gap-2`}>
+              {feeProductsLoading
+                ? <SkeletonCards count={2} />
+                : feeProducts.map(renderProductCard)}
             </div>
           </div>
         )}

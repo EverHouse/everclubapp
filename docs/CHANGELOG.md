@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.67] - 2026-03-27
+
+### POS Now Shows One-Off Products (Fee Products)
+- **Fix**: The POS register now fetches and displays one-off products from the `fee_products` table (items with `fee_type: 'general'` and `product_type: 'one_time'`). These appear in a new **Products** tab and in the **All** view between Passes and Cafe. Previously, only passes (from membership tiers), cafe items, and merchandise were shown — general-purpose products like Rental Golf Clubs had no way to appear on the POS.
+- **Files changed**: `src/components/admin/payments/POSRegister/posTypes.ts`, `src/components/admin/payments/POSRegister/usePOSRegister.ts`, `src/components/admin/payments/POSRegister/POSProductGrid.tsx`, `src/components/admin/payments/POSRegister/index.tsx`
+
 ## [8.97.66] - 2026-03-27
 
 ### Production Bug Fixes — Wallet Pass, Database Performance, Booking Auto-Complete

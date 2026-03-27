@@ -9,12 +9,15 @@ import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/que
 import type { CafeItem } from '../../../../types/data';
 import {
   type CartItem,
+  type FeeProduct,
   type PaymentMethodType,
   type CategoryTab,
   type SavedCardInfo,
   PASS_PRODUCT_SLUGS,
   PASS_SLUG_ICONS,
   CAFE_CATEGORY_ORDER,
+  POS_FEE_TYPES,
+  feeProductToCartProduct,
 } from './posTypes';
 import { createPaymentHandlers } from './usePOSPayments';
 
@@ -28,6 +31,9 @@ export function usePOSRegister() {
   const [passProducts, setPassProducts] = useState<{ productId: string; name: string; priceCents: number; icon: string }[]>([]);
   const [passProductsLoading, setPassProductsLoading] = useState(true);
   const [passProductsError, setPassProductsError] = useState<string | null>(null);
+
+  const [feeProducts, setFeeProducts] = useState<{ productId: string; name: string; priceCents: number; icon: string }[]>([]);
+  const [feeProductsLoading, setFeeProductsLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +61,27 @@ export function usePOSRegister() {
         if (!cancelled) {
           setPassProductsLoading(false);
           setPassProductsError(err instanceof Error ? err.message : 'Failed to load pass products');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const allFees = await fetchWithCredentials<FeeProduct[]>('/api/fee-products');
+        const posItems = allFees
+          .filter(f => f.is_active && POS_FEE_TYPES.includes(f.fee_type) && f.product_type === 'one_time' && f.stripe_product_id)
+          .map(feeProductToCartProduct);
+        if (!cancelled) {
+          setFeeProducts(posItems);
+          setFeeProductsLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setFeeProductsLoading(false);
         }
       }
     })();
@@ -297,6 +324,8 @@ export function usePOSRegister() {
     passProducts,
     passProductsLoading,
     passProductsError,
+    feeProducts,
+    feeProductsLoading,
     stripePromise,
     activeTab,
     setActiveTab,

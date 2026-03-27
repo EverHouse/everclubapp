@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.67",
+    date: "2026-03-27",
+    title: "POS Now Shows One-Off Products (Fee Products)",
+    changes: [
+      "Fix: One-off products like Rental Golf Clubs now appear on the POS page under a new 'Products' tab and in the 'All' view — previously only passes, cafe items, and merchandise were shown",
+    ]
+  },
+  {
     version: "8.97.66",
     date: "2026-03-27",
     title: "Production Bug Fixes — Wallet Pass, Database Performance, Booking Auto-Complete",
