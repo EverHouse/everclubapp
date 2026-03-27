@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.64] - 2026-03-26
+
+### Security & Booking Conflict Detection Fixes
+- **Security (High)**: CSRF `csrfOriginCheck` middleware now wraps `new URL(referer)` in try-catch — a malformed Referer header previously caused an unhandled `TypeError`, resulting in a 500 instead of a controlled 403 response.
+- **Security (Low)**: `ALLOWED_ORIGINS` parsing now uses `new URL().hostname` to normalize entries, preventing silent CORS/CSRF failures when origins include ports or paths.
+- **Fix (High)**: Booking conflict detection (`conflictDetection.ts`) now uses a `formatYMD` helper to safely convert `request_date` from the Postgres driver. The pg driver returns `Date` objects for date columns; `String(Date)` produces `"Wed May 15 2024..."` which, when concatenated with `T00:00:00Z`, creates an invalid date. This caused `dateAwareOverlap` to silently return `false`, potentially allowing double-bookings.
+- **Files changed**: `server/middleware/security.ts`, `server/core/bookingService/conflictDetection.ts`
+
 ## [8.97.63] - 2026-03-26
 
 ### Billing Section Date & Tier Match Fixes

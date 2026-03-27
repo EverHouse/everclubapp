@@ -23,6 +23,13 @@ interface ParticipantConflictRow extends BookingConflictRow {
 
 const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
 
+function formatYMD(dateInput: string | Date): string {
+  if (dateInput instanceof Date) {
+    return dateInput.toISOString().split('T')[0];
+  }
+  return String(dateInput).substring(0, 10);
+}
+
 export interface ConflictingBooking {
   bookingId: number;
   resourceName: string;
@@ -186,11 +193,12 @@ export async function findConflictingBookings(
 
     const ownerRows = ownerResult.rows as unknown as BookingConflictRow[];
     for (const row of ownerRows) {
-      if (!dateAwareOverlap(date, startTime, endTime, String(row.request_date), String(row.start_time), String(row.end_time))) continue;
+      const safeDate = formatYMD(row.request_date);
+      if (!dateAwareOverlap(date, startTime, endTime, safeDate, String(row.start_time), String(row.end_time))) continue;
       conflicts.push({
         bookingId: row.booking_id,
         resourceName: row.resource_name,
-        requestDate: String(row.request_date),
+        requestDate: safeDate,
         startTime: String(row.start_time),
         endTime: String(row.end_time),
         ownerName: row.owner_name,
@@ -201,13 +209,14 @@ export async function findConflictingBookings(
 
     const participantRows = participantResult.rows as unknown as ParticipantConflictRow[];
     for (const row of participantRows) {
-      if (!dateAwareOverlap(date, startTime, endTime, String(row.request_date), String(row.start_time), String(row.end_time))) continue;
+      const safeDate = formatYMD(row.request_date);
+      if (!dateAwareOverlap(date, startTime, endTime, safeDate, String(row.start_time), String(row.end_time))) continue;
       const isDuplicate = conflicts.some(c => c.bookingId === row.booking_id);
       if (!isDuplicate) {
         conflicts.push({
           bookingId: row.booking_id,
           resourceName: row.resource_name,
-          requestDate: String(row.request_date),
+          requestDate: safeDate,
           startTime: String(row.start_time),
           endTime: String(row.end_time),
           ownerName: row.owner_name,

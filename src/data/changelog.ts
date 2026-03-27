@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.64",
+    date: "2026-03-26",
+    title: "Security & Booking Conflict Detection Fixes",
+    changes: [
+      "Security: CSRF middleware now safely handles malformed Referer headers — previously a bad URL could cause an unhandled exception (500 error) instead of a controlled 403",
+      "Security: ALLOWED_ORIGINS parsing now uses URL API to extract hostnames, preventing misconfigurations with ports or paths from silently breaking CORS/CSRF",
+      "Fix: Booking conflict detection now safely converts Date objects returned by the Postgres driver to YYYY-MM-DD strings — previously String(Date) produced invalid formats that caused conflict detection to silently fail, potentially allowing double-bookings",
+    ]
+  },
+  {
     version: "8.97.63",
     date: "2026-03-26",
     title: "Billing Section Date & Tier Match Fixes",

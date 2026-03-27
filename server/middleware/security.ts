@@ -15,7 +15,13 @@ function isAllowedOrigin(origin: string): boolean {
     }
     const allowedOrigins = process.env.ALLOWED_ORIGINS;
     if (allowedOrigins) {
-      const allowed = allowedOrigins.split(',').map(o => o.trim().replace(/^https?:\/\//, ''));
+      const allowed = allowedOrigins.split(',').map(o => {
+        try {
+          return new URL(o.trim()).hostname;
+        } catch {
+          return o.trim().replace(/^https?:\/\//, '');
+        }
+      });
       if (allowed.includes(hostname)) return true;
     }
     const replitDomain = process.env.REPLIT_DEV_DOMAIN;
@@ -43,7 +49,16 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
     return;
   }
 
-  const source = origin || (referer ? new URL(referer).origin : undefined);
+  let source = origin;
+  if (!source && referer) {
+    try {
+      source = new URL(referer).origin;
+    } catch {
+      logger.warn('[CSRF] Blocked request with malformed referer', { referer, path: req.path });
+      res.status(403).json({ error: 'Origin verification failed. Invalid Referer.' });
+      return;
+    }
+  }
   if (source && !isAllowedOrigin(source)) {
     logger.warn('[CSRF] Blocked mutative request from disallowed origin', { origin: source, path: req.path });
     res.status(403).json({ error: 'Origin not allowed' });
