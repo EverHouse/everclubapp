@@ -1144,7 +1144,7 @@ const MobileTransactionsView: React.FC = () => {
             <Icon name={action.icon} className={`text-3xl ${action.iconClass}`} />
             <span className="font-semibold text-sm">{action.label}</span>
             {action.badge !== undefined && action.badge > 0 && (
-              <span className="absolute top-2 right-2 min-w-[24px] h-6 px-1.5 flex items-center justify-center bg-red-500 text-white text-sm font-bold rounded-full">
+              <span className="absolute -top-1 -right-1 min-w-[24px] h-6 px-1.5 flex items-center justify-center bg-red-500 text-white text-sm font-bold rounded-full">
                 {action.badge > 99 ? '99+' : action.badge}
               </span>
             )}
