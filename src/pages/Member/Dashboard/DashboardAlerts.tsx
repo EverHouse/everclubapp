@@ -1,6 +1,7 @@
 import React from 'react';
 import type { BannerAnnouncement } from './dashboardTypes';
 import Icon from '../../../components/icons/Icon';
+import { useAnnouncementBadgeStore } from '../../../stores/announcementBadgeStore';
 
 interface PasskeyNudgeProps {
   isDark: boolean;
@@ -97,6 +98,9 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
         onClick={() => {
           if (userEmail && bannerAnnouncement.id) {
             localStorage.setItem(`eh_banner_dismissed_${userEmail}`, bannerAnnouncement.id);
+            useAnnouncementBadgeStore.getState().markSingleAsSeen(userEmail, bannerAnnouncement.id).catch((err) => {
+              console.warn('[BannerAlert] Failed to persist banner dismiss:', err);
+            });
           }
           setBannerExiting(true);
           bannerExitTimer.current = setTimeout(() => {

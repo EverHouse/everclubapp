@@ -124,7 +124,8 @@ export const useAnnouncementBadge = () => {
     if (!isInitialized) return [];
     return announcements.filter(a =>
       isActiveAnnouncement(a) &&
-      !seenIds.has(a.id)
+      !seenIds.has(a.id) &&
+      !a.showAsBanner
     );
   }, [announcements, seenIds, isInitialized]);
 

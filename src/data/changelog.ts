@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.72",
+    date: "2026-03-27",
+    title: "Fix Dashboard Banner Dismiss Not Sticking",
+    changes: [
+      "Fix: Dismissing a dashboard banner didn't actually clear it — the same announcement was showing in two places (banner and announcement alert), and dismissing one left the other visible. Now banner announcements only appear in the banner slot, and dismissing persists to the server so it stays gone across devices.",
+    ]
+  },
+  {
     version: "8.97.71",
     date: "2026-03-27",
     title: "Production Stability — Pool Exhaustion, Wallet Pass Auth, Realtime Resilience, CLS Fix",

@@ -12,6 +12,7 @@ import {
   guestPasses,
   announcements
 } from '../../../shared/schema';
+import { userDismissedNotices } from '../../../shared/models/notifications';
 import { eq, and, or, sql, gte, desc, lte, isNull, asc } from 'drizzle-orm';
 import { getSessionUser } from '../../types/session';
 import { logger } from '../../core/logger';
@@ -514,6 +515,18 @@ router.get('/api/member/dashboard/announcements', isAuthenticated, async (req, r
     const resolved = await resolveDashboardUser(req, res);
     if (!resolved) return;
     const now = new Date();
+    const userEmail = resolved.targetUser.email?.toLowerCase() || '';
+
+    const dismissedIds = await db
+      .select({ noticeId: userDismissedNotices.noticeId })
+      .from(userDismissedNotices)
+      .where(
+        and(
+          sql`LOWER(${userDismissedNotices.userEmail}) = ${userEmail}`,
+          eq(userDismissedNotices.noticeType, 'announcement')
+        )
+      );
+    const dismissedSet = new Set(dismissedIds.map(d => d.noticeId));
 
     const results = await db.select().from(announcements)
       .where(
@@ -531,19 +544,19 @@ router.get('/api/member/dashboard/announcements', isAuthenticated, async (req, r
         )
       )
       .orderBy(desc(announcements.createdAt))
-      .limit(1);
-    
-    if (results.length === 0) {
+      .limit(5);
+
+    const firstUndismissed = results.find(a => !dismissedSet.has(a.id));
+    if (!firstUndismissed) {
       return res.json(null);
     }
     
-    const a = results[0];
     res.json({
-      id: a.id.toString(),
-      title: a.title,
-      desc: a.message || '',
-      linkType: a.linkType || undefined,
-      linkTarget: a.linkTarget || undefined,
+      id: firstUndismissed.id.toString(),
+      title: firstUndismissed.title,
+      desc: firstUndismissed.message || '',
+      linkType: firstUndismissed.linkType || undefined,
+      linkTarget: firstUndismissed.linkTarget || undefined,
     });
   } catch (error: unknown) {
     logger.error('[dashboard/announcements] Failed to fetch announcements', { error: error instanceof Error ? error : new Error(String(error)) });
@@ -910,6 +923,17 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
     
     const fetchBannerAnnouncement = async () => {
       try {
+        const dismissedIds = await db
+          .select({ noticeId: userDismissedNotices.noticeId })
+          .from(userDismissedNotices)
+          .where(
+            and(
+              sql`LOWER(${userDismissedNotices.userEmail}) = ${userEmail}`,
+              eq(userDismissedNotices.noticeType, 'announcement')
+            )
+          );
+        const dismissedSet = new Set(dismissedIds.map(d => d.noticeId));
+
         const results = await db.select().from(announcements)
           .where(
             and(
@@ -926,19 +950,19 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
             )
           )
           .orderBy(desc(announcements.createdAt))
-          .limit(1);
-        
-        if (results.length === 0) {
+          .limit(5);
+
+        const firstUndismissed = results.find(a => !dismissedSet.has(a.id));
+        if (!firstUndismissed) {
           return null;
         }
         
-        const a = results[0];
         return {
-          id: a.id.toString(),
-          title: a.title,
-          desc: a.message || '',
-          linkType: a.linkType || undefined,
-          linkTarget: a.linkTarget || undefined,
+          id: firstUndismissed.id.toString(),
+          title: firstUndismissed.title,
+          desc: firstUndismissed.message || '',
+          linkType: firstUndismissed.linkType || undefined,
+          linkTarget: firstUndismissed.linkTarget || undefined,
         };
       } catch (error: unknown) {
         logger.warn('[dashboard-data] Failed to fetch banner announcement', { error: error instanceof Error ? error : new Error(String(error)) });

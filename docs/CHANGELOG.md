@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.72] - 2026-03-27
+
+### Fix Dashboard Banner Dismiss Not Sticking
+- **Fix**: Announcements marked `showAsBanner` were rendering in both `BannerAlert` (dashboard banner slot) and `AnnouncementAlert` (general announcement card) simultaneously. Dismissing one component didn't dismiss the other, so the banner appeared to persist after clicking the X. `AnnouncementAlert` now excludes `showAsBanner` announcements to prevent dual display. `BannerAlert` dismiss now also persists to the server via `markSingleAsSeen` (previously only wrote to localStorage), so the dismissal survives across devices and storage clears. Server-side banner endpoints also now filter out dismissed announcements before responding, so dismissed banners won't flash on page load.
+- **Files changed**: `src/stores/announcementBadgeStore.ts`, `src/pages/Member/Dashboard/DashboardAlerts.tsx`, `server/routes/members/dashboard.ts`
+
 ## [8.97.71] - 2026-03-27
 
 ### Production Stability — Pool Exhaustion, Wallet Pass Auth, Realtime Resilience, CLS Fix
