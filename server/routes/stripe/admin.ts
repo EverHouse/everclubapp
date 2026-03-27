@@ -380,14 +380,16 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
       }
     }
 
+    let emailSent = false;
     if (member.stripe_customer_id && !usedCheckout) {
       const { sendGracePeriodReminderEmail } = await import('../../emails/membershipEmails');
-      await sendGracePeriodReminderEmail(member.email as string, {
+      const emailResult = await sendGracePeriodReminderEmail(member.email as string, {
         memberName: memberName as string,
         currentDay: 1,
         totalDays: 3,
         reactivationLink
-      });
+      }, { staffInitiated: true });
+      emailSent = emailResult.success && !emailResult.skipped;
     } else {
       try {
         const { getResendClient } = await import('../../utils/resend');
@@ -400,6 +402,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
           subject: "We'd Love to Have You Back at Ever Club",
           html: getWinBackHtml({ firstName: safeFirstName, reactivationLink }),
         });
+        emailSent = true;
         logger.info('[Stripe] Reactivation email sent to', { extra: { email: member.email } });
       } catch (emailError: unknown) {
         logger.error('[Stripe] Failed to send reactivation email', { extra: { error: getErrorMessage(emailError) } });
@@ -416,12 +419,13 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
         hadStripeCustomer: !!member.stripe_customer_id,
         usedCheckout,
         usedInvoiceLink,
+        emailSent,
       }
     });
 
     logger.info('[Stripe] Reactivation link sent manually to by staff', { extra: { memberEmail: member.email } });
 
-    res.json({ success: true, message: `Reactivation link sent to ${member.email}`, checkoutUrl: reactivationLink });
+    res.json({ success: true, message: `Reactivation link sent to ${member.email}`, checkoutUrl: reactivationLink, emailSent });
   } catch (error: unknown) {
     logger.error('[Stripe] Error sending reactivation link', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to send reactivation link' });

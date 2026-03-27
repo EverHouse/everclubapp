@@ -1046,20 +1046,49 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   sendReactivationLinkMutation.mutate(
                     { memberEmail: member.email },
                     {
-                      onSuccess: () => alert(`Reactivation link sent to ${member.email}`),
+                      onSuccess: (data) => {
+                        if (data.emailSent === false) {
+                          alert(`Link created but email could not be sent. Copy the link below to share manually.`);
+                        } else {
+                          alert(`Reactivation link sent to ${member.email}`);
+                        }
+                      },
                       onError: (err) => alert(err.message || 'Failed to send reactivation link'),
                     }
                   );
                 }}
+                disabled={sendReactivationLinkMutation.isPending}
                 className={`w-full py-2.5 px-4 rounded-[4px] font-medium flex items-center justify-center gap-2 transition-colors tactile-btn ${
                   isDark 
                     ? 'bg-amber-600/20 text-amber-400 border border-amber-600/30 hover:bg-amber-600/30'
                     : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-                }`}
+                } disabled:opacity-50`}
               >
-                <Icon name="send" className="text-lg" />
-                Send Reactivation Link
+                {sendReactivationLinkMutation.isPending ? (
+                  <Icon name="progress_activity" className="text-lg animate-spin" />
+                ) : (
+                  <Icon name="send" className="text-lg" />
+                )}
+                {sendReactivationLinkMutation.isPending ? 'Sending...' : 'Send Reactivation Link'}
               </button>
+              {sendReactivationLinkMutation.data?.checkoutUrl && (
+                <div className={`mt-2 p-3 rounded-lg ${isDark ? 'bg-emerald-900/20 border border-emerald-700' : 'bg-emerald-50 border border-emerald-200'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon name="check_circle" className="text-emerald-600 text-sm" />
+                    <span className={`text-xs font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>Reactivation link ready</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      readOnly
+                      value={sendReactivationLinkMutation.data.checkoutUrl}
+                      className={`flex-1 px-2 py-1.5 rounded text-xs font-mono select-all ${isDark ? 'bg-black/30 text-emerald-300 border border-emerald-800' : 'bg-white text-emerald-800 border border-emerald-200'}`}
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <CopyButton value={sendReactivationLinkMutation.data.checkoutUrl} isDark={isDark} size="xs" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

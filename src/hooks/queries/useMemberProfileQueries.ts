@@ -344,7 +344,7 @@ export function useSendPaymentLink() {
 export function useSendReactivationLink() {
   return useMutation({
     mutationFn: ({ memberEmail }: { memberEmail: string }) =>
-      postWithCredentials<{ success: boolean }>('/api/stripe/staff/send-reactivation-link', { memberEmail }),
+      postWithCredentials<{ success: boolean; message?: string; checkoutUrl?: string; emailSent?: boolean }>('/api/stripe/staff/send-reactivation-link', { memberEmail }),
   });
 }
 

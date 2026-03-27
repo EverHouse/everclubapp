@@ -1226,7 +1226,9 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       monthlyPrice: (tier.priceCents ?? 0) / 100,
       checkoutUrl: checkoutSession.url,
       expiresAt
-    });
+    }, { staffInitiated: true });
+    
+    const emailActuallySent = emailResult.success && !emailResult.skipped;
     
     if (!emailResult.success) {
       logger.error('[Activation Link] Email failed for', { extra: { email, emailResult: emailResult.error } });
@@ -1240,7 +1242,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       details: {
         tier: tier.name,
         checkoutSessionId: checkoutSession.id,
-        emailSent: emailResult.success,
+        emailSent: emailActuallySent,
         expiresAt: expiresAt.toISOString(),
         ...(isResend ? { isResend: true } : {})
       }
@@ -1253,7 +1255,7 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
       expiresAt: expiresAt.toISOString(),
       userId,
       tierName: tier.name,
-      emailSent: emailResult.success
+      emailSent: emailActuallySent
     });
 
     // Background sync to HubSpot (fire-and-forget)

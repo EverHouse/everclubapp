@@ -397,7 +397,11 @@ export function MemberFlow({
       const data = result.data as Record<string, unknown>;
       
       setActivationUrl(data.checkoutUrl as string);
-      showToast(`Activation link sent to ${form.email}`, 'success');
+      if (data.emailSent === false) {
+        showToast(`Link created but email could not be sent — copy the link below`, 'warning');
+      } else {
+        showToast(`Activation link sent to ${form.email}`, 'success');
+      }
       if (scannedIdImage && data.userId) {
         postWithCredentials('/api/admin/save-id-image', {
           userId: data.userId,

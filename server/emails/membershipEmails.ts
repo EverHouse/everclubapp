@@ -422,11 +422,12 @@ export function getGracePeriodReminderHtml(params: GracePeriodReminderParams): s
 
 export async function sendGracePeriodReminderEmail(
   email: string, 
-  params: GracePeriodReminderParams
-): Promise<{ success: boolean; error?: string }> {
-  if (!await isEmailCategoryEnabled('membership')) {
+  params: GracePeriodReminderParams,
+  options?: { staffInitiated?: boolean }
+): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
+  if (!options?.staffInitiated && !await isEmailCategoryEnabled('membership')) {
     logger.info('[Grace Period Email] SKIPPED - membership emails disabled via settings', { extra: { email } });
-    return { success: true };
+    return { success: true, skipped: true };
   }
   try {
     const { client, fromEmail } = await getResendClient();
@@ -524,11 +525,12 @@ export function getMembershipActivationHtml(params: MembershipActivationParams):
 
 export async function sendMembershipActivationEmail(
   email: string,
-  params: MembershipActivationParams
-): Promise<{ success: boolean; error?: string }> {
-  if (!await isEmailCategoryEnabled('membership')) {
+  params: MembershipActivationParams,
+  options?: { staffInitiated?: boolean }
+): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
+  if (!options?.staffInitiated && !await isEmailCategoryEnabled('membership')) {
     logger.info('[Membership Activation Email] SKIPPED - membership emails disabled via settings', { extra: { email } });
-    return { success: true };
+    return { success: true, skipped: true };
   }
   try {
     const { client, fromEmail } = await getResendClient();
