@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.65] - 2026-03-27
+
+### Fee Product Create Response Now Includes Stripe IDs
+- **Fix**: `POST /api/fee-products` now re-reads the database row after `autoPushFeeToStripe` completes, so the JSON response includes the newly created `stripe_product_id` and `stripe_price_id` instead of the stale `null` values from the initial insert.
+- **Files changed**: `server/routes/membershipTiers.ts`
+
 ## [8.97.64] - 2026-03-26
 
 ### Security & Booking Conflict Detection Fixes

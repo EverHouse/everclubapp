@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.65",
+    date: "2026-03-27",
+    title: "Fee Product Create Response Now Includes Stripe IDs",
+    changes: [
+      "Fix: POST /api/fee-products response now re-reads the row after Stripe sync, so the response includes the newly created stripe_product_id and stripe_price_id instead of stale nulls",
+    ]
+  },
+  {
     version: "8.97.64",
     date: "2026-03-26",
     title: "Security & Booking Conflict Detection Fixes",

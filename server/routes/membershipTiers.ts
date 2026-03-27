@@ -195,7 +195,7 @@ router.post('/api/fee-products', isAdmin, async (req, res) => {
 
     invalidateQueryCache(TIERS_CACHE_KEY);
 
-    const created = result.rows[0] as Record<string, unknown>;
+    let created = result.rows[0] as Record<string, unknown>;
     let synced = false;
     let syncError: string | undefined;
     const feeSlug = String(created.slug || '');
@@ -206,6 +206,12 @@ router.post('/api/fee-products', isAdmin, async (req, res) => {
         synced = pushResult.success;
         if (!pushResult.success) {
           syncError = pushResult.error || 'Stripe sync failed';
+        }
+        if (synced) {
+          const refreshed = await db.execute(sql`SELECT * FROM fee_products WHERE id = ${created.id}`);
+          if (refreshed.rows.length > 0) {
+            created = refreshed.rows[0] as Record<string, unknown>;
+          }
         }
       } catch (err) {
         syncError = getErrorMessage(err);
