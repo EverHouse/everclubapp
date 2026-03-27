@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.71",
+    date: "2026-03-27",
+    title: "Production Stability — Pool Exhaustion, Wallet Pass Auth, Realtime Resilience, CLS Fix",
+    changes: [
+      "Fix: Database connections were being held for up to 2 minutes during subscription processing (advisory locks). Replaced with a lightweight table-based lock that releases the connection immediately — prevents pool exhaustion during traffic spikes.",
+      "Fix: Apple Wallet passes returning 401 errors on multi-device setups. The auth fallback now verifies the token belongs to the same member who owns the device's passes (not just that the token exists anywhere), then auto-repairs the stale token records.",
+      "Improvement: Supabase Realtime channels now silently recover from their first connection hiccup instead of flooding the console with warnings. A deferred re-subscribe kicks in after 5 seconds if Supabase's built-in reconnect doesn't resolve it.",
+      "Fix: Eliminated a layout shift (CLS 0.125 → ~0) caused by Google Fonts swapping in after the page rendered. Fonts now use display:optional with preloading — cached fonts load instantly, and on first visit the system font is used without any visible jump.",
+    ]
+  },
+  {
     version: "8.97.70",
     date: "2026-03-27",
     title: "Fix POS Multi-Item Cart Charges Failing",

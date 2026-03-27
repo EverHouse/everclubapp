@@ -186,6 +186,41 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       }
     }
     if (!authValid) {
+      const tokenMemberRows = await db.select({ memberId: walletPassAuthTokens.memberId })
+        .from(walletPassAuthTokens)
+        .where(eq(walletPassAuthTokens.authToken, authToken))
+        .limit(1);
+
+      if (tokenMemberRows.length > 0) {
+        const tokenMemberId = tokenMemberRows[0].memberId;
+        const deviceSerialOwners = await db.select({ memberId: walletPassAuthTokens.memberId })
+          .from(walletPassAuthTokens)
+          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
+
+        const deviceMemberIds = [...new Set(deviceSerialOwners.map(r => r.memberId))];
+        if (deviceMemberIds.includes(tokenMemberId)) {
+          authValid = true;
+          for (const serial of deviceSerialOwners.filter(s => s.memberId === tokenMemberId)) {
+            await db.update(walletPassAuthTokens)
+              .set({ authToken, updatedAt: new Date() })
+              .where(and(
+                eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
+                eq(walletPassAuthTokens.memberId, tokenMemberId),
+              ))
+              .catch((repairErr: unknown) => {
+                logger.warn('[WalletPass WebService] Failed to repair auth token in deep fallback', {
+                  extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
+                });
+              });
+          }
+          logger.info('[WalletPass WebService] Auth validated via deep member-device fallback + repaired tokens', {
+            extra: { deviceLibraryId, passTypeId, registeredSerials, memberId: tokenMemberId }
+          });
+        }
+      }
+    }
+
+    if (!authValid) {
       logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
         extra: { deviceLibraryId, passTypeId, registeredSerials }
       });

@@ -36,7 +36,7 @@ export function getSupabase(): SupabaseClient | null {
         reconnectAfterMs: (tries: number) => {
           return Math.min(1000 * Math.pow(2, tries), 30000);
         },
-        timeout: 30000,
+        timeout: 60000,
       } as SupabaseRealtimeConfig,
     } as Parameters<typeof createClient>[2]);
     return supabaseClient;

@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.71] - 2026-03-27
+
+### Production Stability — Pool Exhaustion, Wallet Pass Auth, Realtime Resilience, CLS Fix
+- **Fix (Critical)**: Subscription processing advisory locks held database pool connections for up to 120 seconds. Under concurrent webhook traffic this exhausted the 25-connection pool, causing timeouts across the entire app. Replaced with table-based `INSERT...ON CONFLICT` locking that releases the connection immediately after acquiring. Lock table is auto-created on first use with proper error handling (retries ensure on failure).
+- **Fix (High)**: Apple Wallet Pass "Get serial numbers" endpoint returned 401 for valid devices when auth tokens drifted across multi-device setups. Added a scoped deep fallback: if the token belongs to the same member who owns passes on that device, auth succeeds and stale token records are auto-repaired. Previous fallback was over-broad (accepted any globally valid token); now properly scoped to member-device ownership.
+- **Improvement**: Supabase Realtime first `CHANNEL_ERROR` is now silently deferred — a 5–7 second timer schedules a clean re-subscribe if Supabase's built-in reconnect doesn't resolve it. Subsequent errors use exponential backoff (2s base, 60s cap, 120s recovery). Socket timeout increased from 30s to 60s. Eliminates console noise from transient connection events.
+- **Fix**: CLS (Cumulative Layout Shift) reduced from 0.125 to ~0 by switching Google Fonts from `display=swap` to `display=optional`. Fonts are preloaded, so cached visits get the custom font instantly; first visits use system font without visible swap.
+- **Files changed**: `server/middleware/rateLimiting.ts`, `server/routes/walletPassWebService.ts`, `src/hooks/useSupabaseRealtime.ts`, `src/lib/supabase.ts`, `index.html`
+
 ## [8.97.70] - 2026-03-27
 
 ### Fix POS Multi-Item Cart Charges Failing

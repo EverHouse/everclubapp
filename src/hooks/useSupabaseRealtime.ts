@@ -124,20 +124,35 @@ export function useSupabaseRealtime(options: UseSupabaseRealtimeOptions = {}) {
         retryCountRef.current.set(table, 0);
       } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         const retries = retryCountRef.current.get(table) || 0;
+        retryCountRef.current.set(table, retries + 1);
+
+        if (retries === 0) {
+          const deferTimer = setTimeout(() => {
+            if (!mountedRef.current) return;
+            retryTimerRef.current.delete(table);
+            const ch = channelsRef.current.get(table);
+            if (ch) {
+              try { supabase.removeChannel(ch); } catch (_e) { /* intentionally empty */ }
+              channelsRef.current.delete(table);
+            }
+            subscribeToTable(supabase, table);
+          }, 5000 + Math.random() * 2000);
+          retryTimerRef.current.set(table, deferTimer);
+          return;
+        }
+
         const errMsg = err ? ` (${err.message || err})` : '';
-        console.warn(`[Supabase Realtime] ${status} for ${table}${errMsg} — scheduling reconnect (attempt ${retries + 1})`);
+        console.warn(`[Supabase Realtime] ${status} for ${table}${errMsg} — scheduling reconnect (attempt ${retries})`);
 
         const existingTimer = retryTimerRef.current.get(table);
         if (existingTimer) clearTimeout(existingTimer);
 
         const MAX_RETRIES = 10;
-        const RECOVERY_INTERVAL = 60000;
+        const RECOVERY_INTERVAL = 120000;
         const delay = retries < MAX_RETRIES
-          ? Math.min(1000 * Math.pow(2, retries), 30000) + Math.random() * 1000
-          : RECOVERY_INTERVAL + Math.random() * 5000;
-        if (retries < MAX_RETRIES) {
-          retryCountRef.current.set(table, retries + 1);
-        } else {
+          ? Math.min(2000 * Math.pow(2, retries), 60000) + Math.random() * 2000
+          : RECOVERY_INTERVAL + Math.random() * 10000;
+        if (retries >= MAX_RETRIES) {
           retryCountRef.current.set(table, 0);
           console.warn(`[Supabase Realtime] Max retries (${MAX_RETRIES}) reached for ${table}, will retry in ${Math.round(delay / 1000)}s`);
         }
