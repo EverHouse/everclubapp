@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.73] - 2026-03-27
+
+### Fix Menu Overlapping Device Status Bar
+- **Fix**: Both member and staff hamburger menus had their top content (logo and close button) overlapping the iOS status bar. The root cause was Tailwind's `py-8` utility overriding the `safe-area-inset-menu` CSS class in the cascade. Removed the conflicting utility and updated `safe-area-inset-menu` to use `calc()` addition (base padding + safe area inset) instead of `max()`, ensuring the safe area inset is always added on top of the base padding rather than competing with it.
+- **Files changed**: `src/components/MemberMenuOverlay.tsx`, `src/components/MenuOverlay.tsx`, `src/index.css`
+
 ## [8.97.72] - 2026-03-27
 
 ### Fix Dashboard Banner Dismiss Not Sticking

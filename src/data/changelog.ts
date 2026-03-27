@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.73",
+    date: "2026-03-27",
+    title: "Fix Menu Overlapping Device Status Bar",
+    changes: [
+      "Fix: The hamburger menu logo and close button were hidden behind the iPhone status bar (time, signal, battery). The safe area padding now properly pushes the menu content below the notch/status bar on all devices. Fixed for both member and staff menus.",
+    ]
+  },
+  {
     version: "8.97.72",
     date: "2026-03-27",
     title: "Fix Dashboard Banner Dismiss Not Sticking",

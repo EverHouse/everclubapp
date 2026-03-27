@@ -102,7 +102,7 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
         
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply"></div>
 
-        <div className={`relative z-10 flex flex-col lg:w-[320px] py-8 px-8 safe-area-inset-menu pb-[calc(2rem+env(safe-area-inset-bottom,0px))] h-full ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>
+        <div className={`relative z-10 flex flex-col lg:w-[320px] safe-area-inset-menu h-full ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>
             
             <div className="flex items-center justify-between mb-10">
                 <button 

@@ -873,10 +873,10 @@ input, select, textarea {
 
 /* Menu-specific safe area that preserves base padding */
 .safe-area-inset-menu {
-  padding-top: max(1.5rem, env(safe-area-inset-top, 0), env(titlebar-area-height, 0));
-  padding-bottom: max(2rem, calc(1rem + env(safe-area-inset-bottom, 0)));
-  padding-left: max(2rem, env(safe-area-inset-left, 0));
-  padding-right: max(2rem, env(safe-area-inset-right, 0));
+  padding-top: calc(2rem + max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)));
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  padding-left: max(2rem, env(safe-area-inset-left, 0px));
+  padding-right: max(2rem, env(safe-area-inset-right, 0px));
 }
 
 /* Mobile touch target improvements */
