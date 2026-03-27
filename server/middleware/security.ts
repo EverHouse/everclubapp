@@ -40,6 +40,11 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (req.path.startsWith('/api/hubspot/webhooks')) return next();
   if (req.path.startsWith('/api/wallet/v1/')) return next();
 
+  const internalHeader = req.headers['x-internal-request'] as string | undefined;
+  if (internalHeader && req.ip && (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1')) {
+    return next();
+  }
+
   const origin = req.headers['origin'] as string | undefined;
   const referer = req.headers['referer'] as string | undefined;
 

@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.69] - 2026-03-27
+
+### POS: Passes Now Source from Fee Products
+- **Fix**: Guest Fee, Day Pass Golf Sim, and Day Pass Coworking were missing from POS because passes were still fetched from `membership_tiers` (now deactivated with no Stripe product IDs). Passes now source from `fee_products` where they have valid Stripe links. Both passes and general products load from a single API call.
+- **Files changed**: `src/components/admin/payments/POSRegister/posTypes.ts`, `src/components/admin/payments/POSRegister/usePOSRegister.ts`
+
 ## [8.97.68] - 2026-03-27
 
 ### Fix Directory Sync Stripe Failure (CSRF Block)

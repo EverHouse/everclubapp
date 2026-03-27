@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.69",
+    date: "2026-03-27",
+    title: "POS: Passes Now Source from Fee Products",
+    changes: [
+      "Fix: Guest Fee, Day Pass Golf Sim, and Day Pass Coworking were missing from POS — they were still being fetched from deactivated membership_tiers rows instead of the fee_products table where they now live with valid Stripe product IDs.",
+      "Improvement: Passes and general products now load from a single API call to fee_products, reducing network requests and ensuring new pass-type products auto-appear without config.",
+    ]
+  },
+  {
     version: "8.97.68",
     date: "2026-03-27",
     title: "Fix Directory Sync Stripe Failure (CSRF Block)",

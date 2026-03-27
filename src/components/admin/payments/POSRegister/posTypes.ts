@@ -50,14 +50,21 @@ export const CATEGORY_TABS: { key: CategoryTab; label: string; icon: string }[] 
   { key: 'merch', label: 'Merch', icon: 'storefront' },
 ];
 
+export const PASS_FEE_TYPES = ['day_pass_coworking', 'day_pass_golf_sim', 'guest_pass'];
 export const POS_FEE_TYPES = ['general'];
+
+export const FEE_TYPE_ICONS: Record<string, string> = {
+  'day_pass_coworking': 'workspace_premium',
+  'day_pass_golf_sim': 'sports_golf',
+  'guest_pass': 'person_add',
+};
 
 export function feeProductToCartProduct(item: FeeProduct) {
   return {
     productId: item.stripe_product_id || `fee_${item.id}`,
     name: item.name,
     priceCents: item.price_cents,
-    icon: 'sell',
+    icon: FEE_TYPE_ICONS[item.fee_type] || 'sell',
   };
 }
 

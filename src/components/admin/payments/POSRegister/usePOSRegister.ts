@@ -13,9 +13,8 @@ import {
   type PaymentMethodType,
   type CategoryTab,
   type SavedCardInfo,
-  PASS_PRODUCT_SLUGS,
-  PASS_SLUG_ICONS,
   CAFE_CATEGORY_ORDER,
+  PASS_FEE_TYPES,
   POS_FEE_TYPES,
   feeProductToCartProduct,
 } from './posTypes';
@@ -40,48 +39,28 @@ export function usePOSRegister() {
     (async () => {
       try {
         setPassProductsError(null);
-        const tiers = await fetchWithCredentials<Array<{ slug: string; stripe_product_id?: string; name: string; price_cents: number }>>('/api/membership-tiers?active=true');
-        const products = PASS_PRODUCT_SLUGS
-          .map(slug => {
-            const tier = tiers.find((t: { slug: string }) => t.slug === slug);
-            if (!tier || !tier.stripe_product_id) return null;
-            return {
-              productId: tier.stripe_product_id,
-              name: tier.name,
-              priceCents: tier.price_cents || 0,
-              icon: PASS_SLUG_ICONS[slug] || 'confirmation_number',
-            };
-          })
-          .filter(Boolean) as { productId: string; name: string; priceCents: number; icon: string }[];
+        const allFees = await fetchWithCredentials<FeeProduct[]>('/api/fee-products');
+        const activeFees = allFees.filter(f => f.is_active && f.product_type === 'one_time' && f.stripe_product_id);
+
+        const passes = activeFees
+          .filter(f => PASS_FEE_TYPES.includes(f.fee_type))
+          .map(feeProductToCartProduct);
+
+        const general = activeFees
+          .filter(f => POS_FEE_TYPES.includes(f.fee_type))
+          .map(feeProductToCartProduct);
+
         if (!cancelled) {
-          setPassProducts(products);
+          setPassProducts(passes);
           setPassProductsLoading(false);
+          setFeeProducts(general);
+          setFeeProductsLoading(false);
         }
       } catch (err: unknown) {
         if (!cancelled) {
           setPassProductsLoading(false);
-          setPassProductsError(err instanceof Error ? err.message : 'Failed to load pass products');
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const allFees = await fetchWithCredentials<FeeProduct[]>('/api/fee-products');
-        const posItems = allFees
-          .filter(f => f.is_active && POS_FEE_TYPES.includes(f.fee_type) && f.product_type === 'one_time' && f.stripe_product_id)
-          .map(feeProductToCartProduct);
-        if (!cancelled) {
-          setFeeProducts(posItems);
           setFeeProductsLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setFeeProductsLoading(false);
+          setPassProductsError(err instanceof Error ? err.message : 'Failed to load products');
         }
       }
     })();
