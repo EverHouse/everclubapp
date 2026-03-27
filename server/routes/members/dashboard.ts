@@ -515,7 +515,7 @@ router.get('/api/member/dashboard/announcements', isAuthenticated, async (req, r
     const resolved = await resolveDashboardUser(req, res);
     if (!resolved) return;
     const now = new Date();
-    const userEmail = resolved.targetUser.email?.toLowerCase() || '';
+    const userEmail = resolved.userEmail;
 
     const dismissedIds = await db
       .select({ noticeId: userDismissedNotices.noticeId })
