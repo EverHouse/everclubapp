@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.75] - 2026-03-27
+
+### Fix Activation Link Email Not Sending
+- **Fix (Critical)**: "Send Activation Link" in the new user workflow appeared to succeed (green toast shown) but the activation email was never delivered to the new member. Root cause: `sendMembershipActivationEmail` checked `isEmailCategoryEnabled('membership')` which was disabled in production settings. The function returned `{ success: true }` even when skipped, so the backend reported success. Added a `staffInitiated` parameter that bypasses the category toggle for staff-triggered sends. Automated/system emails (schedulers, webhooks) still respect the toggle.
+- **Fix**: Same silent skip affected `sendGracePeriodReminderEmail` used by the profile drawer's "Send Reactivation Link" — also now bypasses the toggle when staff-initiated.
+- **Improvement**: Email functions now return `{ success: true, skipped: true }` when the category is disabled (non-staff paths), so callers can distinguish a skip from an actual send. API responses now report `emailSent` based on actual delivery, not the skipped result.
+- **Improvement**: Frontend now shows a warning toast (not success) when `emailSent` is false, with the checkout URL displayed and copyable as a manual fallback. Profile drawer shows the checkout URL with a copy button after reactivation link creation.
+- **Files changed**: `server/emails/membershipEmails.ts`, `server/routes/stripe/subscriptions.ts`, `server/routes/stripe/admin.ts`, `src/components/staff-command-center/drawers/newUser/MemberFlow.tsx`, `src/components/MemberProfileDrawer.tsx`, `src/hooks/queries/useMemberProfileQueries.ts`
+
 ## [8.97.74] - 2026-03-27
 
 ### Production Error Visibility & Announcements Fix

@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.75",
+    date: "2026-03-27",
+    title: "Fix Activation Link Email Not Sending",
+    changes: [
+      "Fix: 'Send Activation Link' in the new user workflow appeared to succeed (green toast) but the activation email was never delivered. Root cause: the email function checked whether membership emails were globally enabled — since that toggle was off, the email was silently skipped and the system reported success anyway. Staff-initiated emails now always send regardless of the global toggle, so clicking 'Send Activation Link' reliably delivers the email.",
+      "Fix: The same silent skip affected 'Send Reactivation Link' from the profile drawer — also now bypasses the toggle when triggered by staff.",
+      "Improvement: If the email does fail for a real reason (e.g. email service error), staff now sees a warning instead of a green success toast, with the checkout URL displayed and copyable as a manual fallback.",
+      "Improvement: Profile drawer now shows the checkout URL with a copy button after creating a reactivation link, so staff can always share the link manually if needed.",
+    ]
+  },
+  {
     version: "8.97.74",
     date: "2026-03-27",
     title: "Production Error Visibility & Announcements Fix",
