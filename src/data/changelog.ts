@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.76",
+    date: "2026-03-27",
+    title: "Fix Notification Badge Position on Bottom Nav",
+    changes: [
+      "Fix: The pending bookings notification badge on the staff bottom navigation bar was not appearing correctly at the top-right of the Simulator icon. Adjusted the badge positioning so it sits snugly at the top-right corner of the icon and added a z-index to prevent it from being hidden behind adjacent nav items.",
+    ]
+  },
+  {
     version: "8.97.75",
     date: "2026-03-27",
     title: "Fix Activation Link Email Not Sending",

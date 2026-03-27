@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.76] - 2026-03-27
+
+### Fix Notification Badge Position on Bottom Nav
+- **Fix**: The pending bookings notification badge on the staff bottom navigation's Simulator tab was positioned too far right (`-right-3` / -12px) causing it to not appear properly at the top-right of the icon. Tightened to `-top-1 -right-1.5` so it sits snugly at the icon's top-right corner, and added `z-20` to ensure it renders above adjacent nav items.
+- **Files changed**: `src/pages/Admin/layout/StaffBottomNav.tsx`
+
 ## [8.97.75] - 2026-03-27
 
 ### Fix Activation Link Email Not Sending
