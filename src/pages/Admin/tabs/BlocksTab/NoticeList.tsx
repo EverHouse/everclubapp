@@ -169,7 +169,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                             <button
                                                 onClick={(e) => handleEditClosure(closure, e)}
-                                                className={`p-2 rounded-xl transition opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast ${
+                                                className={`p-2 rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast ${
                                                     isIncomplete
                                                         ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30'
                                                         : blocking
@@ -314,7 +314,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 <div className="flex items-center gap-1 flex-shrink-0">
                                                     <button
                                                         onClick={(e) => handleEditClosure(closure, e)}
-                                                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 transition opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast"
+                                                        className="p-1.5 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-fast"
                                                     >
                                                         <Icon name="edit" className="text-base" />
                                                     </button>
