@@ -207,7 +207,7 @@ const AdminDashboard: React.FC = () => {
         >
           <Icon name="campaign" className="text-[24px]" />
           {unreadNotifCount > 0 && (
-            <span className="absolute top-0 right-0 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-badge-pulse">
+            <span className="absolute -top-1 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-badge-pulse z-20">
               {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
             </span>
           )}
