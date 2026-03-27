@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.68",
+    date: "2026-03-27",
+    title: "Fix Directory Sync Stripe Failure (CSRF Block)",
+    changes: [
+      "Fix: Directory sync's internal call to Stripe subscription sync was being blocked by CSRF protection — the server-to-server request had no Origin header, so CSRF middleware rejected it with 403. Now includes the correct Origin header.",
+    ]
+  },
+  {
     version: "8.97.67",
     date: "2026-03-27",
     title: "POS Now Shows One-Off Products (Fee Products)",

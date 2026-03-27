@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.68] - 2026-03-27
+
+### Fix Directory Sync Stripe Failure (CSRF Block)
+- **Fix (High)**: The directory sync page's "Sync All" function was failing on the Stripe subscription step because the `internalPost` helper (used for server-to-server HTTP calls) didn't include an `Origin` header. The CSRF middleware (`csrfOriginCheck`) blocks mutative requests without a valid Origin or Referer. Adding `Origin: http://localhost:<port>` to internal calls fixes the 403 rejection. HubSpot sync was unaffected because it uses direct function calls instead of HTTP.
+- **Files changed**: `server/routes/directorySync.ts`
+
 ## [8.97.67] - 2026-03-27
 
 ### POS Now Shows One-Off Products (Fee Products)

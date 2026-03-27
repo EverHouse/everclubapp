@@ -18,11 +18,13 @@ function getInternalBaseUrl(): string {
 }
 
 async function internalPost(path: string, sessionCookie: string): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
-  const res = await fetch(`${getInternalBaseUrl()}${path}`, {
+  const baseUrl = getInternalBaseUrl();
+  const res = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Cookie': sessionCookie,
+      'Origin': baseUrl,
     },
     body: JSON.stringify({}),
   });
