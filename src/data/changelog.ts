@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.70",
+    date: "2026-03-27",
+    title: "Fix POS Multi-Item Cart Charges Failing",
+    changes: [
+      "Fix: POS charges with cart items (e.g. multiple guest fees) were silently failing because the validation expected a field named 'unitAmountCents' but the app was sending 'priceCents'. The mismatch caused the server to reject the request. Now aligned so multi-item charges go through correctly.",
+    ]
+  },
+  {
     version: "8.97.69",
     date: "2026-03-27",
     title: "POS: Passes Now Source from Fee Products",

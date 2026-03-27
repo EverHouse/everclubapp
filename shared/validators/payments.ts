@@ -39,7 +39,7 @@ export const quickChargeSchema = z.object({
     productId: z.string(),
     name: z.string(),
     quantity: z.number().int().min(1),
-    unitAmountCents: z.number().int().min(0),
+    priceCents: z.number().int().min(0),
   })).optional(),
   guestCheckout: z.boolean().optional(),
 });
@@ -91,7 +91,7 @@ export const chargeSavedCardPosSchema = z.object({
     productId: z.string(),
     name: z.string(),
     quantity: z.number().int().min(1),
-    unitAmountCents: z.number().int().min(0),
+    priceCents: z.number().int().min(0),
   })).optional(),
 });
 

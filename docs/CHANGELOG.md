@@ -2,6 +2,12 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.70] - 2026-03-27
+
+### Fix POS Multi-Item Cart Charges Failing
+- **Fix (Critical)**: POS checkout with cart items (e.g. charging 3x Guest Fee) was silently failing. The Zod validation schemas (`quickChargeSchema` and `chargeSavedCardPosSchema`) expected `unitAmountCents` but the frontend sends `priceCents`. Zod rejected the request with a 400. This affected both online card and saved card POS charges with any cart items. Single-product charges (without `cartItems`) still worked because they only send `productId` + `amountCents`.
+- **Files changed**: `shared/validators/payments.ts`
+
 ## [8.97.69] - 2026-03-27
 
 ### POS: Passes Now Source from Fee Products
