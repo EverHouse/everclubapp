@@ -141,16 +141,26 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
       }
     }
     
+    let stripeMode = 'unknown';
+    try {
+      const stripe = await getStripeClient();
+      const balance = await stripe.balance.retrieve();
+      stripeMode = balance.livemode ? 'live' : 'test';
+    } catch {
+      stripeMode = 'unknown';
+    }
+
     if (result.staleFound > 0) {
       const staleDetails = result.details.filter(d => d.action === 'stale');
       const sampleEmails = staleDetails.slice(0, 5).map(d => d.email).join(', ');
       const moreCount = staleDetails.length > 5 ? ` and ${staleDetails.length - 5} more` : '';
-      logger.debug(`[Stripe Customer Sync] ${result.staleFound} orphaned Stripe customer IDs detected (not auto-cleared). Sample: ${sampleEmails}${moreCount}. Use Data Integrity tools to review.`);
+      logger.debug(`[Stripe Customer Sync] ${result.staleFound} orphaned Stripe customer IDs detected (not auto-cleared, mode=${stripeMode}). Sample: ${sampleEmails}${moreCount}. Use Data Integrity tools to review.`);
 
       try {
         const orphanedData = JSON.stringify({
           count: result.staleFound,
           detectedAt: new Date().toISOString(),
+          stripeMode,
           customers: staleDetails.map(d => ({ email: d.email, stripeCustomerId: d.customerId })),
         });
         await db.insert(systemSettings)
@@ -212,6 +222,7 @@ export async function getCustomerSyncStatus(): Promise<{
 export async function getCachedOrphanedStripeCustomers(): Promise<{
   count: number;
   detectedAt: string;
+  stripeMode?: string;
   customers: Array<{ email: string; stripeCustomerId: string }>;
 } | null> {
   try {
@@ -224,4 +235,39 @@ export async function getCachedOrphanedStripeCustomers(): Promise<{
   } catch {
     return null;
   }
+}
+
+export async function batchClearOrphanedStripeCustomers(): Promise<{ cleared: number; errors: string[] }> {
+  const cached = await getCachedOrphanedStripeCustomers();
+  if (!cached || cached.customers.length === 0) {
+    return { cleared: 0, errors: [] };
+  }
+
+  let cleared = 0;
+  const errors: string[] = [];
+
+  for (const orphan of cached.customers) {
+    try {
+      const updateResult = await db.execute(
+        sql`UPDATE users SET stripe_customer_id = NULL, updated_at = NOW()
+            WHERE LOWER(email) = LOWER(${orphan.email})
+              AND stripe_customer_id = ${orphan.stripeCustomerId}`
+      );
+      if (updateResult.rowCount && updateResult.rowCount > 0) {
+        cleared++;
+      }
+    } catch (err: unknown) {
+      errors.push(`${orphan.email}: ${getErrorMessage(err)}`);
+    }
+  }
+
+  if (errors.length === 0 && cleared > 0) {
+    try {
+      await db.delete(systemSettings).where(eq(systemSettings.key, 'orphaned_stripe_customers'));
+    } catch {
+    }
+  }
+
+  logger.info(`[Stripe Customer Sync] Batch clear complete: ${cleared} cleared, ${errors.length} errors`);
+  return { cleared, errors };
 }

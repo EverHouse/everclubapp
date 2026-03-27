@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.66",
+    date: "2026-03-27",
+    title: "Production Bug Fixes — Wallet Pass, Database Performance, Booking Auto-Complete",
+    changes: [
+      "Fix: Apple Wallet passes now self-heal when auth tokens drift — devices that had stale tokens will automatically reconnect on next sync",
+      "Improvement: Database session store now uses a dedicated connection pool (max 5) instead of sharing the main app pool — prevents session lookups from exhausting database connections during traffic spikes",
+      "Improvement: Bookings stuck with unpaid fees for 7+ days are now automatically force-completed with a staff notification — fees remain outstanding for collection but bookings no longer stay stuck indefinitely",
+      "Improvement: Orphaned Stripe customer ID detection now records which Stripe mode (test/live) was active when orphans were found, making it easier for staff to identify and clear test-mode IDs",
+    ]
+  },
+  {
     version: "8.97.65",
     date: "2026-03-27",
     title: "Fee Product Create Response Now Includes Stripe IDs",

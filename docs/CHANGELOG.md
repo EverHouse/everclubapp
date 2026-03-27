@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.66] - 2026-03-27
+
+### Production Bug Fixes — Wallet Pass, Database Performance, Booking Auto-Complete
+- **Fix (High)**: Apple Wallet Pass "Get serial numbers" endpoint now includes self-healing token repair — when a device presents an auth token that doesn't match its registered serial numbers but belongs to the same member, the endpoint repairs all affected token mappings in-place. Previously, the endpoint had a read-only fallback that often failed, causing persistent 401 errors for members' wallet passes. The `/v1/passes` endpoint already had this repair logic; now the serial listing endpoint does too.
+- **Fix (High)**: Session store (`connect-pg-simple`) now uses a dedicated database pool (`max=5`) instead of sharing the main application pool (`max=40` in production). Under load, session lookups were competing with application queries, causing pool exhaustion ("remaining connection slots are reserved for SUPERUSER") and 500 errors across multiple endpoints. Also added `pruneSessionInterval: 15 min` for automatic expired session cleanup.
+- **Fix (Medium)**: Bookings stuck with unpaid fees for 7+ days are now force-completed by the auto-complete scheduler. The `STUCK_FORCE_COMPLETE_DAYS` env var controls the threshold (default: 7). Force-completed bookings are marked `attended` with `reviewed_by: 'system-force-complete'` and a staff notes annotation. Outstanding fees remain on record for collection. Staff receives a push notification when force-completion occurs.
+- **Improvement**: Stripe customer sync now records the active Stripe mode (`test`/`live`) in the orphaned customer cache (`system_settings.orphaned_stripe_customers`). Added `batchClearOrphanedStripeCustomers()` utility for programmatic bulk clearing. The 197 orphaned IDs are most likely test-mode customer IDs persisting in the production database.
+- **Files changed**: `server/routes/walletPassWebService.ts`, `server/replit_integrations/auth/replitAuth.ts`, `server/core/db.ts`, `server/schedulers/bookingAutoCompleteScheduler.ts`, `server/core/stripe/customerSync.ts`
+
 ## [8.97.65] - 2026-03-27
 
 ### Fee Product Create Response Now Includes Stripe IDs

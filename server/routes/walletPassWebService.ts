@@ -119,6 +119,7 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
     }
 
     let authValid = false;
+    const registeredSerials = deviceRegistrations.map(r => r.serialNumber);
     for (const reg of deviceRegistrations) {
       const isValid = await validateAuthToken(reg.serialNumber, authToken);
       if (isValid) {
@@ -127,32 +128,66 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       }
     }
     if (!authValid) {
-      const registeredSerials = deviceRegistrations.map(r => r.serialNumber);
-      const memberIdsForDevice = await db.select({ memberId: walletPassAuthTokens.memberId })
+      const tokenOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
         .from(walletPassAuthTokens)
-        .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
+        .where(eq(walletPassAuthTokens.authToken, authToken))
+        .limit(1);
 
-      if (memberIdsForDevice.length > 0) {
-        const memberIds = [...new Set(memberIdsForDevice.map(r => r.memberId))];
-        const fallbackResult = await db.select({ id: walletPassAuthTokens.id })
+      if (tokenOwner.length > 0) {
+        const tokenMemberId = tokenOwner[0].memberId;
+        const serialOwners = await db.select({ serialNumber: walletPassAuthTokens.serialNumber, memberId: walletPassAuthTokens.memberId })
           .from(walletPassAuthTokens)
-          .where(and(
-            eq(walletPassAuthTokens.authToken, authToken),
-            inArray(walletPassAuthTokens.memberId, memberIds),
-          ))
-          .limit(1);
+          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
 
-        if (fallbackResult.length > 0) {
+        const belongsToSameMember = serialOwners.some(s => s.memberId === tokenMemberId);
+        if (belongsToSameMember) {
           authValid = true;
-          logger.info('[WalletPass WebService] Auth validated via fallback (token belongs to same member)', {
-            extra: { deviceLibraryId, passTypeId, registeredSerials }
+          for (const serial of serialOwners.filter(s => s.memberId === tokenMemberId)) {
+            await db.update(walletPassAuthTokens)
+              .set({ authToken, updatedAt: new Date() })
+              .where(and(
+                eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
+                eq(walletPassAuthTokens.memberId, tokenMemberId),
+              ))
+              .catch((repairErr: unknown) => {
+                logger.warn('[WalletPass WebService] Failed to repair auth token for serial', {
+                  extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
+                });
+              });
+          }
+          logger.info('[WalletPass WebService] Auth validated via member fallback + repaired token mappings', {
+            extra: { deviceLibraryId, passTypeId, registeredSerials, memberId: tokenMemberId }
           });
+        }
+      }
+
+      if (!authValid) {
+        const memberIdsForDevice = await db.select({ memberId: walletPassAuthTokens.memberId })
+          .from(walletPassAuthTokens)
+          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
+
+        if (memberIdsForDevice.length > 0) {
+          const memberIds = [...new Set(memberIdsForDevice.map(r => r.memberId))];
+          const fallbackResult = await db.select({ id: walletPassAuthTokens.id })
+            .from(walletPassAuthTokens)
+            .where(and(
+              eq(walletPassAuthTokens.authToken, authToken),
+              inArray(walletPassAuthTokens.memberId, memberIds),
+            ))
+            .limit(1);
+
+          if (fallbackResult.length > 0) {
+            authValid = true;
+            logger.info('[WalletPass WebService] Auth validated via reverse member fallback', {
+              extra: { deviceLibraryId, passTypeId, registeredSerials }
+            });
+          }
         }
       }
     }
     if (!authValid) {
       logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
-        extra: { deviceLibraryId, passTypeId, registeredSerials: deviceRegistrations.map(r => r.serialNumber) }
+        extra: { deviceLibraryId, passTypeId, registeredSerials }
       });
       return res.status(401).send('Unauthorized');
     }

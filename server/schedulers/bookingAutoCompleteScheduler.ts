@@ -8,6 +8,7 @@ import { refreshBookingPass } from '../walletPass/bookingPassService';
 import { getErrorMessage } from '../utils/errorUtils';
 
 const STUCK_ESCALATION_HOURS = parseInt(process.env.STUCK_BOOKING_ESCALATION_HOURS || '24', 10);
+const STUCK_FORCE_COMPLETE_DAYS = parseInt(process.env.STUCK_BOOKING_FORCE_COMPLETE_DAYS || '7', 10);
 
 interface AutoCompletedBookingResult {
   id: number;
@@ -50,8 +51,49 @@ async function autoCompletePastBookings(): Promise<void> {
     );
 
     if (stuckPendingPayments.rows.length > 0) {
-      const stuckIds = stuckPendingPayments.rows.map(b => b.id).sort((a, b) => a - b);
-      const stuckSummary = stuckPendingPayments.rows
+      const forceCompleteThresholdHours = STUCK_FORCE_COMPLETE_DAYS * 24;
+      const forceCompleteBookings = stuckPendingPayments.rows.filter(b => b.stuckHours >= forceCompleteThresholdHours);
+
+      if (forceCompleteBookings.length > 0) {
+        const forceIds = forceCompleteBookings.map(b => b.id);
+        logger.warn(`[Booking Auto-Complete] Force-completing ${forceCompleteBookings.length} booking(s) stuck ${STUCK_FORCE_COMPLETE_DAYS}+ days with unpaid fees. IDs: [${forceIds.join(', ')}]`);
+
+        const forceResult = await queryWithRetry<{ id: number }>(
+          `UPDATE booking_requests
+           SET status = 'attended',
+               is_unmatched = false,
+               staff_notes = COALESCE(staff_notes || E'\n', '') || $2,
+               updated_at = NOW(),
+               reviewed_at = NOW(),
+               reviewed_by = 'system-force-complete'
+           WHERE id = ANY($1::int[])
+             AND status IN ('approved', 'confirmed')
+           RETURNING id`,
+          [forceIds, `[Force-completed after ${STUCK_FORCE_COMPLETE_DAYS}+ days stuck with unpaid fees]`]
+        );
+
+        const actuallyForced = forceResult.rows.map(r => r.id);
+        if (actuallyForced.length > 0) {
+          await notifyAllStaff(
+            `Bookings Force-Completed — ${actuallyForced.length} Stuck ${STUCK_FORCE_COMPLETE_DAYS}+ Days`,
+            `${actuallyForced.length} booking(s) were force-completed because they were stuck for over ${STUCK_FORCE_COMPLETE_DAYS} days with unpaid fees. Fees are still outstanding and should be collected:\n\n${forceCompleteBookings.filter(b => actuallyForced.includes(b.id)).slice(0, 10).map(b => `• #${b.id} ${b.userName || b.userEmail} (${b.userEmail})`).join('\n')}`,
+            'warning',
+            { sendPush: true }
+          );
+
+          for (const id of actuallyForced) {
+            refreshBookingPass(id).catch(err =>
+              logger.error('[Booking Auto-Complete] Wallet pass refresh failed for force-completed', { extra: { bookingId: id, error: getErrorMessage(err) } })
+            );
+          }
+        }
+      }
+
+      const remainingStuck = stuckPendingPayments.rows.filter(b => b.stuckHours < forceCompleteThresholdHours);
+
+      if (remainingStuck.length > 0) {
+      const stuckIds = remainingStuck.map(b => b.id).sort((a, b) => a - b);
+      const stuckSummary = remainingStuck
         .slice(0, 5)
         .map(b => {
           const hours = Math.round(b.stuckHours);
@@ -59,8 +101,8 @@ async function autoCompletePastBookings(): Promise<void> {
           return `• #${b.id} ${b.userName || b.userEmail} (${b.userEmail}) - ${b.requestDate} ${b.startTime} — stuck ${durationStr}`;
         })
         .join('\n');
-      const stuckMore = stuckPendingPayments.rows.length > 5 ? `\n...and ${stuckPendingPayments.rows.length - 5} more` : '';
-      const logDetails = stuckPendingPayments.rows
+      const stuckMore = remainingStuck.length > 5 ? `\n...and ${remainingStuck.length - 5} more` : '';
+      const logDetails = remainingStuck
         .slice(0, 10)
         .map(b => {
           const hours = Math.round(b.stuckHours);
@@ -68,9 +110,9 @@ async function autoCompletePastBookings(): Promise<void> {
           return `#${b.id} ${b.userEmail} (${durationStr})`;
         })
         .join(', ');
-      logger.warn(`[Booking Auto-Complete] ${stuckPendingPayments.rows.length} booking(s) stuck with unpaid fees, skipped auto-complete. IDs: [${stuckIds.join(', ')}]. Details: ${logDetails}`);
+      logger.warn(`[Booking Auto-Complete] ${remainingStuck.length} booking(s) stuck with unpaid fees, skipped auto-complete. IDs: [${stuckIds.join(', ')}]. Details: ${logDetails}`);
 
-      const escalatedBookings = stuckPendingPayments.rows.filter(b => b.stuckHours >= STUCK_ESCALATION_HOURS);
+      const escalatedBookings = remainingStuck.filter(b => b.stuckHours >= STUCK_ESCALATION_HOURS);
       const isEscalation = escalatedBookings.length > 0;
 
       const recentDup = await queryWithRetry<{ id: number }>(
@@ -103,13 +145,14 @@ async function autoCompletePastBookings(): Promise<void> {
         } else {
           await notifyAllStaff(
             'Bookings Stuck — Unpaid Fees',
-            `${stuckPendingPayments.rows.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
+            `${remainingStuck.length} past booking(s) cannot be auto checked-in because they have unpaid fees. Please collect payment or waive fees:\n\n${stuckSummary}${stuckMore}`,
             'system',
             { sendPush: false }
           );
         }
       } else {
         logger.info(`[Booking Auto-Complete] Skipping duplicate stuck-fees notification — sent within last 6h (bookings: ${stuckIds.join(', ')})`);
+      }
       }
     }
 

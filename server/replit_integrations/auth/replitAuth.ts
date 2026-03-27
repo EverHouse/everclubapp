@@ -1,13 +1,57 @@
 import session from "express-session";
 import type { RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
-import type { Pool } from "pg";
+import { Pool } from "pg";
 import { randomBytes } from "crypto";
 import { pool, isProduction } from "../../core/db";
 import { getSessionUser } from "../../types/session";
 import { getErrorMessage } from "../../utils/errorUtils";
 import { logger } from "../../core/logger";
 import { getAlternateDomainEmail } from "../../core/utils/emailNormalization";
+import { stripSslMode } from "../../core/db";
+
+let sessionPool: Pool | null = null;
+
+function appendSearchPath(connString: string | undefined): string | undefined {
+  if (!connString) return connString;
+  try {
+    const u = new URL(connString);
+    if (['localhost', '127.0.0.1', 'helium'].includes(u.hostname)) return connString;
+    const existing = u.searchParams.get('options') || '';
+    if (!existing.includes('search_path')) {
+      u.searchParams.set('options', (existing ? existing + ' ' : '') + '-c search_path=public');
+    }
+    return u.toString();
+  } catch {
+    return connString;
+  }
+}
+
+function getOrCreateSessionPool(): Pool {
+  if (sessionPool) return sessionPool;
+
+  const rawUrl = appendSearchPath(stripSslMode(process.env.DATABASE_URL));
+  const isLocal = rawUrl ? ['localhost', '127.0.0.1', 'helium'].some(h => {
+    try { return new URL(rawUrl!).hostname === h; } catch { return false; }
+  }) : false;
+  const needsSsl = !isLocal;
+
+  sessionPool = new Pool({
+    connectionString: rawUrl,
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+    allowExitOnIdle: true,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+  });
+
+  sessionPool.on('error', (err) => {
+    logger.error('[Session Pool] Error:', { extra: { detail: err.message } });
+  });
+
+  logger.info('[Session] Created dedicated session pool (max=5)');
+  return sessionPool;
+}
 
 export function getAuthPool() {
   return pool;
@@ -42,11 +86,13 @@ export function getSession() {
   try {
     const sessionTtl = 30 * 24 * 60 * 60; // 30 days in seconds (connect-pg-simple expects seconds)
     const pgStore = connectPg(session);
+    const dedicatedPool = getOrCreateSessionPool();
     const sessionStore = new pgStore({
-      pool: pool as unknown as import("pg").Pool,
+      pool: dedicatedPool as unknown as import("pg").Pool,
       createTableIfMissing: true,
       ttl: sessionTtl,
       tableName: "sessions",
+      pruneSessionInterval: 15 * 60,
       errorLog: (err: Error) => {
         logger.error('[Session Store] Error:', { extra: { message: getErrorMessage(err), stack: err?.stack } });
       },
