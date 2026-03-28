@@ -766,6 +766,7 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
         AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
         AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
         AND bs.created_at::date - bs.session_date <= 2
+        AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = bs.id AND bp2.participant_type IN ('owner', 'member') AND bp2.user_id IS NOT NULL)
       ORDER BY bs.session_date DESC
       LIMIT 1000
     `);
@@ -773,11 +774,12 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
     const totalCount = await db.execute(sql`
       SELECT COUNT(*)::int as count
       FROM booking_sessions bs
-      WHERE bs.session_date < ${getTodayPacific()}
+      WHERE bs.session_date < CURRENT_DATE
         AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member'))
         AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
         AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
         AND bs.created_at::date - bs.session_date <= 2
+        AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = bs.id AND bp2.participant_type IN ('owner', 'member') AND bp2.user_id IS NOT NULL)
     `);
     const total = (totalCount.rows[0] as unknown as CountRow)?.count || 0;
 
