@@ -808,7 +808,7 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
             COALESCE(bp.slot_duration, 60),
             '0.00',
             '0.00',
-            COALESCE(u.current_tier, 'unknown'),
+            COALESCE(u.tier, 'unknown'),
             'unpaid',
             'member_request',
             NOW()
@@ -918,16 +918,14 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
 
     if (Number(total) > 0) {
       let cancelledCount = 0;
+      const { cancelBooking } = await import('../bookingService/approvalCancel');
       for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
         try {
-          await db.execute(sql`
-            UPDATE booking_requests
-            SET status = 'cancelled',
-                updated_at = NOW(),
-                cancellation_reason = ${'Auto-cancelled: member status is ' + row.membership_status}
-            WHERE id = ${row.id}
-              AND status IN ('approved', 'confirmed')
-          `);
+          await cancelBooking({
+            bookingId: row.id,
+            staff_notes: `Auto-cancelled: member status is ${row.membership_status}`,
+            cancelled_by: 'system_integrity_check',
+          });
           cancelledCount++;
         } catch (cancelErr: unknown) {
           logger.error('[DataIntegrity] Failed to auto-cancel booking for inactive member', {
