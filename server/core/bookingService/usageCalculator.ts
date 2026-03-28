@@ -770,7 +770,7 @@ export async function recalculateSessionFees(
         })
       );
 
-      const validBillings = resolvedBillings.filter(b => b !== null);
+      const validBillings = resolvedBillings.filter(b => b !== null && b.memberId && b.memberId.trim() !== '');
       if (validBillings.length > 0) {
         const memberIds = validBillings.map(b => b.memberId);
         const minutesCharged = validBillings.map(b => b.minutesCharged);
@@ -780,7 +780,7 @@ export async function recalculateSessionFees(
 
         await tx.execute(sql`
           INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
-          SELECT ${sessionId}, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, 'unpaid', 'recalculation'
+          SELECT ${sessionId}, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, 'unpaid', 'staff_manual'
           FROM unnest(${toTextArrayLiteral(memberIds)}::text[], ${toIntArrayLiteral(minutesCharged)}::int[], ${toNumericArrayLiteral(overageFees)}::numeric[], ${toNumericArrayLiteral(guestFees)}::numeric[], ${toTextArrayLiteral(tiersAtBooking)}::text[])
           AS t(member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking)
         `);

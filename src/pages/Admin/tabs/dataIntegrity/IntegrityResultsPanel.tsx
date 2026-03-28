@@ -418,7 +418,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
       return 'text-green-700 dark:text-green-400';
     };
 
-    switch (checkName) {
+    const normalizedCheckName = checkName.replace(/^\[DEV\]\s*/, '');
+    switch (normalizedCheckName) {
       case 'HubSpot Sync Mismatch':
         return (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
