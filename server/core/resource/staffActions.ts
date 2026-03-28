@@ -10,7 +10,7 @@ import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { ensureSessionForBooking, createTxQueryClient } from '../bookingService/sessionManager';
 import { acquireBookingLocks, BookingConflictError } from '../bookingService/bookingCreationGuard';
 import { computeEndTime, prepareBookingCreation, acquireLocksAndCheckConflicts, sanitizeAndResolveParticipants } from '../bookingService/createBooking';
-import { BookingValidationError } from '../../routes/bays/booking-shared';
+import { BookingValidationError } from '../bookingService/bookingTypes';
 import { createCalendarEventOnCalendar, getCalendarIdByName, CALENDAR_CONFIG } from '../calendar/index';
 import { AppError } from '../errors';
 import { resolveUserByEmail } from '../stripe/customers';

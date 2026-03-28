@@ -134,8 +134,8 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     const totalCount = parseInt(row.total, 10) || 0;
     const paidCount = parseInt(row.paid_count, 10) || 0;
     const unpaidWithFees = parseInt(row.unpaid_with_fees, 10) || 0;
-    if (totalCount > 0 && paidCount > 0 && unpaidWithFees === 0) {
-      logger.info(`[${label} Stripe] All fee-bearing participants already paid (race condition)`, { extra: { bookingId, paidCount, totalCount } });
+    if (totalCount > 0 && unpaidWithFees === 0) {
+      logger.info(`[${label} Stripe] All participants settled (paid or zero-fee)`, { extra: { bookingId, paidCount, totalCount } });
       return {
         status: 200,
         body: {

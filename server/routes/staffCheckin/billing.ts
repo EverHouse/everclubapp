@@ -6,7 +6,8 @@ import { logAndRespond, logger } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
 import { notifyMember } from '../../core/notificationService';
 import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
-import { consumeGuestPassForParticipant, canUseGuestPass } from '../../core/billing/guestPassConsumer';
+import { canUseGuestPass } from '../../core/billing/guestPassConsumer';
+import { processGuestPass } from '../../core/billing/guestPassProcessor';
 import { cancelPaymentIntent, createBalanceAwarePayment, getOrCreateStripeCustomer, getStripeClient } from '../../core/stripe';
 import { resolveUserByEmail } from '../../core/stripe/customers';
 import { logFromRequest, logPaymentAudit } from '../../core/auditLog';
@@ -135,14 +136,15 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           });
         }
         
-        const consumeResult = await consumeGuestPassForParticipant(
+        const consumeResult = await processGuestPass({
           participantId,
-          booking.owner_email,
+          ownerEmail: booking.owner_email,
           guestName,
           sessionId,
           sessionDate,
-          staffEmail
-        );
+          bookingId,
+          staffEmail,
+        });
         
         if (!consumeResult.success) {
           return res.status(400).json({ 
@@ -412,14 +414,15 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
             for (let i = 0; i < passesToConsume; i++) {
               const guest = eligibleGuests[i];
               const sessionDate = guest.session_date ? new Date(guest.session_date) : new Date();
-              const result = await consumeGuestPassForParticipant(
-                guest.id,
-                booking.owner_email,
-                guest.display_name || 'Guest',
-                sessionId!,
+              const result = await processGuestPass({
+                participantId: guest.id,
+                ownerEmail: booking.owner_email,
+                guestName: guest.display_name || 'Guest',
+                sessionId: sessionId!,
                 sessionDate,
-                staffEmail
-              );
+                bookingId,
+                staffEmail,
+              });
               if (result.success) {
                 consumed++;
               } else {

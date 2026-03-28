@@ -7,19 +7,7 @@ import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core
 import { PRICING } from '../../core/billing/pricingConfig';
 import { getErrorMessage } from '../../utils/errorUtils';
 
-export class BookingValidationError extends Error {
-  constructor(public statusCode: number, public errorBody: Record<string, unknown>) {
-    super(typeof errorBody.error === 'string' ? errorBody.error : 'Booking validation error');
-    this.name = 'BookingValidationError';
-  }
-}
-
-export interface SanitizedParticipant {
-  email: string;
-  type: 'member' | 'guest';
-  userId?: string;
-  name?: string;
-}
+export { BookingValidationError, type SanitizedParticipant } from '../../core/bookingService/bookingTypes';
 
 export interface InvoicePayResult {
   paidInFull: boolean;
