@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.85] - 2026-03-28
+
+### Fix Kiosk Check-In Payment Error
+- **Fix**: Kiosk check-in showed "only owner can pay" error when staff tried to process payment for a member. The member-payment endpoints required the logged-in user to be the booking owner, which fails when staff is logged in at the kiosk. New dedicated kiosk payment endpoints (`/api/kiosk/bookings/:id/pay-fees`, `confirm-payment`, `cancel-payment`) run under staff auth and resolve the member by ID instead.
+- **Added**: `MemberPaymentModal` now supports `kioskMode` prop — routes API calls through kiosk endpoints and passes `memberId` in the request body.
+- **Improved**: Kiosk check-in screen now detects whether the checked-in member is the booking owner and shows "Pay Now" only for owners, or "See Staff" for non-owner participants.
+- **Added**: Kiosk check-in response now includes `memberId` and `memberEmail` for downstream payment and ownership checks.
+- **Files changed**: `server/routes/stripe/kiosk-payments.ts` (new), `server/routes/stripe/index.ts`, `server/routes/kioskCheckin.ts`, `src/components/booking/MemberPaymentModal.tsx`, `src/pages/Staff/KioskCheckin.tsx`
+
 ## [8.97.84] - 2026-03-28
 
 ### Fix Missing Invoice on Trackman Auto-Approved Bookings
