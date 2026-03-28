@@ -41,6 +41,12 @@ export function clearClosureCache(): void {
   logger.info('[Cache] Closure cache cleared');
 }
 
+export function stopBookingValidationPruner(): void {
+  clearInterval(pruneInterval);
+  closureCache.clear();
+  logger.info('[Cache] Booking validation pruner stopped');
+}
+
 export function parseTimeToMinutes(time: string | null | undefined): number {
   if (!time) return 0;
   const parts = time.split(':');

@@ -52,6 +52,9 @@ const Dashboard: React.FC = () => {
     error,
     rsvpSectionError,
     wellnessSectionError,
+    eventsSectionError,
+    conferenceRoomSectionError,
+    statsSectionError,
 
     guestPasses,
     bannerAnnouncement,
@@ -141,23 +144,31 @@ const Dashboard: React.FC = () => {
 
         <SmoothReveal isLoaded={!isStaffOrAdminProfile} delay={150}>
         {!isStaffOrAdminProfile && (
-          <MembershipCard
-            user={user}
-            isDark={isDark}
-            isStaffOrAdminProfile={isStaffOrAdminProfile}
-            statsData={statsData}
-            guestPasses={guestPasses}
-            tierPermissions={tierPermissions}
-            simMinutesToday={simMinutesToday}
-            confMinutesToday={confMinutesToday}
-            nextWellnessClass={nextWellnessClass}
-            nextEvent={nextEvent}
-            walletPassAvailable={walletPassAvailable}
-            isCardOpen={isCardOpen}
-            setIsCardOpen={setIsCardOpen}
-            navigate={navigate}
-            showToast={showToast}
-          />
+          <>
+            <MembershipCard
+              user={user}
+              isDark={isDark}
+              isStaffOrAdminProfile={isStaffOrAdminProfile}
+              statsData={statsData}
+              guestPasses={guestPasses}
+              tierPermissions={tierPermissions}
+              simMinutesToday={simMinutesToday}
+              confMinutesToday={confMinutesToday}
+              nextWellnessClass={nextWellnessClass}
+              nextEvent={nextEvent}
+              walletPassAvailable={walletPassAvailable}
+              isCardOpen={isCardOpen}
+              setIsCardOpen={setIsCardOpen}
+              navigate={navigate}
+              showToast={showToast}
+            />
+            {statsSectionError && (
+              <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+                <Icon name="error" className="text-sm" />
+                Unable to load membership stats. Other sections are up to date.
+              </div>
+            )}
+          </>
         )}
         </SmoothReveal>
 
@@ -177,6 +188,8 @@ const Dashboard: React.FC = () => {
             walletPassDownloading={walletPassDownloading}
             rsvpSectionError={rsvpSectionError}
             wellnessSectionError={wellnessSectionError}
+            eventsSectionError={eventsSectionError}
+            conferenceRoomSectionError={conferenceRoomSectionError}
             startNavigation={startNavigation}
             navigate={navigate}
             refetchAllData={refetchAllData}

@@ -101,17 +101,17 @@ export function useDashboardData() {
     queryFn: () => fetchWithCredentials<{ enrollments: DBWellnessEnrollment[]; classes: DashboardWellnessClass[] }>(`/api/member/dashboard/wellness${viewAsParam}`),
     ...dashboardQueryOpts,
   });
-  const { data: eventsData } = useQuery({
+  const { data: eventsData, error: eventsError } = useQuery({
     queryKey: [...dashboardQueryBase, 'events'],
     queryFn: () => fetchWithCredentials<DashboardEvent[]>(`/api/member/dashboard/events${viewAsParam}`),
     ...dashboardQueryOpts,
   });
-  const { data: conferenceRoomData } = useQuery({
+  const { data: conferenceRoomData, error: conferenceRoomError } = useQuery({
     queryKey: [...dashboardQueryBase, 'conference-rooms'],
     queryFn: () => fetchWithCredentials<DashboardBookingItem[]>(`/api/member/dashboard/conference-rooms${viewAsParam}`),
     ...dashboardQueryOpts,
   });
-  const { data: statsData } = useQuery({
+  const { data: statsData, error: statsError } = useQuery({
     queryKey: [...dashboardQueryBase, 'stats'],
     queryFn: () => fetchWithCredentials<{ guestPasses: GuestPasses | null; lifetimeVisitCount: number }>(`/api/member/dashboard/stats${viewAsParam}`),
     enabled: !!user?.email && !isStaffOrAdminProfile,
@@ -150,6 +150,9 @@ export function useDashboardData() {
   const error = scheduleError ? 'Failed to load your schedule. Pull down to refresh.' : null;
   const rsvpSectionError = rsvpsError && !rsvpsData;
   const wellnessSectionError = wellnessError && !wellnessData;
+  const eventsSectionError = eventsError && !eventsData;
+  const conferenceRoomSectionError = conferenceRoomError && !conferenceRoomData;
+  const statsSectionError = statsError && !statsData;
 
   const refetchAllData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
@@ -646,6 +649,9 @@ export function useDashboardData() {
     error,
     rsvpSectionError,
     wellnessSectionError,
+    eventsSectionError,
+    conferenceRoomSectionError,
+    statsSectionError,
 
     guestPasses,
     bannerAnnouncement,

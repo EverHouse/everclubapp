@@ -51,7 +51,7 @@ function getOrigin(): string {
   return `https://${rpId}`;
 }
 
-router.post('/api/auth/passkey/register/options', async (req, res) => {
+router.post('/api/auth/passkey/register/options', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.id || !sessionUser?.email) {
@@ -103,7 +103,7 @@ router.post('/api/auth/passkey/register/options', async (req, res) => {
   }
 });
 
-router.post('/api/auth/passkey/register/verify', async (req, res) => {
+router.post('/api/auth/passkey/register/verify', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.id || !sessionUser?.email) {

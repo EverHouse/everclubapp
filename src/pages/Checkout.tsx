@@ -52,9 +52,11 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isActive = true;
     const init = async () => {
       try {
         const stripe = await getStripePromise();
+        if (!isActive) return;
         if (!stripe) {
           throw new Error('Stripe is not configured');
         }
@@ -70,15 +72,18 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
           lastName: isCorporate ? lastName : undefined,
           phone: isCorporate ? phone : undefined,
         });
+        if (!isActive) return;
         setClientSecret(data.clientSecret);
       } catch (err: unknown) {
+        if (!isActive) return;
         setError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize checkout');
       } finally {
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     };
 
     init();
+    return () => { isActive = false; };
   }, [tier, email, quantity, companyName, jobTitle, isCorporate, firstName, lastName, phone]);
 
   if (loading) {
@@ -716,9 +721,11 @@ function CheckoutSuccess() {
       return;
     }
 
+    let isActive = true;
     const fetchSession = async () => {
       try {
         const data = await fetchWithCredentials<{ customerEmail?: string; tierName?: string; metadata?: { purpose?: string }; status: string; accountReady?: boolean }>(`/api/checkout/session/${sessionId}`);
+        if (!isActive) return;
         setCustomerEmail(data.customerEmail || null);
         setTierName(data.tierName || null);
 
@@ -738,11 +745,13 @@ function CheckoutSuccess() {
           setStatus('error');
         }
       } catch {
+        if (!isActive) return;
         setStatus('error');
       }
     };
 
     fetchSession();
+    return () => { isActive = false; };
   }, [sessionId]);
 
   useEffect(() => {

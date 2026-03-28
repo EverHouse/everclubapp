@@ -37,6 +37,32 @@ interface MemberFormStepProps {
   setShowIdScanner: (show: boolean) => void;
 }
 
+function getTrialEndDatePacific(trialDays: number): string {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value || '0', 10);
+  const end = new Date(Date.UTC(get('year'), get('month') - 1, get('day') + trialDays));
+  return end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+}
+
+function getTomorrowPacific(): string {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = fmt.formatToParts(new Date());
+  const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value || '0', 10);
+  const tomorrow = new Date(Date.UTC(get('year'), get('month') - 1, get('day') + 1));
+  return tomorrow.toISOString().split('T')[0];
+}
+
 export function MemberFormStep({
   form,
   setForm,
@@ -299,7 +325,7 @@ export function MemberFormStep({
               <input
                 type="date"
                 value={form.trialEndDate}
-                min={(() => { const d = new Date(Date.now() + 86400000); return d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' }); })()}
+                min={getTomorrowPacific()}
                 onChange={(e) => {
                   setForm(prev => ({
                     ...prev,
@@ -317,7 +343,7 @@ export function MemberFormStep({
                 <Icon name="schedule" className="text-sm" />
                 {form.trialEndDate
                   ? `First charge on ${new Date(form.trialEndDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-                  : `First charge in ${form.trialDays} day${form.trialDays === 1 ? '' : 's'} (${new Date(Date.now() + form.trialDays * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`
+                  : `First charge in ${form.trialDays} day${form.trialDays === 1 ? '' : 's'} (${getTrialEndDatePacific(form.trialDays)})`
                 }
               </div>
             )}

@@ -222,10 +222,12 @@ export function TrackmanBookingModal({
       return;
     }
 
+    let isActive = true;
     const fetchEmails = async () => {
       try {
         const userIds = participantsNeedingEmail.map(p => p.userId).filter(Boolean);
         const data = await postWithCredentials<{ emails: Record<string, string> }>('/api/users/batch-emails', { userIds });
+        if (!isActive) return;
         const emailMap = new Map<string, string>(
           Object.entries(data.emails || {})
         );
@@ -236,12 +238,14 @@ export function TrackmanBookingModal({
         }));
         setEnrichedParticipants(enriched);
       } catch (err: unknown) {
+        if (!isActive) return;
         console.error('Failed to fetch participant emails:', err);
         setEnrichedParticipants(requestParticipants);
       }
     };
     
     fetchEmails();
+    return () => { isActive = false; };
   }, [isOpen, booking]);
 
   const notesText = generateNotesText(booking, guests, enrichedParticipants);

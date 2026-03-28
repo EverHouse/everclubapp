@@ -27,6 +27,7 @@ import { startNotificationCleanupScheduler, stopNotificationCleanupScheduler } f
 import { startInvoiceAutoFinalizeScheduler, stopInvoiceAutoFinalizeScheduler } from './invoiceAutoFinalizeScheduler';
 import { stopRealtimeRecovery } from '../core/supabase/client';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
+import { stopBookingValidationPruner } from '../core/bookingValidation';
 import { schedulerTracker } from '../core/schedulerTracker';
 import { isProduction } from '../core/db';
 import { logger } from '../core/logger';
@@ -228,4 +229,5 @@ export function stopSchedulers(): void {
   stopInvoiceAutoFinalizeScheduler();
   stopRealtimeRecovery();
   stopJobProcessor();
+  stopBookingValidationPruner();
 }

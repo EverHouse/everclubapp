@@ -15,6 +15,8 @@ interface ScheduleSectionProps {
   walletPassDownloading: number | null;
   rsvpSectionError: boolean | null | undefined;
   wellnessSectionError: boolean | null | undefined;
+  eventsSectionError: boolean | null | undefined;
+  conferenceRoomSectionError: boolean | null | undefined;
   startNavigation: () => void;
   navigate: (path: string) => void;
   refetchAllData: () => void;
@@ -28,7 +30,7 @@ interface ScheduleSectionProps {
 
 export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
   isDark, upcomingItemsFiltered, isStaffOrAdminProfile, walletPassAvailable,
-  walletPassDownloading, rsvpSectionError, wellnessSectionError,
+  walletPassDownloading, rsvpSectionError, wellnessSectionError, eventsSectionError, conferenceRoomSectionError,
   startNavigation, navigate, refetchAllData,
   handleCancelBooking, handleLeaveBooking, handleCancelRSVP, handleCancelWellness,
   handleDownloadBookingWalletPass, scheduleRef,
@@ -77,6 +79,18 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
         <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
           <Icon name="error" className="text-sm" />
           Unable to load wellness classes. Other sections are up to date.
+        </div>
+      )}
+      {eventsSectionError && (
+        <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+          <Icon name="error" className="text-sm" />
+          Unable to load events. Other sections are up to date.
+        </div>
+      )}
+      {conferenceRoomSectionError && (
+        <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
+          <Icon name="error" className="text-sm" />
+          Unable to load conference rooms. Other sections are up to date.
         </div>
       )}
     </div>

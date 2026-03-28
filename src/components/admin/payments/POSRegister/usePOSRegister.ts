@@ -280,9 +280,11 @@ export function usePOSRegister() {
     const email = newCustomerEmail.trim();
     if (!email) return;
 
+    let isActive = true;
     (async () => {
       try {
         const results = await fetchWithCredentials<Array<{ id?: string; email?: string }>>(`/api/members/search?q=${encodeURIComponent(email)}&limit=1`);
+        if (!isActive) return;
         const user = Array.isArray(results) ? results.find((u) => u.email?.toLowerCase() === email.toLowerCase()) : null;
         if (user?.id) {
           await postWithCredentials('/api/admin/save-id-image', {
@@ -292,10 +294,12 @@ export function usePOSRegister() {
           });
         }
       } catch (err: unknown) {
+        if (!isActive) return;
         console.error('[POS] Failed to save scanned ID image:', err);
         showToast('Scanned ID image could not be saved', 'error');
       }
     })();
+    return () => { isActive = false; };
   }, [success, scannedIdImage, useNewCustomer, newCustomerEmail, showToast]);
 
   return {
