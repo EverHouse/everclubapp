@@ -22,6 +22,7 @@ import {
 import { systemSettings } from '../../shared/models/system';
 import { getErrorMessage } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
+import { globalRateLimiter, sensitiveActionRateLimiter } from '../middleware/rateLimiting';
 
 interface AnnouncementRow {
   id: number;
@@ -45,7 +46,7 @@ const BANNER_FIRST = sql`CASE WHEN ${announcements.showAsBanner} = true THEN 0 E
 const ANNOUNCEMENTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 // PUBLIC ROUTE
-router.get('/api/announcements', async (req, res) => {
+router.get('/api/announcements', globalRateLimiter, async (req, res) => {
   try {
     const { active_only } = req.query;
     const cacheKey = `api:announcements:${active_only || 'all'}`;
@@ -98,7 +99,7 @@ router.get('/api/announcements', async (req, res) => {
 });
 
 // PUBLIC ROUTE
-router.get('/api/announcements/banner', async (req, res) => {
+router.get('/api/announcements/banner', globalRateLimiter, async (req, res) => {
   try {
     const now = new Date();
     

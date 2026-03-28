@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.80",
+    date: "2026-03-28",
+    title: "Edge Case & Unhappy Path Hardening (Phase 2)",
+    changes: [
+      "Security: Added rate limiters to public announcement endpoints and all booking payment routes.",
+      "Validation: Added Zod schema validation to pay-fees, confirm-payment, and cancel-payment booking payment endpoints.",
+      "Alerting: Session creation exhaustion now persists a critical system alert to the integrity dashboard in addition to staff notification.",
+      "Alerting: Inactive member booking integrity check now sends staff notification when issues are detected.",
+      "Integrity: New usage ledger gap check detects attended sessions with member participants but no usage ledger entries.",
+    ]
+  },
+  {
     version: "8.97.79",
     date: "2026-03-28",
     title: "Edge Case & Unhappy Path Hardening",

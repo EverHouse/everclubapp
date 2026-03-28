@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { isAuthenticated } from '../../../core/middleware';
 import { paymentRateLimiter } from '../../../middleware/rateLimiting';
+import { validateBody } from '../../../middleware/validate';
+import { z } from 'zod';
 import { db } from '../../../db';
 import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../../../types/session';
@@ -31,9 +33,21 @@ import {
   handleExistingInvoicePayment,
 } from './shared';
 
+const payFeesSchema = z.object({
+  useAccountBalance: z.boolean().optional(),
+});
+
+const confirmPaymentSchema = z.object({
+  paymentIntentId: z.string().min(1),
+});
+
+const cancelPaymentSchema = z.object({
+  paymentIntentId: z.string().min(1),
+});
+
 const router = Router();
 
-router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLimiter, async (req: Request, res: Response) => {
+router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLimiter, validateBody(payFeesSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -510,7 +524,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
   }
 });
 
-router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (req: Request, res: Response) => {
+router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, validateBody(confirmPaymentSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -687,7 +701,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, async (
   }
 });
 
-router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, async (req: Request, res: Response) => {
+router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, validateBody(cancelPaymentSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {

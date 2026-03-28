@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.80] - 2026-03-28
+
+### Edge Case & Unhappy Path Hardening (Phase 2)
+- **Security**: Added `globalRateLimiter` to public announcement endpoints (`GET /api/announcements`, `GET /api/announcements/banner`).
+- **Validation**: Added Zod `validateBody` schemas to booking payment endpoints: `pay-fees` (useAccountBalance), `confirm-payment` (paymentIntentId), and `cancel-payment` (paymentIntentId).
+- **Alerting**: Session creation exhaustion (`ensureSessionForBooking`) now persists a `logAlert` with severity `critical` to the `system_alerts` table (visible in integrity dashboard), in addition to staff notification.
+- **Alerting**: `checkApprovedBookingsForInactiveMembers` integrity check now calls `notifyAllStaff` when issues are found, ensuring staff are proactively alerted.
+- **Integrity**: New `checkUsageLedgerGaps` integrity check detects attended sessions with member participants but no corresponding `usage_ledger` entries. Reports as billing issue with suggestion to recalculate fees.
+- **Files changed**: `server/routes/announcements.ts`, `server/routes/stripe/member-payments/booking-payments.ts`, `server/core/bookingService/sessionManager.ts`, `server/core/integrity/bookingChecks.ts`, `server/core/integrity/core.ts`
+
 ## [8.97.79] - 2026-03-28
 
 ### Edge Case & Unhappy Path Hardening

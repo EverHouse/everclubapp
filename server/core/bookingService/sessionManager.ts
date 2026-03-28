@@ -421,6 +421,18 @@ export async function ensureSessionForBooking(params: {
         logger.error('[ensureSessionForBooking] Failed to send staff alert for session creation failure', { error: getErrorMessage(alertError) });
       }
 
+      try {
+        const { logAlert } = await import('../monitoring');
+        await logAlert({
+          severity: 'critical',
+          category: 'system',
+          message: `Session creation exhausted for booking #${params.bookingId}. Manual intervention required.`,
+          details: { bookingId: params.bookingId, error: errorMsg.substring(0, 200) },
+        });
+      } catch (sysAlertError: unknown) {
+        logger.error('[ensureSessionForBooking] Failed to persist system alert', { error: getErrorMessage(sysAlertError) });
+      }
+
       return { sessionId: 0, created: false, error: errorMsg };
     }
   }

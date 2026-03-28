@@ -740,6 +740,89 @@ export async function checkStalePendingBookings(): Promise<IntegrityCheckResult>
   }
 }
 
+interface UsageLedgerGapRow {
+  session_id: number;
+  session_date: string;
+  resource_name: string;
+  participant_count: number;
+  ledger_count: number;
+}
+
+export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const gapSessions = await db.execute(sql`
+      SELECT
+        bs.id as session_id,
+        bs.session_date,
+        COALESCE(r.name, 'Unknown') as resource_name,
+        (SELECT COUNT(*)::int FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member')) as participant_count,
+        (SELECT COUNT(*)::int FROM usage_ledger ul WHERE ul.session_id = bs.id) as ledger_count
+      FROM booking_sessions bs
+      LEFT JOIN resources r ON bs.resource_id = r.id
+      WHERE bs.session_date < ${getTodayPacific()}
+        AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member'))
+        AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
+        AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
+      ORDER BY bs.session_date DESC
+      LIMIT 50
+    `);
+
+    const totalCount = await db.execute(sql`
+      SELECT COUNT(*)::int as count
+      FROM booking_sessions bs
+      WHERE bs.session_date < ${getTodayPacific()}
+        AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member'))
+        AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
+        AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
+    `);
+    const total = (totalCount.rows[0] as unknown as CountRow)?.count || 0;
+
+    for (const row of gapSessions.rows as unknown as UsageLedgerGapRow[]) {
+      issues.push({
+        category: 'billing_issue',
+        severity: 'warning',
+        table: 'usage_ledger',
+        recordId: row.session_id,
+        description: `Session #${row.session_id} on ${row.session_date} (${row.resource_name}) has ${row.participant_count} member participant(s) but no usage ledger entries`,
+        suggestion: 'Run fee recalculation for this session to generate missing usage records',
+        context: {
+          sessionId: row.session_id,
+          sessionDate: row.session_date,
+          resourceName: row.resource_name,
+          participantCount: row.participant_count,
+          ledgerCount: row.ledger_count,
+        }
+      });
+    }
+
+    return {
+      checkName: 'Usage Ledger Gaps',
+      status: Number(total) === 0 ? 'pass' : Number(total) > 20 ? 'fail' : 'warning',
+      issueCount: Number(total),
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking usage ledger gaps:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Usage Ledger Gaps',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'usage_ledger',
+        recordId: 'check_error',
+        description: `Failed to check usage ledger gaps: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+}
+
 interface InactiveMemberBookingRow {
   id: number;
   user_email: string;
@@ -793,6 +876,20 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
           startTime: row.start_time,
         }
       });
+    }
+
+    if (Number(total) > 0) {
+      try {
+        const { notifyAllStaff } = await import('../notificationService');
+        await notifyAllStaff(
+          'Inactive Members with Active Bookings',
+          `${total} approved/confirmed booking(s) found for inactive, suspended, or cancelled members. Review required.`,
+          'system_alert',
+          { url: '/admin/data-integrity' }
+        );
+      } catch (alertError: unknown) {
+        logger.error('[DataIntegrity] Failed to send staff alert for inactive member bookings', { extra: { detail: getErrorMessage(alertError) } });
+      }
     }
 
     return {
