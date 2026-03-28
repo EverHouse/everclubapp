@@ -351,7 +351,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
       }
       
     } catch (err: unknown) {
-      if (!isProduction) logger.info('[CommLogs] SMS sync skipped:', { extra: { detail: err } });
+      if (!isProduction) logger.info('[CommLogs] SMS sync skipped:', { extra: { detail: getErrorMessage(err) } });
     }
     
     if (!isProduction) logger.info(`[CommLogs] Complete - Synced: ${synced}, Errors: ${errors}`);

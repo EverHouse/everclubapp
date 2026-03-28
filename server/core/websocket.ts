@@ -309,7 +309,7 @@ export function initWebSocketServer(server: Server) {
   wss = new WebSocketServer({ server, path: '/ws' });
   
   wss.on('error', (error) => {
-    logger.error('[WebSocket] Server error:', { extra: { error: getErrorMessage(error), stack: error.stack } });
+    logger.error('[WebSocket] Server error:', { extra: { error: getErrorMessage(error) } });
   });
 
   wss.on('connection', async (ws, req) => {

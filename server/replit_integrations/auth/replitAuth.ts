@@ -46,7 +46,7 @@ function getOrCreateSessionPool(): Pool {
   });
 
   sessionPool.on('error', (err) => {
-    logger.error('[Session Pool] Error:', { extra: { detail: err.message } });
+    logger.error('[Session Pool] Error:', { extra: { error: getErrorMessage(err) } });
   });
 
   logger.info('[Session] Created dedicated session pool (max=5)');
@@ -94,7 +94,7 @@ export function getSession() {
       tableName: "sessions",
       pruneSessionInterval: 15 * 60,
       errorLog: (err: Error) => {
-        logger.error('[Session Store] Error:', { extra: { message: getErrorMessage(err), stack: err?.stack } });
+        logger.error('[Session Store] Error:', { extra: { error: getErrorMessage(err) } });
       },
     });
     

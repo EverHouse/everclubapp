@@ -606,8 +606,7 @@ async function initializeApp() {
     const appErr = err as unknown as { statusCode?: number; error?: string; details?: Record<string, unknown> };
     if (err.constructor?.name === 'AppError' && typeof appErr.statusCode === 'number' && typeof appErr.error === 'string') {
       logger.warn('[Express] AppError', {
-        error: err,
-        extra: { method: req.method, url: req.originalUrl, status: appErr.statusCode }
+        extra: { error: getErrorMessage(err), method: req.method, url: req.originalUrl, status: appErr.statusCode }
       });
       if (!res.headersSent) {
         const body: Record<string, unknown> = { error: appErr.error };
@@ -624,8 +623,7 @@ async function initializeApp() {
     const parsed = parseConstraintError(err);
     if (parsed.isConstraintError) {
       logger.warn('[Express] Database constraint violation', {
-        error: err,
-        extra: { method: req.method, url: req.originalUrl, table: parsed.table, constraint: parsed.constraintName }
+        extra: { error: getErrorMessage(err), method: req.method, url: req.originalUrl, table: parsed.table, constraint: parsed.constraintName }
       });
       if (!res.headersSent) {
         res.status(409).json({ error: parsed.message, table: parsed.table, constraint: parsed.constraintName });
@@ -635,8 +633,7 @@ async function initializeApp() {
 
     const status = getErrorStatusCode(err) || 500;
     logger.error('[Express] Unhandled route error', {
-      error: err,
-      extra: { method: req.method, url: req.originalUrl, status }
+      extra: { error: getErrorMessage(err), method: req.method, url: req.originalUrl, status }
     });
     if (!res.headersSent) {
       res.status(status).json({ error: status >= 500 ? 'Internal server error' : getErrorMessage(err) });

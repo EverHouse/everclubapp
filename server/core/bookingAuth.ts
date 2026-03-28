@@ -1,5 +1,6 @@
 import { getTierLimits } from './tierService';
 import { logger } from './logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 export async function isAuthorizedForMemberBooking(
   tier: string | null | undefined,
@@ -12,7 +13,7 @@ export async function isAuthorizedForMemberBooking(
     const limits = await getTierLimits(tier);
     return limits.can_book_simulators;
   } catch (error) {
-    logger.error('[bookingAuth] Failed to fetch tier limits', { error, extra: { tier } });
+    logger.error('[bookingAuth] Failed to fetch tier limits', { extra: { error: getErrorMessage(error), tier } });
     return false;
   }
 }

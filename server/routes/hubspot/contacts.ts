@@ -292,7 +292,7 @@ router.put('/api/hubspot/contacts/:id/tier', isStaffOrAdmin, async (req, res) =>
       updatedBy: staffUser?.name || 'Unknown'
     });
   } catch (error: unknown) {
-    logger.error('[Tier Update] Error updating contact', { error: new Error(getErrorMessage(error)), extra: { contactId: req.params.id } });
+    logger.error('[Tier Update] Error updating contact', { extra: { error: getErrorMessage(error), contactId: req.params.id } });
     res.status(500).json({ error: 'Failed to update tier', details: safeErrorDetail(error) });
   }
 });

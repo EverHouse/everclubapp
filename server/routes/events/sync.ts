@@ -575,7 +575,7 @@ router.post('/api/admin/backfill-availability-blocks', isStaffOrAdmin, async (re
       wellnessBlocksCreated,
     });
   } catch (error: unknown) {
-    logger.error('[Backfill] Failed to backfill availability blocks', { error });
+    logger.error('[Backfill] Failed to backfill availability blocks', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to backfill availability blocks' });
   }
 });

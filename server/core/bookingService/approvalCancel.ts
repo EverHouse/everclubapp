@@ -438,7 +438,7 @@ export async function cancelBooking(params: CancelBookingParams) {
           })),
         ]);
       } catch (stripeErr: unknown) {
-        logger.error('[Staff Cancel] Failed to handle payment intents (non-blocking)', { extra: { cancelIntentsErr: stripeErr } });
+        logger.error('[Staff Cancel] Failed to handle payment intents (non-blocking)', { extra: { error: getErrorMessage(stripeErr) } });
       }
     }
   }

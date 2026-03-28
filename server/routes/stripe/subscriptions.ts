@@ -316,9 +316,9 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
       if (stripeSubscription?.subscriptionId) {
         try {
           await cancelSubscription(stripeSubscription.subscriptionId);
-          logger.error('[Stripe] Rolled back subscription due to database update failure', { extra: { subscriptionId: stripeSubscription.subscriptionId, dbError } });
+          logger.error('[Stripe] Rolled back subscription due to database update failure', { extra: { subscriptionId: stripeSubscription.subscriptionId, error: getErrorMessage(dbError) } });
         } catch (cancelError) {
-          logger.error('[Stripe] CRITICAL: Failed to cancel subscription during rollback — notifying staff for manual cleanup', { extra: { subscriptionId: stripeSubscription.subscriptionId, cancelError } });
+          logger.error('[Stripe] CRITICAL: Failed to cancel subscription during rollback — notifying staff for manual cleanup', { extra: { subscriptionId: stripeSubscription.subscriptionId, error: getErrorMessage(cancelError) } });
           try {
             const { notifyAllStaff } = await import('../../core/staffNotifications');
             await notifyAllStaff(
