@@ -134,7 +134,6 @@
 | PUT | `/api/bookings/:id/assign-with-players` | 🛡️ | Assign member + players to booking |
 | PUT | `/api/bookings/:id/change-owner` | 🛡️ | Change booking owner |
 | POST | `/api/bookings/link-trackman-to-member` | 🛡️ | Link a Trackman booking to a member |
-| POST | `/api/bookings/mark-as-event` | 🛡️ | Mark booking as event-type |
 | GET | `/api/bookings/check-existing` | 👤 | Check if member has existing booking |
 | GET | `/api/bookings/check-existing-staff` | 🛡️ | Staff check for existing bookings |
 | GET | `/api/pending-bookings` | 🛡️ | List pending bookings awaiting approval |

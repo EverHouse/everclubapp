@@ -753,7 +753,6 @@ Total routes: **690**
 | POST | `/api/bookings/:id/assign-member` | server/routes/resources.ts | 224 | Staff |
 | POST | `/api/bookings/link-trackman-to-member` | server/routes/resources.ts | 249 | Staff |
 | GET | `/api/resources/overlapping-notices` | server/routes/resources.ts | 343 | Staff |
-| POST | `/api/bookings/mark-as-event` | server/routes/resources.ts | 364 | Staff |
 | PUT | `/api/bookings/:id/assign-with-players` | server/routes/resources.ts | 406 | Staff |
 | PUT | `/api/bookings/:id/change-owner` | server/routes/resources.ts | 462 | Staff |
 | POST | `/api/bookings` | server/routes/resources.ts | 492 | Session |
