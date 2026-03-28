@@ -21,6 +21,7 @@ interface TerminalPaymentProps {
   paymentMetadata?: Record<string, string>;
   cartItems?: Array<{ productId: string; name: string; priceCents: number; quantity: number }>;
   mode?: 'payment' | 'save_card';
+  isSubscriptionFlow?: boolean;
   onSuccess: (paymentIntentId: string) => void;
   onError: (message: string) => void;
   onCancel: () => void;
@@ -36,6 +37,7 @@ export function TerminalPayment({
   paymentMetadata,
   cartItems,
   mode = 'payment',
+  isSubscriptionFlow = false,
   onSuccess, 
   onError,
   onCancel 
@@ -241,7 +243,7 @@ export function TerminalPayment({
       return;
     }
 
-    if (amount <= 0 && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
+    if (isSubscriptionFlow && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
       onError('Subscription is still being created. Please wait a moment and try again.');
       return;
     }

@@ -319,6 +319,7 @@ export function PaymentStep({
                   amount={totalPrice}
                   subscriptionId={form.joinExistingGroup ? null : subscriptionId}
                   existingPaymentIntentId={(!form.joinExistingGroup && subscriptionId) ? undefined : (paymentIntentId || undefined)}
+                  isSubscriptionFlow={!form.joinExistingGroup}
                   userId={createdUserId}
                   description={form.joinExistingGroup ? `${selectedTier?.name || 'Membership'} (Group Add-on)` : undefined}
                   onSuccess={async (piId) => {

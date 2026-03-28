@@ -89,6 +89,7 @@ export function CollectPaymentModal({
           <TerminalPayment
             amount={collectPaymentAmount}
             subscriptionId={billingInfo.activeSubscription.id}
+            isSubscriptionFlow
             userId={memberId || null}
             email={memberEmail}
             description={`${billingInfo.activeSubscription.planName || 'Membership'} subscription payment`}
