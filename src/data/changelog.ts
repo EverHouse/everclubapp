@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.88",
+    date: "2026-03-28",
+    title: "Ledger, Rate Limiting & Input Validation Fixes",
+    changes: [
+      "Fixed: Guest purchases via Stripe (Day Passes, Gift Cards) are now properly recorded in the transaction ledger instead of being silently dropped when the Stripe customer ID doesn't match a local member.",
+      "Security: Global rate limiter now covers all routes including non-API paths (login, checkout, SSR pages). Previously only /api/ routes were rate-limited, leaving frontend mutations exposed to brute-force and DoS attacks.",
+      "Fixed: Guardian name, relationship, and phone fields in booking creation are now length-capped (100, 50, and 20 characters respectively) to prevent oversized payloads from causing database bloat or memory issues.",
+    ]
+  },
+  {
     version: "8.97.87",
     date: "2026-03-28",
     title: "Security & Booking Reliability Fixes",

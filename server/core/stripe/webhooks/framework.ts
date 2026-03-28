@@ -185,8 +185,8 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
         sql`SELECT 1 FROM users WHERE stripe_customer_id = ${params.customerId} LIMIT 1`
       );
       if (known.rows.length === 0) {
-        logger.debug('[Stripe Cache] Skipping cache for unknown customer', { extra: { customerId: params.customerId, stripeId: params.stripeId } });
-        return;
+        logger.debug('[Stripe Cache] Unmapped customer, recording as guest transaction', { extra: { customerId: params.customerId, stripeId: params.stripeId } });
+        params.customerId = undefined;
       }
     }
 

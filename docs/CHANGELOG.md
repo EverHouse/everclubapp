@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.88] - 2026-03-28
+
+### Ledger, Rate Limiting & Input Validation Fixes
+- **Fix**: Stripe ledger silently dropped guest purchases — when a non-member bought a Day Pass or Gift Card via Stripe Checkout, the webhook created a guest `cus_` ID that failed the local user lookup, causing `upsertTransactionCache` to abort entirely. Guest transactions are now recorded with a null local customer mapping instead of being discarded.
+- **Security**: Global rate limiter excluded all non-`/api/` routes — the `skip` function returned `true` for any path not starting with `/api`, leaving login, checkout, SSR pages, and form-submission endpoints completely unprotected against brute-force and application-layer DoS. Now only explicitly skips health checks, session endpoints, and static file extensions.
+- **Fix**: Unbounded guardian fields in booking creation — `guardian_name`, `guardian_relationship`, and `guardian_phone` were inserted into the database without length limits. An attacker bypassing frontend validation could submit multi-megabyte strings causing database bloat and potential OOM. Now capped at 100, 50, and 20 characters respectively.
+- **Files changed**: `server/core/stripe/webhooks/framework.ts`, `server/middleware/rateLimiting.ts`, `server/routes/bays/booking-create.ts`
+
 ## [8.97.87] - 2026-03-28
 
 ### Security & Booking Reliability Fixes
