@@ -180,10 +180,11 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
           const message = JSON.parse(event.data);
           
           if (message.type === 'auth_error') {
-            if (message.shouldReauth || message.attemptsRemaining <= 0) {
-              authRejectedRef.current = true;
-              intentionalDisconnectRef.current = true;
-              console.warn('[StaffWebSocket] Session invalid - stopping reconnection');
+            authRejectedRef.current = true;
+            intentionalDisconnectRef.current = true;
+            console.warn('[StaffWebSocket] Session invalid - stopping reconnection');
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.close(4010, 'Session expired');
             }
             return;
           }

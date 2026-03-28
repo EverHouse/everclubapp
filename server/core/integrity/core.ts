@@ -774,43 +774,50 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
 
   const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
 
-  const externalSystemChecks = [
-    safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
-    safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),
-    safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
-    safeCheck(checkTierReconciliation, 'Tier Reconciliation'),
-    safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
-    safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
-    safeCheck(checkBillingOrphans, 'Billing Orphans'),
-    safeCheck(checkOrphanedBookingInvoices, 'Orphaned Booking Invoices'),
-    safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
-    safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
-    safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
-    safeCheck(checkUsageLedgerGaps, 'Usage Ledger Gaps'),
+  const externalSystemChecks: Array<() => Promise<IntegrityCheckResult>> = [
+    () => safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
+    () => safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),
+    () => safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
+    () => safeCheck(checkTierReconciliation, 'Tier Reconciliation'),
+    () => safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
+    () => safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
+    () => safeCheck(checkBillingOrphans, 'Billing Orphans'),
+    () => safeCheck(checkOrphanedBookingInvoices, 'Orphaned Booking Invoices'),
+    () => safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
+    () => safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
+    () => safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
+    () => safeCheck(checkUsageLedgerGaps, 'Usage Ledger Gaps'),
   ];
 
-  const dbEnforcedChecks = includeLegacy ? [
-    safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
-    safeCheck(checkBookingsWithoutSessions, 'Active Bookings Without Sessions'),
-    safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
-    safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
-    safeCheck(checkOverlappingBookings, 'Overlapping Bookings'),
-    safeCheck(checkGuestPassAccountingDrift, 'Guest Pass Accounting Drift'),
-    safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
-    safeCheck(checkStalePastTours, 'Stale Past Tours'),
-    safeCheck(checkArchivedMemberLingeringData, 'Archived Member Lingering Data'),
-    safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
-    safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
-    safeCheck(checkAuthLinkingDataIntegrity, 'Auth Linking Data Integrity'),
-    safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
-    safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
-    safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),
-    safeCheck(checkHubSpotIdDuplicates, 'HubSpot ID Duplicates'),
-    safeCheck(checkCrossSystemDrift, 'Cross-System Drift Detection'),
-    safeCheck(checkEmailDeliveryHealth, 'Email Delivery Health'),
+  const dbEnforcedChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [
+    () => safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
+    () => safeCheck(checkBookingsWithoutSessions, 'Active Bookings Without Sessions'),
+    () => safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
+    () => safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
+    () => safeCheck(checkOverlappingBookings, 'Overlapping Bookings'),
+    () => safeCheck(checkGuestPassAccountingDrift, 'Guest Pass Accounting Drift'),
+    () => safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
+    () => safeCheck(checkStalePastTours, 'Stale Past Tours'),
+    () => safeCheck(checkArchivedMemberLingeringData, 'Archived Member Lingering Data'),
+    () => safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
+    () => safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
+    () => safeCheck(checkAuthLinkingDataIntegrity, 'Auth Linking Data Integrity'),
+    () => safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
+    () => safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
+    () => safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),
+    () => safeCheck(checkHubSpotIdDuplicates, 'HubSpot ID Duplicates'),
+    () => safeCheck(checkCrossSystemDrift, 'Cross-System Drift Detection'),
+    () => safeCheck(checkEmailDeliveryHealth, 'Email Delivery Health'),
   ] : [];
 
-  const checks = await Promise.all([...externalSystemChecks, ...dbEnforcedChecks]);
+  const allCheckFns = [...externalSystemChecks, ...dbEnforcedChecks];
+  const CONCURRENCY = 5;
+  const checks: IntegrityCheckResult[] = [];
+  for (let i = 0; i < allCheckFns.length; i += CONCURRENCY) {
+    const batch = allCheckFns.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(batch.map(fn => fn()));
+    checks.push(...batchResults);
+  }
 
   if (!isProduction) {
     for (const check of checks) {

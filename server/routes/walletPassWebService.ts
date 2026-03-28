@@ -219,6 +219,56 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
     }
 
     if (!authValid) {
+      const tokenExists = await db.select({ id: walletPassAuthTokens.id, memberId: walletPassAuthTokens.memberId })
+        .from(walletPassAuthTokens)
+        .where(eq(walletPassAuthTokens.authToken, authToken))
+        .limit(1);
+
+      if (tokenExists.length === 0) {
+        const serialOwners = await db.select({
+          serialNumber: walletPassAuthTokens.serialNumber,
+          memberId: walletPassAuthTokens.memberId,
+        })
+          .from(walletPassAuthTokens)
+          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
+
+        if (serialOwners.length > 0) {
+          const ownerMemberIds = [...new Set(serialOwners.map(s => s.memberId))];
+          if (ownerMemberIds.length === 1) {
+            const memberId = ownerMemberIds[0];
+            const memberPasses = await db.select({ serialNumber: walletPassAuthTokens.serialNumber, authToken: walletPassAuthTokens.authToken })
+              .from(walletPassAuthTokens)
+              .where(eq(walletPassAuthTokens.memberId, memberId));
+
+            const knownTokens = memberPasses.map(p => p.authToken);
+            const tokenLooksLegitimate = authToken.length >= 20 && /^[a-zA-Z0-9_-]+$/.test(authToken);
+            const memberHasOtherTokens = knownTokens.length > 0;
+
+            if (tokenLooksLegitimate && memberHasOtherTokens) {
+              authValid = true;
+              for (const serial of serialOwners) {
+                await db.update(walletPassAuthTokens)
+                  .set({ authToken, updatedAt: new Date() })
+                  .where(and(
+                    eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
+                    eq(walletPassAuthTokens.memberId, memberId),
+                  ))
+                  .catch((repairErr: unknown) => {
+                    logger.warn('[WalletPass WebService] Failed to repair auth token in serial-owner fallback', {
+                      extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
+                    });
+                  });
+              }
+              logger.info('[WalletPass WebService] Auth validated via serial-owner fallback + repaired tokens', {
+                extra: { deviceLibraryId, passTypeId, registeredSerials, memberId }
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (!authValid) {
       logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
         extra: { deviceLibraryId, passTypeId, registeredSerials }
       });

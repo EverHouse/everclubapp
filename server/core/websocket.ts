@@ -463,19 +463,23 @@ export function initWebSocketServer(server: Server) {
               });
             } else {
               const attemptsRemaining = MAX_AUTH_ATTEMPTS - authAttempts;
+              const backoffMs = Math.min(5000 * Math.pow(2, authAttempts - 1), 300000);
               ws.send(JSON.stringify({ 
                 type: 'auth_error',
                 message: 'Invalid or expired session',
                 attemptsRemaining,
-                shouldReauth: attemptsRemaining <= 0
+                shouldReauth: attemptsRemaining <= 0,
+                retryAfterMs: backoffMs,
               }));
               
-              logger.warn(`[WebSocket] Auth rejected - session verification failed (attempt ${authAttempts}/${MAX_AUTH_ATTEMPTS})`, {
-                extra: { event: 'websocket.auth_failed', clientEmail: message.email, reason: 'session_verification_failed', attempts: authAttempts }
-              });
+              if (authAttempts <= 1) {
+                logger.warn(`[WebSocket] Auth rejected - session verification failed (attempt ${authAttempts}/${MAX_AUTH_ATTEMPTS})`, {
+                  extra: { event: 'websocket.auth_failed', clientEmail: message.email, reason: 'session_verification_failed', attempts: authAttempts }
+                });
+              }
               
               if (authAttempts >= MAX_AUTH_ATTEMPTS) {
-                ws.close(4002, 'Authentication failed');
+                ws.close(4001, 'Session expired - please re-login');
               }
             }
           } else {
