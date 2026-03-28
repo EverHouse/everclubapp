@@ -1173,6 +1173,31 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
         );
       }
 
+      case 'Usage Ledger Gaps':
+        return (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+              <strong>Quick Fix:</strong> Recalculate fees for all sessions missing usage ledger entries. Processes up to 500 sessions per run.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Recalculate fees for ALL sessions with missing usage ledger entries? This will process up to 500 sessions.')) {
+                    fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/bulk-recalculate-usage-ledger', body: {} });
+                  }
+                }}
+                disabled={fixIssueMutation.isPending}
+                className="tactile-btn px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+              >
+                {fixIssueMutation.isPending && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                <Icon name="calculate" className="text-[14px]" />
+                Recalculate All Fees
+              </button>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -1914,6 +1939,23 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                         <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                       ) : (
                                         <Icon name="lock_open" className="text-[16px]" />
+                                      )}
+                                    </button>
+                                  )}
+                                  {!issue.ignored && issue.table === 'usage_ledger' && issue.category === 'billing_issue' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/recalculate-session-fees', body: { recordId: issue.recordId } });
+                                      }}
+                                      disabled={fixingIssues.has(String(issue.recordId))}
+                                      className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors disabled:opacity-50"
+                                      title="Recalculate fees for this session"
+                                    >
+                                      {fixingIssues.has(String(issue.recordId)) ? (
+                                        <Icon name="progress_activity" className="animate-spin text-[16px]" />
+                                      ) : (
+                                        <Icon name="calculate" className="text-[16px]" />
                                       )}
                                     </button>
                                   )}

@@ -3,6 +3,8 @@ import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromReque
 import type { ResourceType } from './shared';
 import type { Request } from 'express';
 import { recordIdSchema, dryRunSchema, reviewItemSchema, assignSessionOwnerSchema } from '../../../shared/validators/dataIntegrity';
+import { recalculateSessionFees } from '../../core/bookingService/usageCalculator';
+import { getTodayPacific } from '../../utils/dateUtils';
 
 const router = Router();
 
@@ -580,6 +582,86 @@ router.post('/api/data-integrity/fix/bulk-attend-stale-bookings', isAdmin, async
     res.json({ success: true, message: `Marked ${count} stale bookings as attended`, attendedCount: count });
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Bulk attend stale bookings error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  }
+});
+
+router.post('/api/data-integrity/fix/recalculate-session-fees', isAdmin, validateBody(recordIdSchema), async (req: Request, res) => {
+  try {
+    const { recordId } = req.body;
+    const sessionId = Number(recordId);
+
+    if (isNaN(sessionId)) {
+      res.status(400).json({ success: false, message: 'Invalid session ID' });
+      return;
+    }
+
+    const result = await recalculateSessionFees(sessionId);
+
+    logFromRequest(req, 'recalculate_session_fees', 'booking_sessions', recordId, `Recalculated fees for session #${sessionId}`, {
+      sessionId,
+      participantsUpdated: result.participantsUpdated,
+      ledgerUpdated: result.ledgerUpdated,
+    });
+
+    res.json({
+      success: true,
+      message: `Recalculated fees for session #${sessionId} — ${result.participantsUpdated} ledger entries created`,
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Recalculate session fees error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  }
+});
+
+router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, async (req: Request, res) => {
+  try {
+    const gapSessions = await db.execute(sql`
+      SELECT bs.id as session_id
+      FROM booking_sessions bs
+      WHERE bs.session_date < ${getTodayPacific()}
+        AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member'))
+        AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
+        AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
+      ORDER BY bs.session_date DESC
+      LIMIT 500
+    `);
+
+    const sessionIds = (gapSessions.rows as { session_id: number }[]).map(r => r.session_id);
+    let succeeded = 0;
+    let failed = 0;
+    const errors: { sessionId: number; error: string }[] = [];
+
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < sessionIds.length; i += BATCH_SIZE) {
+      const batch = sessionIds.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(sid => recalculateSessionFees(sid))
+      );
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].status === 'fulfilled') {
+          succeeded++;
+        } else {
+          failed++;
+          errors.push({ sessionId: batch[j], error: getErrorMessage((results[j] as PromiseRejectedResult).reason) });
+        }
+      }
+    }
+
+    logFromRequest(req, 'bulk_recalculate_usage_ledger', 'usage_ledger', undefined,
+      `Bulk recalculated ${succeeded} sessions (${failed} failed) of ${sessionIds.length} total`,
+      { succeeded, failed, total: sessionIds.length, errorSample: errors.slice(0, 5) }
+    );
+
+    res.json({
+      success: true,
+      message: `Recalculated ${succeeded} of ${sessionIds.length} sessions${failed > 0 ? ` (${failed} failed)` : ''}`,
+      succeeded,
+      failed,
+      total: sessionIds.length,
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Bulk recalculate usage ledger error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   }
 });
