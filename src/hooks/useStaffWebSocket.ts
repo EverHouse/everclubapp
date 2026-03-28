@@ -173,6 +173,11 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         if (keepaliveIntervalRef.current) {
           clearInterval(keepaliveIntervalRef.current);
         }
+        keepaliveIntervalRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 25000);
       };
 
       ws.onmessage = (event) => {
