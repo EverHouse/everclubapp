@@ -94,7 +94,7 @@ const runBackgroundSync = async () => {
     const eventsMsg = eventsResult.error ? eventsResult.error : `${eventsResult.synced} synced`;
     const wellnessMsg = wellnessResult.error ? wellnessResult.error : `${wellnessResult.synced} synced`;
     const closuresMsg = closuresResult.error ? closuresResult.error : `${(closuresResult as { synced: number; error?: string }).synced} synced`;
-    const confRoomMsg = confRoomResult.error ? confRoomResult.error : (confRoomResult.warning ? 'not configured' : `${confRoomResult.synced} synced`);
+    const confRoomMsg = confRoomResult.error ? confRoomResult.error : (confRoomResult.warning ? `${confRoomResult.synced} synced (${confRoomResult.warning})` : `${confRoomResult.synced} synced`);
     logger.info(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}`);
     schedulerTracker.recordRun('Background Sync', true);
   } catch (err: unknown) {

@@ -1287,7 +1287,7 @@ export async function createSessionWithUsageTracking(
 
     } finally {
       if (lockClient) {
-        await lockClient.query(`SELECT pg_advisory_unlock($1)`, [userLockHash]).catch((unlockErr: unknown) => { logger.warn('[SessionManager] Advisory lock release failed', { error: getErrorMessage(unlockErr) }); });
+        await lockClient.query(`SELECT pg_advisory_unlock($1)`, [userLockHash]).catch((unlockErr: unknown) => { logger.error('[SessionManager] Advisory lock release failed — lock may remain held until session ends', { error: getErrorMessage(unlockErr), extra: { lockHash: userLockHash } }); });
       }
     }
     } finally {

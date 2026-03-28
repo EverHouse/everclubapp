@@ -350,6 +350,9 @@ router.get('/api/auth/passkey/list', async (req, res) => {
 router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
+    if (!sessionUser) {
+      return logAndRespond(req, res, 401, 'Session expired');
+    }
 
     const passkeyId = parseInt(req.params.passkeyId, 10);
     if (isNaN(passkeyId)) {

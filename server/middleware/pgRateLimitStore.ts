@@ -34,7 +34,8 @@ function ensureTable(): Promise<void> {
 
 export class PgRateLimitStore implements Store {
   private windowMs: number = 60_000;
-  private prefix: string;
+  prefix: string;
+  localKeys = false;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private cleanupRunning = false;
 

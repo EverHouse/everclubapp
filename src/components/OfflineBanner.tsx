@@ -46,16 +46,17 @@ export default function OfflineBanner() {
     };
   }, [isOffline, rendered]);
 
-  if (!rendered) return null;
-
   return (
-    <div
-      className={`fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium ${
-        isExiting ? 'transition-gpu duration-normal ease-[var(--m3-emphasized-decel)] opacity-0 -translate-y-full' : 'animate-banner-slide-down'
-      }`}
-      style={{ zIndex: 'var(--z-nav)' }}
-    >
-      You're offline. Showing your last available data.
+    <div className="fixed top-0 left-0 right-0" style={{ zIndex: 'var(--z-nav)', height: rendered ? 'auto' : 0, contain: 'layout' }}>
+      {rendered && (
+        <div
+          className={`bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium ${
+            isExiting ? 'transition-gpu duration-normal ease-[var(--m3-emphasized-decel)] opacity-0 -translate-y-full' : 'animate-banner-slide-down'
+          }`}
+        >
+          You're offline. Showing your last available data.
+        </div>
+      )}
     </div>
   );
 }

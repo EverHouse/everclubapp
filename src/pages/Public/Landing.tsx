@@ -377,6 +377,25 @@ const Landing: React.FC = () => {
                View all membership options →
              </a>
            </div>
+         ) : isLoading ? (
+         <div className="grid grid-cols-1 lg:grid-cols-3 gap-px max-w-5xl mx-auto border border-primary/10 dark:border-white/10" style={{ minHeight: '420px' }}>
+            {[0, 1, 2].map((idx) => (
+              <div key={idx} className={`p-8 md:p-10 ${idx === 1 ? 'bg-[#f5f5ef] dark:bg-[#1e1e18] border-x border-primary/10 dark:border-white/10' : 'bg-bone dark:bg-[#1a1a1a]'}`}>
+                <div className="mb-6">
+                  <div className="h-5 w-32 bg-primary/10 dark:bg-white/10 rounded animate-pulse mb-2" />
+                  <div className="h-8 w-24 bg-primary/10 dark:bg-white/10 rounded animate-pulse" />
+                </div>
+                <div className="h-4 w-full bg-primary/5 dark:bg-white/5 rounded animate-pulse mb-2" />
+                <div className="h-4 w-3/4 bg-primary/5 dark:bg-white/5 rounded animate-pulse mb-6" />
+                <div className="space-y-3 mb-8">
+                  {[0, 1, 2].map((fi) => (
+                    <div key={fi} className="h-3 w-2/3 bg-primary/5 dark:bg-white/5 rounded animate-pulse" />
+                  ))}
+                </div>
+                <div className="h-10 w-full bg-primary/5 dark:bg-white/5 rounded animate-pulse" />
+              </div>
+            ))}
+         </div>
          ) : (
          <div className="grid grid-cols-1 lg:grid-cols-3 gap-px max-w-5xl mx-auto border border-primary/10 dark:border-white/10" style={{ minHeight: '420px' }}>
             {featuredTiers.map((tier, idx) => {

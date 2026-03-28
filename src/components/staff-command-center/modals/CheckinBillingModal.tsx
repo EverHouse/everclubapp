@@ -130,6 +130,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       setSavedCardInfo(data);
     } catch (err: unknown) {
       console.error('Failed to check saved card:', err);
+      showToast('Unable to check saved card on file', 'error');
     } finally {
       setCheckingCard(false);
     }

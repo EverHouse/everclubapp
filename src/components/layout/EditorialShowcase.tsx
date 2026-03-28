@@ -42,7 +42,6 @@ const EditorialShowcase: React.FC<EditorialShowcaseProps> = ({
     <section ref={sectionRef} className={`${className}`}>
       <div
         className={`flex flex-col md:flex-row md:min-h-[600px] lg:min-h-[700px] overflow-hidden bg-bone dark:bg-[#1a1a1a] transition-opacity duration-[1200ms] ease-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-        style={{ transform: isVisible ? 'translateY(0)' : 'translateY(24px)', transition: 'opacity 1200ms ease-out, transform 1200ms ease-out' }}
       >
         <div className={`relative overflow-hidden h-72 md:h-auto md:w-1/2 ${reversed ? 'md:order-2' : 'md:order-1'}`} style={{ aspectRatio: '4/3' }}>
           <img

@@ -348,6 +348,8 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
   let skipped = 0;
   let cancelled = 0;
   let updated = 0;
+  const SYNC_ERROR_THRESHOLD = 3;
+  const errors: string[] = [];
 
   try {
     const conferenceRoomId = await getConferenceRoomId();
@@ -540,7 +542,9 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               logger.info(`[Conference Room Sync] Updated booking ${existingBooking.id} time: ${existingDate} ${existingStartTime}-${existingEndTime} → ${eventDate} ${startTime}-${endTime}`);
               updated++;
             } catch (updateErr: unknown) {
+              const errMsg = getErrorMessage(updateErr);
               logger.error('[Conference Room Sync] Error updating booking time:', { error: updateErr, bookingId: existingBooking.id });
+              errors.push(`Update booking ${existingBooking.id}: ${errMsg}`);
               skipped++;
             }
           } else {
@@ -607,9 +611,12 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               });
               if (sessionResult.error) {
                 logger.error('[Conference Room Sync] Session creation returned error for linked booking', { extra: { bookingId: matchedBooking.id, error: sessionResult.error } });
+                errors.push(`Session for linked booking ${matchedBooking.id}: ${sessionResult.error}`);
               }
             } catch (sessionErr: unknown) {
-              logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { error: getErrorMessage(sessionErr) });
+              const errMsg = getErrorMessage(sessionErr);
+              logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { error: errMsg });
+              errors.push(`Session for linked booking ${matchedBooking.id}: ${errMsg}`);
             }
           }
         } else {
@@ -644,9 +651,12 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               });
               if (sessionResult.error) {
                 logger.error('[Conference Room Sync] Session creation returned error for new booking', { extra: { bookingId: newBooking.id, error: sessionResult.error } });
+                errors.push(`Session for new booking ${newBooking.id}: ${sessionResult.error}`);
               }
             } catch (sessionErr: unknown) {
-              logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { error: getErrorMessage(sessionErr) });
+              const errMsg = getErrorMessage(sessionErr);
+              logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { error: errMsg });
+              errors.push(`Session for new booking ${newBooking.id}: ${errMsg}`);
             }
           }
         }
@@ -654,8 +664,14 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
     } while (pageToken);
 
     const synced = linked + created;
-    logger.info(`[Conference Room Sync] Synced ${synced} events (linked: ${linked}, created: ${created}, skipped: ${skipped}, cancelled: ${cancelled}, updated: ${updated})`);
-    return { synced, linked, created, skipped, cancelled, updated };
+    const errorCount = errors.length;
+    if (errorCount >= SYNC_ERROR_THRESHOLD) {
+      logger.warn(`[Conference Room Sync] Completed with ${errorCount} error(s) (threshold: ${SYNC_ERROR_THRESHOLD})`, { extra: { errors: errors.slice(0, 10) } });
+    } else if (errorCount > 0) {
+      logger.info(`[Conference Room Sync] Completed with ${errorCount} minor error(s)`, { extra: { errors } });
+    }
+    logger.info(`[Conference Room Sync] Synced ${synced} events (linked: ${linked}, created: ${created}, skipped: ${skipped}, cancelled: ${cancelled}, updated: ${updated}, errors: ${errorCount})`);
+    return { synced, linked, created, skipped, cancelled, updated, ...(errorCount >= SYNC_ERROR_THRESHOLD ? { warning: `${errorCount} error(s) during sync: ${errors.slice(0, 5).join('; ')}` } : {}) };
   } catch (error: unknown) {
     logger.error('Error syncing conference room calendar to bookings:', { error: getErrorMessage(error) });
     return { synced: 0, linked: 0, created: 0, skipped: 0, cancelled: 0, updated: 0, error: getErrorMessage(error) };

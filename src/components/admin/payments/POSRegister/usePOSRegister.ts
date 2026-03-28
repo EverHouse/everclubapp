@@ -6,6 +6,7 @@ import { useIsMobile } from '../../../../hooks/useBreakpoint';
 import { useCafeMenu } from '../../../../hooks/queries/useCafeQueries';
 import { useMerchItems } from '../../../../hooks/queries/useMerchQueries';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
+import { useToast } from '../../../Toast';
 import type { CafeItem } from '../../../../types/data';
 import {
   type CartItem,
@@ -24,6 +25,7 @@ export function usePOSRegister() {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
   const isMobile = useIsMobile();
+  const { showToast } = useToast();
   const { data: cafeItems, isLoading: cafeLoading } = useCafeMenu();
   const { data: merchItemsData, isLoading: merchLoading } = useMerchItems();
 
@@ -291,9 +293,10 @@ export function usePOSRegister() {
         }
       } catch (err: unknown) {
         console.error('[POS] Failed to save scanned ID image:', err);
+        showToast('Scanned ID image could not be saved', 'error');
       }
     })();
-  }, [success, scannedIdImage, useNewCustomer, newCustomerEmail]);
+  }, [success, scannedIdImage, useNewCustomer, newCustomerEmail, showToast]);
 
   return {
     isDark,
