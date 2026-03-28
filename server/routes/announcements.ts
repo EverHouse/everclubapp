@@ -22,7 +22,7 @@ import {
 import { systemSettings } from '../../shared/models/system';
 import { getErrorMessage } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
-import { globalRateLimiter, sensitiveActionRateLimiter } from '../middleware/rateLimiting';
+import { globalRateLimiter } from '../middleware/rateLimiting';
 
 interface AnnouncementRow {
   id: number;
