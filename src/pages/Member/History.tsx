@@ -73,7 +73,7 @@ const History: React.FC = () => {
   const { data: purchases = [], isLoading: purchasesLoading, refetch: _refetchPurchases } = useQuery({
     queryKey: ['my-purchases', user?.email],
     queryFn: () => fetchWithCredentials<UnifiedPurchase[]>(
-      `/api/my-billing/payment-history`
+      `/api/my-billing/payment-history?email=${encodeURIComponent(user?.email || '')}`
     ),
     enabled: !!user?.email,
   });
