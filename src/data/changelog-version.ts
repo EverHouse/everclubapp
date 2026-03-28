@@ -1,3 +1,3 @@
 export function getLatestVersion(): { version: string; date: string } {
-  return { version: "8.97.80", date: "2026-03-28" };
+  return { version: "8.97.81", date: "2026-03-28" };
 }

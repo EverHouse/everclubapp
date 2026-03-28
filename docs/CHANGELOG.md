@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.81] - 2026-03-28
+
+### Notification Routing Update
+- **Closures/Notices → Staff Only**: All three closure notification paths (morning scheduler, closure creation, same-day publish) now send to staff via `notifyAllStaff` instead of members. Members no longer receive push or in-app notifications for facility closures, private events, or notices.
+- **Files changed**: `server/routes/push.ts`, `server/routes/closures/crud.ts`
+- Cleaned up unused `sendPushNotificationToAllMembers` and `notifyMember` imports from closures/crud.ts.
+
 ## [8.97.80] - 2026-03-28
 
 ### Edge Case & Unhappy Path Hardening (Phase 2)

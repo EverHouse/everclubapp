@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.81",
+    date: "2026-03-28",
+    title: "Notification Routing Update",
+    changes: [
+      "Facility notice and closure notifications are now sent to staff only — members will no longer receive push or in-app notifications for closures, private events, or notices.",
+    ]
+  },
+  {
     version: "8.97.80",
     date: "2026-03-28",
     title: "Edge Case & Unhappy Path Hardening (Phase 2)",

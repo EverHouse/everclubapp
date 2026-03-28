@@ -1,19 +1,18 @@
 import { logger, logAndRespond } from '../../core/logger';
 import { Router } from 'express';
 import { db } from '../../db';
-import { facilityClosures, users, announcements, noticeTypes, closureReasons, notifications } from '../../../shared/schema';
-import { eq, desc, or, isNull, and } from 'drizzle-orm';
+import { facilityClosures, announcements, noticeTypes, closureReasons, notifications } from '../../../shared/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { getCalendarIdByName, CALENDAR_CONFIG } from '../../core/calendar/index';
 import { clearClosureCache } from '../../core/bookingValidation';
 import { broadcastClosureUpdate } from '../../core/websocket';
-import { notifyMember } from '../../core/notificationService';
+import { notifyAllStaff } from '../../core/notificationService';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { getTodayPacific, createPacificDate } from '../../utils/dateUtils';
 import { getCached, setCache, invalidateCache } from '../../core/queryCache';
 import {
-  sendPushNotificationToAllMembers,
   getAffectedBayIds,
   getDatesBetween,
   createAvailabilityBlocksForClosure,
@@ -438,41 +437,21 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
         : `${affectedText} will be closed on ${startDateFormattedNotif}`;
       
       try {
-        const memberUsers = await db
-          .select({ email: users.email })
-          .from(users)
-          .where(or(eq(users.role, 'member'), isNull(users.role)));
-        
-        const membersWithEmails = memberUsers.filter(m => m.email && m.email.trim());
-        
-        if (membersWithEmails.length > 0) {
-          const results = await Promise.allSettled(
-            membersWithEmails.map(m => notifyMember({
-              userEmail: m.email!,
-              title: notificationTitle,
-              message: notificationBody,
-              type: 'closure',
-              relatedId: closureId,
-              relatedType: 'closure',
-              url: '/updates?tab=notices'
-            }))
-          );
-          const failedCount = results.filter(r => r.status === 'rejected').length;
-          logger.info('[Closures] Created in-app notifications for members', { extra: { membersWithEmailsLength: membersWithEmails.length, failedCount } });
-        }
+        await notifyAllStaff(
+          notificationTitle,
+          notificationBody,
+          'closure',
+          {
+            relatedId: closureId,
+            relatedType: 'closure',
+            sendPush: true,
+            sendWebSocket: true,
+            url: '/staff/facility'
+          }
+        );
+        logger.info('[Closures] Sent closure notification to staff', { extra: { closureId } });
       } catch (notifError: unknown) {
-        logger.error('[Closures] Failed to create in-app notifications', { extra: { error: getErrorMessage(notifError) } });
-      }
-      
-      try {
-        await sendPushNotificationToAllMembers({
-          title: notificationTitle,
-          body: notificationBody,
-          url: '/announcements',
-          tag: `closure-${closureId}`
-        });
-      } catch (pushError: unknown) {
-        logger.error('[Closures] Failed to send push notifications', { extra: { error: getErrorMessage(pushError) } });
+        logger.error('[Closures] Failed to send staff notifications', { extra: { error: getErrorMessage(notifError) } });
       }
     }
     
@@ -827,41 +806,20 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
       try {
         const finalTitle = title || existing.title;
         const finalReason = reason !== undefined ? reason : existing.reason;
-        
-        // Format the date for display
-        const [_year, month, day] = finalStartDate.split('-').map(Number);
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const _dateFormatted = `${months[month - 1]} ${day}`;
-        
-        // Send push notification to all members
-        await sendPushNotificationToAllMembers({
-          title: `Today: ${finalTitle}`,
-          body: finalReason ? `${finalReason}` : `Effective today`,
-          url: '/updates?tab=notices',
-          tag: `closure-${closureId}`
-        });
-        
-        // Create in-app notifications for all members
-        const allMembers = await db
-          .select({ email: users.email })
-          .from(users)
-          .where(or(eq(users.role, 'member'), isNull(users.role)));
-        
-        if (allMembers.length > 0) {
-          const results = await Promise.allSettled(
-            allMembers.map(member => notifyMember({
-              userEmail: member.email,
-              title: `Today: ${finalTitle}`,
-              message: finalReason || `${finalTitle} - Effective today`,
-              type: 'closure_today',
-              relatedId: closureId,
-              relatedType: 'closure',
-              url: '/updates?tab=notices'
-            }))
-          );
-          const failedCount = results.filter(r => r.status === 'rejected').length;
-          logger.info('[Closures] Sent same-day publish notification to members for closure #', { extra: { allMembersLength: allMembers.length, closureId, failedCount } });
-        }
+
+        await notifyAllStaff(
+          `Today: ${finalTitle}`,
+          finalReason || `${finalTitle} - Effective today`,
+          'closure_today',
+          {
+            relatedId: closureId,
+            relatedType: 'closure',
+            sendPush: true,
+            sendWebSocket: true,
+            url: '/staff/facility'
+          }
+        );
+        logger.info('[Closures] Sent same-day publish notification to staff for closure #', { extra: { closureId } });
       } catch (notifyError: unknown) {
         logger.error('[Closures] Failed to send publish notifications', { extra: { error: getErrorMessage(notifyError) } });
       }

@@ -440,57 +440,17 @@ export async function sendMorningClosureNotifications() {
     
     results.skipped = todayClosures.length - closuresToNotify.length;
     
-    const isPrivateEvent = (c: typeof closuresToNotify[0]) =>
-      (c.noticeType || '').toLowerCase() === 'private event' ||
-      (c.reason || '').toLowerCase() === 'private event';
-
-    const memberClosures = closuresToNotify.filter(c => !isPrivateEvent(c));
-    const privateEventClosures = closuresToNotify.filter(c => isPrivateEvent(c));
-
-    if (memberClosures.length > 0) {
-      const allMembers = await db
-        .select({ email: users.email })
-        .from(users)
-        .where(or(eq(users.role, 'member'), isNull(users.role)));
-
-      if (allMembers.length > 0) {
-        for (const closure of memberClosures) {
-          const title = closure.noticeType || closure.title || 'Notice';
-          const timeInfo = closure.startTime && closure.endTime 
-            ? ` (${formatTime12Hour(closure.startTime)} - ${formatTime12Hour(closure.endTime)})`
-            : '';
-          const message = closure.reason 
-            ? `${closure.reason}${timeInfo}`
-            : `${title}${timeInfo}`;
-          
-          const uniqueEmails = [...new Set(allMembers.filter(m => m.email).map(m => m.email!))];
-          const closureNotifyResults = await Promise.allSettled(
-            uniqueEmails.map(email =>
-              notifyMember({
-                userEmail: email,
-                title: `Today: ${title}`,
-                message,
-                type: 'closure_today',
-                relatedId: closure.id,
-                relatedType: 'closure',
-                url: '/updates?tab=notices'
-              })
-            )
-          );
-          results.closures += closureNotifyResults.filter(r => r.status === 'fulfilled').length > 0 ? 1 : 0;
-        }
-      }
-    }
-
-    for (const closure of privateEventClosures) {
-      const title = closure.title || 'Private Event';
+    for (const closure of closuresToNotify) {
+      const title = closure.noticeType || closure.title || 'Notice';
       const timeInfo = closure.startTime && closure.endTime 
         ? ` (${formatTime12Hour(closure.startTime)} - ${formatTime12Hour(closure.endTime)})`
         : '';
-      const message = `${title}${timeInfo}`;
+      const message = closure.reason 
+        ? `${closure.reason}${timeInfo}`
+        : `${title}${timeInfo}`;
 
       await notifyAllStaff(
-        `Today: Private Event`,
+        `Today: ${title}`,
         message,
         'closure_today',
         {
@@ -504,7 +464,7 @@ export async function sendMorningClosureNotifications() {
       results.closures++;
     }
     
-    logger.info('[Morning Notifications] Sent closure notifications, skipped (already notified). Push failures', { extra: { resultsClosures: results.closures, resultsSkipped: results.skipped, resultsPushFailed: results.pushFailed, privateEvents: privateEventClosures.length, memberNotices: memberClosures.length } });
+    logger.info('[Morning Notifications] Sent staff closure notifications', { extra: { resultsClosures: results.closures, resultsSkipped: results.skipped, resultsPushFailed: results.pushFailed } });
     
     return {
       success: true,
