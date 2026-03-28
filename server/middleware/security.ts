@@ -4,6 +4,19 @@ import { logger } from '../core/logger';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+const cachedAllowedHostnames: string[] = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => {
+    const trimmed = o.trim();
+    if (!trimmed) return '';
+    try {
+      return new URL(trimmed).hostname;
+    } catch {
+      return trimmed.replace(/^https?:\/\//, '');
+    }
+  })
+  .filter(Boolean);
+
 function isAllowedOrigin(origin: string): boolean {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
   try {
@@ -14,17 +27,7 @@ function isAllowedOrigin(origin: string): boolean {
       const replitDomain = process.env.REPLIT_DEV_DOMAIN;
       if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) return true;
     }
-    const allowedOrigins = process.env.ALLOWED_ORIGINS;
-    if (allowedOrigins) {
-      const allowed = allowedOrigins.split(',').map(o => {
-        try {
-          return new URL(o.trim()).hostname;
-        } catch {
-          return o.trim().replace(/^https?:\/\//, '');
-        }
-      });
-      if (allowed.includes(hostname)) return true;
-    }
+    if (cachedAllowedHostnames.includes(hostname)) return true;
     const replitDomain = process.env.REPLIT_DEV_DOMAIN;
     if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) return true;
     if (hostname === 'everclub.app' || hostname.endsWith('.everclub.app')) return true;

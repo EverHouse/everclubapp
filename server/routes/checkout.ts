@@ -9,7 +9,7 @@ import { logSystemAction } from '../core/auditLog';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { z } from 'zod';
-import { sql } from 'drizzle-orm';
+
 import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
@@ -165,7 +165,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
         migrationStatus: users.migrationStatus,
       })
         .from(users)
-        .where(sql`LOWER(${users.email}) = ${email.toLowerCase()}`)
+        .where(eq(users.email, email.toLowerCase()))
         .limit(1);
 
       if (existingUser?.migrationStatus === 'pending') {
@@ -236,7 +236,7 @@ router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, 
       const [existingUser] = await db
         .select({ membershipStatus: users.membershipStatus })
         .from(users)
-        .where(sql`LOWER(${users.email}) = ${customerEmail.toLowerCase()}`)
+        .where(eq(users.email, customerEmail.toLowerCase()))
         .limit(1);
       accountReady = !!existingUser && existingUser.membershipStatus !== 'pending';
     }
