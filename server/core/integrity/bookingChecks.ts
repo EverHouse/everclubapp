@@ -797,6 +797,44 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
       });
     }
 
+    let repairedCount = 0;
+    for (const row of gapSessions.rows as unknown as UsageLedgerGapRow[]) {
+      try {
+        await db.execute(sql`
+          INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source, created_at)
+          SELECT
+            bp.session_id,
+            bp.user_id,
+            COALESCE(bp.slot_duration, 60),
+            '0.00',
+            '0.00',
+            COALESCE(u.current_tier, 'unknown'),
+            'unpaid',
+            'member_request',
+            NOW()
+          FROM booking_participants bp
+          LEFT JOIN users u ON u.id = bp.user_id
+          WHERE bp.session_id = ${row.session_id}
+            AND bp.participant_type IN ('owner', 'member')
+            AND bp.user_id IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM usage_ledger ul
+              WHERE ul.session_id = bp.session_id
+                AND ul.member_id = bp.user_id
+            )
+        `);
+        repairedCount++;
+      } catch (repairErr: unknown) {
+        logger.error('[DataIntegrity] Failed to auto-repair usage ledger for session', {
+          extra: { sessionId: row.session_id, error: getErrorMessage(repairErr) }
+        });
+      }
+    }
+
+    if (repairedCount > 0) {
+      logger.info('[DataIntegrity] Auto-repaired usage ledger gaps', { extra: { repairedCount, totalGaps: Number(total) } });
+    }
+
     return {
       checkName: 'Usage Ledger Gaps',
       status: Number(total) === 0 ? 'pass' : Number(total) > 20 ? 'fail' : 'warning',
@@ -879,11 +917,30 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
     }
 
     if (Number(total) > 0) {
+      let cancelledCount = 0;
+      for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
+        try {
+          await db.execute(sql`
+            UPDATE booking_requests
+            SET status = 'cancelled',
+                updated_at = NOW(),
+                cancellation_reason = ${'Auto-cancelled: member status is ' + row.membership_status}
+            WHERE id = ${row.id}
+              AND status IN ('approved', 'confirmed')
+          `);
+          cancelledCount++;
+        } catch (cancelErr: unknown) {
+          logger.error('[DataIntegrity] Failed to auto-cancel booking for inactive member', {
+            extra: { bookingId: row.id, error: getErrorMessage(cancelErr) }
+          });
+        }
+      }
+
       try {
         const { notifyAllStaff } = await import('../notificationService');
         await notifyAllStaff(
-          'Inactive Members with Active Bookings',
-          `${total} approved/confirmed booking(s) found for inactive, suspended, or cancelled members. Review required.`,
+          'Inactive Members — Bookings Auto-Cancelled',
+          `${cancelledCount} of ${total} approved/confirmed booking(s) for inactive/suspended/cancelled members were auto-cancelled.`,
           'system_alert',
           { url: '/admin/data-integrity' }
         );

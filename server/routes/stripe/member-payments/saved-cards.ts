@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { isAuthenticated } from '../../../core/middleware';
 import { paymentRateLimiter } from '../../../middleware/rateLimiting';
+import { validateBody } from '../../../middleware/validate';
+import { z } from 'zod';
 import { db } from '../../../db';
 import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../../../types/session';
@@ -13,6 +15,10 @@ import { getBookingInvoiceId, createDraftInvoiceForBooking, finalizeAndPayInvoic
 import { listCustomerPaymentMethods } from '../../../core/stripe/customers';
 import { logger } from '../../../core/logger';
 import { getStripeDeclineMessage } from './shared';
+
+const paySavedCardSchema = z.object({
+  paymentMethodId: z.string().min(1),
+});
 
 const router = Router();
 
@@ -39,7 +45,7 @@ router.get('/api/member/payment-methods', isAuthenticated, async (req: Request, 
   }
 });
 
-router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentRateLimiter, async (req: Request, res: Response) => {
+router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentRateLimiter, validateBody(paySavedCardSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
