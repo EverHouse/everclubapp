@@ -274,6 +274,7 @@ const History: React.FC = () => {
                       guest_pass: 'badge',
                       guest_fee: 'group_add',
                       overage_fee: 'schedule',
+                      booking_fee: 'event_busy',
                       one_time_purchase: 'payments',
                       membership: 'card_membership',
                       cafe: 'local_cafe',
@@ -288,6 +289,7 @@ const History: React.FC = () => {
                       guest_pass: { dark: 'bg-purple-500/20 text-purple-300', light: 'bg-purple-100 text-purple-700' },
                       guest_fee: { dark: 'bg-indigo-500/20 text-indigo-300', light: 'bg-indigo-100 text-indigo-700' },
                       overage_fee: { dark: 'bg-rose-500/20 text-rose-300', light: 'bg-rose-100 text-rose-700' },
+                      booking_fee: { dark: 'bg-amber-500/20 text-amber-300', light: 'bg-amber-100 text-amber-700' },
                       one_time_purchase: { dark: 'bg-accent/20 text-accent', light: 'bg-accent/20 text-brand-green' },
                       membership: { dark: 'bg-accent/20 text-accent', light: 'bg-accent/20 text-brand-green' },
                       cafe: { dark: 'bg-orange-500/20 text-orange-300', light: 'bg-orange-100 text-orange-700' },
@@ -310,6 +312,7 @@ const History: React.FC = () => {
                       const labels: Record<string, string> = {
                         guest_fee: 'Guest Fee',
                         overage_fee: 'Overage',
+                        booking_fee: 'Booking Fee',
                         one_time_purchase: 'Charge',
                         sim_walk_in: 'Simulator',
                         guest_pass: 'Guest Pass',
@@ -396,9 +399,14 @@ const History: React.FC = () => {
                                     </p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
-                                    <p className={`text-lg font-bold ${(purchase.status === 'open' || purchase.status === 'draft') ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-accent' : 'text-brand-green')}`}>
+                                    <p className={`text-lg font-bold ${(purchase.status === 'open' || purchase.status === 'draft' || purchase.status === 'pending') ? (isDark ? 'text-amber-400' : 'text-amber-600') : (isDark ? 'text-accent' : 'text-brand-green')}`}>
                                       {formatCurrency(purchase.amountCents)}
                                     </p>
+                                    {purchase.status === 'pending' && (
+                                      <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                                        Unpaid
+                                      </span>
+                                    )}
                                     {purchase.itemCategory === 'invoice' && (purchase.status === 'open' || purchase.status === 'draft') && (
                                       <button
                                         onClick={() => setPayingInvoice(purchase)}

@@ -1109,8 +1109,81 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       }
     }
 
+    const existingBookingIds = new Set<string>();
+    for (const p of purchases) {
+      if (p.bookingId) existingBookingIds.add(String(p.bookingId));
+    }
+
+    try {
+      const overdueResult = await db.execute(sql`
+        SELECT
+          br.id as booking_id,
+          br.session_id,
+          br.request_date as booking_date,
+          br.start_time,
+          br.end_time,
+          r.name as resource_name,
+          COALESCE(SUM(
+            CASE
+              WHEN bp.payment_status = 'pending'
+              THEN COALESCE(bp.cached_fee_cents, 0)
+              ELSE 0
+            END
+          ), 0)::integer as total_outstanding_cents
+        FROM booking_requests br
+        LEFT JOIN resources r ON br.resource_id = r.id
+        LEFT JOIN booking_participants bp ON bp.session_id = br.session_id
+        WHERE LOWER(br.user_email) = ${userEmail}
+          AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+          AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
+          AND br.session_id IS NOT NULL
+          AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
+          AND br.is_unmatched IS NOT TRUE
+          AND NOT EXISTS (
+            SELECT 1 FROM booking_fee_snapshots bfs
+            WHERE bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')
+          )
+        GROUP BY br.id, br.session_id, br.request_date, br.start_time, br.end_time, r.name
+        HAVING SUM(
+          CASE WHEN bp.payment_status = 'pending'
+               AND COALESCE(bp.cached_fee_cents, 0) > 0
+          THEN 1 ELSE 0 END
+        ) > 0
+        ORDER BY br.request_date DESC
+      `);
+
+      for (const row of overdueResult.rows as Array<Record<string, unknown>>) {
+        const bookingId = row.booking_id as number;
+        if (existingBookingIds.has(String(bookingId)) || invoiceBookingIds.has(String(bookingId))) {
+          continue;
+        }
+
+        const bookingDate = row.booking_date instanceof Date
+          ? row.booking_date.toISOString()
+          : String(row.booking_date || '');
+        const resourceName = (row.resource_name || 'Simulator') as string;
+        const startTime = row.start_time as string || '';
+
+        purchases.push({
+          id: `overdue-${bookingId}`,
+          type: 'stripe',
+          itemName: `Booking fee – ${resourceName}${startTime ? ` (${startTime})` : ''}`,
+          itemCategory: 'booking_fee',
+          amountCents: row.total_outstanding_cents as number,
+          date: bookingDate,
+          status: 'pending',
+          source: 'Stripe',
+          stripePaymentIntentId: null,
+          bookingId,
+        });
+      }
+    } catch (overdueErr: unknown) {
+      logger.warn('[MyBilling] Failed to fetch overdue booking fees for payment history', { error: getErrorMessage(overdueErr) });
+    }
+
     const deduped = purchases.filter(p => {
       if (p.itemCategory === 'invoice') return true;
+      if (p.id.startsWith('overdue-')) return true;
       if (!p.id.startsWith('stripe-')) return true;
       if (p.bookingId && invoiceBookingIds.has(String(p.bookingId)) && p.hostedInvoiceUrl) return true;
       if (p.bookingId && invoiceBookingIds.has(String(p.bookingId))) return false;
