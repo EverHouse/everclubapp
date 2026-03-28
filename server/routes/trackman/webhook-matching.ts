@@ -3,8 +3,7 @@ import { transferRequestParticipantsToSession } from '../../core/trackmanImport'
 import { bookingRequests } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
-import { BOOKING_STATUS, PAYMENT_STATUS, PARTICIPANT_TYPE, RESOURCE_TYPE } from '../../../shared/constants/statuses';
-import type { ParticipantType } from '../../../shared/constants/statuses';
+import { BOOKING_STATUS, PAYMENT_STATUS } from '../../../shared/constants/statuses';
 import {
   calculateDurationMinutes,
 } from './webhook-helpers';
@@ -13,7 +12,8 @@ import { BookingStateService } from '../../core/bookingService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { ensureSessionForBooking, createTxQueryClient } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
-import { createDraftInvoiceForBooking, syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
+import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
+
 import { runConflictCancellationSideEffects } from './webhook-modification';
 
 interface PendingBookingRow {
@@ -31,21 +31,6 @@ interface PendingBookingRow {
 
 interface IdRow {
   id: number;
-}
-
-interface ResourceTypeRow {
-  type: string;
-}
-
-interface ParticipantFeeRow {
-  id: number;
-  display_name: string | null;
-  participant_type: string;
-  cached_fee_cents: number;
-}
-
-interface StripeCustomerRow {
-  stripe_customer_id: string | null;
 }
 
 interface InsertedBookingRow {
@@ -168,46 +153,48 @@ export async function tryAutoApproveBooking(
       extra: { bookingId, trackmanBookingId, email: customerEmail, date: slotDate, time: startTime, sessionId: createdSessionId }
     });
     
-    // Create draft invoice for one-invoice-per-booking model (non-blocking)
     if (createdSessionId) {
       try {
-        const resourceResult = await db.execute(sql`SELECT r.type FROM resources r JOIN booking_requests br ON br.resource_id = r.id WHERE br.id = ${bookingId}`);
-        const resourceTypeRows = resourceResult.rows as unknown as ResourceTypeRow[];
-        const resourceType = resourceTypeRows[0]?.type;
-        if (resourceType !== RESOURCE_TYPE.CONFERENCE_ROOM) {
-          const participantResult = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
-             FROM booking_participants
-             WHERE session_id = ${createdSessionId} AND cached_fee_cents > 0`);
-          const participantFeeRows = participantResult.rows as unknown as ParticipantFeeRow[];
-          if (participantFeeRows.length > 0) {
-            const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${customerEmail}) LIMIT 1`);
-            const stripeRows = userResult.rows as unknown as StripeCustomerRow[];
-            const stripeCustomerId = stripeRows[0]?.stripe_customer_id;
-            if (stripeCustomerId) {
-              const feeLineItems = participantFeeRows.map((row) => ({
-                participantId: row.id,
-                displayName: row.display_name || 'Unknown',
-                participantType: row.participant_type as ParticipantType,
-                overageCents: row.participant_type === PARTICIPANT_TYPE.GUEST ? 0 : row.cached_fee_cents,
-                guestCents: row.participant_type === PARTICIPANT_TYPE.GUEST ? row.cached_fee_cents : 0,
-                totalCents: row.cached_fee_cents,
-              }));
-              const trackmanBookingIdForInvoice = trackmanBookingId;
-              await createDraftInvoiceForBooking({
-                customerId: String(stripeCustomerId),
-                bookingId,
-                sessionId: createdSessionId,
-                trackmanBookingId: trackmanBookingIdForInvoice,
-                feeLineItems,
-                purpose: 'booking_fee',
-              });
-              logger.info('[Trackman Webhook] Created draft invoice for auto-approved booking', { extra: { bookingId, sessionId: createdSessionId } });
-            }
+        const breakdown = await recalculateSessionFees(createdSessionId, 'trackman_webhook');
+        logger.info('[Trackman Webhook] Computed fees for auto-approved booking', {
+          extra: {
+            bookingId,
+            sessionId: createdSessionId,
+            totalCents: breakdown.totals.totalCents,
+            overageCents: breakdown.totals.overageCents,
+            guestCents: breakdown.totals.guestCents,
           }
+        });
+
+        if (breakdown.totals.totalCents > 0) {
+          const ownerUserId = pendingBooking.user_id ? String(pendingBooking.user_id) : null;
+          const prepayResult = await createPrepaymentIntent({
+            sessionId: createdSessionId,
+            bookingId,
+            userId: ownerUserId,
+            userEmail: String(pendingBooking.user_email),
+            userName: pendingBooking.user_name || String(pendingBooking.user_email),
+            totalFeeCents: breakdown.totals.totalCents,
+            feeBreakdown: { overageCents: breakdown.totals.overageCents, guestCents: breakdown.totals.guestCents },
+          });
+
+          if (prepayResult) {
+            logger.info('[Trackman Webhook] Created draft invoice for auto-approved booking', {
+              extra: { bookingId, sessionId: createdSessionId, invoiceId: prepayResult.invoiceId }
+            });
+          } else {
+            logger.info('[Trackman Webhook] Prepayment skipped (exempt or already invoiced)', {
+              extra: { bookingId, sessionId: createdSessionId }
+            });
+          }
+        } else {
+          logger.info('[Trackman Webhook] No fees due for auto-approved booking', {
+            extra: { bookingId, sessionId: createdSessionId }
+          });
         }
-      } catch (invoiceErr: unknown) {
-        logger.warn('[Trackman Webhook] Non-blocking: Failed to create draft invoice for auto-approved booking', {
-          extra: { bookingId, error: getErrorMessage(invoiceErr) }
+      } catch (feeErr: unknown) {
+        logger.warn('[Trackman Webhook] Non-blocking: Fee calculation or invoice creation failed for auto-approved booking', {
+          extra: { bookingId, sessionId: createdSessionId, error: getErrorMessage(feeErr) }
         });
       }
     }

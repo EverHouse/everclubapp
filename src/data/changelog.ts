@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.84",
+    date: "2026-03-28",
+    title: "Fix Missing Invoice on Trackman Auto-Approved Bookings",
+    changes: [
+      "Fixed a bug where bookings auto-approved via Trackman webhook never generated an invoice. The system was checking for pre-calculated fees that hadn't been computed yet, so it always found $0 and silently skipped invoice creation. Now fees are properly calculated before creating the invoice, matching the behavior of staff-approved bookings.",
+    ]
+  },
+  {
     version: "8.97.83",
     date: "2026-03-28",
     title: "Code Audit Bug Fixes",

@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.84] - 2026-03-28
+
+### Fix Missing Invoice on Trackman Auto-Approved Bookings
+- **Fix (Critical)**: Bookings auto-approved via Trackman webhook never generated a draft invoice. Root cause: the inline invoice creation block at lines 172-213 queried `booking_participants` for rows with `cached_fee_cents > 0`, but `recalculateSessionFees` was never called after session creation in the webhook path, so all participants had `cached_fee_cents = 0`. The condition `participantFeeRows.length > 0` was always false, causing silent skip. This is the exact issue behind Matthew Cleaver's missing invoice.
+- **Fix**: Replaced the inline invoice creation block with the same `recalculateSessionFees` → `createPrepaymentIntent` flow used by the staff approval path (`approvalFlow.ts`). This ensures: (1) fees are computed and persisted to `booking_participants.cached_fee_cents`, (2) exemption checks (staff/admin/unlimited tiers) are applied, (3) Stripe customer is created/fetched via `getOrCreateStripeCustomer`, and (4) `createDraftInvoiceForBooking` creates the invoice with proper line items.
+- **Cleanup**: Removed unused `createDraftInvoiceForBooking` and `syncBookingInvoice` imports, unused `ResourceTypeRow`/`ParticipantFeeRow`/`StripeCustomerRow` interfaces, and unused `PARTICIPANT_TYPE`/`RESOURCE_TYPE`/`ParticipantType` imports from `webhook-matching.ts`.
+- **Files changed**: `server/routes/trackman/webhook-matching.ts`
+
 ## [8.97.83] - 2026-03-28
 
 ### Code Audit Bug Fixes
