@@ -330,7 +330,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
       }))
     };
   } catch (error: unknown) {
-    logger.error('[UnifiedFeeService] Error loading session data:', { error: getErrorMessage(error) });
+    logger.error('[UnifiedFeeService] Error loading session data:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -1079,7 +1079,7 @@ export async function applyFeeBreakdownToParticipants(
       totalCents: breakdown.totals.totalCents
     });
   } catch (error: unknown) {
-    logger.error('[UnifiedFeeService] Error applying fee breakdown:', { error: getErrorMessage(error) });
+    logger.error('[UnifiedFeeService] Error applying fee breakdown:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -1102,7 +1102,7 @@ export async function invalidateCachedFees(
       reason
     });
   } catch (error: unknown) {
-    logger.error('[UnifiedFeeService] Error invalidating cached fees:', { error: getErrorMessage(error) });
+    logger.error('[UnifiedFeeService] Error invalidating cached fees:', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -1173,7 +1173,7 @@ export async function recalculateSessionFees(
         }
       }
     } catch (cascadeLookupErr: unknown) {
-      logger.warn('[UnifiedFeeService] Failed to look up cascade sessions (non-blocking)', { error: getErrorMessage(cascadeLookupErr) });
+      logger.warn('[UnifiedFeeService] Failed to look up cascade sessions (non-blocking)', { extra: { error: getErrorMessage(cascadeLookupErr) } });
     }
   }
   

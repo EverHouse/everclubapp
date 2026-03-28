@@ -302,7 +302,7 @@ export async function handleCancellationCascade(
       } catch (notifyError: unknown) {
         const errorMsg = `Failed to notify participant ${member.email}: ${getErrorMessage(notifyError)}`;
         result.errors.push(errorMsg);
-        logger.warn('[cancellation-cascade] ' + errorMsg, { error: notifyError as Error });
+        logger.warn('[cancellation-cascade] ' + errorMsg, { extra: { error: getErrorMessage(notifyError) } });
       }
     }
 
@@ -335,7 +335,7 @@ export async function handleCancellationCascade(
       } catch (refundError: unknown) {
         const errorMsg = `Failed to refund guest pass for ${guest.displayName}: ${getErrorMessage(refundError)}`;
         result.errors.push(errorMsg);
-        logger.warn('[cancellation-cascade] ' + errorMsg, { error: refundError as Error });
+        logger.warn('[cancellation-cascade] ' + errorMsg, { extra: { error: getErrorMessage(refundError) } });
       }
     }
 
@@ -350,7 +350,7 @@ export async function handleCancellationCascade(
           relatedType: 'booking_request'
         });
       } catch (notifyError: unknown) {
-        logger.warn('[cancellation-cascade] Failed to notify owner about guest pass refund', { error: notifyError as Error });
+        logger.warn('[cancellation-cascade] Failed to notify owner about guest pass refund', { extra: { error: getErrorMessage(notifyError) } });
       }
     }
 

@@ -325,8 +325,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
       } catch (opError: unknown) {
         const errorMsg = getErrorMessage(opError);
         logger.error('[rosterService:batch] Operation failed', {
-          error: opError as Error,
-          extra: { bookingId, operationType: op.type }
+          extra: { bookingId, operationType: op.type, error: getErrorMessage(opError) }
         });
         operationResults.push({ type: op.type, success: false, error: errorMsg });
       }
@@ -353,8 +352,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
       }
     } catch (refundErr: unknown) {
       logger.warn('[rosterService:batch] Guest pass refund threw after tx (non-blocking)', {
-        error: refundErr as Error,
-        extra: { bookingId, ownerEmail: refund.ownerEmail, guestName: refund.guestName }
+        extra: { bookingId, ownerEmail: refund.ownerEmail, guestName: refund.guestName, error: getErrorMessage(refundErr) }
       });
     }
   }
@@ -447,15 +445,13 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
           }
         } catch (prepayError: unknown) {
           logger.warn('[rosterService:batch] Failed to create prepayment intent (non-blocking)', {
-            error: prepayError as Error,
-            extra: { sessionId, bookingId }
+            extra: { sessionId, bookingId, error: getErrorMessage(prepayError) }
           });
         }
       }
     } catch (recalcError: unknown) {
       logger.warn('[rosterService:batch] Failed to recalculate session fees (non-blocking)', {
-        error: recalcError as Error,
-        extra: { sessionId, bookingId }
+        extra: { sessionId, bookingId, error: getErrorMessage(recalcError) }
       });
     }
   }

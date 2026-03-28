@@ -70,7 +70,7 @@ export async function notifyAllStaff(
   try {
     await notifyAllStaffRequired(title, message, type, relatedId, relatedType);
   } catch (error: unknown) {
-    logger.error('Failed to insert staff notifications:', { error: getErrorMessage(error) });
+    logger.error('Failed to insert staff notifications:', { extra: { error: getErrorMessage(error) } });
   }
 }
 

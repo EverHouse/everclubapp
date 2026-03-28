@@ -235,7 +235,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
           const postResyncUnlinked = Number((postResyncResult.rows[0] as Record<string, unknown>).count) || 0;
           cafeAutoResynced = syncResult.failed === 0 && postResyncUnlinked === 0;
         } catch (syncErr: unknown) {
-          logger.error(`[Stripe Env] Cafe items auto-resync failed — items cleared but not re-created. Use Admin > Products & Pricing > Sync to retry.`, { error: getErrorMessage(syncErr) });
+          logger.error(`[Stripe Env] Cafe items auto-resync failed — items cleared but not re-created. Use Admin > Products & Pricing > Sync to retry.`, { extra: { error: getErrorMessage(syncErr) } });
         }
       } else {
         for (const item of staleCafeItems) {
@@ -266,7 +266,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
         unlinkedCafeCount = Number((unlinkedCafeResult.rows[0] as Record<string, unknown>).count) || 0;
         cafeAutoResynced = syncResult.failed === 0 && unlinkedCafeCount === 0;
       } catch (syncErr: unknown) {
-        logger.error(`[Stripe Env] Cafe items auto-sync failed. Use Admin > Products & Pricing > Sync to retry.`, { error: getErrorMessage(syncErr) });
+        logger.error(`[Stripe Env] Cafe items auto-sync failed. Use Admin > Products & Pricing > Sync to retry.`, { extra: { error: getErrorMessage(syncErr) } });
       }
     }
 

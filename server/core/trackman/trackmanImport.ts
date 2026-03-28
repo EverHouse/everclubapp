@@ -471,7 +471,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   SELECT 1 FROM booking_participants WHERE session_id = ${existing.sessionId} AND payment_status = 'paid'
                 ) AS has_paid_participants`);
               hasPaidFees = Boolean((paidCheck.rows[0] as unknown as PaidCheckRow)?.has_paid) || Boolean((paidCheck.rows[0] as unknown as PaidCheckRow)?.has_paid_participants);
-            } catch (err) { logger.debug('Failed to parse fee, assuming paid', { error: getErrorMessage(err) }); hasPaidFees = true; }
+            } catch (err) { logger.debug('Failed to parse fee, assuming paid', { extra: { error: getErrorMessage(err) } }); hasPaidFees = true; }
           }
           if (hasPaidFees) {
             logger.warn(`[Trackman Import] SKIPPED free: Cancelled booking #${existing.id} (Trackman ID: ${row.bookingId}) has completed payments — not safe to create duplicate`);
@@ -930,7 +930,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   notes: sql`COALESCE(notes, '') || ' [Auto-resolved: merged with placeholder]'`
                 })
                 .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
-            } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on merge', { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id }); }
+            } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on merge', { extra: { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id } }); }
           }
           
           updatedRows++;
@@ -1027,7 +1027,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                         notes: sql`COALESCE(notes, '') || ' [Auto-resolved: linked to app booking]'`
                       })
                       .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
-                  } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on link', { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id }); }
+                  } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on link', { extra: { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id } }); }
                 }
                 
                 linkedRows++;
@@ -1076,7 +1076,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                         notes: sql`COALESCE(notes, '') || ' [Auto-resolved: booking already exists]'`
                       })
                       .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
-                  } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on existing match', { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id }); }
+                  } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on existing match', { extra: { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id } }); }
                 }
                 
                 matchedRows++;
@@ -1172,7 +1172,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                       notes: sql`COALESCE(notes, '') || ' [Auto-resolved: linked to app booking]'`
                     })
                     .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
-                } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on tolerance link', { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id }); }
+                } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on tolerance link', { extra: { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id } }); }
               }
               
               linkedRows++;
@@ -1312,7 +1312,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     notes: sql`COALESCE(notes, '') || ' [Auto-resolved: ghost booking updated with member info]'`
                   })
                   .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
-              } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on ghost update', { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id }); }
+              } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on ghost update', { extra: { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id } }); }
             }
 
             updatedRows++;
@@ -1517,7 +1517,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                 })
                 .where(eq(trackmanUnmatchedBookings.id, existingUnmatched[0].id));
               logger.info(`[Trackman Import] Auto-resolved legacy entry for booking ${row.bookingId} -> ${matchedEmail}`);
-            } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on create', { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id }); }
+            } catch (e: unknown) { logger.warn('[Trackman Import] Failed to auto-resolve unmatched entry on create', { extra: { error: getErrorMessage(e), unmatchedId: existingUnmatched[0].id } }); }
           }
 
           matchedRows++;

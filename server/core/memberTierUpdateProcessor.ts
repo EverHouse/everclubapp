@@ -96,7 +96,7 @@ export async function processMemberTierUpdate(payload: MemberTierUpdatePayload):
         }
       } catch (stripeErr: unknown) {
         const { getErrorMessage } = await import('../utils/errorUtils');
-        logger.error(`[MemberTierUpdateProcessor] Stripe tier sync failed for ${normalizedEmail} — manual adjustment may be needed`, { error: stripeErr instanceof Error ? stripeErr : new Error(getErrorMessage(stripeErr)) });
+        logger.error(`[MemberTierUpdateProcessor] Stripe tier sync failed for ${normalizedEmail} — manual adjustment may be needed`, { extra: { error: getErrorMessage(stripeErr) } });
       }
     }
 
@@ -150,7 +150,7 @@ export async function processMemberTierUpdate(payload: MemberTierUpdatePayload):
 
     logger.info(`[MemberTierUpdateProcessor] Successfully updated ${normalizedEmail}: ${oldTier || 'None'} → ${newTier}`);
   } catch (error: unknown) {
-    logger.error(`[MemberTierUpdateProcessor] Error updating tier for ${normalizedEmail}:`, { error: getErrorMessage(error) });
+    logger.error(`[MemberTierUpdateProcessor] Error updating tier for ${normalizedEmail}:`, { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }

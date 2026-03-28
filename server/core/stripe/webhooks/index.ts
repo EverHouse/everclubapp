@@ -231,7 +231,7 @@ export async function processStripeWebhook(
   try {
     await sync.processWebhook(payload, signature);
   } catch (sigErr) {
-    logger.warn('[Stripe Webhook] Signature verification failed', { error: getErrorMessage(sigErr as Error) });
+    logger.warn('[Stripe Webhook] Signature verification failed', { extra: { error: getErrorMessage(sigErr) } });
     throw new Error('Webhook signature verification failed');
   }
 
@@ -241,13 +241,13 @@ export async function processStripeWebhook(
     event = await stripe.events.retrieve(minimalParse.id);
   } catch (retrieveErr) {
     logger.warn('[Stripe Webhook] Stripe API retrieve failed, using verified payload', {
-      error: retrieveErr instanceof Error ? retrieveErr : new Error(String(retrieveErr)),
+      extra: { error: getErrorMessage(retrieveErr) },
     });
     try {
       event = JSON.parse(payloadString) as Stripe.Event;
     } catch (parseErr) {
       logger.error('[Stripe Webhook] Failed to parse verified payload', {
-        error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)),
+        extra: { error: getErrorMessage(parseErr) },
       });
       throw new Error('Failed to parse webhook event');
     }
@@ -305,7 +305,7 @@ export async function processStripeWebhook(
         );
         logger.warn(`[Stripe Webhook] Event ${event.id} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
       } catch (dlqErr) {
-        logger.error(`[Stripe Webhook] Failed to write deferred action failure to DLQ for ${event.id}:`, { error: getErrorMessage(dlqErr as Error) });
+        logger.error(`[Stripe Webhook] Failed to write deferred action failure to DLQ for ${event.id}:`, { extra: { error: getErrorMessage(dlqErr) } });
       } finally {
         safeRelease(dlqClient);
       }
@@ -314,10 +314,10 @@ export async function processStripeWebhook(
   } catch (handlerError: unknown) {
     if (!isCommitted) {
       await client.query('ROLLBACK').catch(rbErr =>
-        logger.error(`[Stripe Webhook] Rollback also failed for ${event.id}:`, { error: getErrorMessage(rbErr as Error) })
+        logger.error(`[Stripe Webhook] Rollback also failed for ${event.id}:`, { extra: { error: getErrorMessage(rbErr) } })
       );
     }
-    logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id})${isCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { error: getErrorMessage(handlerError) });
+    logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id})${isCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { extra: { error: getErrorMessage(handlerError) } });
     if (!isCommitted) throw handlerError;
   } finally {
     safeRelease(client);
@@ -371,10 +371,10 @@ export async function replayStripeEvent(
   } catch (handlerError: unknown) {
     if (!replayCommitted) {
       await client.query('ROLLBACK').catch(rbErr =>
-        logger.error(`[Stripe Webhook Replay] Rollback also failed for ${event.id}:`, { error: getErrorMessage(rbErr as Error) })
+        logger.error(`[Stripe Webhook Replay] Rollback also failed for ${event.id}:`, { extra: { error: getErrorMessage(rbErr) } })
       );
     }
-    logger.error(`[Stripe Webhook Replay] Handler failed for ${event.type} (${event.id})${replayCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { error: getErrorMessage(handlerError) });
+    logger.error(`[Stripe Webhook Replay] Handler failed for ${event.type} (${event.id})${replayCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { extra: { error: getErrorMessage(handlerError) } });
     if (!replayCommitted) throw handlerError;
     return { success: true, eventType: event.type, message: `Event committed but deferred actions failed: ${getErrorMessage(handlerError)}` };
   } finally {

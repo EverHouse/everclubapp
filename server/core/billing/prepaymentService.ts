@@ -228,7 +228,7 @@ async function buildParticipantLineItems(
 
     return lineItems.length > 0 ? lineItems : buildFallbackLineItems(aggregateFees);
   } catch (error: unknown) {
-    logger.warn('[Prepayment] Failed to load participant line items, using aggregate fallback', { error: getErrorMessage(error) });
+    logger.warn('[Prepayment] Failed to load participant line items, using aggregate fallback', { extra: { error: getErrorMessage(error) } });
     return buildFallbackLineItems(aggregateFees);
   }
 }

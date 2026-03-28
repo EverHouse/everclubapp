@@ -44,7 +44,7 @@ export async function handleTrialWillEnd(client: PoolClient, subscription: Strip
           type: 'trial_ending',
         }, { sendPush: true });
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to send trial ending notification:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to send trial ending notification:', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -57,11 +57,11 @@ export async function handleTrialWillEnd(client: PoolClient, subscription: Strip
           { sendPush: false }
         );
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to send staff trial ending notification:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to send staff trial ending notification:', { extra: { error: getErrorMessage(err) } });
       }
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling trial_will_end:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling trial_will_end:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;

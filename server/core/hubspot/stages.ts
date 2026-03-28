@@ -15,7 +15,7 @@ async function isLiveStripeEnvironment(): Promise<boolean> {
     const envInfo = await getStripeEnvironmentInfo();
     _isLiveStripeCache = envInfo.isLive;
   } catch (err) {
-    logger.debug('Failed to detect Stripe environment, falling back to deployment check', { error: getErrorMessage(err) });
+    logger.debug('Failed to detect Stripe environment, falling back to deployment check', { extra: { error: getErrorMessage(err) } });
     _isLiveStripeCache = process.env.REPLIT_DEPLOYMENT === '1';
   }
   return _isLiveStripeCache;
@@ -60,7 +60,7 @@ export async function updateContactMembershipStatus(
     logger.info(`[HubSpot] Updated contact ${hubspotContactId} membership_status to ${newStatus}`);
     return true;
   } catch (error: unknown) {
-    logger.error('[HubSpot] Error updating contact membership_status:', { error: getErrorMessage(error) });
+    logger.error('[HubSpot] Error updating contact membership_status:', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }
@@ -148,7 +148,7 @@ export async function syncMemberToHubSpot(
         contactFirstName = nameResult[0]?.firstName || '';
         contactLastName = nameResult[0]?.lastName || '';
       } catch (e: unknown) {
-        logger.warn('[HubSpot Sync] Failed to fetch name for contact creation:', { error: getErrorMessage(e) });
+        logger.warn('[HubSpot Sync] Failed to fetch name for contact creation:', { extra: { error: getErrorMessage(e) } });
       }
       const result = await findOrCreateHubSpotContact(email, contactFirstName, contactLastName);
       if (!result.contactId) {
@@ -174,7 +174,7 @@ export async function syncMemberToHubSpot(
           .limit(1);
         effectiveBillingProvider = userResult[0]?.billingProvider || null;
       } catch (e: unknown) {
-        logger.warn('[HubSpot Stages] Failed to fetch billingProvider for email:', { error: getErrorMessage(e) });
+        logger.warn('[HubSpot Stages] Failed to fetch billingProvider for email:', { extra: { error: getErrorMessage(e) } });
       }
     }
 
@@ -269,7 +269,7 @@ export async function syncMemberToHubSpot(
         );
         lifecycleCleared = true;
       } catch (clearError: unknown) {
-        logger.warn(`[HubSpot Sync] Could not clear lifecyclestage for ${email} before setting to '${targetLifecycleStage}':`, { error: getErrorMessage(clearError) });
+        logger.warn(`[HubSpot Sync] Could not clear lifecyclestage for ${email} before setting to '${targetLifecycleStage}':`, { extra: { error: getErrorMessage(clearError) } });
       }
     }
 
@@ -309,13 +309,13 @@ export async function syncMemberToHubSpot(
           );
           logger.warn(`[HubSpot Sync] Restored lifecyclestage to '${targetLifecycleStage}' for ${email} after update failure`);
         } catch (restoreError: unknown) {
-          logger.error(`[HubSpot Sync] Failed to restore lifecyclestage for ${email} after update failure:`, { error: getErrorMessage(restoreError) });
+          logger.error(`[HubSpot Sync] Failed to restore lifecyclestage for ${email} after update failure:`, { extra: { error: getErrorMessage(restoreError) } });
         }
       }
       throw updateError;
     }
   } catch (error: unknown) {
-    logger.error(`[HubSpot Sync] Error syncing ${email}:`, { error: getErrorMessage(error) });
+    logger.error(`[HubSpot Sync] Error syncing ${email}:`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error), updated: {} };
   }
 }
@@ -356,7 +356,7 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
         displayOrder: idx + 1,
       }));
     } catch (tierErr) {
-      logger.warn('[HubSpot] Failed to fetch tiers from DB for property sync, skipping membership_tier options', { error: getErrorMessage(tierErr) });
+      logger.warn('[HubSpot] Failed to fetch tiers from DB for property sync, skipping membership_tier options', { extra: { error: getErrorMessage(tierErr) } });
     }
 
     const propertiesToCreate = [
@@ -448,7 +448,7 @@ export async function ensureHubSpotPropertiesExist(): Promise<{ success: boolean
     
     return { success: errors.length === 0, created, existing, errors };
   } catch (error: unknown) {
-    logger.error('[HubSpot] Error ensuring properties exist:', { error: getErrorMessage(error) });
+    logger.error('[HubSpot] Error ensuring properties exist:', { extra: { error: getErrorMessage(error) } });
     return { success: false, created, existing, errors: [getErrorMessage(error)] };
   }
 }

@@ -574,7 +574,7 @@ export async function getBookingInvoiceStatus(bookingId: number): Promise<{
       amountDue: invoice.amount_due,
     };
   } catch (err) {
-    logger.warn('[BookingInvoice] Failed to retrieve invoice status', { error: getErrorMessage(err) });
+    logger.warn('[BookingInvoice] Failed to retrieve invoice status', { extra: { error: getErrorMessage(err) } });
     return null;
   }
 }
@@ -805,8 +805,8 @@ export async function finalizeAndPayInvoice(params: {
           : null;
       const piId = rawPi?.id || (typeof stripeErr.payment_intent === 'string' ? stripeErr.payment_intent : undefined);
       logger.error('[BookingInvoice] invoices.pay() failed for saved card', {
-        error: payErr instanceof Error ? payErr : new Error(String(payErr)),
         extra: {
+          error: getErrorMessage(payErr),
           bookingId,
           invoiceId,
           paymentMethodId,

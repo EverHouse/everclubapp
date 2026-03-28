@@ -300,7 +300,7 @@ export async function approveBooking(bookingId: number) {
           logger.error('[Resource Confirmation] Session creation returned error', { extra: { bookingId: updated.id, error: sessionResult.error } });
         }
       } catch (sessionErr: unknown) {
-        logger.error('[Resource Confirmation] Failed to ensure session', { error: sessionErr instanceof Error ? sessionErr : new Error(getErrorMessage(sessionErr)) });
+        logger.error('[Resource Confirmation] Failed to ensure session', { extra: { error: getErrorMessage(sessionErr) } });
       }
     }
 
@@ -556,7 +556,7 @@ export async function isStaffOrAdminEmail(sessionEmail: string): Promise<boolean
       );
       return ((result as unknown as { rows: unknown[] }).rows).length > 0;
     } catch (e: unknown) {
-      logger.warn('[resources] Staff check query failed:', { error: e instanceof Error ? e : new Error(getErrorMessage(e)) });
+      logger.warn('[resources] Staff check query failed:', { extra: { error: getErrorMessage(e) } });
     }
   }
   return false;

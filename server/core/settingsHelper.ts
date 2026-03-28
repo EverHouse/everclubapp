@@ -2,6 +2,7 @@ import { db } from '../db';
 import { systemSettings } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from './logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const settingsCache = new Map<string, { value: string; fetchedAt: number }>();
 const CACHE_TTL_MS = 30_000;
@@ -20,7 +21,7 @@ export async function getSettingValue(key: string, defaultValue?: string): Promi
     }
     return value;
   } catch (error) {
-    logger.error(`[Settings Helper] Failed to read setting ${key}`, { error: error as Error });
+    logger.error(`[Settings Helper] Failed to read setting ${key}`, { extra: { error: getErrorMessage(error) } });
     if (defaultValue !== undefined) {
       settingsCache.set(key, { value: defaultValue, fetchedAt: Date.now() });
     }

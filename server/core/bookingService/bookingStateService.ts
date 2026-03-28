@@ -896,15 +896,14 @@ export class BookingStateService {
           amountCents: params.amountCents,
         });
       } catch (statusErr: unknown) {
-        logger.warn(`[BookingStateService] Non-blocking: failed to mark payment refunded for PI ${params.paymentIntentId}, setting refund_succeeded_sync_failed`, { error: getErrorMessage(statusErr) });
+        logger.warn(`[BookingStateService] Non-blocking: failed to mark payment refunded for PI ${params.paymentIntentId}, setting refund_succeeded_sync_failed`, { extra: { error: getErrorMessage(statusErr) } });
         try {
           await db.execute(sql`UPDATE stripe_payment_intents 
              SET status = 'refund_succeeded_sync_failed', updated_at = NOW() 
              WHERE stripe_payment_intent_id = ${params.paymentIntentId}`);
         } catch (syncErr: unknown) {
           logger.error(`[BookingStateService] CRITICAL: Failed to set refund_succeeded_sync_failed status for PI ${params.paymentIntentId}`, {
-            error: getErrorMessage(syncErr),
-            extra: { paymentIntentId: params.paymentIntentId }
+            extra: { paymentIntentId: params.paymentIntentId, error: getErrorMessage(syncErr) }
           });
         }
       }

@@ -393,7 +393,7 @@ export async function confirmPaymentSuccess(
     });
 
     if (!result.success) {
-      logger.error(`[Stripe] PaymentStatusService failed, marking as requires_reconciliation:`, { error: result.error });
+      logger.error(`[Stripe] PaymentStatusService failed, marking as requires_reconciliation:`, { extra: { error: result.error } });
       if (txClient) {
         await txClient.query(
           `UPDATE stripe_payment_intents 
@@ -441,7 +441,7 @@ export async function confirmPaymentSuccess(
     logger.info(`[Stripe] Payment ${paymentIntentId} confirmed as succeeded (${result.participantsUpdated || 0} participants updated)`);
     return { success: true };
   } catch (error: unknown) {
-    logger.error('[Stripe] Error confirming payment:', { error: getErrorMessage(error) });
+    logger.error('[Stripe] Error confirming payment:', { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -566,7 +566,7 @@ export async function cancelPaymentIntent(
     logger.info(`[Stripe] Payment ${paymentIntentId} canceled`);
     return { success: true };
   } catch (error: unknown) {
-    logger.error('[Stripe] Error canceling payment:', { error: getErrorMessage(error) });
+    logger.error('[Stripe] Error canceling payment:', { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -739,7 +739,7 @@ export async function createBalanceAwarePayment(params: {
           await db.execute(sql`DELETE FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${deductionRecordId}`);
           logger.info(`[Stripe] Rolled back credit consumption of $${(balanceToApply / 100).toFixed(2)} for ${email}`);
         } catch (rollbackErr: unknown) {
-          logger.error(`[Stripe] CRITICAL: Failed to roll back credit consumption for ${email}. Balance txn: ${balanceTransactionId}, amount: $${(balanceToApply / 100).toFixed(2)}`, { error: getErrorMessage(rollbackErr) });
+          logger.error(`[Stripe] CRITICAL: Failed to roll back credit consumption for ${email}. Balance txn: ${balanceTransactionId}, amount: $${(balanceToApply / 100).toFixed(2)}`, { extra: { error: getErrorMessage(rollbackErr) } });
         }
       }
       throw piError;
@@ -765,7 +765,7 @@ export async function createBalanceAwarePayment(params: {
       remainingCents,
     };
   } catch (error: unknown) {
-    logger.error(`[Stripe] Error creating balance-aware payment:`, { error: getErrorMessage(error) });
+    logger.error(`[Stripe] Error creating balance-aware payment:`, { extra: { error: getErrorMessage(error) } });
     return {
       paidInFull: false,
       totalCents: amountCents,
@@ -875,7 +875,7 @@ export async function chargeWithBalance(params: {
       error: paidInvoice.status !== 'paid' ? `Invoice status: ${paidInvoice.status}` : undefined,
     };
   } catch (error: unknown) {
-    logger.error(`[Stripe] Error charging ${purpose} with balance:`, { error: getErrorMessage(error) });
+    logger.error(`[Stripe] Error charging ${purpose} with balance:`, { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       amountFromBalance: 0,

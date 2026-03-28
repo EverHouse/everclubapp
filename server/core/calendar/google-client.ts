@@ -43,7 +43,7 @@ export async function createCalendarEvent(booking: Record<string, unknown>, bayN
     
     return response.data.id || null;
   } catch (error: unknown) {
-    logger.error('Error creating calendar event:', { error: getErrorMessage(error) });
+    logger.error('Error creating calendar event:', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -92,7 +92,7 @@ export async function createCalendarEventOnCalendar(
     
     return response.data.id || null;
   } catch (error: unknown) {
-    logger.error('Error creating calendar event:', { error: getErrorMessage(error) });
+    logger.error('Error creating calendar event:', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -109,7 +109,7 @@ export async function deleteCalendarEvent(eventId: string, calendarId: string = 
     );
     return true;
   } catch (error: unknown) {
-    logger.error('Error deleting calendar event:', { error: getErrorMessage(error) });
+    logger.error('Error deleting calendar event:', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }
@@ -170,7 +170,7 @@ export async function updateCalendarEvent(
       updatedAt: patchResult?.data?.updated ? new Date(patchResult.data.updated) : null,
     };
   } catch (error: unknown) {
-    logger.error('Error updating calendar event:', { error: getErrorMessage(error) });
+    logger.error('Error updating calendar event:', { extra: { error: getErrorMessage(error) } });
     return { success: false };
   }
 }

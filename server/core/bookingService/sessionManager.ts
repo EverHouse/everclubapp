@@ -145,7 +145,7 @@ async function createSessionInner(
     
     return { session, participants: linkedParticipants };
   } catch (error: unknown) {
-    logger.error('[createSession] Error creating session:', { error: getErrorMessage(error) });
+    logger.error('[createSession] Error creating session:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -271,7 +271,7 @@ export async function ensureSessionForBooking(params: {
       } catch (insertErr: unknown) {
         const errMsg = getErrorMessage(insertErr);
         if (errMsg.includes('range lower bound') || errMsg.includes('range upper bound') || getErrorCode(insertErr) === '22000') {
-          logger.warn('[SessionManager] INSERT trigger failed due to corrupt session range data, retrying with bypass', { error: getErrorMessage(insertErr) });
+          logger.warn('[SessionManager] INSERT trigger failed due to corrupt session range data, retrying with bypass', { extra: { error: getErrorMessage(insertErr) } });
         }
         throw insertErr;
       }
@@ -331,7 +331,7 @@ export async function ensureSessionForBooking(params: {
       if (endMinutes <= startMinutes) endMinutes += 1440;
       slotDuration = endMinutes - startMinutes;
       if (slotDuration <= 0) slotDuration = 60;
-    } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', { extra: { error: getErrorMessage(err) } }); }
 
     if (existingOwner.rows.length === 0) {
       await lockClient.query(
@@ -361,12 +361,12 @@ export async function ensureSessionForBooking(params: {
 
       } finally {
         if (manageLockClient) {
-          await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [lockKey]).catch((unlockErr: unknown) => { logger.warn('[SessionManager] Advisory lock release failed', { error: getErrorMessage(unlockErr) }); });
+          await lockClient.query(`SELECT pg_advisory_unlock(hashtext($1))`, [lockKey]).catch((unlockErr: unknown) => { logger.warn('[SessionManager] Advisory lock release failed', { extra: { error: getErrorMessage(unlockErr) } }); });
         }
       }
     } finally {
       if (manageLockClient) {
-        await lockClient.query(`SET statement_timeout = '0'`).catch((resetErr: unknown) => { logger.warn('[SessionManager] Statement timeout reset failed', { error: getErrorMessage(resetErr) }); });
+        await lockClient.query(`SET statement_timeout = '0'`).catch((resetErr: unknown) => { logger.warn('[SessionManager] Statement timeout reset failed', { extra: { error: getErrorMessage(resetErr) } }); });
         safeRelease(lockClient as unknown as PoolClient);
       }
     }
@@ -379,7 +379,7 @@ export async function ensureSessionForBooking(params: {
       throw firstError;
     }
 
-    logger.error('[ensureSessionForBooking] First attempt failed, retrying in 500ms...', { error: getErrorMessage(firstError) });
+    logger.error('[ensureSessionForBooking] First attempt failed, retrying in 500ms...', { extra: { error: getErrorMessage(firstError) } });
 
     await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -387,7 +387,7 @@ export async function ensureSessionForBooking(params: {
       return await attemptSessionCreation();
     } catch (retryError: unknown) {
       const errorMsg = getErrorMessage(retryError);
-      logger.error('[ensureSessionForBooking] Retry also failed, flagging booking for staff review', { error: getErrorMessage(retryError) });
+      logger.error('[ensureSessionForBooking] Retry also failed, flagging booking for staff review', { extra: { error: getErrorMessage(retryError) } });
 
       try {
         const existing = await db
@@ -406,7 +406,7 @@ export async function ensureSessionForBooking(params: {
           .set({ staffNotes: updatedNotes })
           .where(eq(bookingRequests.id, params.bookingId));
       } catch (noteError: unknown) {
-        logger.error('[ensureSessionForBooking] Failed to write staff note on booking', { error: getErrorMessage(noteError) });
+        logger.error('[ensureSessionForBooking] Failed to write staff note on booking', { extra: { error: getErrorMessage(noteError) } });
       }
 
       try {
@@ -418,7 +418,7 @@ export async function ensureSessionForBooking(params: {
           { relatedId: params.bookingId, relatedType: 'booking', url: '/admin/bookings' }
         );
       } catch (alertError: unknown) {
-        logger.error('[ensureSessionForBooking] Failed to send staff alert for session creation failure', { error: getErrorMessage(alertError) });
+        logger.error('[ensureSessionForBooking] Failed to send staff alert for session creation failure', { extra: { error: getErrorMessage(alertError) } });
       }
 
       try {
@@ -430,7 +430,7 @@ export async function ensureSessionForBooking(params: {
           details: { bookingId: params.bookingId, error: errorMsg.substring(0, 200) },
         });
       } catch (sysAlertError: unknown) {
-        logger.error('[ensureSessionForBooking] Failed to persist system alert', { error: getErrorMessage(sysAlertError) });
+        logger.error('[ensureSessionForBooking] Failed to persist system alert', { extra: { error: getErrorMessage(sysAlertError) } });
       }
 
       return { sessionId: 0, created: false, error: errorMsg };
@@ -496,7 +496,7 @@ export async function linkParticipants(
     
     return inserted;
   } catch (error: unknown) {
-    logger.error('[linkParticipants] Error linking participants:', { error: getErrorMessage(error) });
+    logger.error('[linkParticipants] Error linking participants:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -583,7 +583,7 @@ export async function recordUsage(
       });
       return { success: true, alreadyRecorded: true };
     }
-    logger.error('[recordUsage] Error recording usage:', { error: getErrorMessage(error) });
+    logger.error('[recordUsage] Error recording usage:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -682,7 +682,7 @@ export async function createOrFindGuest(
 
     return newGuest.id;
   } catch (error: unknown) {
-    logger.error('[createOrFindGuest] Error:', { error: getErrorMessage(error) });
+    logger.error('[createOrFindGuest] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -696,7 +696,7 @@ export async function linkBookingRequestToSession(
       sql`UPDATE booking_requests SET session_id = ${sessionId}, updated_at = NOW() WHERE id = ${bookingRequestId}`
     );
   } catch (error: unknown) {
-    logger.error('[linkBookingRequestToSession] Error:', { error: getErrorMessage(error) });
+    logger.error('[linkBookingRequestToSession] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -799,7 +799,7 @@ async function deductGuestPassesInternal(
     if (manageTransaction) {
       try { await client.query('ROLLBACK'); } catch (_) { /* rollback best-effort */ }
     }
-    logger.error('[deductGuestPasses] Error:', { error: getErrorMessage(error) });
+    logger.error('[deductGuestPasses] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   } finally {
     if (manageTransaction) safeRelease(client);
@@ -856,8 +856,7 @@ async function resolveUserIdToEmail(userId: string): Promise<string | null> {
     return user?.email || null;
   } catch (error: unknown) {
     logger.error('[resolveUserIdToEmail] Error resolving user ID', { 
-      error: getErrorMessage(error),
-      extra: { userId }
+      extra: { error: getErrorMessage(error), userId }
     });
     return null;
   }
@@ -1346,7 +1345,7 @@ export async function createSessionWithUsageTracking(
 
     } finally {
       if (lockClient) {
-        await lockClient.query(`SELECT pg_advisory_unlock($1)`, [userLockHash]).catch((unlockErr: unknown) => { logger.error('[SessionManager] Advisory lock release failed — lock may remain held until session ends', { error: getErrorMessage(unlockErr), extra: { lockHash: userLockHash } }); });
+        await lockClient.query(`SELECT pg_advisory_unlock($1)`, [userLockHash]).catch((unlockErr: unknown) => { logger.error('[SessionManager] Advisory lock release failed — lock may remain held until session ends', { extra: { error: getErrorMessage(unlockErr), lockHash: userLockHash } }); });
       }
     }
     } finally {
@@ -1355,7 +1354,7 @@ export async function createSessionWithUsageTracking(
       }
     }
   } catch (error: unknown) {
-    logger.error('[createSessionWithUsageTracking] Error:', { error: getErrorMessage(error) });
+    logger.error('[createSessionWithUsageTracking] Error:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),

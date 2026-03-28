@@ -497,7 +497,7 @@ export async function createManualBooking(params: {
         );
       }
     } catch (calErr: unknown) {
-      logger.error('Calendar event creation error', { error: calErr as Error });
+      logger.error('Calendar event creation error', { extra: { error: getErrorMessage(calErr) } });
     }
   }
 
@@ -553,7 +553,7 @@ export async function createManualBooking(params: {
       relatedType: 'booking'
     });
   } catch (notifErr: unknown) {
-    logger.error('Failed to send manual booking notification', { error: notifErr as Error });
+    logger.error('Failed to send manual booking notification', { extra: { error: getErrorMessage(notifErr) } });
   }
 
   bookingEvents.publish('booking_approved', {

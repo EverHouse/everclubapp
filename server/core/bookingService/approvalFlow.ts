@@ -55,7 +55,7 @@ async function appendCalendarFailureNote(bookingId: number): Promise<void> {
       .set({ staffNotes: updatedNotes })
       .where(eq(bookingRequests.id, bookingId));
   } catch (noteErr: unknown) {
-    logger.error('[Booking Approval] Failed to add calendar failure staff note', { error: getErrorMessage(noteErr) });
+    logger.error('[Booking Approval] Failed to add calendar failure staff note', { extra: { error: getErrorMessage(noteErr) } });
   }
 }
 
@@ -622,7 +622,7 @@ async function notifyLinkedMembers(bookingId: number, updated: BookingUpdateResu
           url: '/sims'
         }, { sendPush: true }).catch((err) => {
           logger.error('[approval] Failed to send notification on approval', {
-            error: new Error(getErrorMessage(err))
+            extra: { error: getErrorMessage(err) }
           });
         });
 

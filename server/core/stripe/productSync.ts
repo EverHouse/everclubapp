@@ -253,7 +253,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
           synced++;
         }
       } catch (error: unknown) {
-        logger.error(`[Tier Sync] Error syncing tier ${tier.name}:`, { error: getErrorMessage(error) });
+        logger.error(`[Tier Sync] Error syncing tier ${tier.name}:`, { extra: { error: getErrorMessage(error) } });
         results.push({
           tierId: tier.id,
           tierName: tier.name,
@@ -269,7 +269,7 @@ export async function syncMembershipTiersToStripe(): Promise<{
     logger.info(`[Tier Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
     return { success: true, results, synced, failed, skipped };
   } catch (error: unknown) {
-    logger.error('[Tier Sync] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Tier Sync] Fatal error:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       results,
@@ -304,7 +304,7 @@ export async function getTierSyncStatus(): Promise<Array<{
       stripePriceId: tier.stripePriceId,
     }));
   } catch (error: unknown) {
-    logger.error('[Tier Sync] Error getting status:', { error: getErrorMessage(error) });
+    logger.error('[Tier Sync] Error getting status:', { extra: { error: getErrorMessage(error) } });
     return [];
   }
 }
@@ -400,7 +400,7 @@ export async function cleanupOrphanStripeProducts(): Promise<{
           });
           archived++;
         } catch (archiveError: unknown) {
-          logger.error(`[Stripe Cleanup] Error archiving ${product.name}:`, { error: getErrorMessage(archiveError) });
+          logger.error(`[Stripe Cleanup] Error archiving ${product.name}:`, { extra: { error: getErrorMessage(archiveError) } });
           results.push({
             productId: product.id,
             productName: product.name,
@@ -420,7 +420,7 @@ export async function cleanupOrphanStripeProducts(): Promise<{
     logger.info(`[Stripe Cleanup] Complete: ${archived} archived, ${skipped} skipped, ${errors} errors`);
     return { success: true, archived, skipped, errors, results };
   } catch (error: unknown) {
-    logger.error('[Stripe Cleanup] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Cleanup] Fatal error:', { extra: { error: getErrorMessage(error) } });
     return { success: false, archived, skipped, errors, results };
   }
 }
@@ -510,7 +510,7 @@ export async function archiveStalePricesForProduct(stripeProductId: string, curr
             logger.debug(`[Stale Price Cleanup] Skipped default price ${price.id} on product ${stripeProductId}`);
           } else {
             errors++;
-            logger.error(`[Stale Price Cleanup] Failed to archive price ${price.id}:`, { error: errMsg });
+            logger.error(`[Stale Price Cleanup] Failed to archive price ${price.id}:`, { extra: { error: errMsg } });
           }
         }
       }
@@ -521,7 +521,7 @@ export async function archiveStalePricesForProduct(stripeProductId: string, curr
       }
     }
   } catch (error: unknown) {
-    logger.error(`[Stale Price Cleanup] Error listing prices for ${stripeProductId}:`, { error: getErrorMessage(error) });
+    logger.error(`[Stale Price Cleanup] Error listing prices for ${stripeProductId}:`, { extra: { error: getErrorMessage(error) } });
     errors++;
   }
   const relinkedPriceId = keepPriceId !== currentPriceId ? keepPriceId : undefined;
@@ -569,7 +569,7 @@ export async function archiveAllStalePrices(): Promise<{ totalArchived: number; 
             continue;
           }
         } else {
-          logger.error(`[Stale Price Cleanup] Transient error checking product ${productId} for "${tier.name}":`, { error: msg });
+          logger.error(`[Stale Price Cleanup] Transient error checking product ${productId} for "${tier.name}":`, { extra: { error: msg } });
           totalErrors++;
           continue;
         }
@@ -612,7 +612,7 @@ export async function archiveAllStalePrices(): Promise<{ totalArchived: number; 
 
     logger.info(`[Stale Price Cleanup] Complete: ${totalArchived} prices archived across ${productsProcessed} products, ${productsSkipped} skipped, ${relinked} re-linked`);
   } catch (error: unknown) {
-    logger.error('[Stale Price Cleanup] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Stale Price Cleanup] Fatal error:', { extra: { error: getErrorMessage(error) } });
     totalErrors++;
   }
 
@@ -727,7 +727,7 @@ export async function deduplicateStripeProducts(): Promise<{
     logger.info(`[Stripe Dedup] Complete: ${archived} archived, ${kept} kept, ${errors} errors`);
     return { success: true, archived, kept, errors, results };
   } catch (error: unknown) {
-    logger.error('[Stripe Dedup] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Dedup] Fatal error:', { extra: { error: getErrorMessage(error) } });
     return { success: false, archived, kept, errors, results };
   }
 }

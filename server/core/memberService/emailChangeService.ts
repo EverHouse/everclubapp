@@ -246,7 +246,7 @@ export async function cascadeEmailChange(
               }
             } catch (queueErr: unknown) {
               const queueMsg = `HubSpot sync failed and queue fallback also failed: ${errMsg}; queue error: ${getErrorMessage(queueErr)}`;
-              logger.error(`[EmailChangeService] ${queueMsg}`, { error: getErrorMessage(queueErr) });
+              logger.error(`[EmailChangeService] ${queueMsg}`, { extra: { error: getErrorMessage(queueErr) } });
               warnings.push(queueMsg);
             }
           }
@@ -254,7 +254,7 @@ export async function cascadeEmailChange(
       }
     } catch (syncErr: unknown) {
       const msg = `External sync lookup failed: ${getErrorMessage(syncErr)}`;
-      logger.error(`[EmailChangeService] ${msg}`, { error: getErrorMessage(syncErr) });
+      logger.error(`[EmailChangeService] ${msg}`, { extra: { error: getErrorMessage(syncErr) } });
       warnings.push(msg);
     }
 
@@ -266,7 +266,7 @@ export async function cascadeEmailChange(
       ...(warnings.length > 0 ? { warnings } : {}),
     };
   } catch (error: unknown) {
-    logger.error('[EmailChangeService] Error cascading email change:', { error: getErrorMessage(error) });
+    logger.error('[EmailChangeService] Error cascading email change:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       oldEmail,
@@ -317,7 +317,7 @@ export async function previewEmailChangeImpact(
         tables.push({ tableName: table, columnName: column, rowCount: count });
       }
     } catch (error: unknown) {
-      logger.warn(`[EmailChangeService] Could not check table ${table}:`, { error: getErrorMessage(error) });
+      logger.warn(`[EmailChangeService] Could not check table ${table}:`, { extra: { error: getErrorMessage(error) } });
     }
   }
 

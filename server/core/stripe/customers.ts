@@ -285,8 +285,8 @@ export async function getOrCreateStripeCustomer(
   try {
     stripe = await getStripeClient();
   } catch (error: unknown) {
-    logger.error('[Stripe] Failed to get Stripe client:', { error: getErrorMessage(error) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'initialize Stripe client');
+    logger.error('[Stripe] Failed to get Stripe client:', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'initialize Stripe client');
     throw error;
   }
   
@@ -344,8 +344,8 @@ export async function getOrCreateStripeCustomer(
       stripeErrors.push({ email: searchEmail, error: getErrorMessage(error) });
       
       if (isRateLimitOrNetwork) {
-        logger.error(`[Stripe] Critical error searching for customer ${searchEmail}, aborting to prevent duplicates:`, { error: getErrorMessage(error) });
-        await alertOnExternalServiceError('Stripe', error as Error, `search for customer by email ${searchEmail}`);
+        logger.error(`[Stripe] Critical error searching for customer ${searchEmail}, aborting to prevent duplicates:`, { extra: { error: getErrorMessage(error) } });
+        await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), `search for customer by email ${searchEmail}`);
         const err = new Error(`Stripe unavailable while searching for existing customers - cannot safely create new customer: ${getErrorMessage(error)}`);
         (err as Error & { cause?: unknown }).cause = error;
         throw err;
@@ -408,8 +408,8 @@ export async function getOrCreateStripeCustomer(
       isNew = true;
     }
   } catch (error: unknown) {
-    logger.error('[Stripe] Failed to create/update customer:', { error: getErrorMessage(error) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'create or update customer');
+    logger.error('[Stripe] Failed to create/update customer:', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create or update customer');
     throw error;
   }
 
@@ -513,8 +513,8 @@ export async function syncCustomerMetadataToStripe(
       await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE id = ${user.id}`);
       return { success: false, error: 'Stale customer ID cleared' };
     }
-    logger.error('[Stripe] Failed to sync customer metadata:', { error: getErrorMessage(error) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'sync customer metadata');
+    logger.error('[Stripe] Failed to sync customer metadata:', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'sync customer metadata');
     return { success: false, error: getErrorMessage(error) };
   }
 }

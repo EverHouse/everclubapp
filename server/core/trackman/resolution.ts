@@ -209,7 +209,7 @@ async function insertBookingIfNotExists(
         message: `Your golf simulator booking for ${formattedDate} at ${formatTime(booking.startTime || '')} has been confirmed via Trackman.`,
         type: 'booking_approved'
       }
-    }).catch(err => logger.error(`[Trackman] Booking event publish failed`, { error: new Error(getErrorMessage(err)) }));
+    }).catch(err => logger.error(`[Trackman] Booking event publish failed`, { extra: { error: getErrorMessage(err) } }));
   }
 
   return { inserted: true, finalStatus, bookingId };
@@ -325,7 +325,7 @@ export async function resolveUnmatchedBooking(
         message: `Your golf simulator booking has been confirmed.`,
         type: 'booking_approved'
       }
-    }).catch(err => logger.error(`[Trackman Resolve] Booking event publish failed`, { error: new Error(getErrorMessage(err)) }));
+    }).catch(err => logger.error(`[Trackman Resolve] Booking event publish failed`, { extra: { error: getErrorMessage(err) } }));
   }
 
   let autoResolved = 0;
@@ -403,7 +403,7 @@ export async function resolveUnmatchedBooking(
             message: `Your golf simulator booking has been confirmed.`,
             type: 'booking_approved'
           }
-        }).catch(err => logger.error(`[Trackman Resolve] Auto-resolved booking notification failed`, { error: new Error(getErrorMessage(err)) }));
+        }).catch(err => logger.error(`[Trackman Resolve] Auto-resolved booking notification failed`, { extra: { error: getErrorMessage(err) } }));
       }
 
       await db.update(trackmanUnmatchedBookings)

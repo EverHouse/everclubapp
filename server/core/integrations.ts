@@ -2,6 +2,7 @@ import { Client } from '@hubspot/api-client';
 import { google } from 'googleapis';
 
 import { logger } from './logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 interface OAuthCredentials {
   access_token?: string;
@@ -213,7 +214,7 @@ async function fetchGoogleCalendarToken(): Promise<string> {
       if (attempt < MAX_RETRIES) {
         const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
         logger.warn(`[Google Calendar] Token fetch failed (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms`, {
-          extra: { error: error instanceof Error ? error.message : String(error) },
+          extra: { error: getErrorMessage(error) },
         });
         await new Promise(resolve => setTimeout(resolve, delay));
       }

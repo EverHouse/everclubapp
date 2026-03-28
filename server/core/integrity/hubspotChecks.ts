@@ -25,7 +25,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
     const result = await getHubSpotClientWithFallback();
     hubspot = result.client;
   } catch (err: unknown) {
-    logger.error('[DataIntegrity] HubSpot API error:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] HubSpot API error:', { extra: { error: getErrorMessage(err) } });
     issues.push({
       category: 'sync_mismatch',
       severity: 'info',
@@ -78,7 +78,7 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
         }
       }
     } catch (batchErr: unknown) {
-      logger.warn('[DataIntegrity] HubSpot batch sync read failed, skipping batch:', { error: getErrorMessage(batchErr) });
+      logger.warn('[DataIntegrity] HubSpot batch sync read failed, skipping batch:', { extra: { error: getErrorMessage(batchErr) } });
       issues.push({
         category: 'sync_mismatch',
         severity: 'info',

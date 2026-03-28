@@ -154,7 +154,7 @@ export async function syncTierFeaturesToStripe(): Promise<{
     logger.info(`[Feature Sync] Complete: ${featuresCreated} created, ${featuresAttached} attached, ${featuresRemoved} removed`);
     return { success: true, featuresCreated, featuresAttached, featuresRemoved };
   } catch (error: unknown) {
-    logger.error('[Feature Sync] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Feature Sync] Fatal error:', { extra: { error: getErrorMessage(error) } });
     return { success: false, featuresCreated, featuresAttached, featuresRemoved };
   }
 }
@@ -268,7 +268,7 @@ export async function syncSingleTierFeaturesToStripe(
     logger.info(`[Feature Sync] Single tier "${tier.name}": ${created} created, ${attached} attached, ${removed} removed`);
     return { success: true, attached, removed, created };
   } catch (error: unknown) {
-    logger.error(`[Feature Sync] Error syncing features for tier "${tier.name}":`, { error: getErrorMessage(error) });
+    logger.error(`[Feature Sync] Error syncing features for tier "${tier.name}":`, { extra: { error: getErrorMessage(error) } });
     return { success: false, attached, removed, created };
   }
 }
@@ -384,7 +384,7 @@ export async function syncCafeItemsToStripe(): Promise<{
               logger.info(`[Cafe Sync] Price changed for ${itemName}, creating new price`);
             }
           } catch (err) {
-            logger.debug('[Cafe Sync] Failed to retrieve existing Stripe price, will create new one', { error: getErrorMessage(err) });
+            logger.debug('[Cafe Sync] Failed to retrieve existing Stripe price, will create new one', { extra: { error: getErrorMessage(err) } });
             needNewPrice = true;
           }
         } else {
@@ -427,7 +427,7 @@ export async function syncCafeItemsToStripe(): Promise<{
     logger.info(`[Cafe Sync] Complete: ${synced} synced, ${failed} failed, ${skipped} skipped`);
     return { success: true, synced, failed, skipped };
   } catch (error: unknown) {
-    logger.error('[Cafe Sync] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Cafe Sync] Fatal error:', { extra: { error: getErrorMessage(error) } });
     return { success: false, synced, failed, skipped };
   }
 }
@@ -590,7 +590,7 @@ export async function pullTierFeaturesFromStripe(): Promise<{
     await invalidateTierRegistry();
     return { success: errors.length === 0, tiersUpdated, errors };
   } catch (error: unknown) {
-    logger.error('[Reverse Sync] Fatal error pulling tier features:', { error: getErrorMessage(error) });
+    logger.error('[Reverse Sync] Fatal error pulling tier features:', { extra: { error: getErrorMessage(error) } });
     return { success: false, tiersUpdated, errors: [...errors, getErrorMessage(error)] };
   }
 }
@@ -680,7 +680,7 @@ export async function pullCafeItemsFromStripe(): Promise<{
             priceCents = price.unit_amount || 0;
             stripePriceId = price.id;
           } catch (err) {
-            logger.debug('[Reverse Sync] Failed to retrieve Stripe price by default_price ID', { error: getErrorMessage(err) });
+            logger.debug('[Reverse Sync] Failed to retrieve Stripe price by default_price ID', { extra: { error: getErrorMessage(err) } });
           }
         }
 
@@ -787,7 +787,7 @@ export async function pullCafeItemsFromStripe(): Promise<{
     logger.info(`[Reverse Sync] Cafe items pull complete: ${synced} synced, ${created} created, ${deactivated} deactivated, ${errors.length} errors`);
     return { success: errors.length === 0, synced, created, deactivated, errors };
   } catch (error: unknown) {
-    logger.error('[Reverse Sync] Fatal error pulling cafe items:', { error: getErrorMessage(error) });
+    logger.error('[Reverse Sync] Fatal error pulling cafe items:', { extra: { error: getErrorMessage(error) } });
     return { success: false, synced, created, deactivated, errors: [...errors, getErrorMessage(error)] };
   }
 }

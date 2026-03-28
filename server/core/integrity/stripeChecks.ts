@@ -26,7 +26,7 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
   try {
     stripe = await getStripeClient();
   } catch (err: unknown) {
-    logger.error('[DataIntegrity] Stripe API error:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] Stripe API error:', { extra: { error: getErrorMessage(err) } });
     issues.push({
       category: 'sync_mismatch',
       severity: 'info',
@@ -729,7 +729,7 @@ export async function checkOrphanedStripeSubscriptions(): Promise<IntegrityCheck
   try {
     stripe = await getStripeClient();
   } catch (err: unknown) {
-    logger.error('[DataIntegrity] Stripe API error:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] Stripe API error:', { extra: { error: getErrorMessage(err) } });
     return {
       checkName: 'Orphaned Stripe Subscriptions',
       status: 'warning',

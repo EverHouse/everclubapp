@@ -204,7 +204,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                 joinDate = formatDatePacific(createDate);
               }
             } catch (e: unknown) {
-              logger.error('[MemberSync] Failed to parse createdate:', { error: getErrorMessage(e) });
+              logger.error('[MemberSync] Failed to parse createdate:', { extra: { error: getErrorMessage(e) } });
             }
           }
           
@@ -237,7 +237,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               });
               logger.info(`[MemberSync] Successfully pushed corrected email ${ownerEmail} to HubSpot contact ${contact.id}`);
             } catch (hubspotPushErr: unknown) {
-              logger.error(`[MemberSync] Failed to push email correction to HubSpot for contact ${contact.id}:`, { error: getErrorMessage(hubspotPushErr) });
+              logger.error(`[MemberSync] Failed to push email correction to HubSpot for contact ${contact.id}:`, { extra: { error: getErrorMessage(hubspotPushErr) } });
             }
             email = ownerEmail.toLowerCase();
           }
@@ -404,16 +404,16 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
             try {
               const { syncTierToHubSpot } = await import('./hubspot/members');
               syncTierToHubSpot({ email, newTier: '', oldTier: existingUser[0]?.tier || undefined }).catch(err => {
-                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { error: getErrorMessage(err) });
+                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { extra: { error: getErrorMessage(err) } });
               });
             } catch (err) {
-              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { error: getErrorMessage(err) });
+              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { extra: { error: getErrorMessage(err) } });
             }
           }
           
           if (oldStatus !== status && !isStatusProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
-              logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { error: getErrorMessage(err) });
+              logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { extra: { error: getErrorMessage(err) } });
             });
           }
           
@@ -437,7 +437,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               hubspotIdCollisions++;
             }
           } catch (dupError: unknown) {
-            logger.error(`[MemberSync] Error checking for HubSpot ID collisions:`, { error: getErrorMessage(dupError) });
+            logger.error(`[MemberSync] Error checking for HubSpot ID collisions:`, { extra: { error: getErrorMessage(dupError) } });
           }
           
           const hubspotNotes = contact.properties.membership_notes?.trim();
@@ -551,7 +551,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
               }
             }
           } catch (err: unknown) {
-            logger.error(`[MemberSync] Error fetching merged contacts:`, { error: getErrorMessage(err) });
+            logger.error(`[MemberSync] Error fetching merged contacts:`, { extra: { error: getErrorMessage(err) } });
           }
           
           if (i + BATCH_SIZE < allMergedIds.length) {
@@ -574,7 +574,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
                   .onConflictDoNothing();
                 linkedEmailsAdded++;
               } catch (err: unknown) {
-                logger.error('[MemberSync] Failed to add linked email from HubSpot merge:', { error: getErrorMessage(err) });
+                logger.error('[MemberSync] Failed to add linked email from HubSpot merge:', { extra: { error: getErrorMessage(err) } });
               }
             }
           }
@@ -600,16 +600,16 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
         logger.info(`[MemberSync] Post-sync migration processing: ${migrationResult.succeeded} succeeded, ${migrationResult.failed} failed, ${migrationResult.skipped} skipped`);
       }
     } catch (migrationError: unknown) {
-      logger.error('[MemberSync] Error processing pending migrations after sync:', { error: getErrorMessage(migrationError) });
+      logger.error('[MemberSync] Error processing pending migrations after sync:', { extra: { error: getErrorMessage(migrationError) } });
     }
     
     return { synced, errors };
   } catch (error: unknown) {
-    logger.error('[MemberSync] Fatal error in focused sync:', { error: getErrorMessage(error) });
+    logger.error('[MemberSync] Fatal error in focused sync:', { extra: { error: getErrorMessage(error) } });
     await alertOnSyncFailure(
       'hubspot',
       'Focused member sync from HubSpot',
-      error instanceof Error ? error : new Error(String(error))
+      getErrorMessage(error)
     );
     return { synced: 0, errors: 1 };
   } finally {

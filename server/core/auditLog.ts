@@ -415,7 +415,7 @@ export async function logAdminAction(params: AuditLogParams): Promise<void> {
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log admin action:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to log admin action:', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -447,7 +447,7 @@ export async function logSystemAction(params: SystemActionParams): Promise<void>
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log system action:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to log system action:', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -482,7 +482,7 @@ export async function logMemberAction(params: MemberActionParams): Promise<void>
     
     await db.insert(adminAuditLog).values(entry);
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log member action:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to log member action:', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -515,7 +515,7 @@ export async function logBillingAudit(params: BillingAuditParams): Promise<void>
       actorType: 'staff',
     });
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log billing audit:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to log billing audit:', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -556,7 +556,7 @@ export async function logPaymentAudit(params: PaymentAuditParams): Promise<void>
       actorType: 'staff',
     });
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log payment audit:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to log payment audit:', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -584,7 +584,7 @@ export async function logIntegrityAudit(params: IntegrityAuditParams): Promise<n
     }).returning({ id: adminAuditLog.id });
     return result?.id ?? 0;
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to log integrity audit:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to log integrity audit:', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -640,7 +640,7 @@ export function logFromRequest(
     details: finalDetails,
     req
   }).catch((err) => {
-    logger.error('[auditLog] Failed to log admin action:', { error: getErrorMessage(err) });
+    logger.error('[auditLog] Failed to log admin action:', { extra: { error: getErrorMessage(err) } });
   });
 }
 
@@ -693,7 +693,7 @@ export async function getAuditLogs(params: {
     
     return { logs, total: logs.length };
   } catch (error: unknown) {
-    logger.error('[AuditLog] Failed to fetch audit logs:', { error: getErrorMessage(error) });
+    logger.error('[AuditLog] Failed to fetch audit logs:', { extra: { error: getErrorMessage(error) } });
     return { logs: [], total: 0 };
   }
 }

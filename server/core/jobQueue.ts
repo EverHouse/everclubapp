@@ -141,7 +141,7 @@ async function claimJobs(): Promise<Array<{ id: number; jobType: string; payload
     const isPoolIssue = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
       errMsg.includes('ETIMEDOUT') || errMsg.includes('pool') || errMsg.includes('connection');
     if (isPoolIssue) {
-      logger.warn('[JobQueue] Primary pool failed for claim, falling back to direct pool', { error: errMsg });
+      logger.warn('[JobQueue] Primary pool failed for claim, falling back to direct pool', { extra: { error: errMsg } });
       result = await queryWithRetryDirect(claimQuery, claimParams, 2);
     } else {
       throw primaryErr;
@@ -335,10 +335,10 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
               amountCents: payload.amountCents as number | undefined,
             });
           } catch (statusErr: unknown) {
-            logger.warn(`[JobQueue] Non-blocking: failed to mark payment refunded for PI ${payload.paymentIntentId}`, { error: getErrorMessage(statusErr) });
+            logger.warn(`[JobQueue] Non-blocking: failed to mark payment refunded for PI ${payload.paymentIntentId}`, { extra: { error: getErrorMessage(statusErr) } });
           }
         } catch (refundError: unknown) {
-          logger.error(`[JobQueue] Auto-refund failed for PI ${payload.paymentIntentId} — flagging for manual review`, { error: getErrorMessage(refundError) });
+          logger.error(`[JobQueue] Auto-refund failed for PI ${payload.paymentIntentId} — flagging for manual review`, { extra: { error: getErrorMessage(refundError) } });
           if (payload.sessionId) {
             await queryWithRetry(
               `UPDATE booking_sessions SET needs_review = true, review_reason = $1 WHERE id = $2`,
@@ -417,8 +417,8 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
     
     await markJobCompleted(job.id);
   } catch (error: unknown) {
-    logger.error(`[JobQueue] Job ${job.id} (${jobType}) failed:`, { error: getErrorMessage(error) || error });
-    await markJobFailed(job.id, getErrorMessage(error) || String(error), job.retryCount, job.maxRetries);
+    logger.error(`[JobQueue] Job ${job.id} (${jobType}) failed:`, { extra: { error: getErrorMessage(error) } });
+    await markJobFailed(job.id, getErrorMessage(error), job.retryCount, job.maxRetries);
   }
 }
 
@@ -451,7 +451,7 @@ export function startJobProcessor(intervalMs: number = 5000): void {
   
   setTimeout(() => {
     processJobs().catch(err => {
-      logger.error('[JobQueue] Initial job scan error:', { error: getErrorMessage(err) });
+      logger.error('[JobQueue] Initial job scan error:', { extra: { error: getErrorMessage(err) } });
     });
     
     processingInterval = setInterval(async () => {
@@ -481,11 +481,11 @@ export function startJobProcessor(intervalMs: number = 5000): void {
         const isConnectionIssue = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
           errMsg.includes('connection') || errMsg.includes('ETIMEDOUT') || errMsg.includes('pool');
         if (isConnectionIssue && consecutiveFailures <= 3) {
-          logger.warn(`[JobQueue] Connection issue (attempt ${consecutiveFailures}), backing off:`, { error: errMsg });
+          logger.warn(`[JobQueue] Connection issue (attempt ${consecutiveFailures}), backing off:`, { extra: { error: errMsg } });
         } else {
-          logger.error('[JobQueue] Processing error:', { error: errMsg });
+          logger.error('[JobQueue] Processing error:', { extra: { error: errMsg } });
         }
-        schedulerTracker.recordRun('Job Queue Processor', false, String(error));
+        schedulerTracker.recordRun('Job Queue Processor', false, getErrorMessage(error));
       } finally {
         isProcessingJobs = false;
       }

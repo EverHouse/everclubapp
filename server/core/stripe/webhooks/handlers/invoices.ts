@@ -59,7 +59,7 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
         });
         logger.info(`[Stripe Webhook] Updated payment intent ${invoicePiId} description to: ${invoiceDescription}`);
       } catch (piUpdateErr: unknown) {
-        logger.warn(`[Stripe Webhook] Failed to update payment intent description for ${invoicePiId}`, { error: getErrorMessage(piUpdateErr) });
+        logger.warn(`[Stripe Webhook] Failed to update payment intent description for ${invoicePiId}`, { extra: { error: getErrorMessage(piUpdateErr) } });
       }
     });
   }
@@ -342,7 +342,7 @@ export async function handleInvoicePaymentFailed(client: PoolClient, invoice: In
       await syncMemberToHubSpot({ email: localEmail, status: actualStatus, billingProvider: 'stripe', billingGroupRole: 'Primary' });
       logger.info(`[Stripe Webhook] Synced ${localEmail} payment failure status to HubSpot (actual status: ${actualStatus})`);
     } catch (hubspotError: unknown) {
-      logger.error('[Stripe Webhook] HubSpot sync failed for payment failure:', { error: getErrorMessage(hubspotError) });
+      logger.error('[Stripe Webhook] HubSpot sync failed for payment failure:', { extra: { error: getErrorMessage(hubspotError) } });
     }
   });
 
@@ -398,7 +398,7 @@ export async function handleInvoicePaymentFailed(client: PoolClient, invoice: In
         userEmail: localEmail,
       });
     } catch (alertErr: unknown) {
-      logger.warn('[Stripe Webhook] Failed to send error alert for payment failure:', { error: getErrorMessage(alertErr) });
+      logger.warn('[Stripe Webhook] Failed to send error alert for payment failure:', { extra: { error: getErrorMessage(alertErr) } });
     }
   });
 
@@ -520,7 +520,7 @@ export async function handleInvoicePaymentActionRequired(client: PoolClient, inv
             type: 'billing_alert',
           });
         } catch (err: unknown) {
-          logger.error('[Stripe Webhook] Failed to notify member about payment action required:', { error: getErrorMessage(err) });
+          logger.error('[Stripe Webhook] Failed to notify member about payment action required:', { extra: { error: getErrorMessage(err) } });
         }
       });
     }
@@ -534,7 +534,7 @@ export async function handleInvoicePaymentActionRequired(client: PoolClient, inv
           { sendPush: false }
         );
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to notify staff about payment action required:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to notify staff about payment action required:', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -551,11 +551,11 @@ export async function handleInvoicePaymentActionRequired(client: PoolClient, inv
           },
         });
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to log payment action required:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to log payment action required:', { extra: { error: getErrorMessage(err) } });
       }
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling invoice.payment_action_required:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling invoice.payment_action_required:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;
@@ -603,7 +603,7 @@ export async function handleInvoiceOverdue(client: PoolClient, invoice: InvoiceW
           type: 'outstanding_balance',
         });
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to notify member about overdue invoice:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to notify member about overdue invoice:', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -616,7 +616,7 @@ export async function handleInvoiceOverdue(client: PoolClient, invoice: InvoiceW
           { sendPush: true }
         );
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to notify staff about overdue invoice:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to notify staff about overdue invoice:', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -633,11 +633,11 @@ export async function handleInvoiceOverdue(client: PoolClient, invoice: InvoiceW
           },
         });
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to log overdue invoice:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to log overdue invoice:', { extra: { error: getErrorMessage(err) } });
       }
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling invoice.overdue:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling invoice.overdue:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;

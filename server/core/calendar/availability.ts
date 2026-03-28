@@ -35,7 +35,7 @@ export async function getCalendarBusyTimes(calendarId: string, date: string): Pr
     
     return busyPeriods;
   } catch (error: unknown) {
-    logger.error('Error fetching busy times:', { error: getErrorMessage(error) });
+    logger.error('Error fetching busy times:', { extra: { error: getErrorMessage(error) } });
     return [];
   }
 }

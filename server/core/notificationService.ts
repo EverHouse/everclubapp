@@ -388,9 +388,9 @@ async function deliverViaPush(userEmail: string, payload: PushPayload): Promise<
           staleEndpoints.push(sub.endpoint);
         } else {
           logger.warn(`[Notification] Push subscription delivery failed`, {
-            userEmail,
-            error: getErrorMessage(err) || String(err),
             extra: { 
+              error: getErrorMessage(err),
+              userEmail,
               event: 'notification.push_subscription_failed', 
               statusCode: getErrorStatusCode(err),
               endpointPrefix: sub.endpoint.substring(0, 60)
@@ -750,9 +750,7 @@ export async function notifyAllStaff(
     return { staffCount: staffEmails.length, deliveryResults };
   } catch (error: unknown) {
     logger.error(`[Notification] Staff notification failed`, {
-      error: getErrorMessage(error),
-      cause: error instanceof Error && error.cause ? String(error.cause) : undefined,
-      extra: { event: 'notification.staff_failed', type }
+      extra: { error: getErrorMessage(error), event: 'notification.staff_failed', type }
     });
     
     deliveryResults.push({

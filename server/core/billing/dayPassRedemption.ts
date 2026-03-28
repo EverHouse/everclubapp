@@ -84,8 +84,7 @@ export async function redeemDayPassForBooking(
       return { success: false, remainingUses: 0, error: 'Day pass does not belong to the assigned participant' };
     }
     logger.error('[DayPassRedemption] Failed to redeem day pass', {
-      error: error instanceof Error ? error : new Error(String(error)),
-      extra: { dayPassId, sessionId, bookingId, participantId }
+      extra: { dayPassId, sessionId, bookingId, participantId, error: getErrorMessage(error) }
     });
     return { success: false, remainingUses: 0, error: errorMsg };
   }
@@ -267,8 +266,7 @@ export async function processBookingDayPassRedemptions(
       return { redeemed: 0, errors: [`${email}: Participant already has a day pass assigned (race condition). All redemptions rolled back.`] };
     }
     logger.error('[DayPassRedemption] Batch redemption failed — all rolled back', {
-      error: error instanceof Error ? error : new Error(String(error)),
-      extra: { sessionId, bookingId, redemptionCount: resolvedRedemptions.length }
+      extra: { sessionId, bookingId, redemptionCount: resolvedRedemptions.length, error: getErrorMessage(error) }
     });
     return { redeemed: 0, errors: [`Batch redemption failed: ${errorMsg}. All redemptions rolled back.`] };
   }

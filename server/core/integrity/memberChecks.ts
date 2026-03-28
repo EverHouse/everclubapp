@@ -146,7 +146,7 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
       if (result.status === 'fulfilled' && !result.value.cleaned && result.value.issue) {
         issues.push(result.value.issue);
       } else if (result.status === 'rejected') {
-        logger.warn('[DataIntegrity] Stuck member check batch item failed', { error: result.reason });
+        logger.warn('[DataIntegrity] Stuck member check batch item failed', { extra: { error: getErrorMessage(result.reason) } });
       }
     }
   }
@@ -167,7 +167,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
   try {
     stripe = await getStripeClient();
   } catch (err: unknown) {
-    logger.error('[DataIntegrity] Stripe API error for tier reconciliation:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] Stripe API error for tier reconciliation:', { extra: { error: getErrorMessage(err) } });
     return {
       checkName: 'Tier Reconciliation',
       status: 'warning',
@@ -189,7 +189,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
     const hsResult = await getHubSpotClientWithFallback();
     hubspot = hsResult.client;
   } catch (err: unknown) {
-    logger.error('[DataIntegrity] HubSpot API error for tier reconciliation:', { error: getErrorMessage(err) });
+    logger.error('[DataIntegrity] HubSpot API error for tier reconciliation:', { extra: { error: getErrorMessage(err) } });
   }
 
   const appMembersResult = await db.execute(sql`
@@ -230,7 +230,7 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
           hubspotTierMap.set(contact.id, (contact.properties?.membership_tier || '').toLowerCase().trim());
         }
       } catch (batchErr: unknown) {
-        logger.warn('[DataIntegrity] HubSpot batch tier read failed:', { error: getErrorMessage(batchErr) });
+        logger.warn('[DataIntegrity] HubSpot batch tier read failed:', { extra: { error: getErrorMessage(batchErr) } });
       }
     }
   }

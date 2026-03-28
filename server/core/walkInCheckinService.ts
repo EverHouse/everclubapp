@@ -93,7 +93,7 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
         .catch(err => logger.error(`[WalkInCheckin] Failed to sync visit count to HubSpot:`, { extra: { error: getErrorMessage(err) } }));
     }
 
-    try { broadcastMemberStatsUpdated(member.email, { lifetimeVisits: newVisitCount }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }); }
+    try { broadcastMemberStatsUpdated(member.email, { lifetimeVisits: newVisitCount }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error:', { extra: { error: getErrorMessage(err) } }); }
 
     notifyMember({
       userEmail: member.email,
@@ -141,7 +141,7 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
       membershipStatus: member.membership_status
     };
   } catch (error: unknown) {
-    logger.error(`[WalkInCheckin] Failed to process walk-in check-in:`, { error: error instanceof Error ? error : new Error(String(error)), extra: { memberId: params.memberId, source: params.source } });
+    logger.error(`[WalkInCheckin] Failed to process walk-in check-in:`, { extra: { memberId: params.memberId, source: params.source, error: getErrorMessage(error) } });
     return { success: false, memberName: '', memberEmail: '', tier: null, lifetimeVisits: 0, pinnedNotes: [], membershipStatus: null, error: 'Unable to complete check-in. Please try again or ask staff for help.' };
   }
 }

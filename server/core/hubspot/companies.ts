@@ -100,7 +100,7 @@ export async function syncCompanyToHubSpot(
           }
         }
 
-        logger.warn('[CompanyHubSpot] Error searching for company, will create new one:', { error: getErrorMessage(error) });
+        logger.warn('[CompanyHubSpot] Error searching for company, will create new one:', { extra: { error: getErrorMessage(error) } });
       }
     }
 
@@ -165,7 +165,7 @@ export async function syncCompanyToHubSpot(
           }
         }
       } catch (error: unknown) {
-        logger.warn('[CompanyHubSpot] Error searching for contact:', { error: getErrorMessage(error) });
+        logger.warn('[CompanyHubSpot] Error searching for contact:', { extra: { error: getErrorMessage(error) } });
       }
     }
 
@@ -185,7 +185,7 @@ export async function syncCompanyToHubSpot(
           logger.info(`[CompanyHubSpot] Associated contact ${contactId} with company ${companyId}`);
         }
       } catch (assocError: unknown) {
-        logger.warn('[CompanyHubSpot] Failed to associate contact with company:', { error: getErrorMessage(assocError) });
+        logger.warn('[CompanyHubSpot] Failed to associate contact with company:', { extra: { error: getErrorMessage(assocError) } });
       }
     }
 
@@ -197,7 +197,7 @@ export async function syncCompanyToHubSpot(
 
   } catch (error: unknown) {
     const errorMsg = getErrorMessage(error);
-    logger.error('[CompanyHubSpot] Error syncing company:', { error: getErrorMessage(error) });
+    logger.error('[CompanyHubSpot] Error syncing company:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: errorMsg || 'Failed to sync company to HubSpot'

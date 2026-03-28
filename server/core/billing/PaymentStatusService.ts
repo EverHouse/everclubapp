@@ -212,7 +212,7 @@ export class PaymentStatusService {
       
       return result;
     } catch (error: unknown) {
-      logger.error('[PaymentStatusService] Error marking payment succeeded:', { error: getErrorMessage(error) });
+      logger.error('[PaymentStatusService] Error marking payment succeeded:', { extra: { error: getErrorMessage(error) } });
       return { success: false, error: getErrorMessage(error) };
     }
   }
@@ -285,7 +285,7 @@ export class PaymentStatusService {
       
       return result;
     } catch (error: unknown) {
-      logger.error('[PaymentStatusService] Error marking payment refunded:', { error: getErrorMessage(error) });
+      logger.error('[PaymentStatusService] Error marking payment refunded:', { extra: { error: getErrorMessage(error) } });
       return { success: false, error: getErrorMessage(error) };
     }
   }
@@ -323,7 +323,7 @@ export class PaymentStatusService {
       
       return result;
     } catch (error: unknown) {
-      logger.error('[PaymentStatusService] Error marking payment cancelled:', { error: getErrorMessage(error) });
+      logger.error('[PaymentStatusService] Error marking payment cancelled:', { extra: { error: getErrorMessage(error) } });
       return { success: false, error: getErrorMessage(error) };
     }
   }

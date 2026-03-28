@@ -178,7 +178,7 @@ export async function consumeGuestPassForParticipant(
         error: errorMsg.replace('NO_PASSES_REMAINING:', '')
       };
     }
-    logger.error('[GuestPassConsumer] Error consuming guest pass:', { error: getErrorMessage(error) });
+    logger.error('[GuestPassConsumer] Error consuming guest pass:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: errorMsg
@@ -224,7 +224,7 @@ export async function canUseGuestPass(ownerEmail: string): Promise<{
       total: passes_total as number
     };
   } catch (error: unknown) {
-    logger.error('[GuestPassConsumer] Error checking guest pass availability:', { error: getErrorMessage(error) });
+    logger.error('[GuestPassConsumer] Error checking guest pass availability:', { extra: { error: getErrorMessage(error) } });
     return { canUse: false, remaining: 0, total: 0 };
   }
 }
@@ -273,7 +273,7 @@ export async function refundGuestPassForParticipant(
           }
         }
       } catch (err: unknown) {
-        logger.warn(`[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $${PRICING.GUEST_FEE_DOLLARS}:`, { error: getErrorMessage(err) });
+        logger.warn(`[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $${PRICING.GUEST_FEE_DOLLARS}:`, { extra: { error: getErrorMessage(err) } });
       }
       
       await tx.execute(sql`UPDATE booking_participants 
@@ -319,7 +319,7 @@ export async function refundGuestPassForParticipant(
         });
       }
     } catch (syncErr: unknown) {
-      logger.warn('[GuestPassConsumer] Non-blocking: failed to sync invoice after pass refund', { error: getErrorMessage(syncErr) });
+      logger.warn('[GuestPassConsumer] Non-blocking: failed to sync invoice after pass refund', { extra: { error: getErrorMessage(syncErr) } });
     }
 
     return {
@@ -327,7 +327,7 @@ export async function refundGuestPassForParticipant(
       passesRemaining: remaining
     };
   } catch (error: unknown) {
-    logger.error('[GuestPassConsumer] Error refunding guest pass:', { error: getErrorMessage(error) });
+    logger.error('[GuestPassConsumer] Error refunding guest pass:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error) || 'Failed to refund guest pass'

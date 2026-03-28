@@ -223,7 +223,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               });
               logger.info(`[MemberSync] Successfully pushed corrected email ${ownerEmail} to HubSpot contact ${contact.id}`);
             } catch (hubspotPushErr: unknown) {
-              logger.error(`[MemberSync] Failed to push email correction to HubSpot for contact ${contact.id}:`, { error: getErrorMessage(hubspotPushErr) });
+              logger.error(`[MemberSync] Failed to push email correction to HubSpot for contact ${contact.id}:`, { extra: { error: getErrorMessage(hubspotPushErr) } });
             }
             email = ownerEmail.toLowerCase();
           }
@@ -387,16 +387,16 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             try {
               const { syncTierToHubSpot } = await import('./hubspot/members');
               syncTierToHubSpot({ email, newTier: '', oldTier: existingUser[0]?.tier || undefined }).catch(err => {
-                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { error: getErrorMessage(err) });
+                logger.error(`[MemberSync] Failed to push deactivation to HubSpot for ${email}:`, { extra: { error: getErrorMessage(err) } });
               });
             } catch (err) {
-              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { error: getErrorMessage(err) });
+              logger.error(`[MemberSync] Failed to import syncTierToHubSpot for ${email}:`, { extra: { error: getErrorMessage(err) } });
             }
           }
           
           if (oldStatus !== status && !isStatusProtected) {
             detectAndNotifyStatusChange(email, firstName, lastName, oldStatus, status).catch(err => {
-              logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { error: getErrorMessage(err) });
+              logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { extra: { error: getErrorMessage(err) } });
             });
           }
           
@@ -420,7 +420,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               hubspotIdCollisions++;
             }
           } catch (dupError: unknown) {
-            logger.error(`[MemberSync] Error checking for HubSpot ID collisions:`, { error: getErrorMessage(dupError) });
+            logger.error(`[MemberSync] Error checking for HubSpot ID collisions:`, { extra: { error: getErrorMessage(dupError) } });
           }
           
           const hubspotNotes = contact.properties.membership_notes?.trim();
@@ -534,7 +534,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               }
             }
           } catch (err: unknown) {
-            logger.error(`[MemberSync] Error fetching merged contacts:`, { error: getErrorMessage(err) });
+            logger.error(`[MemberSync] Error fetching merged contacts:`, { extra: { error: getErrorMessage(err) } });
           }
           
           if (i + BATCH_SIZE < allMergedIds.length) {
@@ -578,11 +578,11 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     
     return { synced, errors };
   } catch (error: unknown) {
-    logger.error('[MemberSync] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[MemberSync] Fatal error:', { extra: { error: getErrorMessage(error) } });
     await alertOnSyncFailure(
       'hubspot',
       'Member sync from HubSpot',
-      error instanceof Error ? error : new Error(String(error))
+      getErrorMessage(error)
     );
     return { synced: 0, errors: 1 };
   } finally {
@@ -592,6 +592,6 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
 
 export function triggerMemberSync(): void {
   syncAllMembersFromHubSpot().catch(err => {
-    logger.error('[MemberSync] Background sync failed:', { error: getErrorMessage(err) });
+    logger.error('[MemberSync] Background sync failed:', { extra: { error: getErrorMessage(err) } });
   });
 }

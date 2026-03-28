@@ -196,7 +196,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
             'integration_error'
           );
         } catch (notifyErr: unknown) {
-          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: getErrorMessage(notifyErr) });
+          logger.error('[HubSpot Queue] Failed to notify staff of dead job', { extra: { error: getErrorMessage(notifyErr) } });
         }
         
         stats.failed++;
@@ -265,7 +265,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
               'integration_error'
             );
           } catch (notifyErr: unknown) {
-            logger.error('[HubSpot Queue] Failed to notify staff of dead job', { error: getErrorMessage(notifyErr) });
+            logger.error('[HubSpot Queue] Failed to notify staff of dead job', { extra: { error: getErrorMessage(notifyErr) } });
           }
           stats.failed++;
         }
@@ -356,7 +356,7 @@ export async function recoverStuckProcessingJobs(): Promise<number> {
     
     return result.rowCount || 0;
   } catch (error: unknown) {
-    logger.error('[HubSpot Queue] Error recovering stuck jobs', { error: getErrorMessage(error) });
+    logger.error('[HubSpot Queue] Error recovering stuck jobs', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }

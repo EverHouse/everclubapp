@@ -74,7 +74,7 @@ export async function validateTierWindowAndBalance(
       tier
     };
   } catch (error: unknown) {
-    logger.error('[validateTierWindowAndBalance] Error:', { error: getErrorMessage(error) });
+    logger.error('[validateTierWindowAndBalance] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -114,7 +114,7 @@ export async function getRemainingMinutes(
     
     return Math.max(0, dailyLimit - bookedMinutes);
   } catch (error: unknown) {
-    logger.error('[getRemainingMinutes] Error:', { error: getErrorMessage(error) });
+    logger.error('[getRemainingMinutes] Error:', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -135,7 +135,7 @@ export async function enforceSocialTierRules(
     // The fee calculation system (unifiedFeeService) handles charging guest fees automatically.
     return { allowed: true };
   } catch (error: unknown) {
-    logger.error('[enforceSocialTierRules] Error:', { error: getErrorMessage(error) });
+    logger.error('[enforceSocialTierRules] Error:', { extra: { error: getErrorMessage(error) } });
     return { allowed: true };
   }
 }
@@ -158,7 +158,7 @@ export async function getGuestPassesRemaining(memberEmail: string): Promise<numb
     
     return tierTotal ?? 0;
   } catch (error: unknown) {
-    logger.error('[getGuestPassesRemaining] Error:', { error: getErrorMessage(error) });
+    logger.error('[getGuestPassesRemaining] Error:', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }

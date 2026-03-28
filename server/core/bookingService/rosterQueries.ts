@@ -395,8 +395,7 @@ export async function previewRosterFees(
     );
   } catch (feeError: unknown) {
     logger.warn('[rosterService] Failed to compute unified fee breakdown, using fallback', {
-      error: feeError as Error,
-      extra: { bookingId, sessionId: booking.session_id }
+      extra: { bookingId, sessionId: booking.session_id, error: getErrorMessage(feeError) }
     });
   }
 

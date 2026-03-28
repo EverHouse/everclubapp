@@ -162,11 +162,11 @@ export async function handleSubscriptionScheduleCreated(
           { sendPush: true, url: '/admin/members' }
         );
       } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Staff notification for subscription schedule failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        logger.error('[Stripe Webhook] Staff notification for subscription schedule failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
       }
     });
   } catch (err: unknown) {
-    logger.error('[Stripe Webhook] Error handling subscription_schedule.created:', { error: getErrorMessage(err) });
+    logger.error('[Stripe Webhook] Error handling subscription_schedule.created:', { extra: { error: getErrorMessage(err) } });
     throw err;
   }
 
@@ -229,11 +229,11 @@ export async function handleSubscriptionScheduleUpdated(
           { sendPush: true, url: '/admin/members' }
         );
       } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Staff notification for subscription schedule update failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        logger.error('[Stripe Webhook] Staff notification for subscription schedule update failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
       }
     });
   } catch (err: unknown) {
-    logger.error('[Stripe Webhook] Error handling subscription_schedule.updated:', { error: getErrorMessage(err) });
+    logger.error('[Stripe Webhook] Error handling subscription_schedule.updated:', { extra: { error: getErrorMessage(err) } });
     throw err;
   }
 
@@ -286,11 +286,11 @@ export async function handleSubscriptionScheduleCanceled(
           { sendPush: false, url: '/admin/members' }
         );
       } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Staff notification for schedule cancellation failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        logger.error('[Stripe Webhook] Staff notification for schedule cancellation failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
       }
     });
   } catch (err: unknown) {
-    logger.error('[Stripe Webhook] Error handling subscription_schedule.canceled:', { error: getErrorMessage(err) });
+    logger.error('[Stripe Webhook] Error handling subscription_schedule.canceled:', { extra: { error: getErrorMessage(err) } });
     throw err;
   }
 

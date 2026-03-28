@@ -97,7 +97,7 @@ export async function createInvoice(params: CreateInvoiceParams): Promise<{
       invoice: mapInvoice(updatedInvoice),
     };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error creating invoice:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error creating invoice:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -151,7 +151,7 @@ export async function previewInvoice(params: {
       },
     };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error previewing invoice:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error previewing invoice:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -178,7 +178,7 @@ export async function finalizeAndSendInvoice(invoiceId: string): Promise<{
       invoice: mapInvoice(finalized),
     };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error finalizing invoice:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error finalizing invoice:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -216,7 +216,7 @@ export async function listCustomerInvoices(customerId: string): Promise<{
         isCustomerMissing: true,
       };
     }
-    logger.error('[Stripe Invoices] Error listing invoices:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error listing invoices:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -241,7 +241,7 @@ export async function getInvoice(invoiceId: string): Promise<{
       invoice: mapInvoice(invoice),
     };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error getting invoice:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error getting invoice:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -272,7 +272,7 @@ export async function voidInvoice(invoiceId: string): Promise<{
 
     return { success: true };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error voiding invoice:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error voiding invoice:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -357,7 +357,7 @@ export async function chargeOneTimeFee(params: {
       amountCharged: Math.max(0, amountCharged),
     };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error charging one-time fee:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error charging one-time fee:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),
@@ -790,7 +790,7 @@ export async function finalizeInvoicePaidOutOfBand(invoiceId: string, options?: 
       invoicePdf: paidInvoice.invoice_pdf,
     };
   } catch (error: unknown) {
-    logger.error(`[Stripe Invoices] Error finalizing invoice ${invoiceId}:`, { error: getErrorMessage(error) });
+    logger.error(`[Stripe Invoices] Error finalizing invoice ${invoiceId}:`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -839,7 +839,7 @@ export async function getCustomerPaymentHistory(customerId: string, limit = 50):
       })),
     };
   } catch (error: unknown) {
-    logger.error('[Stripe Invoices] Error getting cached payment history:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Invoices] Error getting cached payment history:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: getErrorMessage(error),

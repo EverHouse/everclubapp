@@ -196,7 +196,7 @@ export async function checkClosureConflict(
 
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkClosureConflict] Error checking closure conflict:', { error: new Error(getErrorMessage(error)) });
+    logger.error('[checkClosureConflict] Error checking closure conflict:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -265,7 +265,7 @@ export async function checkBookingConflict(
         return { hasConflict: true, conflictingBooking: trackmanBayResult.rows[0] as Record<string, unknown>, conflictSource: 'trackman_bay_slot' };
       }
     } catch (err: unknown) {
-      logger.error('[checkBookingConflict] Failed to check trackman_bay_slots', { error: err instanceof Error ? err : new Error(String(err)) });
+      logger.error('[checkBookingConflict] Failed to check trackman_bay_slots', { extra: { error: getErrorMessage(err) } });
       if (getErrorCode(err) !== '42P01') {
         throw err;
       }
@@ -295,7 +295,7 @@ export async function checkBookingConflict(
         return { hasConflict: true, conflictingBooking: unmatchedResult.rows[0] as Record<string, unknown>, conflictSource: 'trackman_unmatched' };
       }
     } catch (err: unknown) {
-      logger.error('[checkBookingConflict] Failed to check trackman_unmatched_bookings', { error: err instanceof Error ? err : new Error(String(err)) });
+      logger.error('[checkBookingConflict] Failed to check trackman_unmatched_bookings', { extra: { error: getErrorMessage(err) } });
       if (getErrorCode(err) !== '42P01') {
         throw err;
       }
@@ -324,7 +324,7 @@ export async function checkBookingConflict(
         return { hasConflict: true, conflictingBooking: sessionResult.rows[0] as Record<string, unknown>, conflictSource: 'booking_session' };
       }
     } catch (err: unknown) {
-      logger.error('[checkBookingConflict] Failed to check booking_sessions', { error: err instanceof Error ? err : new Error(String(err)) });
+      logger.error('[checkBookingConflict] Failed to check booking_sessions', { extra: { error: getErrorMessage(err) } });
       if (getErrorCode(err) !== '42P01') {
         throw err;
       }
@@ -333,7 +333,7 @@ export async function checkBookingConflict(
 
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkBookingConflict] Error checking booking conflict:', { error: new Error(getErrorMessage(error)) });
+    logger.error('[checkBookingConflict] Error checking booking conflict:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -373,7 +373,7 @@ export async function checkAvailabilityBlockConflict(
 
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkAvailabilityBlockConflict] Error checking availability block conflict:', { error: new Error(getErrorMessage(error)) });
+    logger.error('[checkAvailabilityBlockConflict] Error checking availability block conflict:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }

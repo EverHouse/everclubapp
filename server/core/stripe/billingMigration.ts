@@ -226,7 +226,7 @@ export async function executePendingMigration(userId: string, email: string): Pr
 
       return { success: true };
     } catch (stripeError: unknown) {
-      logger.error(`${prefix} Stripe subscription creation failed for ${email}:`, { error: getErrorMessage(stripeError) });
+      logger.error(`${prefix} Stripe subscription creation failed for ${email}:`, { extra: { error: getErrorMessage(stripeError) } });
 
       await db.execute(sql`
         UPDATE users SET billing_provider = 'manual', migration_status = 'failed',
@@ -243,12 +243,12 @@ export async function executePendingMigration(userId: string, email: string): Pr
         'billing_migration'
       );
 
-      await alertOnExternalServiceError('Stripe', stripeError as Error, `billing migration for ${email}`);
+      await alertOnExternalServiceError('Stripe', stripeError instanceof Error ? stripeError : new Error(getErrorMessage(stripeError)), `billing migration for ${email}`);
 
       return { success: false, error: errorMsg };
     }
   } catch (error: unknown) {
-    logger.error(`${prefix} Unexpected error during migration for ${email}:`, { error: getErrorMessage(error) });
+    logger.error(`${prefix} Unexpected error during migration for ${email}:`, { extra: { error: getErrorMessage(error) } });
     await db.execute(sql`
       UPDATE users SET migration_status = 'failed', mindbody_cancellation_detected_at = NULL, updated_at = NOW()
       WHERE id = ${userId}
@@ -348,7 +348,7 @@ export async function processPendingMigrations(): Promise<{
 
     return result;
   } catch (error: unknown) {
-    logger.error(`${prefix} Error processing pending migrations:`, { error: getErrorMessage(error) });
+    logger.error(`${prefix} Error processing pending migrations:`, { extra: { error: getErrorMessage(error) } });
     return result;
   }
 }

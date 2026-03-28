@@ -95,7 +95,7 @@ async function saveDailyStateToDb(): Promise<void> {
   try {
     await db.execute(sql`INSERT INTO system_settings (key, value, category, updated_at) VALUES ('alert_rate_limits', ${JSON.stringify(dailyState)}, 'system', NOW()) ON CONFLICT (key) DO UPDATE SET value = ${JSON.stringify(dailyState)}, updated_at = NOW()`);
   } catch (err) {
-    logger.warn('[ErrorAlert] Could not persist rate limits to database', { error: getErrorMessage(err) });
+    logger.warn('[ErrorAlert] Could not persist rate limits to database', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -129,7 +129,7 @@ function canSendAlert(key: string): boolean {
 function recordAlertSent(key: string): void {
   dailyState.keyLastSent[key] = Date.now();
   dailyState.alertsToday++;
-  saveDailyStateToDb().catch((err: unknown) => logger.error('[Alerts] Record alert sent error:', { error: getErrorMessage(err) }));
+  saveDailyStateToDb().catch((err: unknown) => logger.error('[Alerts] Record alert sent error:', { extra: { error: getErrorMessage(err) } }));
 }
 
 export type AlertType = 

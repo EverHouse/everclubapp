@@ -219,12 +219,12 @@ export async function getDailyUsageFromLedger(
         });
       }
     } catch (checkError: unknown) {
-      logger.warn('[getDailyUsageFromLedger] Ledger consistency check failed:', { error: getErrorMessage(checkError) });
+      logger.warn('[getDailyUsageFromLedger] Ledger consistency check failed:', { extra: { error: getErrorMessage(checkError) } });
     }
 
     return parseInt((result.rows[0] as { total_minutes: string }).total_minutes as string, 10) || 0;
   } catch (error: unknown) {
-    logger.error('[getDailyUsageFromLedger] Error:', { error: getErrorMessage(error) });
+    logger.error('[getDailyUsageFromLedger] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -254,7 +254,7 @@ export async function getGuestPassInfo(
     const remaining = Math.max(0, effectiveTotal - row.passes_used);
     return { remaining, hasGuestPassBenefit: true };
   } catch (error: unknown) {
-    logger.error('[getGuestPassInfo] Error:', { error: getErrorMessage(error) });
+    logger.error('[getGuestPassInfo] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -616,7 +616,7 @@ export async function assignGuestTimeToHost(
       guestPassUsed
     };
   } catch (error: unknown) {
-    logger.error('[assignGuestTimeToHost] Error:', { error: getErrorMessage(error) });
+    logger.error('[assignGuestTimeToHost] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -803,7 +803,7 @@ export async function recalculateSessionFees(
       participantsUpdated
     };
   } catch (error: unknown) {
-    logger.error('[recalculateSessionFees] Error:', { error: getErrorMessage(error) });
+    logger.error('[recalculateSessionFees] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }

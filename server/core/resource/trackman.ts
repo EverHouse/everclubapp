@@ -6,6 +6,7 @@ import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { AppError } from '../errors';
 import { ensureDateString } from '../../utils/dateTimeUtils';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface DrizzleExecuteResult<T = Record<string, unknown>> {
   rows?: T[];
@@ -133,7 +134,7 @@ export async function getBookingDataForTrackman(trackmanBookingId: string) {
         ? JSON.parse(webhookRow.payload) 
         : webhookRow.payload as unknown as TrackmanPayloadData;
     } catch (parseErr) {
-      logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
+      logger.error('[resourceService] Failed to parse trackman webhook payload', { extra: { trackmanBookingId, error: getErrorMessage(parseErr) } });
       payload = {};
     }
     const data = ((payload?.data || payload?.booking || {}) as unknown as TrackmanPayloadData);
@@ -254,7 +255,7 @@ export async function linkTrackmanToMember(
           ? JSON.parse(webhookLog.payload) 
           : webhookLog.payload as unknown as TrackmanPayloadData;
       } catch (parseErr) {
-        logger.error('[resourceService] Failed to parse trackman webhook payload', { error: parseErr instanceof Error ? parseErr : new Error(String(parseErr)), extra: { trackmanBookingId } });
+        logger.error('[resourceService] Failed to parse trackman webhook payload', { extra: { trackmanBookingId, error: getErrorMessage(parseErr) } });
         throw new AppError(500, 'Failed to parse webhook payload data');
       }
       const bookingData = ((payload?.data || payload?.booking || {}) as unknown as TrackmanPayloadData);

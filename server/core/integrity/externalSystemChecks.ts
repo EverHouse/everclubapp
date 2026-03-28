@@ -122,7 +122,7 @@ export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
       });
     }
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Cross-system drift check error:', { error: error as Error });
+    logger.error('[DataIntegrity] Cross-system drift check error:', { extra: { error: getErrorMessage(error) } });
     issues.push({
       category: 'sync_mismatch',
       severity: 'info',
@@ -213,7 +213,7 @@ export async function checkEmailDeliveryHealth(): Promise<IntegrityCheckResult> 
       });
     }
   } catch (error: unknown) {
-    logger.error('[DataIntegrity] Email delivery health check error:', { error: error as Error });
+    logger.error('[DataIntegrity] Email delivery health check error:', { extra: { error: getErrorMessage(error) } });
   }
 
   return {
@@ -311,7 +311,7 @@ export async function reconcileRecentlyActivatedHubSpotSync(): Promise<{
       logger.info(`[HubSpot Reconciliation] Enqueued ${result.enqueued} contact creation jobs for recently-activated members`);
     }
   } catch (error: unknown) {
-    logger.error('[HubSpot Reconciliation] Reconciliation check failed:', { error: getErrorMessage(error) });
+    logger.error('[HubSpot Reconciliation] Reconciliation check failed:', { extra: { error: getErrorMessage(error) } });
     result.errors.push(`Reconciliation failed: ${getErrorMessage(error)}`);
   }
 

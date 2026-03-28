@@ -436,8 +436,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       });
     }).catch((notifError: unknown) => {
       logger.warn('[rosterService] Failed to send notification (non-blocking)', {
-        error: notifError as Error,
-        extra: { bookingId, memberEmail: nd.memberEmail }
+        extra: { bookingId, memberEmail: nd.memberEmail, error: getErrorMessage(notifError) }
       });
     });
   }
@@ -466,8 +465,7 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       }
     } catch (refundErr: unknown) {
       logger.warn('[rosterService] Failed to refund guest pass after tx (non-blocking)', {
-        error: refundErr as Error,
-        extra: { bookingId, ownerEmail: gpRefund.ownerEmail }
+        extra: { bookingId, ownerEmail: gpRefund.ownerEmail, error: getErrorMessage(refundErr) }
       });
     }
   }
@@ -558,15 +556,13 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
           }
         } catch (prepayError: unknown) {
           logger.warn('[rosterService] Failed to create prepayment intent (non-blocking)', {
-            error: prepayError as Error,
-            extra: { sessionId, bookingId }
+            extra: { sessionId, bookingId, error: getErrorMessage(prepayError) }
           });
         }
       }
     } catch (recalcError: unknown) {
       logger.warn('[rosterService] Failed to recalculate session fees (non-blocking)', {
-        error: recalcError as Error,
-        extra: { sessionId: txResult.sessionId, bookingId }
+        extra: { sessionId: txResult.sessionId, bookingId, error: getErrorMessage(recalcError) }
       });
     }
   }

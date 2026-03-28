@@ -35,7 +35,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
         await stripe.products.update(rawStripeProductIdForDeactivation, { active: false });
         logger.info(`[AutoPush] Archived Stripe product ${rawStripeProductIdForDeactivation} for deactivated tier "${tierRow.name}"`);
       } catch (archiveErr: unknown) {
-        logger.error(`[AutoPush] Failed to archive Stripe product for tier "${tierRow.name}":`, { error: getErrorMessage(archiveErr) });
+        logger.error(`[AutoPush] Failed to archive Stripe product for tier "${tierRow.name}":`, { extra: { error: getErrorMessage(archiveErr) } });
       }
       return { success: true, stripeProductId: rawStripeProductIdForDeactivation };
     }
@@ -159,7 +159,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
 
     if (isSubscription && stripeProductId) {
       syncSingleTierFeaturesToStripe(normalizedTier as TierRecord, stripeProductId).catch(err => {
-        logger.error(`[AutoPush] Background feature sync failed for tier "${tierRow.name}":`, { error: getErrorMessage(err) });
+        logger.error(`[AutoPush] Background feature sync failed for tier "${tierRow.name}":`, { extra: { error: getErrorMessage(err) } });
       });
     }
 
@@ -223,7 +223,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
             logger.info(`[AutoPush] Archived ${archiveResult.archived} stale price(s) for tier "${tierRow.name}"`);
           }
         } catch (err) {
-          logger.error(`[AutoPush] Stale price cleanup failed for tier "${tierRow.name}":`, { error: getErrorMessage(err) });
+          logger.error(`[AutoPush] Stale price cleanup failed for tier "${tierRow.name}":`, { extra: { error: getErrorMessage(err) } });
         }
 
         logger.info(`[AutoPush] Created new price ${stripePriceId} for tier "${tierRow.name}"`);
@@ -247,7 +247,7 @@ export async function autoPushTierToStripe(tierRow: Record<string, unknown> & { 
 
     return { success: true, stripeProductId: stripeProductId || undefined, stripePriceId: stripePriceId || undefined };
   } catch (error: unknown) {
-    logger.error(`[AutoPush] Error pushing tier "${tierRow.name}" to Stripe:`, { error: getErrorMessage(error) });
+    logger.error(`[AutoPush] Error pushing tier "${tierRow.name}" to Stripe:`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -383,7 +383,7 @@ export async function autoPushCafeItemToStripe(item: {
           logger.info(`[AutoPush] Archived ${archiveResult.archived} stale price(s) for cafe item "${item.name}"`);
         }
       } catch (err) {
-        logger.error(`[AutoPush] Stale price cleanup failed for cafe item "${item.name}":`, { error: getErrorMessage(err) });
+        logger.error(`[AutoPush] Stale price cleanup failed for cafe item "${item.name}":`, { extra: { error: getErrorMessage(err) } });
       }
 
       logger.info(`[AutoPush] Created new price ${stripePriceId} for cafe item "${item.name}"`);
@@ -393,7 +393,7 @@ export async function autoPushCafeItemToStripe(item: {
 
     return { success: true, stripeProductId: stripeProductId || undefined, stripePriceId: stripePriceId || undefined };
   } catch (error: unknown) {
-    logger.error(`[AutoPush] Error pushing cafe item "${item.name}" to Stripe:`, { error: getErrorMessage(error) });
+    logger.error(`[AutoPush] Error pushing cafe item "${item.name}" to Stripe:`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -421,7 +421,7 @@ export async function autoPushMerchItemToStripe(item: {
         await stripe.products.update(item.stripeProductId, { active: false });
         logger.info(`[AutoPush] Archived Stripe product ${item.stripeProductId} for deactivated merch item "${item.name}"`);
       } catch (archiveErr: unknown) {
-        logger.error(`[AutoPush] Failed to archive Stripe product for merch item "${item.name}":`, { error: getErrorMessage(archiveErr) });
+        logger.error(`[AutoPush] Failed to archive Stripe product for merch item "${item.name}":`, { extra: { error: getErrorMessage(archiveErr) } });
       }
       return { success: true, stripeProductId: item.stripeProductId };
     }
@@ -550,7 +550,7 @@ export async function autoPushMerchItemToStripe(item: {
       await stripe.products.update(stripeProductId, { default_price: stripePriceId });
 
       archiveStalePricesForProduct(stripeProductId, stripePriceId).catch(err => {
-        logger.error(`[AutoPush] Background stale price cleanup failed for merch item "${item.name}":`, { error: getErrorMessage(err) });
+        logger.error(`[AutoPush] Background stale price cleanup failed for merch item "${item.name}":`, { extra: { error: getErrorMessage(err) } });
       });
 
       logger.info(`[AutoPush] Created new price ${stripePriceId} for merch item "${item.name}"`);
@@ -560,7 +560,7 @@ export async function autoPushMerchItemToStripe(item: {
 
     return { success: true, stripeProductId: stripeProductId || undefined, stripePriceId: stripePriceId || undefined };
   } catch (error: unknown) {
-    logger.error(`[AutoPush] Error pushing merch item "${item.name}" to Stripe:`, { error: getErrorMessage(error) });
+    logger.error(`[AutoPush] Error pushing merch item "${item.name}" to Stripe:`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }
@@ -657,7 +657,7 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
           logger.info(`[AutoPush] Archived ${archiveResult.archived} stale price(s) for fee "${slug}"`);
         }
       } catch (err) {
-        logger.error(`[AutoPush] Stale price cleanup failed for fee "${slug}":`, { error: getErrorMessage(err) });
+        logger.error(`[AutoPush] Stale price cleanup failed for fee "${slug}":`, { extra: { error: getErrorMessage(err) } });
       }
 
       await db.update(feeProducts)
@@ -674,7 +674,7 @@ export async function autoPushFeeToStripe(slug: string, priceCents: number): Pro
 
     return { success: true };
   } catch (error: unknown) {
-    logger.error(`[AutoPush] Error pushing fee "${slug}" to Stripe:`, { error: getErrorMessage(error) });
+    logger.error(`[AutoPush] Error pushing fee "${slug}" to Stripe:`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }

@@ -19,7 +19,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
     try {
       await handlePrimarySubscriptionCancelled(subscriptionId);
     } catch (groupErr: unknown) {
-      logger.error('[Stripe Webhook] Error in handlePrimarySubscriptionCancelled:', { error: getErrorMessage(groupErr) });
+      logger.error('[Stripe Webhook] Error in handlePrimarySubscriptionCancelled:', { extra: { error: getErrorMessage(groupErr) } });
     }
 
     const userResult = await client.query(
@@ -71,7 +71,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
           await syncMemberToHubSpot({ email: deferredEmail, status: 'paused', billingProvider: 'stripe', billingGroupRole: 'Primary' });
           logger.info(`[Stripe Webhook] Synced ${deferredEmail} status=paused to HubSpot`);
         } catch (hubspotError: unknown) {
-          logger.error('[Stripe Webhook] HubSpot sync failed for status paused:', { error: getErrorMessage(hubspotError) });
+          logger.error('[Stripe Webhook] HubSpot sync failed for status paused:', { extra: { error: getErrorMessage(hubspotError) } });
         }
 
         try {
@@ -82,7 +82,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
             type: 'membership_failed',
           });
         } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
         }
 
         try {
@@ -93,7 +93,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
             { sendPush: true, sendWebSocket: true }
           );
         } catch (notifyErr: unknown) {
-          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+          logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
         }
       });
 
@@ -144,7 +144,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
               { sendPush: true }
             );
           } catch (notifyErr: unknown) {
-            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+            logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
           }
         });
       }
@@ -238,7 +238,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
                 { sendPush: true }
               );
             } catch (notifyErr: unknown) {
-              logger.warn('[Stripe Webhook] Failed to notify staff about auto-cancelled bookings:', { error: getErrorMessage(notifyErr) });
+              logger.warn('[Stripe Webhook] Failed to notify staff about auto-cancelled bookings:', { extra: { error: getErrorMessage(notifyErr) } });
             }
           }
 
@@ -247,7 +247,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
           }
         }
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Error auto-cancelling future bookings for cancelled member:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Error auto-cancelling future bookings for cancelled member:', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -260,7 +260,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
         await syncMemberToHubSpot({ email: deferredCancelEmail, status: 'cancelled', billingProvider: 'stripe', billingGroupRole: 'Primary' });
         logger.info(`[Stripe Webhook] Synced ${deferredCancelEmail} status=cancelled to HubSpot`);
       } catch (hubspotError: unknown) {
-        logger.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', { error: getErrorMessage(hubspotError) });
+        logger.error('[Stripe Webhook] HubSpot sync failed for status cancelled:', { extra: { error: getErrorMessage(hubspotError) } });
       }
 
       try {
@@ -271,7 +271,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
           type: 'membership_cancelled',
         });
       } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
       }
 
       try {
@@ -282,7 +282,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
           { sendPush: true, sendWebSocket: true }
         );
       } catch (notifyErr: unknown) {
-        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { error: getErrorMessage(notifyErr) });
+        logger.error('[Stripe Webhook] Notification failed (non-fatal):', { extra: { error: getErrorMessage(notifyErr) } });
       }
     });
 
@@ -294,7 +294,7 @@ export async function handleSubscriptionDeleted(client: PoolClient, subscription
 
     logger.info(`[Stripe Webhook] Membership cancellation processed for ${memberName} (${email})`);
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling subscription deleted:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling subscription deleted:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
   return deferredActions;

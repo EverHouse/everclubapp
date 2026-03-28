@@ -134,7 +134,7 @@ export async function getConferenceRoomBookingsFromCalendar(
     
     return bookings;
   } catch (error: unknown) {
-    logger.error('Error fetching conference room bookings from calendar:', { error: getErrorMessage(error) });
+    logger.error('Error fetching conference room bookings from calendar:', { extra: { error: getErrorMessage(error) } });
     return [];
   }
 }
@@ -429,7 +429,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               logger.info(`[Conference Room Sync] Deleted booking ${booking.id} (calendar event ${event.id} was removed)`);
             }
           } catch (cancelErr: unknown) {
-            logger.warn('[Conference Room Sync] Transaction failed while deleting conference room booking for removed calendar event:', { error: cancelErr, eventId: event.id, bookingId: cancelBookingId });
+            logger.warn('[Conference Room Sync] Transaction failed while deleting conference room booking for removed calendar event:', { extra: { error: getErrorMessage(cancelErr), eventId: event.id, bookingId: cancelBookingId } });
           }
           continue;
         }
@@ -549,7 +549,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               updated++;
             } catch (updateErr: unknown) {
               const errMsg = getErrorMessage(updateErr);
-              logger.warn('[Conference Room Sync] Transaction failed while updating booking time:', { error: updateErr, bookingId: existingBooking.id, eventId: googleEventId });
+              logger.warn('[Conference Room Sync] Transaction failed while updating booking time:', { extra: { error: getErrorMessage(updateErr), bookingId: existingBooking.id, eventId: googleEventId } });
               errors.push(`Update booking ${existingBooking.id}: ${errMsg}`);
               skipped++;
             }
@@ -621,7 +621,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               }
             } catch (sessionErr: unknown) {
               const errMsg = getErrorMessage(sessionErr);
-              logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { error: errMsg, bookingId: matchedBooking.id, eventId: googleEventId });
+              logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { extra: { error: errMsg, bookingId: matchedBooking.id, eventId: googleEventId } });
               errors.push(`Session for linked booking ${matchedBooking.id}: ${errMsg}`);
             }
           }
@@ -661,7 +661,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               }
             } catch (sessionErr: unknown) {
               const errMsg = getErrorMessage(sessionErr);
-              logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { error: errMsg, bookingId: newBooking.id, eventId: googleEventId });
+              logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { extra: { error: errMsg, bookingId: newBooking.id, eventId: googleEventId } });
               errors.push(`Session for new booking ${newBooking.id}: ${errMsg}`);
             }
           }
@@ -679,7 +679,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
     logger.info(`[Conference Room Sync] Synced ${synced} events (linked: ${linked}, created: ${created}, skipped: ${skipped}, cancelled: ${cancelled}, updated: ${updated}, errors: ${errorCount})`);
     return { synced, linked, created, skipped, cancelled, updated, ...(errorCount >= SYNC_ERROR_THRESHOLD ? { warning: `${errorCount} error(s) during sync: ${errors.slice(0, 5).join('; ')}` } : {}) };
   } catch (error: unknown) {
-    logger.error('Error syncing conference room calendar to bookings:', { error: getErrorMessage(error) });
+    logger.error('Error syncing conference room calendar to bookings:', { extra: { error: getErrorMessage(error) } });
     return { synced: 0, linked: 0, created: 0, skipped: 0, cancelled: 0, updated: 0, error: getErrorMessage(error) };
   }
 }

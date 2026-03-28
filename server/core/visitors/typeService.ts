@@ -65,7 +65,7 @@ export async function updateVisitorType({
     
     return false;
   } catch (error: unknown) {
-    logger.error('[VisitorType] Error updating visitor type:', { error: getErrorMessage(error) });
+    logger.error('[VisitorType] Error updating visitor type:', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }
@@ -117,7 +117,7 @@ export async function updateVisitorTypeByUserId(
     
     return false;
   } catch (error: unknown) {
-    logger.error('[VisitorType] Error updating visitor type by ID:', { error: getErrorMessage(error) });
+    logger.error('[VisitorType] Error updating visitor type by ID:', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }

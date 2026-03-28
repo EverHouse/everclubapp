@@ -149,8 +149,7 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
       }
     } catch (refundErr: unknown) {
       logger.warn('[rosterService] Failed to refund guest pass after tx (non-blocking)', {
-        error: refundErr as Error,
-        extra: { bookingId, ownerEmail: rmRefund.ownerEmail }
+        extra: { bookingId, ownerEmail: rmRefund.ownerEmail, error: getErrorMessage(refundErr) }
       });
     }
   }
@@ -185,8 +184,7 @@ export async function removeParticipant(params: RemoveParticipantParams): Promis
       });
     } catch (recalcError: unknown) {
       logger.warn('[rosterService] Failed to recalculate session fees (non-blocking)', {
-        error: recalcError as Error,
-        extra: { sessionId: txResult.sessionId, bookingId }
+        extra: { sessionId: txResult.sessionId, bookingId, error: getErrorMessage(recalcError) }
       });
     }
   }
@@ -255,8 +253,7 @@ export async function updateDeclaredPlayerCount(params: UpdatePlayerCountParams)
       });
     } catch (feeError: unknown) {
       logger.error('[rosterService] Failed to recalculate session fees after player count update', {
-        error: feeError as Error,
-        extra: { bookingId, sessionId: txResult.sessionId }
+        extra: { bookingId, sessionId: txResult.sessionId, error: getErrorMessage(feeError) }
       });
     }
   }

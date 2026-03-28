@@ -52,7 +52,7 @@ export async function handleProductUpdated(client: PoolClient, product: StripePr
       logger.warn(`[Stripe Webhook] Ignoring external Stripe changes to cafe item (id: ${cafeItemId}, product ${product.id}) — the app is the source of truth. Edit menu items in the admin panel.`);
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling product.updated:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling product.updated:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;
@@ -150,7 +150,7 @@ export async function handleProductCreated(client: PoolClient, product: Stripe.P
 
     logger.info(`[Stripe Webhook] New product ${product.id} created in Stripe — no matching local record found. Use "Sync to Stripe" in the admin panel to push app data.`);
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling product.created:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling product.created:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;
@@ -211,7 +211,7 @@ export async function handleProductDeleted(client: PoolClient, product: Stripe.P
       }
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling product.deleted:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling product.deleted:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;
@@ -265,7 +265,7 @@ export async function handlePriceDeleted(client: PoolClient, price: Stripe.Price
       }
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling price.deleted:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling price.deleted:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;
@@ -347,7 +347,7 @@ export async function handlePriceChange(client: PoolClient, price: Stripe.Price)
       logger.warn(`[Stripe Webhook] Ignoring external price change for cafe item "${item.name}" (${price.id}, $${priceDecimal}) — the app is the source of truth. Edit pricing in the admin panel.`);
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling price change:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling price change:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;

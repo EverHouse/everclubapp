@@ -198,7 +198,7 @@ async function getResourceIdsForAffectedAreas(affectedAreas: string | null | und
       if (idSet.size > 0) return Array.from(idSet);
     }
   } catch (err) {
-    logger.debug('[getResourceIdsForAffectedAreas] Failed to parse affected areas as JSON', { error: getErrorMessage(err) });
+    logger.debug('[getResourceIdsForAffectedAreas] Failed to parse affected areas as JSON', { extra: { error: getErrorMessage(err) } });
   }
   
   const parts = affectedAreas.split(',').map(s => s.trim());
@@ -545,7 +545,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
                 logger.info(`[Calendar Sync] Pushed local edits to calendar for closure #${closureId} (${allEventIds.length} event(s)): ${existingClosure.title}`);
               }
             } catch (pushError: unknown) {
-              logger.error(`[Calendar Sync] Failed to push local edits to calendar for closure #${closureId}:`, { error: getErrorMessage(pushError) });
+              logger.error(`[Calendar Sync] Failed to push local edits to calendar for closure #${closureId}:`, { extra: { error: getErrorMessage(pushError) } });
             }
           } else if (pushedClosureIds.has(closureId)) {
             continue;
@@ -691,7 +691,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     
     return { synced: events.length, created, updated, deleted, pushedToCalendar };
   } catch (error: unknown) {
-    logger.error('Error syncing Internal Calendar to closures:', { error: getErrorMessage(error) });
+    logger.error('Error syncing Internal Calendar to closures:', { extra: { error: getErrorMessage(error) } });
     return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Failed to sync closures' };
   }
 }

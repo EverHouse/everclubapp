@@ -89,7 +89,7 @@ export async function getTierLimits(tierName: string): Promise<TierLimits> {
     
     return data;
   } catch (error: unknown) {
-    logger.error('[getTierLimits] Error fetching tier limits:', { error: getErrorMessage(error) });
+    logger.error('[getTierLimits] Error fetching tier limits:', { extra: { error: getErrorMessage(error) } });
     return DEFAULT_TIER_LIMITS;
   }
 }
@@ -137,7 +137,7 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
     
     return user.tier_name || user.tier || null;
   } catch (error: unknown) {
-    logger.error('[getMemberTierByEmail] Error:', { error: getErrorMessage(error) });
+    logger.error('[getMemberTierByEmail] Error:', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -163,7 +163,7 @@ export async function getDailyBookedMinutes(email: string, date: string, resourc
     
     return parseInt((result.rows[0] as unknown as TotalMinutesRow).total_minutes, 10) || 0;
   } catch (error: unknown) {
-    logger.error('[getDailyBookedMinutes] Error:', { error: getErrorMessage(error) });
+    logger.error('[getDailyBookedMinutes] Error:', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -199,7 +199,7 @@ export async function getDailyParticipantMinutes(email: string, date: string, ex
 
     return parseFloat((participantsResult.rows[0] as unknown as TotalMinutesRow).total_minutes) || 0;
   } catch (error: unknown) {
-    logger.error('[getDailyParticipantMinutes] Error:', { error: getErrorMessage(error) });
+    logger.error('[getDailyParticipantMinutes] Error:', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -245,7 +245,7 @@ export async function getTotalDailyUsageMinutes(
       totalMinutes: ownerMinutes + participantMinutes
     };
   } catch (error: unknown) {
-    logger.error('[getTotalDailyUsageMinutes] Error:', { error: getErrorMessage(error) });
+    logger.error('[getTotalDailyUsageMinutes] Error:', { extra: { error: getErrorMessage(error) } });
     return { ownerMinutes: 0, participantMinutes: 0, totalMinutes: 0 };
   }
 }

@@ -135,7 +135,7 @@ export async function checkResourceEventOrder(
         ]
       );
     } catch (dlqErr: unknown) {
-      logger.error('[Stripe Webhook] Failed to write to dead letter queue:', { error: getErrorMessage(dlqErr) });
+      logger.error('[Stripe Webhook] Failed to write to dead letter queue:', { extra: { error: getErrorMessage(dlqErr) } });
     } finally {
       if (dlqClient) {
         safeRelease(dlqClient);
@@ -177,7 +177,7 @@ export async function executeDeferredActions(actions: DeferredAction[], eventCon
         ON CONFLICT DO NOTHING
       `);
     } catch (alertErr: unknown) {
-      logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { error: getErrorMessage(alertErr) });
+      logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { extra: { error: getErrorMessage(alertErr) } });
     }
   }
   return failedCount;
@@ -216,7 +216,7 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
          updated_at = NOW()`
     );
   } catch (err: unknown) {
-    logger.error('[Stripe Cache] Error upserting transaction cache:', { error: getErrorMessage(err) });
+    logger.error('[Stripe Cache] Error upserting transaction cache:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -229,6 +229,6 @@ export async function cleanupOldProcessedEvents(): Promise<void> {
       logger.info(`[Stripe Webhook] Cleaned up ${result.length} old processed events (>${EVENT_DEDUP_WINDOW_DAYS} days)`);
     }
   } catch (err: unknown) {
-    logger.error('[Stripe Webhook] Error cleaning up old events:', { error: getErrorMessage(err) });
+    logger.error('[Stripe Webhook] Error cleaning up old events:', { extra: { error: getErrorMessage(err) } });
   }
 }

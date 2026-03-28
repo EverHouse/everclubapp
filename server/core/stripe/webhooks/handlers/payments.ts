@@ -62,7 +62,7 @@ export async function handleCreditNoteCreated(client: PoolClient, creditNote: St
              VALUES (${member.email.toLowerCase()}, ${'Credit Applied'}, ${`A credit of ${amountStr} has been applied to your account${reason ? ` (${reason.replace(/_/g, ' ')})` : ''}.`}, ${'billing'}, ${'payment'}, NOW())`
           );
         } catch (err: unknown) {
-          logger.error('[Stripe Webhook] Failed to create credit note notification:', { error: getErrorMessage(err) });
+          logger.error('[Stripe Webhook] Failed to create credit note notification:', { extra: { error: getErrorMessage(err) } });
         }
       });
       
@@ -646,7 +646,7 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
                 blockingReasons.push(`subscription status is '${sub.status}'`);
               }
             } catch (subErr: unknown) {
-              logger.warn(`[Stripe Webhook] Could not verify subscription status for dispute reactivation — blocking as precaution`, { error: getErrorMessage(subErr) });
+              logger.warn(`[Stripe Webhook] Could not verify subscription status for dispute reactivation — blocking as precaution`, { extra: { error: getErrorMessage(subErr) } });
               blockingReasons.push('subscription status could not be verified');
             }
           }
@@ -783,7 +783,7 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
                   webBlockingReasons.push(`subscription status is '${sub.status}'`);
                 }
               } catch (subErr: unknown) {
-                logger.warn(`[Stripe Webhook] Could not verify subscription status for web dispute reactivation — blocking as precaution`, { error: getErrorMessage(subErr) });
+                logger.warn(`[Stripe Webhook] Could not verify subscription status for web dispute reactivation — blocking as precaution`, { extra: { error: getErrorMessage(subErr) } });
                 webBlockingReasons.push('subscription status could not be verified');
               }
             }
@@ -960,7 +960,7 @@ export async function handleChargeDisputeUpdated(client: PoolClient, dispute: St
           { sendPush: status === 'needs_response' || status === 'warning_needs_response' }
         );
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to notify staff about dispute update:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to notify staff about dispute update:', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -980,11 +980,11 @@ export async function handleChargeDisputeUpdated(client: PoolClient, dispute: St
           },
         });
       } catch (err: unknown) {
-        logger.error('[Stripe Webhook] Failed to log dispute update:', { error: getErrorMessage(err) });
+        logger.error('[Stripe Webhook] Failed to log dispute update:', { extra: { error: getErrorMessage(err) } });
       }
     });
   } catch (error: unknown) {
-    logger.error('[Stripe Webhook] Error handling charge.dispute.updated:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Webhook] Error handling charge.dispute.updated:', { extra: { error: getErrorMessage(error) } });
   }
 
   return deferredActions;
@@ -1115,7 +1115,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
           } } });
         }
       } catch (verifyError: unknown) {
-        logger.warn(`[Stripe Webhook] Could not verify fee breakdown for session ${capturedSessionId}:`, { error: getErrorMessage(verifyError) });
+        logger.warn(`[Stripe Webhook] Could not verify fee breakdown for session ${capturedSessionId}:`, { extra: { error: getErrorMessage(verifyError) } });
       }
     });
     
@@ -1241,7 +1241,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     try {
       clientFees = JSON.parse(metadata.participantFees);
     } catch (parseErr: unknown) {
-      logger.error(`[Stripe Webhook] Failed to parse participantFees metadata for PI ${id} - marking for review`, { error: getErrorMessage(parseErr) });
+      logger.error(`[Stripe Webhook] Failed to parse participantFees metadata for PI ${id} - marking for review`, { extra: { error: getErrorMessage(parseErr) } });
       await client.query(
         `INSERT INTO audit_log (action, resource_type, resource_id, details, created_at)
          VALUES ('parse_error', 'payment', $1, $2, NOW())`,
@@ -1456,7 +1456,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
           logger.error(`[Stripe Webhook] Failed to finalize invoice ${posInvoiceId}: ${result.error}`);
         }
       } catch (invoiceErr: unknown) {
-        logger.error(`[Stripe Webhook] Error finalizing invoice ${posInvoiceId}:`, { error: getErrorMessage(invoiceErr) });
+        logger.error(`[Stripe Webhook] Error finalizing invoice ${posInvoiceId}:`, { extra: { error: getErrorMessage(invoiceErr) } });
       }
     });
   }
@@ -1682,7 +1682,7 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
         }
       });
     } catch (alertErr: unknown) {
-      logger.error('[Stripe Webhook] Error alert send failed (non-blocking):', { error: getErrorMessage(alertErr) });
+      logger.error('[Stripe Webhook] Error alert send failed (non-blocking):', { extra: { error: getErrorMessage(alertErr) } });
     }
   });
 
@@ -1741,7 +1741,7 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
 
       logger.info(`[Stripe Webhook] Staff notified about payment failure for ${email}`);
     } catch (error: unknown) {
-      logger.error('[Stripe Webhook] Error sending payment failed notifications:', { error: getErrorMessage(error) });
+      logger.error('[Stripe Webhook] Error sending payment failed notifications:', { extra: { error: getErrorMessage(error) } });
     }
   });
 
@@ -1781,7 +1781,7 @@ export async function handlePaymentIntentCanceled(client: PoolClient, paymentInt
         );
       }
     } catch (err: unknown) {
-      logger.error(`[Stripe Webhook] Failed to record canceled payment ${id}`, { error: getErrorMessage(err) });
+      logger.error(`[Stripe Webhook] Failed to record canceled payment ${id}`, { extra: { error: getErrorMessage(err) } });
     }
     
     logger.info(`[Stripe Webhook] Terminal payment canceled/abandoned: ${id} for ${email || 'unknown'}`);

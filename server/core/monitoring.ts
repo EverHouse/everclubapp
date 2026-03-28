@@ -55,7 +55,7 @@ export async function logAlert(event: Omit<AlertEvent, 'timestamp'>): Promise<vo
       // Table might not exist yet - that's ok
     });
   } catch (err) {
-    logger.debug('Failed to persist system alert, table may not exist', { error: getErrorMessage(err) });
+    logger.debug('Failed to persist system alert, table may not exist', { extra: { error: getErrorMessage(err) } });
   }
 }
 

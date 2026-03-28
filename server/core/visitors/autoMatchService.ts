@@ -224,7 +224,7 @@ export async function matchBookingToPurchase(
       source: 'day_pass' as const
     };
   } catch (error: unknown) {
-    logger.error('[AutoMatch] Error matching booking to purchase:', { error: getErrorMessage(error) });
+    logger.error('[AutoMatch] Error matching booking to purchase:', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -359,7 +359,7 @@ async function createBookingSessionForAutoMatch(
     
     return sessionId;
   } catch (error: unknown) {
-    logger.error('[AutoMatch] Error creating booking session:', { error: getErrorMessage(error) });
+    logger.error('[AutoMatch] Error creating booking session:', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -490,7 +490,7 @@ export async function autoMatchSingleBooking(
     result.reason = 'No matching purchase found and no fallback applicable';
     return result;
   } catch (error: unknown) {
-    logger.error('[AutoMatch] Error auto-matching booking:', { error: getErrorMessage(error) });
+    logger.error('[AutoMatch] Error auto-matching booking:', { extra: { error: getErrorMessage(error) } });
     result.reason = getErrorMessage(error) || 'Unknown error';
     return result;
   }
@@ -885,7 +885,7 @@ async function autoMatchBookingRequests(
       matched++;
       logger.info(`[AutoMatch] Matched booking_request #${row.id} -> ${visitor.email} (existing real visitor)`);
     } catch (error: unknown) {
-      logger.error(`[AutoMatch] Error matching booking_request #${row.id}:`, { error: getErrorMessage(error) });
+      logger.error(`[AutoMatch] Error matching booking_request #${row.id}:`, { extra: { error: getErrorMessage(error) } });
       results.push({
         bookingId: row.id as number,
         matched: false,
@@ -917,7 +917,7 @@ export async function autoMatchAllUnmatchedBookings(
     
     return { matched: totalMatched, failed: totalFailed, results: allResults };
   } catch (error: unknown) {
-    logger.error('[AutoMatch] Error in batch auto-match:', { error: getErrorMessage(error) });
+    logger.error('[AutoMatch] Error in batch auto-match:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }

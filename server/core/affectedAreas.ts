@@ -191,7 +191,7 @@ export async function parseAffectedAreas(affectedAreas: string | null | undefine
       if (idSet.size > 0) return Array.from(idSet);
     }
   } catch (err) {
-    logger.debug('JSON.parse fallback for affectedAreas — input may be comma-separated or plain text', { error: getErrorMessage(err) });
+    logger.debug('JSON.parse fallback for affectedAreas — input may be comma-separated or plain text', { extra: { error: getErrorMessage(err) } });
   }
   
   if (affectedAreas.includes(',')) {

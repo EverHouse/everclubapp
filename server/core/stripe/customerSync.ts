@@ -188,7 +188,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
     logger.info(`[Stripe Customer Sync] Completed: ${parts.join(', ')}`);
     
   } catch (error: unknown) {
-    logger.error('[Stripe Customer Sync] Fatal error:', { error: getErrorMessage(error) });
+    logger.error('[Stripe Customer Sync] Fatal error:', { extra: { error: getErrorMessage(error) } });
     result.success = false;
     result.errors.push(`Fatal: ${getErrorMessage(error)}`);
   }

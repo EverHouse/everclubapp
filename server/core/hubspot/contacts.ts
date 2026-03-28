@@ -141,7 +141,7 @@ export async function syncSmsPreferencesToHubSpot(
 
   } catch (error: unknown) {
     const errorMsg = getErrorMessage(error);
-    logger.error('[HubSpot SMS Sync] Error syncing SMS preferences:', { error: getErrorMessage(error) });
+    logger.error('[HubSpot SMS Sync] Error syncing SMS preferences:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: errorMsg || 'Failed to sync SMS preferences to HubSpot'
@@ -228,7 +228,7 @@ export async function syncProfileDetailsToHubSpot(
 
   } catch (error: unknown) {
     const errorMsg = getErrorMessage(error);
-    logger.error('[HubSpot Profile Sync] Error syncing profile details:', { error: getErrorMessage(error) });
+    logger.error('[HubSpot Profile Sync] Error syncing profile details:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: errorMsg || 'Failed to sync profile details to HubSpot'
@@ -316,7 +316,7 @@ export async function syncDayPassPurchaseToHubSpot(
             );
             logger.info(`[DayPassHubSpot] Updated existing contact ${contactId} lifecycle to 'lead' for ${normalizedEmail}`);
           } catch (updateErr: unknown) {
-            logger.warn(`[DayPassHubSpot] Failed to update lifecycle for existing contact ${contactId}:`, { error: getErrorMessage(updateErr) });
+            logger.warn(`[DayPassHubSpot] Failed to update lifecycle for existing contact ${contactId}:`, { extra: { error: getErrorMessage(updateErr) } });
             if (dayPassLifecycleCleared && currentLifecycle) {
               try {
                 await retryableHubSpotRequest(() =>
@@ -324,7 +324,7 @@ export async function syncDayPassPurchaseToHubSpot(
                 );
                 logger.warn(`[DayPassHubSpot] Restored lifecyclestage to '${currentLifecycle}' for ${normalizedEmail} after update failure`);
               } catch (restoreErr: unknown) {
-                logger.error(`[DayPassHubSpot] Failed to restore lifecyclestage for ${normalizedEmail}:`, { error: getErrorMessage(restoreErr) });
+                logger.error(`[DayPassHubSpot] Failed to restore lifecyclestage for ${normalizedEmail}:`, { extra: { error: getErrorMessage(restoreErr) } });
               }
             }
           }
@@ -355,7 +355,7 @@ export async function syncDayPassPurchaseToHubSpot(
         }
       }
 
-      logger.warn('[DayPassHubSpot] Error searching for contact, will create new one:', { error: getErrorMessage(error) });
+      logger.warn('[DayPassHubSpot] Error searching for contact, will create new one:', { extra: { error: getErrorMessage(error) } });
     }
 
     // Step 2: Create new contact if not found
@@ -434,7 +434,7 @@ export async function syncDayPassPurchaseToHubSpot(
         }
       } catch (noteError: unknown) {
         // Log error but don't fail the entire operation - contact was created successfully
-        logger.warn('[DayPassHubSpot] Failed to add purchase note to contact:', { error: getErrorMessage(noteError) });
+        logger.warn('[DayPassHubSpot] Failed to add purchase note to contact:', { extra: { error: getErrorMessage(noteError) } });
       }
     }
 
@@ -445,7 +445,7 @@ export async function syncDayPassPurchaseToHubSpot(
 
   } catch (error: unknown) {
     const errorMsg = getErrorMessage(error);
-    logger.error('[DayPassHubSpot] Error syncing day pass purchase:', { error: getErrorMessage(error) });
+    logger.error('[DayPassHubSpot] Error syncing day pass purchase:', { extra: { error: getErrorMessage(error) } });
     return {
       success: false,
       error: errorMsg || 'Failed to sync day pass purchase to HubSpot'

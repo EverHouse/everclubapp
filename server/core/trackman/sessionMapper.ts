@@ -557,10 +557,10 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           await db.update(bookingRequests)
             .set({ staffNotes: updatedCriticalNotes })
             .where(eq(bookingRequests.id, input.bookingId));
-        } catch (noteErr: unknown) { logger.warn('[TrackmanImport] Failed to save session creation failure note:', { error: getErrorMessage(noteErr) || noteErr }); }
+        } catch (noteErr: unknown) { logger.warn('[TrackmanImport] Failed to save session creation failure note:', { extra: { error: getErrorMessage(noteErr) } }); }
       }
     }
   } catch (outerError: unknown) {
-    logger.error('[TrackmanImport] Unexpected error in session creation', { extra: { bookingId: input.bookingId }, error: getErrorMessage(outerError) });
+    logger.error('[TrackmanImport] Unexpected error in session creation', { extra: { bookingId: input.bookingId, error: getErrorMessage(outerError) } });
   }
 }

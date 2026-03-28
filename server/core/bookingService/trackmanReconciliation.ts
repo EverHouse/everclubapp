@@ -207,7 +207,7 @@ export async function findAttendanceDiscrepancies(
     
     return { discrepancies, stats, totalCount };
   } catch (error: unknown) {
-    logger.error('[findAttendanceDiscrepancies] Error:', { error: getErrorMessage(error) });
+    logger.error('[findAttendanceDiscrepancies] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -299,7 +299,7 @@ export async function markAsReconciled(
     
     return { success: true, booking: updateResult.rows[0] as unknown as BookingReconciliationRow };
   } catch (error: unknown) {
-    logger.error('[markAsReconciled] Error:', { error: getErrorMessage(error) });
+    logger.error('[markAsReconciled] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -319,7 +319,7 @@ export async function getReconciliationSummary(): Promise<{
       recentDiscrepancies: discrepancies
     };
   } catch (error: unknown) {
-    logger.error('[getReconciliationSummary] Error:', { error: getErrorMessage(error) });
+    logger.error('[getReconciliationSummary] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -413,7 +413,7 @@ export async function adjustLedgerForReconciliation(
     
     return { success: true, adjustmentAmount: feeAdjustment };
   } catch (error: unknown) {
-    logger.error('[adjustLedgerForReconciliation] Error:', { error: getErrorMessage(error) });
+    logger.error('[adjustLedgerForReconciliation] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }

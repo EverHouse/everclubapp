@@ -77,7 +77,7 @@ export async function checkUnifiedAvailability(
 
     return { available: true };
   } catch (error: unknown) {
-    logger.error('[checkUnifiedAvailability] Error:', { error: getErrorMessage(error) });
+    logger.error('[checkUnifiedAvailability] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -125,7 +125,7 @@ async function checkSessionConflict(
     
     return { hasConflict: false };
   } catch (error: unknown) {
-    logger.error('[checkSessionConflict] Error:', { error: getErrorMessage(error) });
+    logger.error('[checkSessionConflict] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -177,7 +177,7 @@ export async function checkSessionConflictWithLock(
         conflictDetails: undefined
       };
     }
-    logger.error('[checkSessionConflictWithLock] Error:', { error: getErrorMessage(error) });
+    logger.error('[checkSessionConflictWithLock] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -230,7 +230,7 @@ export async function checkUnifiedAvailabilityWithLock(
     
     return { available: true };
   } catch (error: unknown) {
-    logger.error('[checkUnifiedAvailabilityWithLock] Error:', { error: getErrorMessage(error) });
+    logger.error('[checkUnifiedAvailabilityWithLock] Error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -303,7 +303,7 @@ export async function getAvailableSlots(
     
     return availableSlots;
   } catch (error: unknown) {
-    logger.error('[getAvailableSlots] Error:', { error: getErrorMessage(error) });
+    logger.error('[getAvailableSlots] Error:', { extra: { error: getErrorMessage(error) } });
     return [];
   }
 }
@@ -339,7 +339,7 @@ export async function isResourceAvailableForDate(
     
     return true;
   } catch (error: unknown) {
-    logger.error('[isResourceAvailableForDate] Error:', { error: getErrorMessage(error) });
+    logger.error('[isResourceAvailableForDate] Error:', { extra: { error: getErrorMessage(error) } });
     return true;
   }
 }
