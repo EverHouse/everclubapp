@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { enqueueHubSpotSync } from '../hubspot/queue';
 import type { IntegrityCheckResult, IntegrityIssue } from './core';
 
 export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
@@ -222,4 +223,97 @@ export async function checkEmailDeliveryHealth(): Promise<IntegrityCheckResult> 
     issues,
     lastRun: new Date(),
   };
+}
+
+export async function reconcileRecentlyActivatedHubSpotSync(): Promise<{
+  checked: number;
+  enqueued: number;
+  errors: string[];
+}> {
+  const result = { checked: 0, enqueued: 0, errors: [] as string[] };
+
+  try {
+    interface RecentlyActivatedRow {
+      id: number;
+      email: string;
+      first_name: string | null;
+      last_name: string | null;
+      tier: string | null;
+    }
+
+    const recentlyActivatedResult = await db.execute(sql`
+      SELECT u.id, u.email, u.first_name, u.last_name, u.tier
+      FROM users u
+      WHERE u.membership_status = 'active'
+        AND u.hubspot_id IS NULL
+        AND u.archived_at IS NULL
+        AND u.role = 'member'
+        AND (u.billing_provider IS NULL OR u.billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
+        AND u.membership_status_changed_at >= NOW() - INTERVAL '48 hours'
+        AND u.email IS NOT NULL
+        AND u.email != ''
+      ORDER BY u.membership_status_changed_at DESC
+      LIMIT 50
+    `);
+
+    const members = recentlyActivatedResult.rows as unknown as RecentlyActivatedRow[];
+    result.checked = members.length;
+
+    if (members.length === 0) {
+      return result;
+    }
+
+    logger.info(`[HubSpot Reconciliation] Found ${members.length} recently-activated members without HubSpot contact`);
+
+    for (const member of members) {
+      try {
+        const existingJob = await db.execute(sql`
+          SELECT id FROM hubspot_sync_queue
+          WHERE operation = 'create_contact'
+            AND payload::text LIKE ${'%' + member.email + '%'}
+            AND status IN ('pending', 'processing', 'failed')
+            AND created_at >= NOW() - INTERVAL '48 hours'
+          LIMIT 1
+        `);
+
+        if (existingJob.rows.length > 0) {
+          continue;
+        }
+
+        const jobId = await enqueueHubSpotSync('create_contact', {
+          email: member.email,
+          firstName: member.first_name || '',
+          lastName: member.last_name || '',
+          phone: '',
+          tier: member.tier || undefined,
+        }, {
+          idempotencyKey: `reconcile_active_hubspot_${member.id}`,
+          priority: 7,
+        });
+
+        if (jobId !== null) {
+          result.enqueued++;
+          logger.info(`[HubSpot Reconciliation] Enqueued contact creation for recently-activated member`, {
+            extra: { memberId: member.id, email: member.email, jobId }
+          });
+        }
+      } catch (memberErr: unknown) {
+        const errMsg = `${member.email}: ${getErrorMessage(memberErr)}`;
+        result.errors.push(errMsg);
+        logger.error(`[HubSpot Reconciliation] Failed to enqueue member`, {
+          error: getErrorMessage(memberErr),
+          extra: { memberId: member.id, email: member.email }
+        });
+      }
+    }
+
+    if (result.enqueued > 0) {
+      logger.info(`[HubSpot Reconciliation] Enqueued ${result.enqueued} contact creation jobs for recently-activated members`);
+    }
+  } catch (error: unknown) {
+    logger.error('[HubSpot Reconciliation] Reconciliation check failed:', { error: getErrorMessage(error) });
+    result.errors.push(`Reconciliation failed: ${getErrorMessage(error)}`);
+  }
+
+  return result;
 }

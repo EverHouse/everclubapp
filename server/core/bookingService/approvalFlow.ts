@@ -42,6 +42,23 @@ interface ApproveBookingParams {
   pending_trackman_sync?: boolean;
 }
 
+const CALENDAR_FAIL_NOTE = '[CALENDAR_SYNC_FAILED] Google Calendar invite could not be created for this booking.';
+
+async function appendCalendarFailureNote(bookingId: number): Promise<void> {
+  try {
+    const [existing] = await db.select({ staffNotes: bookingRequests.staffNotes }).from(bookingRequests).where(eq(bookingRequests.id, bookingId));
+    if (existing?.staffNotes?.includes('[CALENDAR_SYNC_FAILED]')) {
+      return;
+    }
+    const updatedNotes = existing?.staffNotes ? `${existing.staffNotes} ${CALENDAR_FAIL_NOTE}` : CALENDAR_FAIL_NOTE;
+    await db.update(bookingRequests)
+      .set({ staffNotes: updatedNotes })
+      .where(eq(bookingRequests.id, bookingId));
+  } catch (noteErr: unknown) {
+    logger.error('[Booking Approval] Failed to add calendar failure staff note', { error: getErrorMessage(noteErr) });
+  }
+}
+
 export async function approveBooking(params: ApproveBookingParams) {
   const { bookingId, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = params;
 
@@ -447,10 +464,14 @@ export async function approveBooking(params: ApproveBookingParams) {
             await db.update(bookingRequests)
               .set({ calendarEventId: newCalendarEventId })
               .where(eq(bookingRequests.id, bookingId));
+          } else {
+            logger.warn('[Booking Approval] Calendar event creation returned null — adding staff note', { extra: { bookingId } });
+            await appendCalendarFailureNote(bookingId);
           }
         }
       } catch (calError: unknown) {
         logger.error('Calendar sync failed (non-blocking)', { extra: { error: getErrorMessage(calError) } });
+        await appendCalendarFailureNote(bookingId);
       }
     }
 

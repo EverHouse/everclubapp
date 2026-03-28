@@ -18,6 +18,9 @@ function extractRootError(error: unknown): string {
   return message;
 }
 
+let lastReconciliationRun = 0;
+const RECONCILIATION_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
 async function processQueue(): Promise<void> {
   if (isProcessing) {
     return;
@@ -45,6 +48,22 @@ async function processQueue(): Promise<void> {
       logger.info('[HubSpot Queue] Queue status', {
         extra: queueStats
       });
+    }
+
+    const now = Date.now();
+    if (now - lastReconciliationRun >= RECONCILIATION_INTERVAL_MS) {
+      lastReconciliationRun = now;
+      try {
+        const { reconcileRecentlyActivatedHubSpotSync } = await import('../core/integrity/externalSystemChecks');
+        const reconcileResult = await reconcileRecentlyActivatedHubSpotSync();
+        if (reconcileResult.enqueued > 0 || reconcileResult.errors.length > 0) {
+          logger.info('[HubSpot Queue] Reconciliation completed', {
+            extra: { checked: reconcileResult.checked, enqueued: reconcileResult.enqueued, errors: reconcileResult.errors.length }
+          });
+        }
+      } catch (reconcileErr: unknown) {
+        logger.error('[HubSpot Queue] Reconciliation failed (non-blocking)', { error: getErrorMessage(reconcileErr) });
+      }
     }
 
     schedulerTracker.recordRun('HubSpot Queue', true);

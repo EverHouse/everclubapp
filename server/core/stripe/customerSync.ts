@@ -170,13 +170,13 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
             set: { value: orphanedData, updatedAt: new Date() },
           });
       } catch (cacheErr: unknown) {
-        logger.debug(`[Stripe Customer Sync] Failed to cache orphaned customer data: ${getErrorMessage(cacheErr)}`);
+        logger.warn(`[Stripe Customer Sync] Failed to cache orphaned customer data: ${getErrorMessage(cacheErr)}`);
       }
     } else {
       try {
         await db.delete(systemSettings).where(eq(systemSettings.key, 'orphaned_stripe_customers'));
       } catch (delErr: unknown) {
-        logger.debug(`[Stripe Customer Sync] Failed to clear orphaned customer cache: ${getErrorMessage(delErr)}`);
+        logger.warn(`[Stripe Customer Sync] Failed to clear orphaned customer cache: ${getErrorMessage(delErr)}`);
       }
     }
 
@@ -264,7 +264,8 @@ export async function batchClearOrphanedStripeCustomers(): Promise<{ cleared: nu
   if (errors.length === 0 && cleared > 0) {
     try {
       await db.delete(systemSettings).where(eq(systemSettings.key, 'orphaned_stripe_customers'));
-    } catch {
+    } catch (clearErr: unknown) {
+      logger.warn(`[Stripe Customer Sync] Failed to clear orphaned customer cache after batch clear: ${getErrorMessage(clearErr)}`);
     }
   }
 
