@@ -572,7 +572,11 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           });
           await db.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${row.id}`);
         } else {
-          await db.execute(sql`UPDATE booking_requests SET status = 'confirmed', updated_at = NOW() WHERE id = ${row.id} AND status = 'pending'`);
+          const confirmResult = await db.execute(sql`UPDATE booking_requests SET status = 'confirmed', updated_at = NOW() WHERE id = ${row.id} AND status = 'pending' RETURNING id`);
+
+          if (confirmResult.rows.length === 0) {
+            logger.warn('[ConferenceRoom] Aborting invoice creation; booking is no longer pending (may have been cancelled)', { extra: { bookingId: row.id } });
+          } else {
           row.status = 'confirmed';
 
           try {
@@ -646,6 +650,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
               });
             }
           }
+        }
         }
       } catch (confError) {
         logger.error('[ConferenceRoom] Conference room auto-confirm processing failed', {

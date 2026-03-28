@@ -11,9 +11,7 @@ const getClientKey = (req: Request): string => {
   if (userId) {
     return `user:${String(userId)}`;
   }
-  const forwarded = req.headers['x-forwarded-for'];
-  const clientIp = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip;
-  return String(clientIp || 'unknown').toLowerCase();
+  return String(req.ip || 'unknown').toLowerCase();
 };
 
 export const globalRateLimiter = rateLimit({
@@ -80,11 +78,7 @@ export const authRateLimiterByIp = rateLimit({
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    const clientIp = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.ip;
-    return `auth-ip:${clientIp || 'unknown'}`;
-  },
+  keyGenerator: (req) => `auth-ip:${req.ip || 'unknown'}`,
   validate: false,
   store: new PgRateLimitStore('auth-ip'),
   handler: (req: Request, res: Response) => {

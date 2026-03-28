@@ -108,8 +108,9 @@ export async function acquireBookingLocks(
     logger.debug('[BookingGuard] Acquired user lock', { extra: { email } });
   }
 
+  const isUserSubjectToQuotas = !isStaffRequest;
   const pendingLimit = resourceType === 'conference_room' ? 5 : 1;
-  if (needsUserLock) {
+  if (isUserSubjectToQuotas) {
     const pendingCheck = await tx.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM booking_requests
       WHERE LOWER(user_email) = ${normalizedEmail} AND status IN ('pending', 'pending_approval')
