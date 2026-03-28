@@ -53,6 +53,7 @@ function timeToMinutes(timeStr: string): number | null {
   if (!match) return null;
   const hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
+  if (hours === 24 && minutes === 0) return 1440;
   if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
   return hours * 60 + minutes;
 }

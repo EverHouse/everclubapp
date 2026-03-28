@@ -42,9 +42,11 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
 
   const internalHeader = req.headers['x-internal-request'] as string | undefined;
   if (internalHeader) {
-    const socketAddr = req.socket?.remoteAddress;
-    if (socketAddr === '127.0.0.1' || socketAddr === '::1' || socketAddr === '::ffff:127.0.0.1') {
+    const internalSecret = process.env.INTERNAL_API_SECRET;
+    if (internalSecret && internalHeader === internalSecret) {
       return next();
+    } else {
+      logger.warn('[CSRF] Blocked request with invalid x-internal-request header', { path: req.path, method: req.method });
     }
   }
 

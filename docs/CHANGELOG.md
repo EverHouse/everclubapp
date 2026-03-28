@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.87] - 2026-03-28
+
+### Security & Booking Reliability Fixes
+- **Security**: CSRF bypass via proxy IP spoofing — internal API authentication now validates a cryptographic secret (`INTERNAL_API_SECRET`) instead of trusting `req.socket.remoteAddress`. Behind a reverse proxy, all external requests appeared as `127.0.0.1`, allowing attackers to bypass CSRF by adding `x-internal-request: true`.
+- **Security**: PII leak via participant resolution — member booking requests could resolve arbitrary emails/userIds to full names. Name auto-resolution is now restricted to staff-initiated requests only. Active member emails matched during participant lookup now also force `type: 'member'` to prevent guest pass miscounting.
+- **Fix**: Midnight booking conflict detection — `timeToMinutes()` rejected `24:00` (hour > 23), causing `dateAwareOverlap` to return false for any booking ending at midnight. Now returns 1440 for `24:00`.
+- **Fix**: Conference room false "confirmed" status — bookings were inserted as `confirmed` and the response sent before session/invoice creation. If billing failed, the DB silently reverted to `pending` while the user saw "Confirmed". Now inserts as `pending`, processes billing synchronously, and only confirms after session creation succeeds.
+- **Fix**: Active members billed as guests — if the frontend passed `type: 'guest'` for an email that matched an existing member, the backend mapped the userId but kept the type as `guest`, burning a guest pass. Now forces `type: 'member'` when a matching user record is found.
+- **Fix**: Stripe transaction cache status downgrade — `upsertTransactionCache` blindly overwrote status on conflict. Out-of-order webhooks (e.g., `payment_intent.created` arriving after `succeeded`) would downgrade terminal statuses. Added a CASE guard that preserves `succeeded`/`failed`/`canceled` statuses.
+- **Fix**: Subscription lock cleanup race condition — the background interval deleted locks by email without checking timestamps. If the event loop stalled, it could delete a freshly re-acquired lock. Now uses `AND locked_at < NOW() - INTERVAL` to only delete genuinely stale locks.
+- **Fix**: Cross-midnight SQL overlap in `bookingCreationGuard.ts` — all four overlap queries (`booking_requests`, `trackman_bay_slots`, `trackman_unmatched_bookings`, `booking_sessions`) used `start_time < endTime AND end_time > startTime` which fails when `end_time < start_time` (midnight wrap). Added `CASE WHEN start_time < end_time THEN ... ELSE ...` guard.
+- **Files changed**: `server/middleware/security.ts`, `server/routes/bays/booking-create.ts`, `server/core/bookingService/conflictDetection.ts`, `server/core/bookingService/bookingCreationGuard.ts`, `server/core/stripe/webhooks/framework.ts`, `server/middleware/rateLimiting.ts`
+
 ## [8.97.86] - 2026-03-28
 
 ### Bug Fixes & Stability Improvements

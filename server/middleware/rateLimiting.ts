@@ -164,7 +164,8 @@ setInterval(() => {
     if (now - acquiredAt > LOCK_TIMEOUT_MS) {
       logger.warn('[SubscriptionLock] Releasing stale in-memory lock', { extra: { email: key, heldMs: now - acquiredAt } });
       inMemoryLocks.delete(key);
-      db.execute(sql`DELETE FROM subscription_locks WHERE email = ${key}`).catch(() => {});
+      const expirySeconds = Math.floor(LOCK_TIMEOUT_MS / 1000);
+      db.execute(sql`DELETE FROM subscription_locks WHERE email = ${key} AND locked_at < NOW() - INTERVAL '1 second' * ${expirySeconds}`).catch(() => {});
     }
   }
 }, 30_000).unref();

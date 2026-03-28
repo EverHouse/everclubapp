@@ -8,6 +8,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.87",
+    date: "2026-03-28",
+    title: "Security & Booking Reliability Fixes",
+    changes: [
+      "Security: Internal API authentication now uses a cryptographic secret instead of IP-based trust, preventing CSRF bypass behind reverse proxies.",
+      "Security: Participant name resolution during booking creation is now restricted to staff-only — members can no longer probe for other members' full names via booking requests.",
+      "Fixed: Bookings ending exactly at midnight (24:00) now correctly trigger conflict detection instead of silently allowing double-bookings.",
+      "Fixed: Conference room bookings are now confirmed only after the session and invoice are successfully created, preventing 'confirmed' status when billing fails.",
+      "Fixed: Active members added as participants can no longer be miscounted as guests, which was incorrectly consuming the booking owner's guest passes.",
+      "Fixed: Stripe webhook transaction cache now protects terminal payment statuses (succeeded, failed, canceled) from being overwritten by delayed preliminary events.",
+      "Fixed: Subscription lock cleanup now uses time-based DB constraints to prevent accidentally deleting freshly re-acquired locks during event loop stalls.",
+      "Fixed: Cross-midnight booking overlap detection in SQL queries now correctly identifies conflicts when start_time > end_time (wrap-around).",
+    ]
+  },
+  {
     version: "8.97.86",
     date: "2026-03-28",
     title: "Bug Fixes & Stability Improvements",

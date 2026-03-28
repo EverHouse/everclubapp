@@ -197,7 +197,12 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
         payment_intent_id, charge_id, invoice_id)
        VALUES (${params.stripeId}, ${params.objectType}, ${params.amountCents}, ${params.currency ?? 'usd'}, ${params.status}, ${params.createdAt}, NOW(), ${params.customerId ?? null}, ${params.customerEmail ?? null}, ${params.customerName ?? null}, ${params.description ?? null}, ${params.metadata ? JSON.stringify(params.metadata) : null}, ${params.source ?? 'webhook'}, ${params.paymentIntentId ?? null}, ${params.chargeId ?? null}, ${params.invoiceId ?? null})
        ON CONFLICT (stripe_id) DO UPDATE SET
-         status = EXCLUDED.status,
+         status = CASE 
+           WHEN stripe_transaction_cache.status IN ('succeeded', 'failed', 'canceled') 
+                AND EXCLUDED.status NOT IN ('succeeded', 'failed', 'canceled', 'refunded')
+           THEN stripe_transaction_cache.status 
+           ELSE EXCLUDED.status 
+         END,
          amount_cents = EXCLUDED.amount_cents,
          customer_email = COALESCE(EXCLUDED.customer_email, stripe_transaction_cache.customer_email),
          customer_name = COALESCE(EXCLUDED.customer_name, stripe_transaction_cache.customer_name),

@@ -243,7 +243,8 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
                 const found = emailMap.get(participant.email.toLowerCase());
                 if (found) {
                   participant.userId = found.id;
-                  if (!participant.name || participant.name.includes('@')) {
+                  participant.type = 'member';
+                  if (isStaffRequest && (!participant.name || participant.name.includes('@'))) {
                     const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
                     if (fullName) participant.name = fullName;
                   }
@@ -271,7 +272,8 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
                 const found = idMap.get(participant.userId);
                 if (found) {
                   participant.email = found.email?.toLowerCase() || '';
-                  if (!participant.name) {
+                  participant.type = 'member';
+                  if (isStaffRequest && !participant.name) {
                     const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
                     participant.name = fullName || found.email || undefined;
                   }
@@ -348,8 +350,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           }
         }
         
-        const isConferenceRoom = resourceType === 'conference_room';
-        const initialStatus: 'pending' | 'confirmed' = isConferenceRoom ? 'confirmed' : 'pending';
+        const initialStatus: 'pending' | 'confirmed' = 'pending';
         
         const guardianConsentAt = guardian_consent ? new Date() : null;
         const insertResult = await tx.execute(sql`
@@ -472,6 +473,169 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
     const staffTitle = isConfRoom ? 'New Conference Room Booking' : 'New Golf Booking Request';
     const staffMessage = `${row.userName || row.userEmail}${playerCount} - ${resourceName} on ${formattedDate} at ${formattedTime12h} for ${durationDisplay}`;
     
+    db.execute(sql`UPDATE users SET first_booking_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${row.userEmail}) AND first_booking_at IS NULL`).catch((err) => logger.warn('[Booking] Non-critical first_booking_at update failed:', { extra: { error: getErrorMessage(err) } }));
+
+    db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() 
+      WHERE LOWER(email) = LOWER(${row.userEmail}) 
+      AND onboarding_completed_at IS NULL 
+      AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
+      AND waiver_signed_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch((err) => logger.warn('[Booking] Non-critical onboarding update failed:', { extra: { error: getErrorMessage(err) } }));
+
+    if (resourceType === 'conference_room' && row.resourceId) {
+      try {
+        const confEndTime = row.endTime || end_time;
+        const [startH, startM] = start_time.split(':').map(Number);
+        const [endH, endM] = confEndTime.split(':').map(Number);
+        const confDurationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+
+        const participants = [{
+          participantType: 'owner' as const,
+          displayName: resolvedUserName || requestEmail,
+          userId: resolvedUserId || sessionUser?.id || undefined,
+          guestId: undefined
+        }];
+
+        const result = await createSessionWithUsageTracking({
+          bookingId: row.id,
+          resourceId: row.resourceId!,
+          sessionDate: request_date,
+          startTime: start_time,
+          endTime: confEndTime,
+          ownerEmail: requestEmail,
+          durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
+          declaredPlayerCount: 1,
+          participants
+        }, 'member_request');
+
+        if (!result.success) {
+          logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
+            extra: { bookingId: row.id, error: result.error }
+          });
+          const fallbackSession = await ensureSessionForBooking({
+            bookingId: row.id,
+            resourceId: row.resourceId!,
+            sessionDate: request_date,
+            startTime: start_time,
+            endTime: row.endTime || end_time,
+            ownerEmail: requestEmail,
+            ownerName: user_name || undefined,
+            source: 'member_request',
+            createdBy: 'conference_room_auto_confirm'
+          });
+          if (fallbackSession.error) {
+            logger.error('[ConferenceRoom] Fallback session creation failed', { extra: { bookingId: row.id, error: fallbackSession.error } });
+          }
+        }
+
+        const sessionCheck = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
+        const confSessionId = sessionCheck.rows[0]?.session_id as number | null;
+
+        if (!confSessionId) {
+          logger.error('[ConferenceRoom] Session creation failed — no session_id after all attempts, leaving as pending', {
+            extra: { bookingId: row.id }
+          });
+          await db.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${row.id}`);
+        } else {
+          await db.execute(sql`UPDATE booking_requests SET status = 'confirmed', updated_at = NOW() WHERE id = ${row.id} AND status = 'pending'`);
+          row.status = 'confirmed';
+
+          try {
+            await recalculateSessionFees(confSessionId, 'approval');
+            const syncResult = await syncBookingInvoice(row.id, confSessionId);
+            
+            if (!syncResult.success) {
+              logger.warn('[ConferenceRoom] Invoice sync returned failure', {
+                extra: { bookingId: row.id, error: syncResult.error }
+              });
+              try {
+                await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${syncResult.error || 'Unknown'}, updated_at = NOW() WHERE id = ${row.id}`);
+                notifyAllStaff(
+                  'Booking invoice sync failed',
+                  `Booking #${row.id} was confirmed but invoice creation failed. Manual billing review is needed.`,
+                  'payment',
+                  { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+                ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
+              } catch (flagErr: unknown) {
+                logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
+                  extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
+                });
+              }
+            } else {
+              const invoiceId = await getBookingInvoiceId(row.id);
+              if (invoiceId) {
+                try {
+                  const payResult = await finalizeAndPayInvoice({ bookingId: row.id });
+                  logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
+                    extra: { bookingId: row.id, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
+                  });
+                } catch (payErr: unknown) {
+                  logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete instantly — member can pay via dashboard', {
+                    extra: { bookingId: row.id, error: getErrorMessage(payErr) }
+                  });
+                  try {
+                    await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice finalization/payment failed. Member can pay via dashboard. Error: ' || ${getErrorMessage(payErr)}, updated_at = NOW() WHERE id = ${row.id}`);
+                    notifyAllStaff(
+                      'Booking invoice payment failed',
+                      `Booking #${row.id} invoice was created but finalization/payment failed. Member can pay via dashboard.`,
+                      'payment',
+                      { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+                    ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice pay failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
+                  } catch (flagErr: unknown) {
+                    logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending after pay failure', {
+                      extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
+                    });
+                  }
+                }
+              } else {
+                logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
+                  extra: { bookingId: row.id, sessionId: confSessionId }
+                });
+              }
+            }
+          } catch (invoiceErr: unknown) {
+            logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
+              extra: { bookingId: row.id, error: getErrorMessage(invoiceErr) }
+            });
+            try {
+              await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${getErrorMessage(invoiceErr)}, updated_at = NOW() WHERE id = ${row.id}`);
+              notifyAllStaff(
+                'Booking invoice sync failed',
+                `Booking #${row.id} was confirmed but invoice creation failed. Manual billing review is needed.`,
+                'payment',
+                { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+              ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
+            } catch (flagErr: unknown) {
+              logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
+                extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
+              });
+            }
+          }
+        }
+      } catch (confError) {
+        logger.error('[ConferenceRoom] Conference room auto-confirm processing failed', {
+          error: new Error(getErrorMessage(confError)),
+          extra: { bookingId: row.id }
+        });
+        try {
+          await ensureSessionForBooking({
+            bookingId: row.id,
+            resourceId: row.resourceId!,
+            sessionDate: request_date,
+            startTime: start_time,
+            endTime: row.endTime || end_time,
+            ownerEmail: requestEmail,
+            ownerName: user_name || undefined,
+            source: 'member_request',
+            createdBy: 'conference_room_auto_confirm'
+          });
+        } catch (fallbackErr) {
+          logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
+            error: new Error(getErrorMessage(fallbackErr))
+          });
+        }
+      }
+    }
+
     res.status(201).json({
       id: row.id,
       user_email: row.userEmail,
@@ -492,170 +656,6 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       updated_at: row.updatedAt,
       calendar_event_id: row.calendarEventId,
     });
-    
-    db.execute(sql`UPDATE users SET first_booking_at = NOW(), updated_at = NOW() WHERE LOWER(email) = LOWER(${row.userEmail}) AND first_booking_at IS NULL`).catch((err) => logger.warn('[Booking] Non-critical first_booking_at update failed:', { extra: { error: getErrorMessage(err) } }));
-
-    db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() 
-      WHERE LOWER(email) = LOWER(${row.userEmail}) 
-      AND onboarding_completed_at IS NULL 
-      AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
-      AND waiver_signed_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch((err) => logger.warn('[Booking] Non-critical onboarding update failed:', { extra: { error: getErrorMessage(err) } }));
-
-    if (resourceType === 'conference_room' && row.resourceId) {
-      (async () => {
-        try {
-          const confEndTime = row.endTime || end_time;
-          const [startH, startM] = start_time.split(':').map(Number);
-          const [endH, endM] = confEndTime.split(':').map(Number);
-          const confDurationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-
-          const participants = [{
-            participantType: 'owner' as const,
-            displayName: resolvedUserName || requestEmail,
-            userId: resolvedUserId || sessionUser?.id || undefined,
-            guestId: undefined
-          }];
-
-          const result = await createSessionWithUsageTracking({
-            bookingId: row.id,
-            resourceId: row.resourceId!,
-            sessionDate: request_date,
-            startTime: start_time,
-            endTime: confEndTime,
-            ownerEmail: requestEmail,
-            durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
-            declaredPlayerCount: 1,
-            participants
-          }, 'member_request');
-
-          if (!result.success) {
-            logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
-              extra: { bookingId: row.id, error: result.error }
-            });
-            const fallbackSession = await ensureSessionForBooking({
-              bookingId: row.id,
-              resourceId: row.resourceId!,
-              sessionDate: request_date,
-              startTime: start_time,
-              endTime: row.endTime || end_time,
-              ownerEmail: requestEmail,
-              ownerName: user_name || undefined,
-              source: 'member_request',
-              createdBy: 'conference_room_auto_confirm'
-            });
-            if (fallbackSession.error) {
-              logger.error('[ConferenceRoom] Fallback session creation failed', { extra: { bookingId: row.id, error: fallbackSession.error } });
-            }
-          }
-
-          const sessionCheck = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.id} LIMIT 1`);
-          const confSessionId = sessionCheck.rows[0]?.session_id as number | null;
-
-          if (!confSessionId) {
-            logger.error('[ConferenceRoom] Session creation failed — no session_id after all attempts, reverting to pending', {
-              extra: { bookingId: row.id }
-            });
-            await db.execute(sql`UPDATE booking_requests SET status = 'pending', staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${row.id} AND status IN ('approved', 'confirmed')`);
-          } else {
-            try {
-              await recalculateSessionFees(confSessionId, 'approval');
-              const syncResult = await syncBookingInvoice(row.id, confSessionId);
-              
-              if (!syncResult.success) {
-                logger.warn('[ConferenceRoom] Invoice sync returned failure', {
-                  extra: { bookingId: row.id, error: syncResult.error }
-                });
-                try {
-                  await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${syncResult.error || 'Unknown'}, updated_at = NOW() WHERE id = ${row.id}`);
-                  notifyAllStaff(
-                    'Booking invoice sync failed',
-                    `Booking #${row.id} was confirmed but invoice creation failed. Manual billing review is needed.`,
-                    'payment',
-                    { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-                  ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
-                } catch (flagErr: unknown) {
-                  logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
-                    extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
-                  });
-                }
-              } else {
-                const invoiceId = await getBookingInvoiceId(row.id);
-                if (invoiceId) {
-                  try {
-                    const payResult = await finalizeAndPayInvoice({ bookingId: row.id });
-                    logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
-                      extra: { bookingId: row.id, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
-                    });
-                  } catch (payErr: unknown) {
-                    logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete instantly — member can pay via dashboard', {
-                      extra: { bookingId: row.id, error: getErrorMessage(payErr) }
-                    });
-                    try {
-                      await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice finalization/payment failed. Member can pay via dashboard. Error: ' || ${getErrorMessage(payErr)}, updated_at = NOW() WHERE id = ${row.id}`);
-                      notifyAllStaff(
-                        'Booking invoice payment failed',
-                        `Booking #${row.id} invoice was created but finalization/payment failed. Member can pay via dashboard.`,
-                        'payment',
-                        { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-                      ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice pay failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
-                    } catch (flagErr: unknown) {
-                      logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending after pay failure', {
-                        extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
-                      });
-                    }
-                  }
-                } else {
-                  logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
-                    extra: { bookingId: row.id, sessionId: confSessionId }
-                  });
-                }
-              }
-            } catch (invoiceErr: unknown) {
-              logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
-                extra: { bookingId: row.id, error: getErrorMessage(invoiceErr) }
-              });
-              try {
-                await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${getErrorMessage(invoiceErr)}, updated_at = NOW() WHERE id = ${row.id}`);
-                notifyAllStaff(
-                  'Booking invoice sync failed',
-                  `Booking #${row.id} was confirmed but invoice creation failed. Manual billing review is needed.`,
-                  'payment',
-                  { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-                ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
-              } catch (flagErr: unknown) {
-                logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
-                  extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
-                });
-              }
-            }
-          }
-        } catch (confError) {
-          logger.error('[ConferenceRoom] Post-response conference room processing failed', {
-            error: new Error(getErrorMessage(confError)),
-            extra: { bookingId: row.id }
-          });
-          try {
-            await ensureSessionForBooking({
-              bookingId: row.id,
-              resourceId: row.resourceId!,
-              sessionDate: request_date,
-              startTime: start_time,
-              endTime: row.endTime || end_time,
-              ownerEmail: requestEmail,
-              ownerName: user_name || undefined,
-              source: 'member_request',
-              createdBy: 'conference_room_auto_confirm'
-            });
-          } catch (fallbackErr) {
-            logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
-              error: new Error(getErrorMessage(fallbackErr))
-            });
-          }
-        }
-      })().catch(err => logger.error('[ConferenceRoom] Unhandled error in post-response processing', {
-        error: new Error(getErrorMessage(err))
-      }));
-    }
 
     try {
       notifyAllStaff(

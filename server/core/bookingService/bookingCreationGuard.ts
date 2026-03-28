@@ -133,7 +133,12 @@ export async function checkResourceOverlap(
       WHERE resource_id = ${resourceId} 
       AND request_date = ${requestDate} 
       AND status = ANY(${OCCUPIED_STATUS_ARRAY}::text[])
-      AND start_time < ${endTime} AND end_time > ${startTime}
+      AND (
+        CASE WHEN start_time < end_time 
+          THEN start_time < ${endTime} AND end_time > ${startTime}
+          ELSE start_time < ${endTime} OR end_time > ${startTime}
+        END
+      )
       ${excludeClause}
       ORDER BY id ASC
       FOR UPDATE
@@ -155,7 +160,12 @@ export async function checkResourceOverlap(
       WHERE resource_id = ${resourceId}
       AND slot_date = ${requestDate}
       AND status = 'booked'
-      AND start_time < ${endTime} AND end_time > ${startTime}
+      AND (
+        CASE WHEN start_time < end_time 
+          THEN start_time < ${endTime} AND end_time > ${startTime}
+          ELSE start_time < ${endTime} OR end_time > ${startTime}
+        END
+      )
       ORDER BY start_time ASC
       LIMIT 1
       FOR SHARE`,
@@ -178,7 +188,12 @@ export async function checkResourceOverlap(
         SELECT 1 FROM booking_requests br
         WHERE br.trackman_booking_id = tub.trackman_booking_id::text
       )
-      AND tub.start_time < ${endTime} AND tub.end_time > ${startTime}
+      AND (
+        CASE WHEN tub.start_time < tub.end_time 
+          THEN tub.start_time < ${endTime} AND tub.end_time > ${startTime}
+          ELSE tub.start_time < ${endTime} OR tub.end_time > ${startTime}
+        END
+      )
       ORDER BY tub.start_time ASC
       LIMIT 1
       FOR SHARE`,
@@ -195,7 +210,12 @@ export async function checkResourceOverlap(
     sql`SELECT bs.id, bs.start_time, bs.end_time FROM booking_sessions bs
       WHERE bs.resource_id = ${resourceId}
       AND bs.session_date = ${requestDate}
-      AND bs.start_time < ${endTime} AND bs.end_time > ${startTime}
+      AND (
+        CASE WHEN bs.start_time < bs.end_time 
+          THEN bs.start_time < ${endTime} AND bs.end_time > ${startTime}
+          ELSE bs.start_time < ${endTime} OR bs.end_time > ${startTime}
+        END
+      )
       AND EXISTS (
         SELECT 1 FROM booking_requests br
         WHERE br.session_id = bs.id
