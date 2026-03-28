@@ -419,7 +419,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
           ) : (
             <div className="space-y-2">
               <div ref={webhookEventsRef} className={`space-y-2 ${compact ? 'max-h-[300px]' : 'max-h-[500px]'} overflow-y-auto`}>
-                {webhookEvents.map((event: TrackmanWebhookEvent) => {
+                {webhookEvents.map((event: TrackmanWebhookEvent, index: number) => {
 
                   const hasError = !!event.processing_error;
                   const isExpanded = expandedEventId === event.id;
@@ -447,7 +447,7 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                   const trackmanUserId = (userData?.id || userData?.userId) as string || '';
 
                   return (
-                    <div key={event.id} className="p-3 md:p-4 bg-white/50 dark:bg-white/5 rounded-xl tactile-row">
+                    <div key={event.id ?? `event-${index}`} className="p-3 md:p-4 bg-white/50 dark:bg-white/5 rounded-xl tactile-row">
                       <div className="flex items-start justify-between gap-2 md:gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">

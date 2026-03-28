@@ -82,7 +82,7 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
           const blocking = isBlockingClosure(closure.affectedAreas);
           return (
             <button 
-              key={closure.id}
+              key={closure.id ?? `closure-${index}`}
               onClick={() => navigateToTab('blocks')}
               className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger tactile-card ${
                 blocking
@@ -123,7 +123,7 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
         })}
         {announcements.slice(0, 3).map((announcement, index) => (
           <button 
-            key={announcement.id}
+            key={announcement.id ?? `ann-${index}`}
             onClick={() => navigateToTab('announcements')}
             className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger tactile-card"
             style={{ '--stagger-index': index } as React.CSSProperties}
@@ -356,7 +356,7 @@ export const NoticeBoardWidget: React.FC<{
             const blocking = isBlockingClosure(closure.affectedAreas);
             return (
               <button 
-                key={closure.id} 
+                key={closure.id ?? `closure-${index}`} 
                 onClick={() => navigateToTab('blocks')}
                 className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger tactile-card ${
                   blocking
@@ -397,7 +397,7 @@ export const NoticeBoardWidget: React.FC<{
           })}
           {announcements.slice(0, 3).map((announcement, index) => (
             <button 
-              key={announcement.id}
+              key={announcement.id ?? `ann-${index}`}
               onClick={() => navigateToTab('announcements')}
               className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger tactile-card"
               style={{ '--stagger-index': index } as React.CSSProperties}

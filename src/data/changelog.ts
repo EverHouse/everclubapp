@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.86",
+    date: "2026-03-28",
+    title: "Bug Fixes & Stability Improvements",
+    changes: [
+      "Fixed: Missing expand/collapse icon on several settings and admin panels — the icon now displays correctly instead of showing an error.",
+      "Fixed: Duplicate item warnings in staff command center lists (bookings, schedule, resources) that could cause items to appear or disappear unexpectedly.",
+      "Fixed: Merch items page was broken due to missing database table — the table has been created and the page now loads properly.",
+    ]
+  },
+  {
     version: "8.97.85",
     date: "2026-03-28",
     title: "Fix Kiosk Check-In Payment Error",

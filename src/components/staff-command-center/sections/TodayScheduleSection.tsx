@@ -170,7 +170,7 @@ const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, u
             }
           }
           return (
-            <GlassListRow key={wellness.id} onClick={onNavigateToWellness} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
+            <GlassListRow key={wellness.id ?? `wellness-${index}`} onClick={onNavigateToWellness} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
               <DateBlock dateStr={dateStr} today={today} />
               <Icon name={getWellnessIcon(wellness.title)} className="text-lg text-primary dark:text-[#CCB8E4]" />
               <div className="flex-1 min-w-0">
@@ -218,7 +218,7 @@ const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcom
               ? formatTime12Hour(event.start_time!)
               : 'All Day';
           return (
-            <GlassListRow key={event.id} onClick={onNavigateToEvents} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
+            <GlassListRow key={event.id ?? `event-${index}`} onClick={onNavigateToEvents} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
               <DateBlock dateStr={dateStr} today={today} />
               <Icon name={getEventIcon(event.category || '')} className="text-lg text-primary dark:text-[#CCB8E4]" />
               <div className="flex-1 min-w-0">

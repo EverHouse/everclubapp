@@ -73,7 +73,7 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
             
             return (
               <GlassListRow 
-                key={`${request.source || 'request'}-${request.id}`} 
+                key={`${request.source || 'request'}-${request.id ?? _index}`} 
                 className="flex-col !items-stretch !gap-2"
                 hasInteractiveChildren
               >
@@ -253,7 +253,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
             
             return (
               <GlassListRow 
-                key={`${isUnmatched ? 'unmatched-' : ''}${booking.id}`}
+                key={`${isUnmatched ? 'unmatched-' : ''}${booking.id ?? `idx-${index}`}`}
                 onClick={() => navigateToTab('simulator')}
                 className={`flex-col !items-stretch !gap-2 ${cardClass}`}
                 hasInteractiveChildren
