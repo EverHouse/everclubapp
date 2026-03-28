@@ -140,7 +140,7 @@ export async function sendFirstVisitConfirmationEmail(
     logger.info(`[FirstVisitEmail] Sent first visit confirmation email to ${email}`);
     return { success: true };
   } catch (error: unknown) {
-    logger.error(`[FirstVisitEmail] Failed to send to ${email}: ${getErrorMessage(error)}`, { error: error as Error });
+    logger.error(`[FirstVisitEmail] Failed to send to ${email}: ${getErrorMessage(error)}`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }

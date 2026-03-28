@@ -12,6 +12,7 @@ import { generateBookingPass } from '../walletPass/bookingPassService';
 import { getSessionUser } from '../types/session';
 import { getSettingValue, getSettingBoolean } from '../core/settingsHelper';
 import { isStaffOrAdmin } from '../core/middleware';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -59,7 +60,7 @@ router.get('/api/member/wallet-pass/status', isAuthenticated, async (req, res) =
 
     return res.json({ available: true });
   } catch (error) {
-    logger.error('[WalletPass] Status check failed', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[WalletPass] Status check failed', { extra: { error: getErrorMessage(error) } });
     return res.json({ available: false });
   }
 });
@@ -203,7 +204,7 @@ router.get('/api/member/wallet-pass', isAuthenticated, async (req, res) => {
 
     res.send(pkpassBuffer);
   } catch (error) {
-    logger.error('[WalletPass] Failed to generate wallet pass', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[WalletPass] Failed to generate wallet pass', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to generate wallet pass' });
   }
 });
@@ -271,7 +272,7 @@ router.get('/api/member/booking-wallet-pass/:bookingId', isAuthenticated, async 
 
     res.send(pkpassBuffer);
   } catch (error) {
-    logger.error('[WalletPass] Failed to generate booking wallet pass', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[WalletPass] Failed to generate booking wallet pass', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to generate booking wallet pass' });
   }
 });
@@ -284,7 +285,7 @@ router.post('/api/admin/wallet-pass/push-update-all', isStaffOrAdmin, async (req
     });
     res.json({ success: true, sent: result.sent, failed: result.failed });
   } catch (error) {
-    logger.error('[WalletPass] Bulk push update failed', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[WalletPass] Bulk push update failed', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send bulk push update' });
   }
 });

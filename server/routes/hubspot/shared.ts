@@ -148,7 +148,7 @@ export function normalizeDateToYYYYMMDD(dateInput: string | Date | null | undefi
     
     return cleanDate;
   } catch (err) {
-    logger.debug('Failed to parse HubSpot date string', { error: getErrorMessage(err) });
+    logger.debug('Failed to parse HubSpot date string', { extra: { error: getErrorMessage(err) } });
     return null;
   }
 }

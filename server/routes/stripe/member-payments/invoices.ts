@@ -188,8 +188,8 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       customerSessionClientSecret: customerSessionSecret,
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating invoice payment intent', { error: getErrorMessage(error) });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create invoice payment intent');
+    logger.error('[Stripe] Error creating invoice payment intent', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create invoice payment intent');
     res.status(500).json({ 
       error: 'Payment initialization failed. Please try again.',
       retryable: true
@@ -318,8 +318,8 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
       error: 'Payment could not be completed with this card. Please try the standard payment form.',
     });
   } catch (error: unknown) {
-    logger.error('[MemberPayments] Error processing saved card invoice payment', { error: getErrorMessage(error) });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'member saved card invoice payment');
+    logger.error('[MemberPayments] Error processing saved card invoice payment', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'member saved card invoice payment');
     return res.status(500).json({
       error: 'Payment failed. Please try using the standard payment form.',
       retryable: true
@@ -410,8 +410,8 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error confirming invoice payment', { error: getErrorMessage(error) });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm invoice payment');
+    logger.error('[Stripe] Error confirming invoice payment', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm invoice payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true

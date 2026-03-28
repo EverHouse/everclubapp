@@ -80,9 +80,7 @@ router.post('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNumbe
     });
     return res.status(201).send('');
   } catch (err) {
-    logger.error('[WalletPass WebService] Device registration failed', {
-      error: new Error(getErrorMessage(err))
-    });
+    logger.error('[WalletPass WebService] Device registration failed', { extra: { error: getErrorMessage(err) } });
     return res.status(500).send('Internal Server Error');
   }
 });
@@ -269,9 +267,7 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       lastUpdated: lastUpdated ? lastUpdated.toISOString() : new Date().toISOString(),
     });
   } catch (err) {
-    logger.error('[WalletPass WebService] List serials failed', {
-      error: new Error(getErrorMessage(err))
-    });
+    logger.error('[WalletPass WebService] List serials failed', { extra: { error: getErrorMessage(err) } });
     return res.status(500).send('Internal Server Error');
   }
 });
@@ -355,9 +351,7 @@ router.get('/v1/passes/:passTypeId/:serialNumber', async (req, res) => {
     });
     return res.send(pkpassBuffer);
   } catch (err) {
-    logger.error('[WalletPass WebService] Fetch pass failed', {
-      error: new Error(getErrorMessage(err))
-    });
+    logger.error('[WalletPass WebService] Fetch pass failed', { extra: { error: getErrorMessage(err) } });
     return res.status(500).send('Internal Server Error');
   }
 });
@@ -388,9 +382,7 @@ router.delete('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNum
     });
     return res.status(200).send('');
   } catch (err) {
-    logger.error('[WalletPass WebService] Device unregistration failed', {
-      error: new Error(getErrorMessage(err))
-    });
+    logger.error('[WalletPass WebService] Device unregistration failed', { extra: { error: getErrorMessage(err) } });
     return res.status(500).send('Internal Server Error');
   }
 });
@@ -406,9 +398,7 @@ router.post('/v1/log', async (req, res) => {
     }
     return res.status(200).send('');
   } catch (err) {
-    logger.error('[WalletPass WebService] Log endpoint failed', {
-      error: new Error(getErrorMessage(err))
-    });
+    logger.error('[WalletPass WebService] Log endpoint failed', { extra: { error: getErrorMessage(err) } });
     return res.status(200).send('');
   }
 });

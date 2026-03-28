@@ -84,7 +84,7 @@ async function checkAndRunCleanup(): Promise<void> {
       schedulerTracker.recordRun('Duplicate Cleanup', true);
     }
   } catch (error: unknown) {
-    logger.error('[Duplicate Cleanup] Scheduler error:', { error: error as Error });
+    logger.error('[Duplicate Cleanup] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Duplicate Cleanup', false, getErrorMessage(error));
     lastCleanupDate = '';
   } finally {
@@ -110,7 +110,7 @@ export function startDuplicateCleanupScheduler(): NodeJS.Timeout {
         schedulerTracker.recordRun('Duplicate Cleanup', true);
       }
     } catch (error: unknown) {
-      logger.error('[Duplicate Cleanup] Startup cleanup error:', { error: error as Error });
+      logger.error('[Duplicate Cleanup] Startup cleanup error:', { extra: { error: getErrorMessage(error) } });
       schedulerTracker.recordRun('Duplicate Cleanup', false, getErrorMessage(error));
     } finally {
       isRunning = false;
@@ -119,7 +119,7 @@ export function startDuplicateCleanupScheduler(): NodeJS.Timeout {
   
   intervalId = setInterval(() => {
     checkAndRunCleanup().catch((err) => {
-      logger.error('[Duplicate Cleanup] Uncaught error:', { error: err as Error });
+      logger.error('[Duplicate Cleanup] Uncaught error:', { extra: { error: getErrorMessage(err) } });
     });
   }, 24 * 60 * 60 * 1000);
   return intervalId;

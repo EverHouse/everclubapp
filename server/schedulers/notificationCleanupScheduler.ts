@@ -39,7 +39,7 @@ async function cleanupNotificationTables(): Promise<void> {
     schedulerTracker.recordRun('Notification Cleanup', true, undefined, durationMs);
   } catch (error: unknown) {
     const durationMs = Date.now() - startTime;
-    logger.error('[Notification Cleanup] Scheduler error:', { error: error as Error });
+    logger.error('[Notification Cleanup] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Notification Cleanup', false, getErrorMessage(error), durationMs);
   }
 }
@@ -67,7 +67,7 @@ export function startNotificationCleanupScheduler(): void {
 
   cronTask = cron.schedule('0 0 * * *', () => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[Notification Cleanup] Uncaught error:', { error: err as Error });
+      logger.error('[Notification Cleanup] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Notification Cleanup', false, getErrorMessage(err));
     });
   });

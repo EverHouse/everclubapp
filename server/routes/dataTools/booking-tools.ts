@@ -8,6 +8,7 @@ import { isAdmin, isStaffOrAdmin } from '../../core/middleware';
 import { logBillingAudit } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
 import { safeErrorDetail } from '../../utils/errorUtils';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface DbBookingSearchRow {
   id: number;
@@ -62,7 +63,7 @@ router.get('/api/data-tools/unlinked-guest-fees', isAdmin, async (req: Request, 
     
     res.json(formatted);
   } catch (error: unknown) {
-    logger.error('[DataTools] Get unlinked guest fees error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Get unlinked guest fees error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get unlinked guest fees', details: safeErrorDetail(error) });
   }
 });
@@ -113,7 +114,7 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
       };
     }));
   } catch (error: unknown) {
-    logger.error('[DataTools] Get available sessions error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Get available sessions error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get available sessions', details: safeErrorDetail(error) });
   }
 });
@@ -173,7 +174,7 @@ router.post('/api/data-tools/link-guest-fee', isAdmin, async (req: Request, res:
       message: 'Guest fee successfully linked to booking session'
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Link guest fee error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Link guest fee error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to link guest fee', details: safeErrorDetail(error) });
   }
 });
@@ -235,7 +236,7 @@ router.get('/api/data-tools/bookings-search', isStaffOrAdmin, async (req: Reques
       };
     }));
   } catch (error: unknown) {
-    logger.error('[DataTools] Bookings search error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Bookings search error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to search bookings', details: safeErrorDetail(error) });
   }
 });
@@ -295,7 +296,7 @@ router.post('/api/data-tools/update-attendance', isAdmin, async (req: Request, r
       message: `Attendance status updated to ${attendanceStatus}`
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Update attendance error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Update attendance error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update attendance', details: safeErrorDetail(error) });
   }
 });

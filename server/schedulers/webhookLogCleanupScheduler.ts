@@ -13,7 +13,7 @@ async function scheduleWebhookLogCleanup(): Promise<void> {
     await cleanupOldWebhookLogs();
     schedulerTracker.recordRun('Webhook Log Cleanup', true);
   } catch (err: unknown) {
-    logger.error('[Webhook Cleanup] Scheduler error:', { error: err as Error });
+    logger.error('[Webhook Cleanup] Scheduler error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Webhook Log Cleanup', false, getErrorMessage(err));
     throw err;
   }
@@ -36,7 +36,7 @@ export function startWebhookLogCleanupScheduler(): NodeJS.Timeout {
         await scheduleWebhookLogCleanup();
       }
     } catch (err: unknown) {
-      logger.error('[Webhook Cleanup] Check error:', { error: err as Error });
+      logger.error('[Webhook Cleanup] Check error:', { extra: { error: getErrorMessage(err) } });
       lastRunDate = null;
     } finally {
       isRunning = false;

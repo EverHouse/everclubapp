@@ -218,7 +218,7 @@ router.post('/api/stripe/subscriptions/create-for-member', isStaffOrAdmin, subsc
           logger.info('[Stripe] Clearing orphaned subscription ID for member — subscription not found in Stripe', { extra: { memberEmail, subscriptionId: member.stripeSubscriptionId } });
           await db.update(users).set({ stripeSubscriptionId: null, updatedAt: new Date() }).where(eq(users.id, member.id));
         } else {
-          logger.error('[Stripe] Failed to verify existing subscription status', { error: getErrorMessage(subCheckErr) });
+          logger.error('[Stripe] Failed to verify existing subscription status', { extra: { error: getErrorMessage(subCheckErr) } });
           return res.status(400).json({ error: 'Could not verify existing subscription status. Please try again.' });
         }
       }

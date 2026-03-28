@@ -1121,7 +1121,7 @@ async function runVisitorArchiveInBackground(jobId: string, dryRun: boolean, sta
     currentVisitorArchiveProgress = { ...progress };
     broadcastToStaff({ type: 'visitor_archive_progress', data: progress, result: jobResult });
   } catch (error: unknown) {
-    logger.error('[DataTools] Stale visitor deletion error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[DataTools] Stale visitor deletion error', { extra: { error: getErrorMessage(error) } });
     progress.phase = 'done';
     await failJob(jobId, getErrorMessage(error), progress as unknown as Record<string, unknown>);
     currentVisitorArchiveProgress = { ...progress };

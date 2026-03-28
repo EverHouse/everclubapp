@@ -296,8 +296,8 @@ router.post('/api/data-integrity/fix/delete-empty-session', isAdmin, validateBod
   } catch (error: unknown) {
     try {
       await client.query('ROLLBACK');
-    } catch (rollbackErr) { logger.warn('[DB] Rollback failed:', { error: getErrorMessage(rollbackErr) }); }
-    logger.error('[DataIntegrity] Delete empty session error', { error: getErrorMessage(error) } as Record<string, unknown>);
+    } catch (rollbackErr) { logger.warn('[DB] Rollback failed:', { extra: { error: getErrorMessage(rollbackErr) } }); }
+    logger.error('[DataIntegrity] Delete empty session error', { extra: { error: getErrorMessage(error) } } as Record<string, unknown>);
     sendFixError(res, error);
   } finally {
     safeRelease(client);
@@ -409,7 +409,7 @@ router.post('/api/data-integrity/fix/assign-session-owner', isAdmin, validateBod
 
     res.json({ success: true, message: `Assigned ${displayName} to session on ${sess.session_date} at ${sess.resource_name}` });
   } catch (error: unknown) {
-    try { await client.query('ROLLBACK'); } catch (rollbackErr: unknown) { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); }
+    try { await client.query('ROLLBACK'); } catch (rollbackErr: unknown) { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); }
     logger.error('[DataIntegrity] Assign session owner error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {

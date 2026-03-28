@@ -13,7 +13,7 @@ async function cleanupOldHubSpotWebhooks(): Promise<void> {
     logger.info(`[HubSpot Webhook Cleanup] Deleted ${result.rowCount} old webhook deduplication record(s)`);
     schedulerTracker.recordRun('HubSpot Webhook Cleanup', true);
   } catch (error: unknown) {
-    logger.error('[HubSpot Webhook Cleanup] Scheduler error:', { error: error as Error });
+    logger.error('[HubSpot Webhook Cleanup] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('HubSpot Webhook Cleanup', false, getErrorMessage(error));
   }
 }
@@ -44,14 +44,14 @@ export function startHubSpotWebhookCleanupScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[HubSpot Webhook Cleanup] Uncaught error:', { error: err as Error });
+      logger.error('[HubSpot Webhook Cleanup] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('HubSpot Webhook Cleanup', false, getErrorMessage(err));
     });
   }, 24 * 60 * 60 * 1000);
 
   setTimeout(() => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[HubSpot Webhook Cleanup] Initial run error:', { error: err as Error });
+      logger.error('[HubSpot Webhook Cleanup] Initial run error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('HubSpot Webhook Cleanup', false, getErrorMessage(err));
     });
   }, 6 * 60 * 1000);

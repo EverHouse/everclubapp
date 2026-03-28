@@ -335,7 +335,7 @@ export async function useGuestPass(
     if (msg === 'No guest passes remaining') {
       return { success: false, error: msg };
     }
-    logger.error('[useGuestPass] Error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[useGuestPass] Error', { extra: { error: getErrorMessage(error) } });
     return { success: false, error: 'Failed to use guest pass' };
   }
 }
@@ -401,7 +401,7 @@ export async function refundGuestPass(
     if (msg === 'Member guest pass record not found') {
       return { success: false, error: msg };
     }
-    logger.error('[refundGuestPass] Error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[refundGuestPass] Error', { extra: { error: getErrorMessage(error) } });
     return { success: false, error: 'Failed to refund guest pass' };
   }
 }
@@ -424,7 +424,7 @@ export async function getGuestPassesRemaining(memberEmail: string, tier?: string
     const effectiveTotal = tierTotal ?? result[0].passesTotal;
     return Math.max(0, effectiveTotal - result[0].passesUsed);
   } catch (error: unknown) {
-    logger.error('[getGuestPassesRemaining] Error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[getGuestPassesRemaining] Error', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -451,7 +451,7 @@ export async function ensureGuestPassRecord(memberEmail: string, tier?: string):
         .onConflictDoNothing();
     }
   } catch (error: unknown) {
-    logger.error('[ensureGuestPassRecord] Error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[ensureGuestPassRecord] Error', { extra: { error: getErrorMessage(error) } });
   }
 }
 

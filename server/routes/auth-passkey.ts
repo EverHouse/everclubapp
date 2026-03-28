@@ -133,7 +133,7 @@ router.post('/api/auth/passkey/register/verify', isAuthenticated, async (req, re
 
     if (!verification.verified || !verification.registrationInfo) {
       req.session.save((err) => {
-        if (err) logger.warn('[Passkey] Session save error after failed registration verify', { error: err as Error });
+        if (err) logger.warn('[Passkey] Session save error after failed registration verify', { extra: { error: getErrorMessage(err) } });
       });
       return logAndRespond(req, res, 400, 'Passkey registration failed verification');
     }
@@ -151,7 +151,7 @@ router.post('/api/auth/passkey/register/verify', isAuthenticated, async (req, re
 
     req.session.save((err) => {
       if (err) {
-        logger.warn('[Passkey] Non-critical session save error after registration', { error: err as Error });
+        logger.warn('[Passkey] Non-critical session save error after registration', { extra: { error: getErrorMessage(err) } });
       }
     });
 
@@ -163,7 +163,7 @@ router.post('/api/auth/passkey/register/verify', isAuthenticated, async (req, re
       resourceId: sessionUser.id,
       details: { action: 'passkey_register', credentialId: credential.id.substring(0, 16) + '...' },
       req,
-    }).catch(err => logger.error('[Passkey] Failed to log passkey_register action', { error: new Error(getErrorMessage(err)) }));
+    }).catch(err => logger.error('[Passkey] Failed to log passkey_register action', { extra: { error: getErrorMessage(err) } }));
 
     logger.info('[Passkey] Registered new passkey', { extra: { userId: sessionUser.id, email: sessionUser.email } });
 
@@ -212,7 +212,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
 
     if (passkeyRecord.length === 0) {
       req.session.save((err) => {
-        if (err) logger.warn('[Passkey] Session save error after passkey not found', { error: err as Error });
+        if (err) logger.warn('[Passkey] Session save error after passkey not found', { extra: { error: getErrorMessage(err) } });
       });
       return logAndRespond(req, res, 404, 'Passkey not found. It may have been removed.');
     }
@@ -234,7 +234,7 @@ router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async 
 
     if (!verification.verified) {
       req.session.save((err) => {
-        if (err) logger.warn('[Passkey] Session save error after failed authentication verify', { error: err as Error });
+        if (err) logger.warn('[Passkey] Session save error after failed authentication verify', { extra: { error: getErrorMessage(err) } });
       });
       return logAndRespond(req, res, 400, 'Passkey authentication failed');
     }
@@ -375,7 +375,7 @@ router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) 
       resourceId: sessionUser.id,
       details: { action: 'passkey_remove', passkeyId },
       req,
-    }).catch(err => logger.error('[Passkey] Failed to log passkey_remove action', { error: new Error(getErrorMessage(err)) }));
+    }).catch(err => logger.error('[Passkey] Failed to log passkey_remove action', { extra: { error: getErrorMessage(err) } }));
 
     res.json({ success: true });
   } catch (error: unknown) {

@@ -717,9 +717,7 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
       }
     } catch (err: unknown) {
       logger.warn('[Member Cancel] Failed to clean up trackman_bay_slots', { 
-        bookingId, 
-        resourceId: existing.resourceId,
-        error: getErrorMessage(err) 
+        extra: { bookingId, resourceId: existing.resourceId, error: getErrorMessage(err) }
       });
     }
   }

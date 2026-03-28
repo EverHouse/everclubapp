@@ -13,7 +13,7 @@ async function cleanupOldWebhookEvents(): Promise<void> {
     logger.info(`[Webhook Event Cleanup] Deleted ${result.rowCount} old webhook deduplication record(s)`);
     schedulerTracker.recordRun('Webhook Event Cleanup', true);
   } catch (error: unknown) {
-    logger.error('[Webhook Event Cleanup] Scheduler error:', { error: error as Error });
+    logger.error('[Webhook Event Cleanup] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Webhook Event Cleanup', false, getErrorMessage(error));
   }
 }
@@ -44,14 +44,14 @@ export function startWebhookEventCleanupScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[Webhook Event Cleanup] Uncaught error:', { error: err as Error });
+      logger.error('[Webhook Event Cleanup] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Webhook Event Cleanup', false, getErrorMessage(err));
     });
   }, 24 * 60 * 60 * 1000);
 
   setTimeout(() => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[Webhook Event Cleanup] Initial run error:', { error: err as Error });
+      logger.error('[Webhook Event Cleanup] Initial run error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Webhook Event Cleanup', false, getErrorMessage(err));
     });
   }, 5 * 60 * 1000);

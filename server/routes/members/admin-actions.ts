@@ -220,7 +220,7 @@ router.patch('/api/members/:email/tier', isStaffOrAdmin, validateBody(tierChange
       warning: stripeSync.warning
     });
   } catch (error: unknown) {
-    logger.error('Member tier update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member tier update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update member tier' });
   }
 });
@@ -358,7 +358,7 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
     
     return res.status(400).json({ error: 'No active billing found for this member.' });
   } catch (error: unknown) {
-    logger.error('Member suspend error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member suspend error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to suspend member' });
   }
 });
@@ -597,7 +597,7 @@ router.delete('/api/members/:email', isAdmin, async (req, res) => {
       }
     }).catch(err => logger.error('[Admin] Audit log failed for archive_member', { extra: { normalizedEmail, error: getErrorMessage(err) } }));
   } catch (error: unknown) {
-    logger.error('Member archive error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member archive error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to archive member' });
   }
 });
@@ -1070,7 +1070,7 @@ router.post('/api/members/:email/anonymize', isStaffOrAdmin, async (req, res) =>
       message: 'Member data anonymized successfully. Financial records preserved for compliance.'
     });
   } catch (error: unknown) {
-    logger.error('Member anonymize error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member anonymize error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to anonymize member data' });
   }
 });
@@ -1107,7 +1107,7 @@ router.get('/api/members/add-options', isStaffOrAdmin, async (req, res) => {
         }))
     });
   } catch (error: unknown) {
-    logger.error('Add options error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Add options error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch add member options' });
   }
 });
@@ -1162,7 +1162,7 @@ router.post('/api/members', isStaffOrAdmin, validateBody(createMemberSchema), as
         : 'HubSpot sync failed to queue - member created locally only'
     });
   } catch (error: unknown) {
-    logger.error('Create member error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Create member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create member' });
   }
 });
@@ -1254,7 +1254,7 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
             newTier: normalizedTier
           });
         } catch (error: unknown) {
-          logger.error('[BulkTierUpdate] Error validating', { error: error instanceof Error ? error : new Error(String(error)), extra: { normalizedEmail } });
+          logger.error('[BulkTierUpdate] Error validating', { extra: { error: getErrorMessage(error), normalizedEmail } });
           results.errors.push({ email: normalizedEmail, error: getErrorMessage(error) });
         }
       }
@@ -1346,7 +1346,7 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
           newTier: normalizedTier
         });
       } catch (error: unknown) {
-        logger.error('[BulkTierUpdate] Error processing', { error: error instanceof Error ? error : new Error(String(error)), extra: { email } });
+        logger.error('[BulkTierUpdate] Error processing', { extra: { error: getErrorMessage(error), email } });
         results.errors.push({ email: email?.toLowerCase().trim() || 'unknown', error: getErrorMessage(error) });
       }
     }
@@ -1380,7 +1380,7 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
       }
     });
   } catch (error: unknown) {
-    logger.error('Bulk tier update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Bulk tier update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to process bulk tier update' });
   }
 });
@@ -1414,7 +1414,7 @@ router.post('/api/admin/member/change-email', isStaffOrAdmin, async (req, res) =
       ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
     });
   } catch (error: unknown) {
-    logger.error('[Email Change] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Email Change] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to change email' });
   }
 });
@@ -1431,7 +1431,7 @@ router.get('/api/admin/member/change-email/preview', isStaffOrAdmin, async (req,
     const impact = await previewEmailChangeImpact(email);
     res.json(impact);
   } catch (error: unknown) {
-    logger.error('[Email Change Preview] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Email Change Preview] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to preview email change impact' });
   }
 });
@@ -1441,7 +1441,7 @@ router.get('/api/admin/tier-change/tiers', isStaffOrAdmin, async (req, res) => {
     const tiers = await getAvailableTiersForChange();
     res.json({ tiers });
   } catch (error: unknown) {
-    logger.error('[Tier Change] Error getting tiers', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Tier Change] Error getting tiers', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get tiers' });
   }
 });
@@ -1462,7 +1462,7 @@ router.post('/api/admin/tier-change/preview', isStaffOrAdmin, async (req, res) =
     
     res.json({ preview: result.preview });
   } catch (error: unknown) {
-    logger.error('[Tier Change] Preview error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Tier Change] Preview error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to preview tier change' });
   }
 });
@@ -1485,7 +1485,7 @@ router.post('/api/admin/tier-change/commit', isStaffOrAdmin, async (req, res) =>
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Tier Change] Commit error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Tier Change] Commit error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to change tier' });
   }
 });
@@ -1496,7 +1496,7 @@ router.get('/api/members/:userId/duplicates', isStaffOrAdmin, async (req, res) =
     const duplicates = await findPotentialDuplicates(userId as string);
     res.json({ duplicates });
   } catch (error: unknown) {
-    logger.error('[Duplicates] Error finding duplicates', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Duplicates] Error finding duplicates', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to find duplicates' });
   }
 });
@@ -1512,7 +1512,7 @@ router.post('/api/members/merge/preview', isAdmin, async (req, res) => {
     const preview = await previewMerge(primaryUserId, secondaryUserId);
     res.json(preview);
   } catch (error: unknown) {
-    logger.error('[Merge Preview] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Merge Preview] Error', { extra: { error: getErrorMessage(error) } });
     res.status(400).json({ error: 'Failed to preview merge' });
   }
 });
@@ -1536,7 +1536,7 @@ router.post('/api/members/merge/execute', isAdmin, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[Merge Execute] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Merge Execute] Error', { extra: { error: getErrorMessage(error) } });
     res.status(400).json({ error: 'Failed to merge users' });
   }
 });
@@ -1577,7 +1577,7 @@ router.post('/api/members/backfill-discount-codes', isAdmin, async (req, res) =>
     
     res.json({ updated, total });
   } catch (error: unknown) {
-    logger.error('[Backfill] Error backfilling discount codes', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Backfill] Error backfilling discount codes', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to backfill discount codes' });
   }
 });

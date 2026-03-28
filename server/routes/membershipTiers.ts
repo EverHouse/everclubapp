@@ -101,7 +101,7 @@ router.get('/api/membership-tiers', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('Membership tiers fetch error', { error: getErrorMessage(error) });
+    logger.error('Membership tiers fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json([]);
   }
 });
@@ -111,7 +111,7 @@ router.get('/api/fee-products', isStaffOrAdmin, async (_req, res) => {
     const result = await db.execute(sql`SELECT * FROM fee_products ORDER BY sort_order ASC, id ASC`);
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('Fee products fetch error', { error: getErrorMessage(error) });
+    logger.error('Fee products fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json([]);
   }
 });
@@ -166,7 +166,7 @@ router.put('/api/fee-products/:id', isAdmin, async (req, res) => {
 
     res.json({ ...updated, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Fee product update error', { error: getErrorMessage(error) });
+    logger.error('Fee product update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update fee product' });
   }
 });
@@ -220,7 +220,7 @@ router.post('/api/fee-products', isAdmin, async (req, res) => {
 
     res.json({ ...created, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Fee product create error', { error: getErrorMessage(error) });
+    logger.error('Fee product create error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create fee product' });
   }
 });
@@ -268,7 +268,7 @@ router.delete('/api/fee-products/:id', isAdmin, async (req, res) => {
     logger.info(`[Fee Delete] Deleted fee product "${fee.name}" (id=${id})`);
     res.json({ success: true, deleted: fee.name });
   } catch (error: unknown) {
-    logger.error('Fee product delete error', { error: getErrorMessage(error) });
+    logger.error('Fee product delete error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete fee product' });
   }
 });
@@ -342,7 +342,7 @@ router.delete('/api/membership-tiers/:id', isAdmin, async (req, res) => {
     logger.info(`[Tier Delete] Deleted tier "${tierName}" (id=${id})`);
     res.json({ success: true, deleted: tierName });
   } catch (error: unknown) {
-    logger.error('Membership tier delete error', { error: getErrorMessage(error) });
+    logger.error('Membership tier delete error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete membership tier' });
   }
 });
@@ -383,7 +383,7 @@ router.get('/api/membership-tiers/limits/:tierName', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error: unknown) {
-    logger.error('Membership tier limits fetch error', { error: getErrorMessage(error) });
+    logger.error('Membership tier limits fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch tier limits' });
   }
 });
@@ -400,7 +400,7 @@ router.get('/api/membership-tiers/:id', async (req, res) => {
     
     res.json(result.rows[0]);
   } catch (error: unknown) {
-    logger.error('Membership tier fetch error', { error: getErrorMessage(error) });
+    logger.error('Membership tier fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch membership tier' });
   }
 });
@@ -421,7 +421,7 @@ router.get('/api/membership-tiers/:id/member-count', isAdmin, async (req, res) =
     `);
     res.json({ count: (result.rows[0] as { count: number }).count });
   } catch (error: unknown) {
-    logger.error('Member count fetch error', { error: getErrorMessage(error) });
+    logger.error('Member count fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch member count' });
   }
 });
@@ -497,26 +497,26 @@ router.put('/api/membership-tiers/:id', isAdmin, validateBody(updateTierSchema),
       synced = pushResult.success;
       if (!pushResult.success) {
         syncError = pushResult.error || 'Stripe sync failed';
-        logger.error('[AutoPush] Tier push failed', { error: getErrorMessage(syncError) });
+        logger.error('[AutoPush] Tier push failed', { extra: { error: getErrorMessage(syncError) } });
       }
     } catch (err) {
       syncError = getErrorMessage(err);
-      logger.error('[AutoPush] Tier push exception', { error: getErrorMessage(syncError) });
+      logger.error('[AutoPush] Tier push exception', { extra: { error: getErrorMessage(syncError) } });
     }
 
     if (name || is_active !== undefined) {
       import('../core/hubspot/stages').then(({ ensureHubSpotPropertiesExist }) =>
         ensureHubSpotPropertiesExist().catch(err =>
-          logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier update', { error: getErrorMessage(err) })
+          logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier update', { extra: { error: getErrorMessage(err) } })
         )
       ).catch((err: unknown) => {
-          logger.warn('[HubSpot] Dynamic import of stages module failed after tier update', { error: getErrorMessage(err) });
+          logger.warn('[HubSpot] Dynamic import of stages module failed after tier update', { extra: { error: getErrorMessage(err) } });
         });
     }
 
     res.json({ ...updatedTier, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Membership tier update error', { error: getErrorMessage(error) });
+    logger.error('Membership tier update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update membership tier' });
   }
 });
@@ -570,24 +570,24 @@ router.post('/api/membership-tiers', isAdmin, validateBody(createTierSchema), as
       synced = pushResult.success;
       if (!pushResult.success) {
         syncError = pushResult.error || 'Stripe sync failed';
-        logger.error('[AutoPush] Tier push failed', { error: getErrorMessage(syncError) });
+        logger.error('[AutoPush] Tier push failed', { extra: { error: getErrorMessage(syncError) } });
       }
     } catch (err) {
       syncError = getErrorMessage(err);
-      logger.error('[AutoPush] Tier push exception', { error: getErrorMessage(syncError) });
+      logger.error('[AutoPush] Tier push exception', { extra: { error: getErrorMessage(syncError) } });
     }
 
     import('../core/hubspot/stages').then(({ ensureHubSpotPropertiesExist }) =>
       ensureHubSpotPropertiesExist().catch(err =>
-        logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier create', { error: getErrorMessage(err) })
+        logger.warn('[HubSpot] Fire-and-forget tier property sync failed after tier create', { extra: { error: getErrorMessage(err) } })
       )
     ).catch((err: unknown) => {
-      logger.warn('[HubSpot] Dynamic import of stages module failed after tier create', { error: getErrorMessage(err) });
+      logger.warn('[HubSpot] Dynamic import of stages module failed after tier create', { extra: { error: getErrorMessage(err) } });
     });
 
     res.status(201).json({ ...result.rows[0], synced, syncError });
   } catch (error: unknown) {
-    logger.error('Membership tier create error', { error: getErrorMessage(error) });
+    logger.error('Membership tier create error', { extra: { error: getErrorMessage(error) } });
     if (getErrorCode(error) === '23505') {
       res.status(400).json({ error: 'A tier with this name or slug already exists' });
     } else {
@@ -638,7 +638,7 @@ router.post('/api/admin/stripe/sync-products', isAdmin, async (req, res) => {
       stalePriceCleanup: stalePriceResult,
     });
   } catch (error: unknown) {
-    logger.error('[Admin] Stripe sync error', { error: getErrorMessage(error) });
+    logger.error('[Admin] Stripe sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync products to Stripe', details: safeErrorDetail(error) });
   }
 });
@@ -649,7 +649,7 @@ router.get('/api/admin/stripe/sync-status', isStaffOrAdmin, async (req, res) => 
     const status = await getTierSyncStatus();
     res.json({ tiers: status });
   } catch (error: unknown) {
-    logger.error('[Admin] Error getting sync status', { error: getErrorMessage(error) });
+    logger.error('[Admin] Error getting sync status', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get sync status' });
   }
 });
@@ -677,7 +677,7 @@ router.put('/api/admin/pricing/guest-fee', isAdmin, validateBody(feeUpdateSchema
 
     res.json({ success: true, price_cents, stripe_synced: pushResult.success });
   } catch (error: unknown) {
-    logger.error('[Admin] Error updating guest fee', { error: getErrorMessage(error) });
+    logger.error('[Admin] Error updating guest fee', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update guest fee' });
   }
 });
@@ -701,7 +701,7 @@ router.put('/api/admin/pricing/overage-rate', isAdmin, validateBody(feeUpdateSch
 
     res.json({ success: true, price_cents, stripe_synced: pushResult.success });
   } catch (error: unknown) {
-    logger.error('[Admin] Error updating overage rate', { error: getErrorMessage(error) });
+    logger.error('[Admin] Error updating overage rate', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update overage rate' });
   }
 });
@@ -743,7 +743,7 @@ router.post('/api/admin/stripe/pull-from-stripe', isStaffOrAdmin, async (req, re
       cafe: cafeResult,
     });
   } catch (error: unknown) {
-    logger.error('[Admin] Pull from Stripe error', { error: getErrorMessage(error) });
+    logger.error('[Admin] Pull from Stripe error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to pull from Stripe', details: safeErrorDetail(error) });
   }
 });

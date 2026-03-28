@@ -249,7 +249,7 @@ export async function _getMemberDisplayName(email: string): Promise<string> {
       return [result[0].firstName, result[0].lastName].filter(Boolean).join(' ');
     }
   } catch (error: unknown) {
-    logger.error('[StaffCheckin] Error looking up member name', { error: getErrorMessage(error) });
+    logger.error('[StaffCheckin] Error looking up member name', { extra: { error: getErrorMessage(error) } });
   }
   return email.split('@')[0];
 }

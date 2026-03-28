@@ -146,7 +146,7 @@ async function processGracePeriodMembers(): Promise<void> {
             logger.info(`[Grace Period] Synced ${email} status=terminated to HubSpot`);
             schedulerTracker.recordRun('Grace Period', true);
           } catch (hubspotError: unknown) {
-            logger.error('[Grace Period] HubSpot sync failed:', { error: hubspotError as Error });
+            logger.error('[Grace Period] HubSpot sync failed:', { extra: { error: getErrorMessage(hubspotError) } });
             schedulerTracker.recordRun('Grace Period', false, String(hubspotError));
           }
           
@@ -158,7 +158,7 @@ async function processGracePeriodMembers(): Promise<void> {
           );
         }
       } catch (error: unknown) {
-        logger.error(`[Grace Period] Error processing member ${email}:`, { error: error as Error });
+        logger.error(`[Grace Period] Error processing member ${email}:`, { extra: { error: getErrorMessage(error) } });
         schedulerTracker.recordRun('Grace Period', false, getErrorMessage(error));
       }
     }
@@ -166,7 +166,7 @@ async function processGracePeriodMembers(): Promise<void> {
     logger.info('[Grace Period] Daily check complete');
     schedulerTracker.recordRun('Grace Period', true);
   } catch (error: unknown) {
-    logger.error('[Grace Period] Scheduler error:', { error: error as Error });
+    logger.error('[Grace Period] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Grace Period', false, getErrorMessage(error));
   }
 }
@@ -197,7 +197,7 @@ export function startGracePeriodScheduler(): void {
   
   intervalId = setInterval(() => {
     guardedProcessGracePeriodMembers().catch((err: unknown) => {
-      logger.error('[Grace Period] Uncaught error:', { error: err as Error });
+      logger.error('[Grace Period] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Grace Period', false, getErrorMessage(err));
     });
   }, 60 * 60 * 1000);

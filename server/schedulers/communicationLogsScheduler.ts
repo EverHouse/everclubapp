@@ -1,5 +1,6 @@
 import { syncCommunicationLogsFromHubSpot } from '../core/memberSync';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const COMM_LOGS_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -15,7 +16,7 @@ async function guardedSync(): Promise<void> {
   try {
     await syncCommunicationLogsFromHubSpot();
   } catch (err: unknown) {
-    logger.error('[CommLogs] Background sync failed:', { error: err as Error });
+    logger.error('[CommLogs] Background sync failed:', { extra: { error: getErrorMessage(err) } });
   } finally {
     isRunning = false;
   }

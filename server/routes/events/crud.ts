@@ -198,7 +198,7 @@ router.post('/api/events', isStaffOrAdmin, async (req, res) => {
         createExtProps
       );
     } catch (calError: unknown) {
-      logger.error('Failed to create Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
+      logger.error('Failed to create Google Calendar event', { extra: { error: getErrorMessage(calError) } });
       return res.status(500).json({ error: 'Failed to create calendar event. Please try again.' });
     }
     
@@ -388,7 +388,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           }
         }
       } catch (calError: unknown) {
-        logger.error('Failed to update Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
+        logger.error('Failed to update Google Calendar event', { extra: { error: getErrorMessage(calError) } });
       }
     }
     
@@ -498,14 +498,14 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           logger.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event deletion`);
         }
       } catch (calError: unknown) {
-        logger.error('Failed to delete Google Calendar event', { error: calError instanceof Error ? calError : new Error(getErrorMessage(calError)) });
+        logger.error('Failed to delete Google Calendar event', { extra: { error: getErrorMessage(calError) } });
       }
     }
     
     try {
       await removeEventAvailabilityBlocks(eventId);
     } catch (blockError: unknown) {
-      logger.error('Failed to remove availability blocks for event', { error: blockError instanceof Error ? blockError : new Error(getErrorMessage(blockError)) });
+      logger.error('Failed to remove availability blocks for event', { extra: { error: getErrorMessage(blockError) } });
     }
     
     const eventBeforeDelete = await db.select({

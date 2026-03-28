@@ -52,7 +52,7 @@ router.get('/api/rsvps', isAuthenticated, async (req, res) => {
             );
             isStaff = (result as unknown as { rows: Array<Record<string, unknown>> }).rows.length > 0;
           } catch (error: unknown) {
-            logger.warn('[events] Staff check query failed', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
+            logger.warn('[events] Staff check query failed', { extra: { error: getErrorMessage(error) } });
           }
         }
         if (!isStaff) {
@@ -112,7 +112,7 @@ router.get('/api/rsvps', isAuthenticated, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Request failed' });
   }
 });
@@ -197,7 +197,7 @@ router.delete('/api/rsvps/:event_id/:user_email', isAuthenticated, async (req, r
       staffMessage,
       'event_rsvp_cancelled',
       { relatedId: parsedEventId, relatedType: 'event', url: '/admin/calendar' }
-    ).catch((err: unknown) => logger.warn('Failed to notify staff of RSVP cancellation', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
+    ).catch((err: unknown) => logger.warn('Failed to notify staff of RSVP cancellation', { extra: { error: getErrorMessage(err) } }));
     
     notifyMember({
       userEmail: user_email as string,
@@ -207,7 +207,7 @@ router.delete('/api/rsvps/:event_id/:user_email', isAuthenticated, async (req, r
       relatedId: parsedEventId,
       relatedType: 'event',
       url: '/events'
-    }).catch((err: unknown) => logger.warn('Failed to notify member of RSVP cancellation', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
+    }).catch((err: unknown) => logger.warn('Failed to notify member of RSVP cancellation', { extra: { error: getErrorMessage(err) } }));
     
     broadcastToStaff({
       type: 'rsvp_event',
@@ -224,7 +224,7 @@ router.delete('/api/rsvps/:event_id/:user_email', isAuthenticated, async (req, r
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('RSVP cancellation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('RSVP cancellation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to cancel RSVP. Staff notification is required.' });
   }
 });
@@ -264,7 +264,7 @@ router.get('/api/events/:id/rsvps', isStaffOrAdmin, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch RSVPs' });
   }
 });
@@ -306,7 +306,7 @@ router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, 
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('RSVP deletion error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('RSVP deletion error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete RSVP' });
   }
 });
@@ -356,7 +356,7 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Manual RSVP error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Manual RSVP error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to add RSVP' });
   }
 });

@@ -129,7 +129,7 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
 
   if (sessionDirty) {
     req.session.save((err) => {
-      if (err) logger.warn('[Auth] Failed to persist session update', { error: getErrorMessage(err) });
+      if (err) logger.warn('[Auth] Failed to persist session update', { extra: { error: getErrorMessage(err) } });
       res.json(sessionResponse);
     });
   } else {
@@ -279,7 +279,7 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
         };
       }
     } catch (hubspotError: unknown) {
-      logger.error('HubSpot lookup failed', { error: getErrorMessage(hubspotError) });
+      logger.error('HubSpot lookup failed', { extra: { error: getErrorMessage(hubspotError) } });
     }
     
     const sessionTtl = 30 * 24 * 60 * 60 * 1000;

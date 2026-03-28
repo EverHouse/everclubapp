@@ -330,7 +330,7 @@ export function initWebSocketServer(server: Server) {
     }
 
     ws.on('error', (error) => {
-      logger.error('[WebSocket] Client connection error:', { extra: { error: error.message } });
+      logger.error('[WebSocket] Client connection error:', { extra: { error: getErrorMessage(error) } });
     });
     let userEmail: string | null = null;
     let isAuthenticated = false;
@@ -459,8 +459,7 @@ export function initWebSocketServer(server: Server) {
               }));
               
               logger.info(`[WebSocket] Authenticated: ${userEmail}`, {
-                userEmail,
-                extra: { event: 'websocket.authenticated', role: verifiedUser.role, isStaff: verifiedUser.isStaff, method: authMethod, attempts: authAttempts }
+                extra: { userEmail, event: 'websocket.authenticated', role: verifiedUser.role, isStaff: verifiedUser.isStaff, method: authMethod, attempts: authAttempts }
               });
             } else {
               const attemptsRemaining = MAX_AUTH_ATTEMPTS - authAttempts;
@@ -532,8 +531,7 @@ export function initWebSocketServer(server: Server) {
             logger.info(`[WebSocket] Staff verified and registered: ${userEmail}`);
           } else {
             logger.warn(`[WebSocket] Staff register rejected - user is not staff`, {
-              userEmail,
-              extra: { event: 'websocket.staff_register_rejected', reason: 'not_staff_role' }
+              extra: { userEmail, event: 'websocket.staff_register_rejected', reason: 'not_staff_role' }
             });
           }
         }
@@ -667,9 +665,8 @@ export function sendNotificationToUser(
   
   if (connections.length === 0) {
     logger.info(`[WebSocket] No connection for ${email} - notification not delivered`, {
-      userEmail: email,
-      bookingId: context?.bookingId,
       extra: {
+        userEmail: email, bookingId: context?.bookingId,
         event: 'notification.delivery', status: 'no_connection', notificationType: notification.type,
         action: context?.action, resourceType: context?.resourceType, triggerSource: context?.triggerSource,
         hasActiveSocket: false, connectionCount: 0, sentCount: 0
@@ -716,9 +713,8 @@ export function sendNotificationToUser(
     });
   } else {
     logger.warn(`[WebSocket] No active connections for ${email} - notification not delivered`, {
-      userEmail: email,
-      bookingId: context?.bookingId,
       extra: {
+        userEmail: email, bookingId: context?.bookingId,
         event: 'notification.delivery', status: 'no_active_connections', notificationType: notification.type,
         action: context?.action, hasActiveSocket, connectionCount: connections.length, sentCount: 0
       }

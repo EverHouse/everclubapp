@@ -23,6 +23,7 @@ import { getConferenceRoomId } from '../../core/affectedAreas';
 import { getTodayPacific } from '../../utils/dateUtils';
 import { getLifetimeVisitStats } from '../../core/memberService/lifetimeVisitStats';
 import { buildUserEmailConditions, buildUserEmailConditionsExtended } from '../../core/bookingService/bookingQueryBuilder';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -115,7 +116,7 @@ router.get('/api/member/dashboard/bookings', isAuthenticated, async (req, res) =
 
     res.json(bookings);
   } catch (error: unknown) {
-    logger.error('[dashboard/bookings] Failed to fetch bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/bookings] Failed to fetch bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
 });
@@ -167,7 +168,7 @@ router.get('/api/member/dashboard/booking-requests', isAuthenticated, async (req
 
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[dashboard/booking-requests] Failed to fetch booking requests', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/booking-requests] Failed to fetch booking requests', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch booking requests' });
   }
 });
@@ -221,7 +222,7 @@ router.get('/api/member/dashboard/rsvps', isAuthenticated, async (req, res) => {
 
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[dashboard/rsvps] Failed to fetch RSVPs', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/rsvps] Failed to fetch RSVPs', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch RSVPs' });
   }
 });
@@ -291,7 +292,7 @@ router.get('/api/member/dashboard/wellness', isAuthenticated, async (req, res) =
 
     res.json({ enrollments, classes: classesResult.rows });
   } catch (error: unknown) {
-    logger.error('[dashboard/wellness] Failed to fetch wellness data', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/wellness] Failed to fetch wellness data', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch wellness data' });
   }
 });
@@ -329,7 +330,7 @@ router.get('/api/member/dashboard/events', isAuthenticated, async (req, res) => 
 
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[dashboard/events] Failed to fetch events', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/events] Failed to fetch events', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch events' });
   }
 });
@@ -359,7 +360,7 @@ router.get('/api/member/dashboard/conference-rooms', isAuthenticated, async (req
 
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[dashboard/conference-rooms] Failed to fetch conference room bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/conference-rooms] Failed to fetch conference room bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch conference room bookings' });
   }
 });
@@ -432,18 +433,18 @@ router.get('/api/member/dashboard/stats', isAuthenticated, async (req, res) => {
 
     const [guestPassesData, lifetimeVisitCount] = await Promise.all([
       fetchGuestPassesData().catch((error: unknown) => {
-        logger.warn('[dashboard/stats] Failed to fetch guest passes', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard/stats] Failed to fetch guest passes', { extra: { error: getErrorMessage(error) } });
         return null;
       }),
       fetchLifetimeVisitCount().catch((error: unknown) => {
-        logger.warn('[dashboard/stats] Failed to fetch lifetime visit count', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard/stats] Failed to fetch lifetime visit count', { extra: { error: getErrorMessage(error) } });
         return 0;
       })
     ]);
 
     res.json({ guestPasses: guestPassesData, lifetimeVisitCount });
   } catch (error: unknown) {
-    logger.error('[dashboard/stats] Failed to fetch stats', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/stats] Failed to fetch stats', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -497,7 +498,7 @@ router.get('/api/member/dashboard/announcements', isAuthenticated, async (req, r
       linkTarget: firstUndismissed.linkTarget || undefined,
     });
   } catch (error: unknown) {
-    logger.error('[dashboard/announcements] Failed to fetch announcements', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard/announcements] Failed to fetch announcements', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch announcements' });
   }
 });
@@ -556,7 +557,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         });
         return result;
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch bookings', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -603,7 +604,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         .orderBy(events.eventDate, events.startTime)
         .limit(100);
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch RSVPs', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch RSVPs', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -636,7 +637,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         .orderBy(wellnessClasses.date, wellnessClasses.time)
         .limit(100);
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch wellness enrollments', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch wellness enrollments', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -682,7 +683,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         .orderBy(desc(bookingRequests.createdAt))
         .limit(200);
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch booking requests', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch booking requests', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -708,7 +709,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
           calendar_event_id: booking.id
         }));
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch conference room bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch conference room bookings', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -744,7 +745,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         `);
         return result.rows;
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch wellness classes', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch wellness classes', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -777,7 +778,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         .orderBy(asc(events.eventDate), asc(events.startTime))
         .limit(100);
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch events', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch events', { extra: { error: getErrorMessage(error) } });
         return [];
       }
     };
@@ -837,7 +838,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
           passes_remaining: Math.max(0, data.passesTotal - data.passesUsed)
         };
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch guest passes', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch guest passes', { extra: { error: getErrorMessage(error) } });
         return null;
       }
     };
@@ -886,7 +887,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
           linkTarget: firstUndismissed.linkTarget || undefined,
         };
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch banner announcement', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch banner announcement', { extra: { error: getErrorMessage(error) } });
         return null;
       }
     };
@@ -943,7 +944,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         const rows = result.rows as Record<string, unknown>[];
         return rows.length > 0 ? Number(rows[0].cnt) : 0;
       } catch (error: unknown) {
-        logger.warn('[dashboard-data] Failed to fetch lifetime visit count', { error: error instanceof Error ? error : new Error(String(error)) });
+        logger.warn('[dashboard-data] Failed to fetch lifetime visit count', { extra: { error: getErrorMessage(error) } });
         return 0;
       }
     };
@@ -1002,7 +1003,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
       lifetimeVisitCount
     });
   } catch (error: unknown) {
-    logger.error('[dashboard-data] Failed to fetch dashboard data', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[dashboard-data] Failed to fetch dashboard data', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch dashboard data' });
   }
 });

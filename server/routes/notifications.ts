@@ -25,7 +25,7 @@ async function isStaffUser(email: string): Promise<boolean> {
     );
     return result.rows.length > 0;
   } catch (error: unknown) {
-    logger.error('[Notifications] isStaffUser DB check failed, defaulting to false', { error: getErrorMessage(error) });
+    logger.error('[Notifications] isStaffUser DB check failed, defaulting to false', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }

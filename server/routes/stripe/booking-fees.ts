@@ -116,7 +116,7 @@ router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(cr
 
     res.status(result.status).json(result.body);
   } catch (error: unknown) {
-    await alertOnExternalServiceError('Stripe', error as Error, 'create payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create payment intent');
     logAndRespond(req, res, 500, 'Payment processing failed. Please try again.', error);
   }
 });
@@ -131,7 +131,7 @@ router.post('/api/stripe/confirm-payment', isStaffOrAdmin, validateBody(confirmP
 
     res.status(result.status).json(result.body);
   } catch (error: unknown) {
-    await alertOnExternalServiceError('Stripe', error as Error, 'confirm payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm payment');
     logAndRespond(req, res, 500, 'Payment confirmation failed. Please try again.', error);
   }
 });
@@ -176,7 +176,7 @@ router.post('/api/stripe/cancel-payment', isStaffOrAdmin, validateBody(cancelPay
 
     res.json({ success: true });
   } catch (error: unknown) {
-    await alertOnExternalServiceError('Stripe', error as Error, 'cancel payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'cancel payment');
     logAndRespond(req, res, 500, 'Payment cancellation failed. Please try again.', error);
   }
 });
@@ -193,7 +193,7 @@ router.post('/api/stripe/create-customer', isStaffOrAdmin, validateBody(createCu
       isNew: result.isNew
     });
   } catch (error: unknown) {
-    await alertOnExternalServiceError('Stripe', error as Error, 'create customer');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create customer');
     logAndRespond(req, res, 500, 'Customer creation failed. Please try again.', error);
   }
 });
@@ -557,7 +557,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
       });
     }
   } catch (error: unknown) {
-    logger.error('[Stripe] Error charging saved card', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error charging saved card', { extra: { error: getErrorMessage(error) } });
     
     if ((error as StripeError).type === 'StripeCardError') {
       return logAndRespond(req, res, 400, `Card declined: ${getErrorMessage(error)}`, error);
@@ -567,7 +567,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
       return logAndRespond(req, res, 400, 'Card requires authentication. Please use the standard payment flow.', error);
     }
 
-    await alertOnExternalServiceError('Stripe', error as Error, 'charge saved card');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'charge saved card');
     logAndRespond(req, res, 500, 'Failed to charge card. Please try again or use another payment method.', error);
   }
 });

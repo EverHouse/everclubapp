@@ -57,13 +57,13 @@ async function tryClaimIntegritySlot(todayStr: string): Promise<boolean> {
     
     return result.length > 0;
   } catch (err: unknown) {
-    logger.error('[Integrity Check] Database error claiming slot after retries:', { error: err as Error });
+    logger.error('[Integrity Check] Database error claiming slot after retries:', { extra: { error: getErrorMessage(err) } });
     alertOnScheduledTaskFailure(
       'Daily Integrity Check',
       err instanceof Error ? err : new Error(getErrorMessage(err)),
       { context: 'Failed to claim daily integrity slot' }
     ).catch((alertErr: unknown) => {
-      logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
+      logger.error('[Integrity Check] Failed to send staff alert:', { extra: { error: getErrorMessage(alertErr) } });
     });
     return false;
   }
@@ -88,7 +88,7 @@ async function markIntegritySlotCompleted(todayStr: string): Promise<void> {
       }
     );
   } catch (err: unknown) {
-    logger.error('[Integrity Check] Failed to mark slot as completed:', { error: err as Error });
+    logger.error('[Integrity Check] Failed to mark slot as completed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -111,7 +111,7 @@ async function markIntegritySlotFailed(todayStr: string): Promise<void> {
       }
     );
   } catch (err: unknown) {
-    logger.error('[Integrity Check] Failed to mark slot as failed:', { error: err as Error });
+    logger.error('[Integrity Check] Failed to mark slot as failed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -177,7 +177,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
               logger.info(`[Integrity Check] Pre-check cleanup: ${cleanupResult.orphanedNotifications} orphaned notifications removed, ${cleanupResult.orphanedBookings} orphaned bookings marked`);
             }
           } catch (cleanupErr: unknown) {
-            logger.error('[Integrity Check] Pre-check cleanup failed (continuing with checks):', { error: cleanupErr as Error });
+            logger.error('[Integrity Check] Pre-check cleanup failed (continuing with checks):', { extra: { error: getErrorMessage(cleanupErr) } });
           }
 
           const results = await runAllIntegrityChecks('scheduled');
@@ -216,7 +216,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
           schedulerTracker.recordRun('Integrity Check', true);
           await markIntegritySlotCompleted(todayStr);
         } catch (err: unknown) {
-          logger.error('[Integrity Check] Check failed:', { error: err as Error });
+          logger.error('[Integrity Check] Check failed:', { extra: { error: getErrorMessage(err) } });
           schedulerTracker.recordRun('Integrity Check', false, getErrorMessage(err));
           await markIntegritySlotFailed(todayStr);
           
@@ -225,13 +225,13 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
             err instanceof Error ? err : new Error(getErrorMessage(err)),
             { context: 'Scheduled check at midnight Pacific' }
           ).catch((alertErr: unknown) => {
-            logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
+            logger.error('[Integrity Check] Failed to send staff alert:', { extra: { error: getErrorMessage(alertErr) } });
           });
         }
       }
     }
   } catch (err: unknown) {
-    logger.error('[Integrity Check] Scheduler error:', { error: err as Error });
+    logger.error('[Integrity Check] Scheduler error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Integrity Check', false, getErrorMessage(err));
     
     alertOnScheduledTaskFailure(
@@ -239,7 +239,7 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
       err instanceof Error ? err : new Error(getErrorMessage(err)),
       { context: 'Scheduler loop error' }
     ).catch((alertErr: unknown) => {
-      logger.error('[Integrity Check] Failed to send staff alert:', { error: alertErr as Error });
+      logger.error('[Integrity Check] Failed to send staff alert:', { extra: { error: getErrorMessage(alertErr) } });
     });
   }
 }
@@ -252,7 +252,7 @@ async function runPeriodicAutoFix(): Promise<void> {
     }
     schedulerTracker.recordRun('Auto-Fix Tiers', true);
   } catch (err: unknown) {
-    logger.error('[Auto-Fix] Periodic tier fix failed:', { error: err as Error });
+    logger.error('[Auto-Fix] Periodic tier fix failed:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Auto-Fix Tiers', false, getErrorMessage(err));
   }
 }
@@ -295,7 +295,7 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
           }
         });
       } catch (err: unknown) {
-        logger.error(`[Auto-Cleanup] Failed to cleanup user ${user.email}:`, { error: err as Error });
+        logger.error(`[Auto-Cleanup] Failed to cleanup user ${user.email}:`, { extra: { error: getErrorMessage(err) } });
       }
     }
     
@@ -305,7 +305,7 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
     }
     schedulerTracker.recordRun('Abandoned Pending Cleanup', true);
   } catch (err: unknown) {
-    logger.error('[Auto-Cleanup] Failed to cleanup abandoned pending users:', { error: err as Error });
+    logger.error('[Auto-Cleanup] Failed to cleanup abandoned pending users:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Abandoned Pending Cleanup', false, getErrorMessage(err));
   }
 }
@@ -314,9 +314,9 @@ let schedulerIntervals: NodeJS.Timeout[] = [];
 
 export function startIntegrityScheduler(): NodeJS.Timeout[] {
   stopIntegrityScheduler();
-  const id1 = setInterval(() => { guardedIntegrityCheck().catch((err) => { logger.error('[Integrity Check] Uncaught error:', { error: err as Error }); }); }, 24 * 60 * 60 * 1000);
-  const id2 = setInterval(() => { guardedAutoFix().catch((err) => { logger.error('[Auto-Fix] Uncaught error:', { error: err as Error }); }); }, 24 * 60 * 60 * 1000);
-  const id3 = setInterval(() => { guardedCleanup().catch((err) => { logger.error('[Auto-Cleanup] Uncaught error:', { error: err as Error }); }); }, 6 * 60 * 60 * 1000);
+  const id1 = setInterval(() => { guardedIntegrityCheck().catch((err) => { logger.error('[Integrity Check] Uncaught error:', { extra: { error: getErrorMessage(err) } }); }); }, 24 * 60 * 60 * 1000);
+  const id2 = setInterval(() => { guardedAutoFix().catch((err) => { logger.error('[Auto-Fix] Uncaught error:', { extra: { error: getErrorMessage(err) } }); }); }, 24 * 60 * 60 * 1000);
+  const id3 = setInterval(() => { guardedCleanup().catch((err) => { logger.error('[Auto-Cleanup] Uncaught error:', { extra: { error: getErrorMessage(err) } }); }); }, 6 * 60 * 60 * 1000);
   setTimeout(() => guardedCleanup().catch((err) => { logger.warn('[Scheduler] Non-critical cleanup failed:', { extra: { error: getErrorMessage(err) } }); }), 60 * 1000);
   guardedAutoFix().catch((err) => { logger.warn('[Scheduler] Non-critical auto-fix failed:', { extra: { error: getErrorMessage(err) } }); });
   schedulerIntervals = [id1, id2, id3];

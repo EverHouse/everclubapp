@@ -190,7 +190,7 @@ router.post('/api/availability/batch', async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Batch availability API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Batch availability API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Batch availability request failed' });
   }
 });
@@ -329,7 +329,7 @@ router.get('/api/availability', async (req, res) => {
     
     res.json(slots);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Request failed' });
   }
 });
@@ -368,7 +368,7 @@ router.post('/api/availability-blocks', isStaffOrAdmin, async (req, res) => {
       res.status(409).json({ error: 'An availability block already exists for this time slot' });
     }
   } catch (error: unknown) {
-    logger.error('Availability block creation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Availability block creation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create availability block' });
   }
 });
@@ -401,7 +401,7 @@ router.get('/api/availability-blocks', async (req, res) => {
     ], sql` `));
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('Availability blocks error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Availability blocks error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch availability blocks' });
   }
 });
@@ -427,7 +427,7 @@ router.put('/api/availability-blocks/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'update_availability_block', 'availability', id as string, undefined, { resource_id, block_date, start_time, end_time });
     res.json(result.rows[0]);
   } catch (error: unknown) {
-    logger.error('Update block error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Update block error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update availability block' });
   }
 });
@@ -439,7 +439,7 @@ router.delete('/api/availability-blocks/:id', isStaffOrAdmin, async (req, res) =
     logFromRequest(req, 'delete_availability_block', 'availability', id as string);
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Delete block error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Delete block error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete availability block' });
   }
 });

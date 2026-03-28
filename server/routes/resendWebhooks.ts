@@ -53,7 +53,7 @@ async function initEmailEventsWithRetry(maxRetries = 3) {
       return;
     } catch (err) {
       if (attempt === maxRetries) {
-        logger.error('Failed to create email_events table after retries', { error: getErrorMessage(err) });
+        logger.error('Failed to create email_events table after retries', { extra: { error: getErrorMessage(err) } });
         return;
       }
       const delay = Math.pow(2, attempt) * 1000;
@@ -106,7 +106,7 @@ async function handleEmailBounced(event: ResendEmailEvent) {
         extra: { email: recipientEmail }
       });
     } catch (err: unknown) {
-      logger.error('Failed to update user bounce status', { error: getErrorMessage(err) });
+      logger.error('Failed to update user bounce status', { extra: { error: getErrorMessage(err) } });
     }
   }
 }
@@ -139,7 +139,7 @@ async function handleEmailComplained(event: ResendEmailEvent) {
         extra: { email: recipientEmail }
       });
     } catch (err: unknown) {
-      logger.error('Failed to update user complaint status', { error: getErrorMessage(err) });
+      logger.error('Failed to update user complaint status', { extra: { error: getErrorMessage(err) } });
     }
   }
 }
@@ -190,9 +190,7 @@ router.post('/api/webhooks/resend', async (req: Request, res: Response) => {
       const wh = new Webhook(webhookSecret);
       wh.verify(req.rawBody, svixHeaders);
     } catch (err: unknown) {
-      logger.warn('Resend webhook signature verification failed', {
-        error: err as Error
-      });
+      logger.warn('Resend webhook signature verification failed', { extra: { error: getErrorMessage(err) } });
       return res.status(401).json({ error: 'Invalid signature' });
     }
   } else if (isProduction) {
@@ -251,13 +249,12 @@ router.post('/api/webhooks/resend', async (req: Request, res: Response) => {
     res.status(200).json({ received: true });
   } catch (error: unknown) {
     logger.error('Failed to process Resend webhook', {
-      error: error as Error,
-      extra: { eventType: event.type }
+      extra: { error: getErrorMessage(error), eventType: event.type }
     });
     res.status(500).json({ error: 'Internal server error' });
   }
   } catch (error: unknown) {
-    logger.error('Unhandled error in Resend webhook handler', { error: getErrorMessage(error) });
+    logger.error('Unhandled error in Resend webhook handler', { extra: { error: getErrorMessage(error) } });
     if (!res.headersSent) {
       return res.status(500).json({ error: 'Internal server error' });
     }

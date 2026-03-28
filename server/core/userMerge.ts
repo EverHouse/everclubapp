@@ -2,6 +2,7 @@ import { db } from '../db';
 import { users } from '../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { logger } from './logger';
+import { getErrorMessage } from '../utils/errorUtils';
 import { normalizeEmail } from './utils/emailNormalization';
 import { getStripeClient } from './stripe/client';
 import { getHubSpotClient } from './integrations';
@@ -630,7 +631,7 @@ async function executeMergeInternal(
       });
     } catch (stripeErr: unknown) {
       logger.error('[UserMerge] Failed to update Stripe customer metadata after merge', {
-        extra: { error: stripeErr, primaryUserId, secondaryUserId }
+        extra: { error: getErrorMessage(stripeErr), primaryUserId, secondaryUserId }
       });
     }
   }
@@ -666,7 +667,7 @@ async function executeMergeInternal(
       }
     } catch (hubspotErr: unknown) {
       logger.warn('[UserMerge] Failed to merge HubSpot contacts (merge them manually in HubSpot)', {
-        extra: { error: hubspotErr, primaryHubspotId, secondaryHubspotId }
+        extra: { error: getErrorMessage(hubspotErr), primaryHubspotId, secondaryHubspotId }
       });
     }
   }
@@ -839,7 +840,7 @@ export async function consolidateStripeCustomers(
     });
   } catch (stripeErr: unknown) {
     logger.error('[UserMerge] Failed to update Stripe metadata during consolidation', {
-      extra: { error: stripeErr, keptCustomerId, orphanedCustomerId }
+      extra: { error: getErrorMessage(stripeErr), keptCustomerId, orphanedCustomerId }
     });
   }
   

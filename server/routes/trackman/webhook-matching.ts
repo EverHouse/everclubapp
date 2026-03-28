@@ -206,7 +206,7 @@ export async function tryAutoApproveBooking(
     const resolvedSessionId = createdSessionId as unknown as number | undefined;
     return { matched: true, bookingId, resourceId: resourceId ?? undefined, sessionId: resolvedSessionId };
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to auto-approve booking', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to auto-approve booking', { extra: { error: getErrorMessage(e) } });
     return { matched: false };
   }
 }
@@ -271,7 +271,7 @@ export async function cancelBookingByTrackmanId(
     return { cancelled: true, bookingId: booking.id, wasPendingCancellation };
   } catch (e: unknown) {
     logger.error('[Trackman Webhook] Error in cancelBookingByTrackmanId', {
-      error: e as Error, extra: { trackmanBookingId }
+      extra: { error: getErrorMessage(e), trackmanBookingId }
     });
     return { cancelled: false };
   }
@@ -315,7 +315,7 @@ export async function saveToUnmatchedBookings(
     
     return { success: true, id: insertedRows[0]?.id };
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to save unmatched booking', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to save unmatched booking', { extra: { error: getErrorMessage(e) } });
     return { success: false };
   }
 }
@@ -542,8 +542,7 @@ export async function createUnmatchedBookingRequest(
     const cause = (e as Error & { cause?: unknown })?.cause;
     const causeObj = cause && typeof cause === 'object' ? cause as { message?: string; code?: string; detail?: string } : undefined;
     logger.error('[Trackman Webhook] Failed to create unmatched booking_request', { 
-      error: e as Error,
-      extra: { cause: causeObj ? { message: causeObj.message, code: causeObj.code, detail: causeObj.detail } : undefined }
+      extra: { error: getErrorMessage(e), cause: causeObj ? { message: causeObj.message, code: causeObj.code, detail: causeObj.detail } : undefined }
     });
     return { created: false };
   }

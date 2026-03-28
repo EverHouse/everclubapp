@@ -318,7 +318,7 @@ export async function ensureDatabaseConstraints() {
     }
     logger.info('[DB Init] Row-Level Security disabled on all application tables');
   } catch (rlsErr: unknown) {
-    logger.error('[DB Init] CRITICAL: Failed to disable RLS — all application queries will fail:', { error: getErrorMessage(rlsErr) });
+    logger.error('[DB Init] CRITICAL: Failed to disable RLS — all application queries will fail:', { extra: { error: getErrorMessage(rlsErr) } });
     throw rlsErr;
   }
 

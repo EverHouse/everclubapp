@@ -1074,9 +1074,7 @@ export async function applyFeeBreakdownToParticipants(
       }
     });
     logger.info('[UnifiedFeeService] Applied fee breakdown to participants', {
-      sessionId,
-      participantCount: breakdown.participants.length,
-      totalCents: breakdown.totals.totalCents
+      extra: { sessionId, participantCount: breakdown.participants.length, totalCents: breakdown.totals.totalCents }
     });
   } catch (error: unknown) {
     logger.error('[UnifiedFeeService] Error applying fee breakdown:', { extra: { error: getErrorMessage(error) } });

@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import sharp from 'sharp';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -117,7 +118,7 @@ Even if quality is poor, still attempt to extract whatever information is visibl
       quality
     });
   } catch (error: unknown) {
-    logger.error('ID scan error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('ID scan error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to scan ID document' });
   }
 });
@@ -160,7 +161,7 @@ router.post('/api/admin/save-id-image', largeJsonParser, isStaffOrAdmin, async (
 
     res.json({ success: true, imageUrl: publicUrl });
   } catch (error: unknown) {
-    logger.error('Save ID image error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Save ID image error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to save ID image' });
   }
 });
@@ -177,7 +178,7 @@ router.get('/api/admin/member/:userId/id-image', isStaffOrAdmin, async (req, res
 
     res.json({ idImageUrl: result[0].idImageUrl });
   } catch (error: unknown) {
-    logger.error('Get ID image error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Get ID image error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get ID image' });
   }
 });
@@ -192,7 +193,7 @@ router.delete('/api/admin/member/:userId/id-image', isStaffOrAdmin, async (req, 
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Delete ID image error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Delete ID image error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete ID image' });
   }
 });

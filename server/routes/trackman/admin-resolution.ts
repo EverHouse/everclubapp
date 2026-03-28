@@ -175,7 +175,7 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatc
       totalPages: Math.ceil(totalCount / limitNum)
     });
   } catch (error: unknown) {
-    logger.error('Error fetching unmatched bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error fetching unmatched bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch unmatched bookings' });
   }
 });
@@ -261,7 +261,7 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error: unknown) {
-    logger.error('Error auto-resolving matchable bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error auto-resolving matchable bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to auto-resolve matchable bookings' });
   }
 });
@@ -310,7 +310,7 @@ router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async 
       dismissed: dismissedCount
     });
   } catch (error: unknown) {
-    logger.error('Error bulk dismissing bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error bulk dismissing bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to dismiss bookings' });
   }
 });
@@ -940,7 +940,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       bookingId: booking.id
     });
   } catch (error: unknown) {
-    logger.error('Error resolving unmatched booking', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error resolving unmatched booking', { extra: { error: getErrorMessage(error) } });
     const errorMessage = getErrorMessage(error);
     if (errorMessage.includes('Stripe') || errorMessage.includes('stripe')) {
       return res.status(500).json({ error: `Billing error: ${errorMessage}` });
@@ -1159,7 +1159,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
         : 'No additional bookings to auto-resolve'
     });
   } catch (error: unknown) {
-    logger.error('Error auto-resolving bookings', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error auto-resolving bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to auto-resolve bookings', details: safeErrorDetail(error) });
   }
 });
@@ -1192,7 +1192,7 @@ router.delete('/api/admin/trackman/linked-email', isStaffOrAdmin, async (req, re
       manuallyLinkedEmails: (result.rows[0] as DbRow).manually_linked_emails || []
     });
   } catch (error: unknown) {
-    logger.error('Remove linked email error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Remove linked email error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to remove linked email' });
   }
 });
@@ -1314,7 +1314,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, validateQuery(paginate
     
     res.json({ data, totalCount });
   } catch (error: unknown) {
-    logger.error('Fetch matched bookings error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Fetch matched bookings error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch matched bookings' });
   }
 });
@@ -1476,7 +1476,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     });
   } catch (error: unknown) {
     await client.query('ROLLBACK');
-    logger.error('Reassign matched booking error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Reassign matched booking error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to reassign booking' });
   } finally {
     safeRelease(client);
@@ -1557,7 +1557,7 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
         : 'No bookings found to unmatch'
     });
   } catch (error: unknown) {
-    logger.error('Unmatch member error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Unmatch member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to unmatch member bookings' });
   }
 });
@@ -1632,7 +1632,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, validateQuer
     
     res.json({ data: potentialMatches, totalCount });
   } catch (error: unknown) {
-    logger.error('Fetch potential-matches error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Fetch potential-matches error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch potential matches' });
   }
 });
@@ -1680,7 +1680,7 @@ router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, validateQuery(
       totalCount: parseInt((countResult.rows[0] as DbRow).total as string, 10)
     });
   } catch (error: unknown) {
-    logger.error('Fetch requires-review error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Fetch requires-review error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch bookings requiring review' });
   }
 });
@@ -1717,7 +1717,7 @@ router.post('/api/admin/trackman/auto-match-visitors', isStaffOrAdmin, async (re
       message: `Auto-matched ${results.matched} booking(s), ${results.failed} could not be matched`
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Auto-Match] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Auto-Match] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ 
       error: 'Failed to auto-match visitors: ' + (getErrorMessage(error) || 'Unknown error') 
     });

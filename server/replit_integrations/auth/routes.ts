@@ -4,6 +4,7 @@ import { sql, eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { users, staffUsers } from "../../../shared/schema";
 import { logger } from "../../core/logger";
+import { getErrorMessage } from "../../utils/errorUtils";
 import { getAlternateDomainEmail } from "../../core/utils/emailNormalization";
 
 async function isStaffEmail(email: string): Promise<boolean> {
@@ -19,7 +20,7 @@ async function isStaffEmail(email: string): Promise<boolean> {
       ));
     return result.length > 0;
   } catch (error: unknown) {
-    logger.error('Error checking staff status:', { error: error as Error });
+    logger.error('Error checking staff status:', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }
@@ -140,7 +141,7 @@ export function registerAuthRoutes(app: Express): void {
         lastBookingDate: lastActivityDate
       });
     } catch (error: unknown) {
-      logger.error("Error fetching user:", { error: error as Error });
+      logger.error("Error fetching user:", { extra: { error: getErrorMessage(error) } });
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });

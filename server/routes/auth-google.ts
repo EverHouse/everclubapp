@@ -337,7 +337,7 @@ router.post('/api/auth/google/callback', requireGoogleConfig, async (req, res) =
       res.redirect(destination);
     });
   } catch (error: unknown) {
-    logger.error('[Google Auth Callback] Error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Google Auth Callback] Error', { extra: { error: getErrorMessage(error) } });
     res.redirect('/login?error=google_failed');
   }
 });
@@ -414,7 +414,7 @@ router.post('/api/auth/google/link', requireGoogleConfig, async (req, res) => {
       resourceId: dbUserId,
       details: { action: 'google_link', googleEmail: googleUser.email },
       req,
-    }).catch(err => logger.error('[Google Auth] Failed to log google_link action', { error: new Error(getErrorMessage(err)) }));
+    }).catch(err => logger.error('[Google Auth] Failed to log google_link action', { extra: { error: getErrorMessage(err) } }));
 
     res.json({ success: true, googleEmail: googleUser.email });
   } catch (error: unknown) {
@@ -460,7 +460,7 @@ router.post('/api/auth/google/unlink', requireGoogleConfig, async (req, res) => 
       resourceId: dbUserId,
       details: { action: 'google_unlink' },
       req,
-    }).catch(err => logger.error('[Google Auth] Failed to log google_unlink action', { error: new Error(getErrorMessage(err)) }));
+    }).catch(err => logger.error('[Google Auth] Failed to log google_unlink action', { extra: { error: getErrorMessage(err) } }));
 
     res.json({ success: true });
   } catch (error: unknown) {

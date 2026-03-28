@@ -101,7 +101,7 @@ async function tryLinkCancelledBooking(
     
     return { matched: true, bookingId, refundedPasses: 0 };
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to link cancelled booking', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to link cancelled booking', { extra: { error: getErrorMessage(e) } });
     return { matched: false };
   }
 }
@@ -150,7 +150,7 @@ async function notifyStaffCancelledBookingLinked(
       extra: { memberName, memberEmail, date: slotDate, bookingId, refundedPasses } 
     });
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to notify staff about cancelled booking', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to notify staff about cancelled booking', { extra: { error: getErrorMessage(e) } });
   }
 }
 
@@ -196,7 +196,7 @@ async function notifyMemberBookingConfirmed(
       });
     }
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to notify member', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to notify member', { extra: { error: getErrorMessage(e) } });
   }
 }
 
@@ -212,7 +212,7 @@ function formatNotifDateTime(slotDate: string, time24: string): string {
     const timeStr = m === 0 ? `${h12} ${period}` : `${h12}:${String(m).padStart(2, '0')} ${period}`;
     return `${dayNames[d.getDay()]}, ${monthNames[month - 1]} ${day} at ${timeStr}`;
   } catch (err) {
-    logger.debug('Failed to format friendly date/time, using raw values', { error: getErrorMessage(err) });
+    logger.debug('Failed to format friendly date/time, using raw values', { extra: { error: getErrorMessage(err) } });
     return `${slotDate} at ${time24}`;
   }
 }
@@ -225,7 +225,7 @@ function calcDurationMin(startTime: string, endTime?: string): number | null {
     const diff = (eh * 60 + em) - (sh * 60 + sm);
     return diff > 0 ? diff : null;
   } catch (err) {
-    logger.debug('Failed to calculate duration from time strings', { error: getErrorMessage(err) });
+    logger.debug('Failed to calculate duration from time strings', { extra: { error: getErrorMessage(err) } });
     return null;
   }
 }
@@ -297,7 +297,7 @@ async function notifyStaffBookingCreated(
       extra: { action, memberName, memberEmail, date: slotDate } 
     });
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to notify staff', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to notify staff', { extra: { error: getErrorMessage(e) } });
   }
 }
 
@@ -537,7 +537,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
           }
           await recalculateSessionFees(autoApproveResult.sessionId, 'trackman_webhook');
           syncBookingInvoice(autoApproveResult.bookingId, autoApproveResult.sessionId).catch((syncErr: unknown) => {
-            logger.warn('[Trackman Webhook] Invoice sync failed after guest backfill', { extra: { bookingId: autoApproveResult.bookingId, sessionId: autoApproveResult.sessionId, error: syncErr } });
+            logger.warn('[Trackman Webhook] Invoice sync failed after guest backfill', { extra: { bookingId: autoApproveResult.bookingId, sessionId: autoApproveResult.sessionId, error: getErrorMessage(syncErr) } });
           });
           logger.info('[Trackman Webhook] Backfilled generic guest slots after auto-approve', {
             extra: { bookingId: autoApproveResult.bookingId, sessionId: autoApproveResult.sessionId, slotsToFill, currentParticipants, targetTotal }

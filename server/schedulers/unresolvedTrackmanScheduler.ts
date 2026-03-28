@@ -39,7 +39,7 @@ async function tryClaimUnresolvedTrackmanSlot(todayStr: string): Promise<boolean
     
     return result.length > 0;
   } catch (err: unknown) {
-    logger.error('[Unresolved Trackman Check] Database error:', { error: err as Error });
+    logger.error('[Unresolved Trackman Check] Database error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Unresolved Trackman', false, getErrorMessage(err));
     return false;
   }
@@ -49,7 +49,7 @@ async function markTrackmanSlotCompleted(todayStr: string): Promise<void> {
   try {
     await db.update(systemSettings).set({ value: `completed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${UNRESOLVED_TRACKMAN_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Unresolved Trackman Check] Failed to mark slot as completed:', { error: err as Error });
+    logger.error('[Unresolved Trackman Check] Failed to mark slot as completed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -57,7 +57,7 @@ async function markTrackmanSlotFailed(todayStr: string): Promise<void> {
   try {
     await db.update(systemSettings).set({ value: `failed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${UNRESOLVED_TRACKMAN_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Unresolved Trackman Check] Failed to mark slot as failed:', { error: err as Error });
+    logger.error('[Unresolved Trackman Check] Failed to mark slot as failed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -110,14 +110,14 @@ async function checkUnresolvedTrackmanBookings(): Promise<void> {
           }
           await markTrackmanSlotCompleted(todayStr);
         } catch (err: unknown) {
-          logger.error('[Unresolved Trackman Check] Check failed:', { error: err as Error });
+          logger.error('[Unresolved Trackman Check] Check failed:', { extra: { error: getErrorMessage(err) } });
           schedulerTracker.recordRun('Unresolved Trackman', false, getErrorMessage(err));
           await markTrackmanSlotFailed(todayStr);
         }
       }
     }
   } catch (err: unknown) {
-    logger.error('[Unresolved Trackman Check] Scheduler error:', { error: err as Error });
+    logger.error('[Unresolved Trackman Check] Scheduler error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Unresolved Trackman', false, getErrorMessage(err));
   }
 }
@@ -146,7 +146,7 @@ export function startUnresolvedTrackmanScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCheckUnresolvedTrackmanBookings().catch((err: unknown) => {
-      logger.error('[Unresolved Trackman] Uncaught error:', { error: err as Error });
+      logger.error('[Unresolved Trackman] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Unresolved Trackman', false, getErrorMessage(err));
     });
   }, 60 * 60 * 1000);

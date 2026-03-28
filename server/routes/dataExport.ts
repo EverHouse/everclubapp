@@ -5,6 +5,7 @@ import { sql, eq, desc } from 'drizzle-orm';
 import { logFromRequest } from '../core/auditLog';
 import { isAuthenticated } from '../core/middleware';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.get('/api/account/my-data', isAuthenticated, async (req: Request, res: Re
     
     return res.json(exportData);
   } catch (error: unknown) {
-    logger.error('[DataExport] Error exporting member data', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataExport] Error exporting member data', { extra: { error: getErrorMessage(error) } });
     return res.status(500).json({ error: 'Failed to export data' });
   }
 });
@@ -75,7 +76,7 @@ router.get('/api/account/my-data/preview', isAuthenticated, async (req: Request,
       message: 'Use GET /api/account/my-data to download your complete data export'
     });
   } catch (error: unknown) {
-    logger.error('[DataExport] Error previewing member data', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataExport] Error previewing member data', { extra: { error: getErrorMessage(error) } });
     return res.status(500).json({ error: 'Failed to preview data' });
   }
 });
@@ -92,7 +93,7 @@ router.get('/api/account/export-history', isAuthenticated, async (req: Request, 
     
     return res.json({ exports: history });
   } catch (error: unknown) {
-    logger.error('[DataExport] Error fetching export history', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataExport] Error fetching export history', { extra: { error: getErrorMessage(error) } });
     return res.status(500).json({ error: 'Failed to fetch export history' });
   }
 });

@@ -75,7 +75,7 @@ router.get('/api/pricing', async (req, res) => {
   setCache(PRICING_CACHE_KEY, response, CACHE_TTL_MS);
   res.json(response);
   } catch (error: unknown) {
-    logger.error('Failed to fetch pricing', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Failed to fetch pricing', { extra: { error: getErrorMessage(error) } });
     return res.status(500).json({ error: 'Failed to fetch pricing' });
   }
 });
@@ -145,7 +145,7 @@ router.put('/api/pricing', isStaffOrAdmin, async (req, res) => {
       syncError: syncErrors.length > 0 ? syncErrors.join('; ') : undefined,
     });
   } catch (error: unknown) {
-    logger.error('Failed to update pricing', { error: getErrorMessage(error) });
+    logger.error('Failed to update pricing', { extra: { error: getErrorMessage(error) } });
     return res.status(500).json({ error: 'Failed to update pricing' });
   }
 });

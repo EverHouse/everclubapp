@@ -84,7 +84,7 @@ async function cleanupPendingUsers(): Promise<void> {
     logger.info(`[Pending User Cleanup] Summary: deleted=${deleted}, stripeCleanedUp=${stripeCleanedUp}, errors=${errors}`);
     schedulerTracker.recordRun('Pending User Cleanup', true);
   } catch (error: unknown) {
-    logger.error('[Pending User Cleanup] Scheduler error:', { error: error as Error });
+    logger.error('[Pending User Cleanup] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Pending User Cleanup', false, getErrorMessage(error));
   }
 }
@@ -115,14 +115,14 @@ export function startPendingUserCleanupScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[Pending User Cleanup] Uncaught error:', { error: err as Error });
+      logger.error('[Pending User Cleanup] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Pending User Cleanup', false, getErrorMessage(err));
     });
   }, 6 * 60 * 60 * 1000);
 
   setTimeout(() => {
     guardedCleanup().catch((err: unknown) => {
-      logger.error('[Pending User Cleanup] Initial run error:', { error: err as Error });
+      logger.error('[Pending User Cleanup] Initial run error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Pending User Cleanup', false, getErrorMessage(err));
     });
   }, 60 * 1000);

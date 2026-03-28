@@ -39,7 +39,7 @@ async function tryClaimMorningSlot(todayStr: string): Promise<boolean> {
     
     return result.length > 0;
   } catch (err: unknown) {
-    logger.error('[Morning Closures] Database error:', { error: err as Error });
+    logger.error('[Morning Closures] Database error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Morning Closure', false, getErrorMessage(err));
     return false;
   }
@@ -49,7 +49,7 @@ async function markMorningSlotCompleted(todayStr: string): Promise<void> {
   try {
     await db.update(systemSettings).set({ value: `completed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${MORNING_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Morning Closures] Failed to mark slot as completed:', { error: err as Error });
+    logger.error('[Morning Closures] Failed to mark slot as completed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -57,7 +57,7 @@ async function markMorningSlotFailed(todayStr: string): Promise<void> {
   try {
     await db.update(systemSettings).set({ value: `failed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${MORNING_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Morning Closures] Failed to mark slot as failed:', { error: err as Error });
+    logger.error('[Morning Closures] Failed to mark slot as failed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -79,14 +79,14 @@ async function checkAndSendMorningNotifications(): Promise<void> {
           schedulerTracker.recordRun('Morning Closure', true);
           await markMorningSlotCompleted(todayStr);
         } catch (err: unknown) {
-          logger.error('[Morning Closures] Send failed:', { error: err as Error });
+          logger.error('[Morning Closures] Send failed:', { extra: { error: getErrorMessage(err) } });
           schedulerTracker.recordRun('Morning Closure', false, getErrorMessage(err));
           await markMorningSlotFailed(todayStr);
         }
       }
     }
   } catch (err: unknown) {
-    logger.error('[Morning Closures] Scheduler error:', { error: err as Error });
+    logger.error('[Morning Closures] Scheduler error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Morning Closure', false, getErrorMessage(err));
   }
 }
@@ -115,7 +115,7 @@ export function startMorningClosureScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCheckAndSendMorningNotifications().catch((err: unknown) => {
-      logger.error('[Morning Closures] Uncaught error:', { error: err as Error });
+      logger.error('[Morning Closures] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Morning Closure', false, getErrorMessage(err));
     });
   }, 60 * 60 * 1000);

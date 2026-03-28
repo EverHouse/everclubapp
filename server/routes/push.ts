@@ -70,7 +70,7 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
     await Promise.all(notifications);
     return { sent: true };
   } catch (error: unknown) {
-    logger.error('Failed to send push notification', { error: getErrorMessage(error) });
+    logger.error('Failed to send push notification', { extra: { error: getErrorMessage(error) } });
     return { sent: false, reason: 'Error sending push' };
   }
 }
@@ -119,7 +119,7 @@ export async function sendPushNotificationToStaff(payload: { title: string; body
     await Promise.all(notifications);
     return { sent: true, count: staffSubscriptions.length };
   } catch (error: unknown) {
-    logger.error('Failed to send push notification to staff', { error: getErrorMessage(error) });
+    logger.error('Failed to send push notification to staff', { extra: { error: getErrorMessage(error) } });
     return { sent: false, count: 0, reason: 'Error sending push' };
   }
 }
@@ -173,7 +173,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
     
     return results.sent;
   } catch (error: unknown) {
-    logger.error('Failed to send push notification to members', { error: getErrorMessage(error) });
+    logger.error('Failed to send push notification to members', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -213,7 +213,7 @@ router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Push subscription error', { error: getErrorMessage(error) });
+    logger.error('Push subscription error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to save push subscription' });
   }
 });
@@ -231,7 +231,7 @@ router.post('/api/push/unsubscribe', isAuthenticated, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Push unsubscribe error', { error: getErrorMessage(error) });
+    logger.error('Push unsubscribe error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to unsubscribe' });
   }
 });
@@ -251,7 +251,7 @@ router.post('/api/push/test', isAuthenticated, async (req, res) => {
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Test push error', { error: getErrorMessage(error) });
+    logger.error('Test push error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send test notification' });
   }
 });
@@ -373,7 +373,7 @@ router.post('/api/push/send-daily-reminders', isStaffOrAdmin, async (req, res) =
     const result = await sendDailyReminders();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Daily reminders error', { error: getErrorMessage(error) });
+    logger.error('Daily reminders error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send daily reminders' });
   }
 });
@@ -471,7 +471,7 @@ export async function sendMorningClosureNotifications() {
       ...results
     };
   } catch (error: unknown) {
-    logger.error('[Morning Notifications] Error', { error: getErrorMessage(error) });
+    logger.error('[Morning Notifications] Error', { extra: { error: getErrorMessage(error) } });
     results.errors.push(getErrorMessage(error));
     return { success: false, message: 'Failed to send morning notifications', ...results };
   }
@@ -482,7 +482,7 @@ router.post('/api/push/send-morning-closure-notifications', isStaffOrAdmin, asyn
     const result = await sendMorningClosureNotifications();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Morning closure notifications error', { error: getErrorMessage(error) });
+    logger.error('Morning closure notifications error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send morning closure notifications' });
   }
 });

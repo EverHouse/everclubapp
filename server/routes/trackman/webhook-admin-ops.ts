@@ -63,7 +63,7 @@ export async function cleanupOldWebhookLogs(): Promise<{ deleted: number }> {
     
     return { deleted };
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to cleanup old logs', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Failed to cleanup old logs', { extra: { error: getErrorMessage(error) } });
     return { deleted: 0 };
   }
 }
@@ -85,7 +85,7 @@ router.get('/api/admin/trackman-webhook/failed', isStaffOrAdmin, async (req: Req
     
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch failed events', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Failed to fetch failed events', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch failed events' });
   }
 });
@@ -404,7 +404,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
             await recalculateSessionFees(sessionResult.sessionId, 'staff_auto_match');
             const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
             syncBookingInvoice(match.id as number, sessionResult.sessionId).catch((syncErr: unknown) => {
-              logger.warn('[Trackman Auto-Match] Invoice sync failed after fee recalculation', { extra: { bookingId: match.id, sessionId: sessionResult.sessionId, error: syncErr } });
+              logger.warn('[Trackman Auto-Match] Invoice sync failed after fee recalculation', { extra: { bookingId: match.id, sessionId: sessionResult.sessionId, error: getErrorMessage(syncErr) } });
             });
             logger.info('[Trackman Auto-Match] Created participants for matched booking', {
               extra: { bookingId: match.id, sessionId: sessionResult.sessionId, playerCount, transferredFromRequest: transferredCount, genericGuestSlots: remainingSlots }
@@ -413,7 +413,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         }
       }
     } catch (sessionErr: unknown) {
-      logger.warn('[Trackman Auto-Match] Failed to ensure session', { extra: { bookingId: match.id, error: sessionErr } });
+      logger.warn('[Trackman Auto-Match] Failed to ensure session', { extra: { bookingId: match.id, error: getErrorMessage(sessionErr) } });
     }
 
     try {
@@ -438,7 +438,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
         );
       }
     } catch (notifyErr: unknown) {
-      logger.warn('[Trackman Auto-Match] Failed to notify member', { error: notifyErr instanceof Error ? notifyErr : new Error(String(notifyErr)) });
+      logger.warn('[Trackman Auto-Match] Failed to notify member', { extra: { error: getErrorMessage(notifyErr) } });
     }
     
     linkAndNotifyParticipants(match.id as number, {
@@ -463,7 +463,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
     });
     
   } catch (error: unknown) {
-    logger.error('[Trackman Auto-Match] Failed to auto-match event', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Auto-Match] Failed to auto-match event', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to auto-match event' });
   }
 });
@@ -473,7 +473,7 @@ router.post('/api/admin/trackman-webhook/cleanup', isStaffOrAdmin, async (req: R
     const result = await cleanupOldWebhookLogs();
     res.json({ success: true, deleted: result.deleted });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Manual cleanup failed', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Manual cleanup failed', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to cleanup logs' });
   }
 });

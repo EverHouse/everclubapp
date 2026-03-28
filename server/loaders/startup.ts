@@ -82,7 +82,7 @@ async function waitForDatabaseReady(maxAttempts = 20): Promise<void> {
       return;
     } catch (err: unknown) {
       if (attempt === maxAttempts) {
-        logger.error(`[Startup] Database not ready after ${maxAttempts} attempts — startup tasks may fail`, { error: getErrorMessage(err) });
+        logger.error(`[Startup] Database not ready after ${maxAttempts} attempts — startup tasks may fail`, { extra: { error: getErrorMessage(err) } });
         throw err;
       }
       const delay = Math.min(1000 * Math.pow(1.5, attempt - 1), 10000);
@@ -117,7 +117,7 @@ export async function runStartupTasks(): Promise<void> {
     logger.info('[Startup] Database constraints initialized successfully');
     startupHealth.database = 'ok';
   } catch (err: unknown) {
-    logger.error('[Startup] Database constraints failed', { error: getErrorMessage(err) });
+    logger.error('[Startup] Database constraints failed', { extra: { error: getErrorMessage(err) } });
     startupHealth.database = 'failed';
     startupHealth.criticalFailures.push(`Database constraints: ${getErrorMessage(err)}`);
   }
@@ -138,7 +138,7 @@ export async function runStartupTasks(): Promise<void> {
           logger.info(`[Startup] Normalized ${updated} existing email records`, { extra: { updated } });
         }
       } catch (err: unknown) {
-        logger.error('[Startup] Email normalization failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Email normalization failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Email normalization: ${getErrorMessage(err)}`);
       }
     },
@@ -146,7 +146,7 @@ export async function runStartupTasks(): Promise<void> {
       try {
         await setupInstantDataTriggers();
       } catch (err: unknown) {
-        logger.error('[Startup] Instant data triggers failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Instant data triggers failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Instant data triggers: ${getErrorMessage(err)}`);
       }
     },
@@ -173,7 +173,7 @@ export async function runStartupTasks(): Promise<void> {
         if (msg.includes('already exists') || msg.includes('duplicate')) {
           logger.warn('[Startup] Sync exclusions table already exists (non-critical)');
         } else {
-          logger.error('[Startup] Creating sync exclusions table failed', { error: getErrorMessage(err) });
+          logger.error('[Startup] Creating sync exclusions table failed', { extra: { error: getErrorMessage(err) } });
           startupHealth.warnings.push(`Sync exclusions table: ${msg}`);
         }
       }
@@ -185,7 +185,7 @@ export async function runStartupTasks(): Promise<void> {
         if (msg.includes('already exists') || msg.includes('duplicate')) {
           logger.warn('[Startup] Notice types already seeded (non-critical)');
         } else {
-          logger.error('[Startup] Seeding notice types failed', { error: getErrorMessage(err) });
+          logger.error('[Startup] Seeding notice types failed', { extra: { error: getErrorMessage(err) } });
           startupHealth.warnings.push(`Notice types: ${msg}`);
         }
       }
@@ -197,7 +197,7 @@ export async function runStartupTasks(): Promise<void> {
         if (msg.includes('already exists') || msg.includes('duplicate')) {
           logger.warn('[Startup] Tier features already seeded (non-critical)');
         } else {
-          logger.error('[Startup] Seeding tier features failed', { error: getErrorMessage(err) });
+          logger.error('[Startup] Seeding tier features failed', { extra: { error: getErrorMessage(err) } });
           startupHealth.warnings.push(`Tier features: ${msg}`);
         }
       }
@@ -205,7 +205,7 @@ export async function runStartupTasks(): Promise<void> {
       try {
         await validateTierHierarchy();
       } catch (err: unknown) {
-        logger.error('[Startup] Tier hierarchy validation failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Tier hierarchy validation failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Tier validation: ${getErrorMessage(err)}`);
       }
     },
@@ -213,7 +213,7 @@ export async function runStartupTasks(): Promise<void> {
       try {
         await initMemberSyncSettings();
       } catch (err: unknown) {
-        logger.error('[Startup] Member sync settings init failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Member sync settings init failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Member sync settings: ${getErrorMessage(err)}`);
       }
     },
@@ -222,7 +222,7 @@ export async function runStartupTasks(): Promise<void> {
         await retryWithBackoff(() => seedTrainingSections(), 'Training sections');
         logger.info('[Startup] Training sections synced');
       } catch (err: unknown) {
-        logger.error('[Startup] Seeding training sections failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Seeding training sections failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Training sections: ${getErrorMessage(err)}`);
       }
     },
@@ -236,7 +236,7 @@ export async function runStartupTasks(): Promise<void> {
         `);
         logger.info('[Startup] Membership agreement version ensured at 2.0');
       } catch (err: unknown) {
-        logger.warn('[Startup] Membership agreement version upsert failed (non-critical)', { error: getErrorMessage(err) });
+        logger.warn('[Startup] Membership agreement version upsert failed (non-critical)', { extra: { error: getErrorMessage(err) } });
       }
     },
     async () => {
@@ -253,14 +253,14 @@ export async function runStartupTasks(): Promise<void> {
         `);
         logger.info('[Startup] Onboarding nudge settings seeded');
       } catch (err: unknown) {
-        logger.warn('[Startup] Onboarding nudge settings seed failed (non-critical)', { error: getErrorMessage(err) });
+        logger.warn('[Startup] Onboarding nudge settings seed failed (non-critical)', { extra: { error: getErrorMessage(err) } });
       }
     },
     async () => {
       try {
         await createStripeTransactionCache();
       } catch (err: unknown) {
-        logger.error('[Startup] Creating stripe transaction cache failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Creating stripe transaction cache failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Stripe transaction cache: ${getErrorMessage(err)}`);
       }
     },
@@ -278,7 +278,7 @@ export async function runStartupTasks(): Promise<void> {
           logger.info(`[Startup] Cleaned up tier data for ${count} visitor records`);
         }
       } catch (err: unknown) {
-        logger.error('[Startup] Visitor tier cleanup failed', { error: getErrorMessage(err) });
+        logger.error('[Startup] Visitor tier cleanup failed', { extra: { error: getErrorMessage(err) } });
         startupHealth.warnings.push(`Visitor tier cleanup: ${getErrorMessage(err)}`);
       }
     },
@@ -298,7 +298,7 @@ export async function runStartupTasks(): Promise<void> {
           logger.info('[Startup] Restored incorrectly archived staff accounts', { extra: { restored: result.rows.map((r: Record<string, unknown>) => r.email) } });
         }
       }, 'Archived staff check').catch((err: unknown) => {
-        logger.warn('[Startup] Archived staff check failed after retries (non-critical):', { error: getErrorMessage(err) });
+        logger.warn('[Startup] Archived staff check failed after retries (non-critical):', { extra: { error: getErrorMessage(err) } });
       });
     },
     async () => {
@@ -312,7 +312,7 @@ export async function runStartupTasks(): Promise<void> {
           logger.info('[Startup] Cleared Stripe IDs from merged/archived users', { extra: { count: cleanupResult.rows.length, users: cleanupResult.rows.map((r: Record<string, unknown>) => r.email) } });
         }
       }, 'Merged user Stripe ID cleanup').catch((err: unknown) => {
-        logger.warn('[Startup] Merged user Stripe ID cleanup failed after retries (non-critical):', { error: getErrorMessage(err) });
+        logger.warn('[Startup] Merged user Stripe ID cleanup failed after retries (non-critical):', { extra: { error: getErrorMessage(err) } });
       });
     },
     async () => {
@@ -520,7 +520,7 @@ export async function runStartupTasks(): Promise<void> {
             }
           }
         } catch (webhookUpdateErr: unknown) {
-          logger.error('[Stripe] Failed to update webhook events (non-fatal)', { error: getErrorMessage(webhookUpdateErr) });
+          logger.error('[Stripe] Failed to update webhook events (non-fatal)', { extra: { error: getErrorMessage(webhookUpdateErr) } });
         }
       }
       
@@ -532,20 +532,20 @@ export async function runStartupTasks(): Promise<void> {
         const { validateStripeEnvironmentIds } = await import('../core/stripe/environmentValidation');
         await validateStripeEnvironmentIds();
       } catch (err: unknown) {
-        logger.error('[Stripe Env] Validation failed', { error: getErrorMessage(err) });
+        logger.error('[Stripe Env] Validation failed', { extra: { error: getErrorMessage(err) } });
       }
 
       (stripeSync as unknown as { syncBackfill: () => Promise<void> }).syncBackfill()
         .then(() => logger.info('[Stripe] Data sync complete'))
         .catch((err: unknown) => {
-          logger.error('[Stripe] Data sync error', { error: getErrorMessage(err) });
+          logger.error('[Stripe] Data sync error', { extra: { error: getErrorMessage(err) } });
           startupHealth.warnings.push(`Stripe backfill: ${getErrorMessage(err)}`);
         });
       
       import('../core/stripe/groupBilling.js')
         .then(({ getOrCreateFamilyCoupon }) => getOrCreateFamilyCoupon())
         .then(() => logger.info('[Stripe] FAMILY20 coupon ready'))
-        .catch((err: unknown) => logger.error('[Stripe] FAMILY20 coupon setup failed', { error: getErrorMessage(err) }));
+        .catch((err: unknown) => logger.error('[Stripe] FAMILY20 coupon setup failed', { extra: { error: getErrorMessage(err) } }));
       
       const products = await import('../core/stripe/products.js');
 
@@ -572,7 +572,7 @@ export async function runStartupTasks(): Promise<void> {
         if (result.status === 'fulfilled') {
           logger.info(`[Stripe] ${name} product ${result.value.action}`, { extra: { action: result.value.action } });
         } else {
-          logger.error(`[Stripe] ${name} setup failed`, { error: getErrorMessage(result.reason) });
+          logger.error(`[Stripe] ${name} setup failed`, { extra: { error: getErrorMessage(result.reason) } });
           startupHealth.warnings.push(`Stripe product init: ${name} - ${getErrorMessage(result.reason)}`);
         }
       }
@@ -581,7 +581,7 @@ export async function runStartupTasks(): Promise<void> {
         const pulled = await retryWithBackoff(() => products.pullCorporateVolumePricingFromStripe(), 'Corporate pricing pull');
         logger.info(`[Stripe] Corporate pricing ${pulled ? 'pulled from Stripe' : 'using defaults'}`, { extra: { pulled } });
       } catch (err: unknown) {
-        logger.error('[Stripe] Corporate pricing pull failed', { error: getErrorMessage(err) });
+        logger.error('[Stripe] Corporate pricing pull failed', { extra: { error: getErrorMessage(err) } });
       }
 
       try {
@@ -590,7 +590,7 @@ export async function runStartupTasks(): Promise<void> {
           logger.info(`[Stripe] Deduplicated products: ${dedup.archived} archived, ${dedup.kept} kept`, { extra: { results: dedup.results } });
         }
       } catch (err: unknown) {
-        logger.error('[Stripe] Product deduplication failed', { error: getErrorMessage(err) });
+        logger.error('[Stripe] Product deduplication failed', { extra: { error: getErrorMessage(err) } });
       }
 
       try {
@@ -599,7 +599,7 @@ export async function runStartupTasks(): Promise<void> {
           logger.info(`[Stripe] Stale price sweep: ${stalePriceResult.totalArchived} archived across ${stalePriceResult.productsProcessed} products`, { extra: { errors: stalePriceResult.totalErrors, skipped: stalePriceResult.productsSkipped } });
         }
       } catch (err: unknown) {
-        logger.error('[Stripe] Stale price sweep failed', { error: getErrorMessage(err) });
+        logger.error('[Stripe] Stale price sweep failed', { extra: { error: getErrorMessage(err) } });
       }
 
       try {
@@ -609,12 +609,12 @@ export async function runStartupTasks(): Promise<void> {
           logger.info('[Stripe] Customer sync complete', { extra: { updated: result.updated, relinked: result.relinked, staleDetected: result.staleFound } });
         }
       } catch (err: unknown) {
-        logger.error('[Stripe] Customer sync failed', { error: getErrorMessage(err) });
+        logger.error('[Stripe] Customer sync failed', { extra: { error: getErrorMessage(err) } });
       }
     }
   } catch (err: unknown) {
     try { if (origStdoutWrite) process.stdout.write = origStdoutWrite; if (origStderrWrite) process.stderr.write = origStderrWrite; } catch { /* restore best-effort */ }
-    logger.error('[Stripe] Initialization failed', { error: getErrorMessage(err) });
+    logger.error('[Stripe] Initialization failed', { extra: { error: getErrorMessage(err) } });
     startupHealth.stripe = 'failed';
     startupHealth.criticalFailures.push(`Stripe initialization: ${getErrorMessage(err)}`);
   }
@@ -632,7 +632,7 @@ export async function runStartupTasks(): Promise<void> {
       startupHealth.warnings.push('Supabase realtime: no tables enabled - recovery scheduled');
     }
   } catch (err: unknown) {
-    logger.error('[Supabase] Realtime setup failed', { error: getErrorMessage(err) });
+    logger.error('[Supabase] Realtime setup failed', { extra: { error: getErrorMessage(err) } });
     startupHealth.realtime = 'failed';
     startupHealth.warnings.push(`Supabase realtime: ${getErrorMessage(err)}`);
   }
@@ -654,10 +654,10 @@ export async function runStartupTasks(): Promise<void> {
         logger.warn('[STARTUP WARNING] ⚠️ Stripe live account has ZERO products. Run "Sync to Stripe" from the admin panel to push your tier and product data.');
       }
     } catch (productErr: unknown) {
-      logger.warn('[Startup] Could not check Stripe products', { error: getErrorMessage(productErr) });
+      logger.warn('[Startup] Could not check Stripe products', { extra: { error: getErrorMessage(productErr) } });
     }
   } catch (err: unknown) {
-    logger.warn('[Startup] Could not check Stripe environment', { error: getErrorMessage(err) });
+    logger.warn('[Startup] Could not check Stripe environment', { extra: { error: getErrorMessage(err) } });
   }
 
   await Promise.allSettled([
@@ -680,7 +680,7 @@ export async function runStartupTasks(): Promise<void> {
       if (count > 0) {
         logger.info(`[Startup] Backfilled first_login_at for ${count} members from self-requested booking history`);
       }
-    })().catch((err: unknown) => logger.warn('[Startup] first_login_at backfill failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] first_login_at backfill failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const tierBackfill = await db.execute(sql`
@@ -694,7 +694,7 @@ export async function runStartupTasks(): Promise<void> {
       if (count > 0) {
         logger.info(`[Startup] Backfilled last_tier for ${count} former members`);
       }
-    })().catch((err: unknown) => logger.warn('[Startup] last_tier backfill failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] last_tier backfill failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const passReconcile = await db.execute(sql`
@@ -719,7 +719,7 @@ export async function runStartupTasks(): Promise<void> {
       if (reconciled > 0) {
         logger.info(`[Startup] Reconciled guest pass counters for ${reconciled} members`);
       }
-    })().catch((err: unknown) => logger.warn('[Startup] Guest pass reconciliation failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] Guest pass reconciliation failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const orphanedDeductions = await db.execute(sql`
@@ -742,14 +742,14 @@ export async function runStartupTasks(): Promise<void> {
               });
               logger.info(`[Startup] Rolled back orphaned balance deduction: $${(row.amount_cents / 100).toFixed(2)} for customer ${row.stripe_customer_id}`);
             } catch (rollbackErr: unknown) {
-              logger.error(`[Startup] Failed to roll back orphaned balance deduction for ${row.stripe_customer_id}`, { error: getErrorMessage(rollbackErr) });
+              logger.error(`[Startup] Failed to roll back orphaned balance deduction for ${row.stripe_customer_id}`, { extra: { error: getErrorMessage(rollbackErr) } });
             }
           }
           await db.execute(sql`DELETE FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
         }
         logger.info(`[Startup] Cleaned up ${orphanRows.length} orphaned balance deduction record(s)`);
       }
-    })().catch((err: unknown) => logger.warn('[Startup] Orphaned balance deduction cleanup failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] Orphaned balance deduction cleanup failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const mismatchedSessions = await db.execute(sql`
@@ -847,14 +847,14 @@ export async function runStartupTasks(): Promise<void> {
             fixedCount++;
             logger.info(`[Startup] Rebuilt participants for session ${row.session_id} (owner: ${row.correct_user_name})`);
           } catch (sessionErr: unknown) {
-            logger.warn(`[Startup] Failed to rebuild participants for session ${row.session_id} (non-critical)`, { error: getErrorMessage(sessionErr) });
+            logger.warn(`[Startup] Failed to rebuild participants for session ${row.session_id} (non-critical)`, { extra: { error: getErrorMessage(sessionErr) } });
           }
         }
         if (fixedCount > 0) {
           logger.info(`[Startup] Fixed ${fixedCount} session(s) with mismatched owners from cancelled booking reuse`);
         }
       }
-    })().catch((err: unknown) => logger.warn('[Startup] Session owner mismatch fix failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] Session owner mismatch fix failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const { cleanupLessonClosures } = await import('../core/databaseCleanup');
@@ -862,7 +862,7 @@ export async function runStartupTasks(): Promise<void> {
       if (deactivated > 0) {
         logger.info(`[Startup] Deactivated ${deactivated} past lesson closures`);
       }
-    })().catch((err: unknown) => logger.warn('[Startup] Lesson closures cleanup failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] Lesson closures cleanup failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const deadItems = await db.execute(sql`
@@ -894,11 +894,11 @@ export async function runStartupTasks(): Promise<void> {
               await db.execute(sql`UPDATE hubspot_sync_queue SET status = 'superseded', completed_at = NOW() WHERE id = ${row.id}`);
             }
           } catch (rowErr: unknown) {
-            logger.warn(`[Startup] Failed to re-queue dead HubSpot job #${row.id}, leaving as dead for manual review`, { error: getErrorMessage(rowErr) });
+            logger.warn(`[Startup] Failed to re-queue dead HubSpot job #${row.id}, leaving as dead for manual review`, { extra: { error: getErrorMessage(rowErr) } });
           }
         }
       }
-    })().catch((err: unknown) => logger.warn('[Startup] HubSpot dead queue re-queue failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] HubSpot dead queue re-queue failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
       const linkedResult = await db.execute(sql`
@@ -930,7 +930,7 @@ export async function runStartupTasks(): Promise<void> {
       if (totalFixed > 0) {
         logger.info(`[Startup] Repaired ${totalFixed} bookings stored under linked emails`, { extra: { linkedFixed: linkedResult.rows?.length || 0, manualFixed: manualResult.rows?.length || 0 } });
       }
-    })().catch((err: unknown) => logger.warn('[Startup] Linked email booking repair failed (non-critical)', { error: getErrorMessage(err) })),
+    })().catch((err: unknown) => logger.warn('[Startup] Linked email booking repair failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
   ]);
 
   startupHealth.completedAt = new Date().toISOString();

@@ -28,7 +28,7 @@ router.get('/api/members/:email/communications', isStaffOrAdmin, async (req, res
     
     res.json(logs);
   } catch (error: unknown) {
-    logger.error('Communication logs error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Communication logs error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch communication logs' });
   }
 });
@@ -64,7 +64,7 @@ router.post('/api/members/:email/communications', isStaffOrAdmin, async (req, re
     logFromRequest(req, 'create_communication', 'communication', String(result[0].id), normalizedEmail);
     res.status(201).json(result[0]);
   } catch (error: unknown) {
-    logger.error('Create communication log error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Create communication log error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create communication log' });
   }
 });
@@ -90,7 +90,7 @@ router.delete('/api/members/:email/communications/:logId', isStaffOrAdmin, async
     logFromRequest(req, 'delete_communication', 'communication', logId as string, normalizedEmail);
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Delete communication log error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Delete communication log error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete communication log' });
   }
 });
@@ -155,7 +155,7 @@ router.patch('/api/members/me/preferences', isAuthenticated, validateQuery(optio
       doNotSellMyInfo: updated.doNotSellMyInfo
     });
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update preferences' });
   }
 });
@@ -195,7 +195,7 @@ router.get('/api/members/me/preferences', isAuthenticated, validateQuery(optiona
     
     res.json(result[0]);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch preferences' });
   }
 });
@@ -341,7 +341,7 @@ router.get('/api/my-visits', isAuthenticated, validateQuery(optionalEmailQuerySc
     
     res.json(visits);
   } catch (error: unknown) {
-    logger.error('API error fetching my-visits', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error fetching my-visits', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch visits' });
   }
 });
@@ -410,7 +410,7 @@ router.post('/api/members/me/data-export-request', isAuthenticated, async (req, 
       requestedAt: member.dataExportRequestedAt
     });
   } catch (error: unknown) {
-    logger.error('Data export request error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Data export request error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to submit data export request' });
   }
 });

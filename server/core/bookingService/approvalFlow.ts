@@ -523,7 +523,7 @@ export async function approveBooking(params: ApproveBookingParams) {
             logger.info('[Booking Approval] Conference room invoice finalized and paid for booking', { extra: { bookingId: prepaymentData.bookingId, invoiceId: invoiceResult.invoiceId } });
           }
         } catch (invoiceError: unknown) {
-          logger.error('[Booking Approval] Failed to finalize conference room invoice (non-blocking)', { extra: { bookingId: prepaymentData.bookingId, invoiceError: getErrorMessage(invoiceError) } });
+          logger.error('[Booking Approval] Failed to finalize conference room invoice (non-blocking)', { extra: { bookingId: prepaymentData.bookingId, error: getErrorMessage(invoiceError) } });
         }
       } else {
         logger.info('[Booking Approval] No invoice found for conference room booking — skipping finalization', { extra: { bookingId: prepaymentData.bookingId } });

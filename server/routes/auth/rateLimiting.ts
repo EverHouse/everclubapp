@@ -40,7 +40,7 @@ export const checkOtpRequestLimit = async (email: string, ip: string): Promise<{
     }
     return { allowed: true };
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error, denying request for safety', { error: getErrorMessage(error) });
+    logger.error('[RateLimit] Database error, denying request for safety', { extra: { error: getErrorMessage(error) } });
     return { allowed: false, retryAfter: 60 };
   }
 };
@@ -72,7 +72,7 @@ export const _checkMagicLinkRequestLimit = async (email: string, ip: string): Pr
     }
     return { allowed: true };
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error, denying request for safety', { error: getErrorMessage(error) });
+    logger.error('[RateLimit] Database error, denying request for safety', { extra: { error: getErrorMessage(error) } });
     return { allowed: false, retryAfter: 60 };
   }
 };
@@ -136,7 +136,7 @@ export const checkOtpVerifyAttempts = async (email: string, ip?: string): Promis
     
     return { allowed: true };
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error, denying request for safety', { error: getErrorMessage(error) });
+    logger.error('[RateLimit] Database error, denying request for safety', { extra: { error: getErrorMessage(error) } });
     return { allowed: false, retryAfter: 60 };
   }
 };
@@ -208,7 +208,7 @@ export const recordOtpVerifyFailure = async (email: string, ip?: string): Promis
          updated_at = NOW()
        RETURNING count`);
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error recording failure', { error: getErrorMessage(error) });
+    logger.error('[RateLimit] Database error recording failure', { extra: { error: getErrorMessage(error) } });
   }
 };
 
@@ -220,6 +220,6 @@ export const clearOtpVerifyAttempts = async (email: string, ip?: string): Promis
     await db.delete(rateLimits).where(eq(rateLimits.key, perIpKey));
     await db.delete(rateLimits).where(eq(rateLimits.key, emailKey));
   } catch (error: unknown) {
-    logger.error('[RateLimit] Database error clearing attempts', { error: getErrorMessage(error) });
+    logger.error('[RateLimit] Database error clearing attempts', { extra: { error: getErrorMessage(error) } });
   }
 };

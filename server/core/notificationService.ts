@@ -305,8 +305,8 @@ async function deliverViaWebSocket(payload: NotificationPayload): Promise<Delive
     const success = result.sentCount > 0;
     
     logger.info(`[Notification] WebSocket delivery to ${payload.userEmail}: ${success ? 'success' : 'no active connection'}`, {
-      userEmail: payload.userEmail,
       extra: {
+        userEmail: payload.userEmail,
         event: success ? 'notification.websocket_delivered' : 'notification.websocket_no_connection',
         type: payload.type,
         connectionCount: result.connectionCount,
@@ -354,8 +354,7 @@ async function deliverViaPush(userEmail: string, payload: PushPayload): Promise<
     
     if (subscriptions.length === 0) {
       logger.info(`[Notification] No push subscriptions for ${userEmail}`, {
-        userEmail,
-        extra: { event: 'notification.push_no_subscription' }
+        extra: { userEmail, event: 'notification.push_no_subscription' }
       });
       
       return {
@@ -402,16 +401,15 @@ async function deliverViaPush(userEmail: string, payload: PushPayload): Promise<
         .where(inArray(pushSubscriptions.endpoint, staleEndpoints));
       
       logger.info(`[Notification] Removed ${staleEndpoints.length} stale push subscriptions`, {
-        userEmail,
-        extra: { event: 'notification.push_stale_removed', count: staleEndpoints.length }
+        extra: { userEmail, event: 'notification.push_stale_removed', count: staleEndpoints.length }
       });
     }
     
     const allFailed = successCount === 0 && subscriptions.length > 0;
     
     logger.info(`[Notification] Push delivery to ${userEmail}: ${successCount}/${subscriptions.length} succeeded`, {
-      userEmail,
       extra: {
+        userEmail,
         event: allFailed ? 'notification.push_all_failed' : 'notification.push_delivered',
         successCount,
         failCount,
@@ -449,8 +447,8 @@ async function deliverViaEmail(to: string, subject: string, html: string): Promi
     });
     
     logger.info(`[Notification] Email delivered to ${to}`, {
-      userEmail: to,
       extra: {
+        userEmail: to,
         event: 'notification.email_delivered',
         subject
       }

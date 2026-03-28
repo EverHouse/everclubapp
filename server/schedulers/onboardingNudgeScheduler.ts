@@ -73,7 +73,7 @@ async function processOnboardingNudges(): Promise<void> {
       }
     }
   } catch (error: unknown) {
-    logger.error('[Onboarding Nudge] Scheduler error:', { error: error as Error });
+    logger.error('[Onboarding Nudge] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     lastNudgeDate = null;
     try {
       const { notifyAllStaff } = await import('../core/staffNotifications');
@@ -104,7 +104,7 @@ export function startOnboardingNudgeScheduler(): void {
     processOnboardingNudges()
       .then(() => schedulerTracker.recordRun('Onboarding Nudge', true))
       .catch((err: unknown) => {
-        logger.error('[Onboarding Nudge] Uncaught error:', { error: err as Error });
+        logger.error('[Onboarding Nudge] Uncaught error:', { extra: { error: getErrorMessage(err) } });
         schedulerTracker.recordRun('Onboarding Nudge', false, getErrorMessage(err));
       })
       .finally(() => { isRunning = false; });

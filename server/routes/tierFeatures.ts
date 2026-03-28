@@ -6,6 +6,7 @@ import { isAdmin } from '../core/middleware';
 import { getErrorCode } from '../utils/errorUtils';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -126,7 +127,7 @@ router.get('/api/tier-features', async (req, res) => {
 
     res.json({ features });
   } catch (error: unknown) {
-    logger.error('Tier features fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tier features fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch tier features' });
   }
 });
@@ -189,7 +190,7 @@ router.post('/api/tier-features', isAdmin, async (req, res) => {
     });
   } catch (error: unknown) {
     await client.query('ROLLBACK');
-    logger.error('Create tier feature error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Create tier feature error', { extra: { error: getErrorMessage(error) } });
     
     if (getErrorCode(error) === '23505') {
       return res.status(409).json({ error: 'A feature with this key already exists' });
@@ -235,7 +236,7 @@ router.put('/api/tier-features/:id', isAdmin, async (req, res) => {
       isActive: row.is_active
     });
   } catch (error: unknown) {
-    logger.error('Update tier feature error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Update tier feature error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update tier feature' });
   }
 });
@@ -253,7 +254,7 @@ router.delete('/api/tier-features/:id', isAdmin, async (req, res) => {
     logFromRequest(req, 'delete_tier_feature', 'tier_feature', String(result.rows[0].id));
     res.json({ success: true, deleted: result.rows[0].id });
   } catch (error: unknown) {
-    logger.error('Delete tier feature error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Delete tier feature error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete tier feature' });
   }
 });
@@ -313,7 +314,7 @@ router.put('/api/tier-features/:featureId/values/:tierId', isAdmin, async (req, 
       value: returnValue
     });
   } catch (error: unknown) {
-    logger.error('Update tier feature value error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Update tier feature value error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update tier feature value' });
   }
 });

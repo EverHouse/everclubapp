@@ -10,6 +10,7 @@ import { redactEmail } from './helpers';
 import { getCached, setCache } from '../../core/queryCache';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const DIRECTORY_CACHE_KEY = 'members_directory';
 const DIRECTORY_CACHE_TTL = 30_000;
@@ -161,7 +162,7 @@ router.get('/api/members/search', isAuthenticated, validateQuery(memberSearchSch
     
     res.json(formattedResults);
   } catch (error: unknown) {
-    logger.error('Member search error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member search error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to search members' });
   }
 });
@@ -319,7 +320,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
           ) combined
           GROUP BY email
         `).catch((error: unknown) => {
-          logger.error('[Members Directory] Combined bookings/activity query error', { error: error instanceof Error ? error : new Error(String(error)) });
+          logger.error('[Members Directory] Combined bookings/activity query error', { extra: { error: getErrorMessage(error) } });
           return { rows: [] };
         }),
         db.execute(sql`
@@ -331,7 +332,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
             AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(user_email)
         `).catch((error: unknown) => {
-          logger.error('[Members Directory] Events query error', { error: error instanceof Error ? error : new Error(String(error)) });
+          logger.error('[Members Directory] Events query error', { extra: { error: getErrorMessage(error) } });
           return { rows: [] };
         }),
         db.execute(sql`
@@ -343,7 +344,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
             AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           GROUP BY LOWER(we.user_email)
         `).catch((error: unknown) => {
-          logger.error('[Members Directory] Wellness query error', { error: error instanceof Error ? error : new Error(String(error)) });
+          logger.error('[Members Directory] Wellness query error', { extra: { error: getErrorMessage(error) } });
           return { rows: [] };
         }),
         db.execute(sql`
@@ -352,7 +353,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
           WHERE LOWER(member_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
           GROUP BY LOWER(member_email)
         `).catch((error: unknown) => {
-          logger.error('[Members Directory] Walk-in count query error', { error: error instanceof Error ? error : new Error(String(error)) });
+          logger.error('[Members Directory] Walk-in count query error', { extra: { error: getErrorMessage(error) } });
           return { rows: [] };
         }),
       ]);
@@ -458,7 +459,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
     }
     return res.json(response);
   } catch (error: unknown) {
-    logger.error('[Members Directory] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Members Directory] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch members directory' });
   }
 });
@@ -514,7 +515,7 @@ router.get('/api/guests/search', isAuthenticated, validateQuery(guestSearchSchem
     
     res.json(formattedResults);
   } catch (error: unknown) {
-    logger.error('Guest search error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Guest search error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to search guests' });
   }
 });
@@ -623,7 +624,7 @@ router.get('/api/members/frequent-partners', isAuthenticated, async (req, res) =
 
     res.json(combined);
   } catch (error: unknown) {
-    logger.error('Frequent partners error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Frequent partners error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch frequent partners' });
   }
 });

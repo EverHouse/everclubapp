@@ -49,7 +49,7 @@ router.post('/api/wellness-classes/sync', isStaffOrAdmin, async (req, res) => {
       total: result.synced
     });
   } catch (error: unknown) {
-    logger.error('Wellness calendar sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Wellness calendar sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync wellness calendar events' });
   }
 });
@@ -150,7 +150,7 @@ router.post('/api/wellness-classes/backfill-calendar', isStaffOrAdmin, async (re
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error: unknown) {
-    logger.error('Wellness calendar backfill error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Wellness calendar backfill error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to backfill wellness calendar events' });
   }
 });
@@ -166,7 +166,7 @@ router.get('/api/wellness-classes/needs-review', isStaffOrAdmin, async (req, res
        LIMIT 100`);
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('Fetch needs review error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Fetch needs review error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch wellness classes needing review' });
   }
 });
@@ -257,7 +257,7 @@ router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (re
         : undefined 
     });
   } catch (error: unknown) {
-    logger.error('Mark reviewed error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Mark reviewed error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to mark wellness class as reviewed' });
   }
 });
@@ -320,7 +320,7 @@ router.get('/api/wellness-classes', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch wellness classes' });
   }
 });
@@ -441,7 +441,7 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
     
     res.status(201).json(createdClass);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create wellness class' });
   }
 });
@@ -792,7 +792,7 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update wellness class' });
   }
 });
@@ -875,7 +875,7 @@ router.get('/api/wellness-enrollments', async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Wellness enrollments error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Wellness enrollments error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch enrollments' });
   }
 });
@@ -924,7 +924,7 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
     if (err.statusCode === 404) {
       return res.status(404).json({ error: 'Wellness class not found' });
     }
-    logger.error('Wellness enrollment error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Wellness enrollment error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to enroll in class. Staff notification is required.' });
   }
 });
@@ -1101,7 +1101,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Wellness enrollment cancellation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Wellness enrollment cancellation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to cancel enrollment. Staff notification is required.' });
   }
 });
@@ -1148,7 +1148,7 @@ router.delete('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ message: 'Wellness class deleted', class: deletedClass });
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete wellness class' });
   }
 });
@@ -1178,7 +1178,7 @@ router.get('/api/wellness-classes/:id/enrollments', isStaffOrAdmin, async (req, 
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch enrollments' });
   }
 });
@@ -1245,7 +1245,7 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
         memberEmail: email
       });
     } catch (notifyErr: unknown) {
-      logger.warn('Non-critical: Failed to send notifications for manual enrollment', { extra: { error: notifyErr, classId: id, email } });
+      logger.warn('Non-critical: Failed to send notifications for manual enrollment', { extra: { error: getErrorMessage(notifyErr), classId: id, email } });
     }
     
     logFromRequest(req, 'manual_enrollment', 'wellness', String(id), classTitle, {
@@ -1255,7 +1255,7 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Manual enrollment error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Manual enrollment error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to add enrollment' });
   }
 });

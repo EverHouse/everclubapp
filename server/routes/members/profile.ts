@@ -201,7 +201,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       pendingTierChange: user.pendingTierChange || null,
     });
   } catch (error: unknown) {
-    logger.error('API error fetching member details', { error: new Error(getErrorMessage(error)) });
+    logger.error('API error fetching member details', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch member details' });
   }
 });
@@ -260,7 +260,7 @@ router.put('/api/members/:email/sms-preferences', isAuthenticated, sensitiveActi
       smsTransactionalOptIn: result[0].smsTransactionalOptIn,
       smsRemindersOptIn: result[0].smsRemindersOptIn
     }).catch(err => {
-      logger.error('[Profile] Failed to sync SMS preferences to HubSpot', { extra: { email: normalizedEmail, error: err } });
+      logger.error('[Profile] Failed to sync SMS preferences to HubSpot', { extra: { email: normalizedEmail, error: getErrorMessage(err) } });
     });
     
     res.json({
@@ -270,7 +270,7 @@ router.put('/api/members/:email/sms-preferences', isAuthenticated, sensitiveActi
       smsRemindersOptIn: result[0].smsRemindersOptIn
     });
   } catch (error: unknown) {
-    logger.error('SMS preferences update error', { error: new Error(getErrorMessage(error)) });
+    logger.error('SMS preferences update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update SMS preferences' });
   }
 });
@@ -364,7 +364,7 @@ router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) 
         }
         syncResults.stripe = true;
       } catch (stripeErr: unknown) {
-        logger.error('[ContactInfo] Failed to update Stripe customer', { extra: { email: normalizedEmail, error: stripeErr } });
+        logger.error('[ContactInfo] Failed to update Stripe customer', { extra: { email: normalizedEmail, error: getErrorMessage(stripeErr) } });
         syncResults.stripe = false;
       }
     }
@@ -392,7 +392,7 @@ router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) 
           syncResults.hubspot = true;
         }
       } catch (hubspotErr: unknown) {
-        logger.error('[ContactInfo] Failed to update HubSpot contact', { extra: { email: normalizedEmail, error: hubspotErr } });
+        logger.error('[ContactInfo] Failed to update HubSpot contact', { extra: { email: normalizedEmail, error: getErrorMessage(hubspotErr) } });
         syncResults.hubspot = false;
       }
     }
@@ -412,7 +412,7 @@ router.put('/api/members/:email/contact-info', isStaffOrAdmin, async (req, res) 
       syncResults,
     });
   } catch (error: unknown) {
-    logger.error('Contact info update error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Contact info update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update contact info' });
   }
 });
@@ -497,7 +497,7 @@ router.put('/api/members/:email/profile-details', isStaffOrAdmin, async (req, re
       state: result[0].state || null,
       zipCode: result[0].zipCode || null,
     }).catch(err => {
-      logger.error('[Profile] Failed to sync profile details to HubSpot', { extra: { email: normalizedEmail, error: err } });
+      logger.error('[Profile] Failed to sync profile details to HubSpot', { extra: { email: normalizedEmail, error: getErrorMessage(err) } });
     });
 
     res.json({
@@ -509,7 +509,7 @@ router.put('/api/members/:email/profile-details', isStaffOrAdmin, async (req, re
       zipCode: result[0].zipCode,
     });
   } catch (error: unknown) {
-    logger.error('Profile details update error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Profile details update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update profile details' });
   }
 });
@@ -800,7 +800,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       attendedVisitsCount: totalAttendedVisits
     });
   } catch (error: unknown) {
-    logger.error('Member history error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Member history error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch member history' });
   }
 });
@@ -832,7 +832,7 @@ router.get('/api/members/:email/guests', isStaffOrAdmin, async (req, res) => {
     
     res.json(guestHistory);
   } catch (error: unknown) {
-    logger.error('Member guests error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Member guests error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch member guests' });
   }
 });
@@ -883,7 +883,7 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
     logFromRequest(req, 'change_member_role', 'user', req.params.id as string, '', { newRole: req.body.role, tags: req.body.tags });
     res.json(result[0]);
   } catch (error: unknown) {
-    logger.error('API error updating member', { error: new Error(getErrorMessage(error)) });
+    logger.error('API error updating member', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update member' });
   }
 });
@@ -944,7 +944,7 @@ router.get('/api/members/:email/cascade-preview', isStaffOrAdmin, async (req, re
       hasRelatedData: bookingsCount > 0 || rsvpsCount > 0 || enrollmentsCount > 0 || guestCheckInsCount > 0
     });
   } catch (error: unknown) {
-    logger.error('Member cascade preview error', { error: new Error(getErrorMessage(error)) });
+    logger.error('Member cascade preview error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch cascade preview' });
   }
 });

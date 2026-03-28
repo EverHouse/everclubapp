@@ -27,6 +27,7 @@ import {
 import { db } from '../db';
 import { billingGroups, groupMembers } from '../../shared/models/hubspot-billing';
 import { eq } from 'drizzle-orm';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -35,7 +36,7 @@ router.get('/api/group-billing/products', isStaffOrAdmin, async (req, res) => {
     const products = await getGroupAddOnProducts();
     res.json(products);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting products', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting products', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -45,7 +46,7 @@ router.get('/api/family-billing/products', isStaffOrAdmin, async (req, res) => {
     const products = await getGroupAddOnProducts();
     res.json(products);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting products', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting products', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -55,7 +56,7 @@ router.post('/api/group-billing/products/sync', isStaffOrAdmin, async (req, res)
     const result = await syncGroupAddOnProductsToStripe();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error syncing products', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error syncing products', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -65,7 +66,7 @@ router.post('/api/family-billing/products/sync', isStaffOrAdmin, async (req, res
     const result = await syncGroupAddOnProductsToStripe();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error syncing products', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error syncing products', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -87,7 +88,7 @@ router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, 
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error updating pricing', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error updating pricing', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -109,7 +110,7 @@ router.put('/api/family-billing/products/:tierName', isStaffOrAdmin, async (req,
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error updating pricing', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error updating pricing', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -119,7 +120,7 @@ router.get('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
     const groups = await getAllBillingGroups();
     res.json(groups);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting all groups', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting all groups', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -129,7 +130,7 @@ router.get('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
     const groups = await getAllBillingGroups();
     res.json(groups);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting all groups', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting all groups', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -145,7 +146,7 @@ router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) =
     
     res.json(group);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting group', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting group', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -161,7 +162,7 @@ router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) 
     
     res.json(group);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting group', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting group', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -194,7 +195,7 @@ router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req,
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error updating group name', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error updating group name', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -211,7 +212,7 @@ router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, r
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error deleting group', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error deleting group', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -239,7 +240,7 @@ router.post('/api/group-billing/groups', isStaffOrAdmin, async (req, res) => {
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error creating group', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error creating group', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -267,7 +268,7 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error creating group', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error creating group', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -307,7 +308,7 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error adding member', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error adding member', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -374,7 +375,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error adding corporate member', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error adding corporate member', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -414,7 +415,7 @@ router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error adding member', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error adding member', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -435,7 +436,7 @@ router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, validateQuery
       totalDollars: (pricePerSeat * memberCount) / 100,
     });
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error getting corporate pricing', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error getting corporate pricing', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -489,7 +490,7 @@ router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error removing member', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error removing member', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to remove member. Please try again.' });
   }
 });
@@ -514,7 +515,7 @@ router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (re
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error removing member', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error removing member', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to remove family member. Please try again.' });
   }
 });
@@ -543,7 +544,7 @@ router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdm
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error linking subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error linking subscription', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -572,7 +573,7 @@ router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAd
       res.status(400).json({ error: result.error });
     }
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error linking subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error linking subscription', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -594,7 +595,7 @@ router.post('/api/group-billing/reconcile', isStaffOrAdmin, async (req, res) => 
     });
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error during reconciliation', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error during reconciliation', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });
@@ -616,7 +617,7 @@ router.post('/api/family-billing/reconcile', isStaffOrAdmin, async (req, res) =>
     });
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[GroupBilling] Error during reconciliation', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GroupBilling] Error during reconciliation', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'An error occurred. Please try again.' });
   }
 });

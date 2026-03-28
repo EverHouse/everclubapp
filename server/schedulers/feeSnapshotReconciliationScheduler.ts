@@ -132,7 +132,7 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
     if (msg.includes('timeout')) {
       logger.warn('[Fee Snapshot Reconciliation] Skipped due to DB connection timeout — will retry next cycle');
     } else {
-      logger.error('[Fee Snapshot Reconciliation] Scheduler error:', { error: error as Error });
+      logger.error('[Fee Snapshot Reconciliation] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     }
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(error));
     return { synced, errors: errors + 1 };
@@ -275,7 +275,7 @@ async function cancelAbandonedPaymentIntents(): Promise<{ cancelled: number; err
     if (msg.includes('timeout')) {
       logger.warn('[Abandoned PI Cleanup] Skipped due to DB connection timeout — will retry next cycle');
     } else {
-      logger.error('[Abandoned PI Cleanup] Scheduler error:', { error: error as Error });
+      logger.error('[Abandoned PI Cleanup] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     }
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(error));
     return { cancelled, errors: errors + 1 };
@@ -471,7 +471,7 @@ async function reconcileStalePaymentIntents(): Promise<{ reconciled: number; err
     if (msg.includes('timeout')) {
       logger.warn('[Payment Intent Reconciliation] Skipped due to DB connection timeout — will retry next cycle');
     } else {
-      logger.error('[Payment Intent Reconciliation] Scheduler error:', { error: error as Error });
+      logger.error('[Payment Intent Reconciliation] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     }
     schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(error));
     return { reconciled, errors: errors + 1 };
@@ -508,7 +508,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
         }
       })
       .catch((err: unknown) => {
-        logger.error('[Fee Snapshot Reconciliation] Initial run error:', { error: err as Error });
+        logger.error('[Fee Snapshot Reconciliation] Initial run error:', { extra: { error: getErrorMessage(err) } });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(err));
       }),
 
@@ -520,7 +520,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
         }
       })
       .catch((err: unknown) => {
-        logger.error('[Payment Intent Reconciliation] Initial run error:', { error: err as Error });
+        logger.error('[Payment Intent Reconciliation] Initial run error:', { extra: { error: getErrorMessage(err) } });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(err));
       }),
 
@@ -532,7 +532,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
         }
       })
       .catch((err: unknown) => {
-        logger.error('[Abandoned PI Cleanup] Initial run error:', { error: err as Error });
+        logger.error('[Abandoned PI Cleanup] Initial run error:', { extra: { error: getErrorMessage(err) } });
         schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, getErrorMessage(err));
       }),
     ])
@@ -540,7 +540,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
         const failed = results.filter(r => r.status === 'rejected');
         if (failed.length > 0) {
           for (const f of failed) {
-            logger.error('[Fee Snapshot Reconciliation] Initial task failed:', { error: (f as PromiseRejectedResult).reason as Error });
+            logger.error('[Fee Snapshot Reconciliation] Initial task failed:', { extra: { error: getErrorMessage((f as PromiseRejectedResult).reason) } });
           }
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, `${failed.length} initial task(s) failed`);
         } else {
@@ -581,7 +581,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
         const failed = results.filter(r => r.status === 'rejected');
         if (failed.length > 0) {
           for (const f of failed) {
-            logger.error('[Fee Snapshot Reconciliation] Task failed:', { error: (f as PromiseRejectedResult).reason as Error });
+            logger.error('[Fee Snapshot Reconciliation] Task failed:', { extra: { error: getErrorMessage((f as PromiseRejectedResult).reason) } });
           }
           schedulerTracker.recordRun('Fee Snapshot Reconciliation', false, `${failed.length} task(s) failed`);
         } else {

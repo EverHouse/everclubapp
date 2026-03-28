@@ -5,6 +5,7 @@ import { eq, asc } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get('/api/faqs', async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('FAQs fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('FAQs fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch FAQs' });
   }
 });
@@ -42,7 +43,7 @@ router.get('/api/admin/faqs', isStaffOrAdmin, async (req, res) => {
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Admin FAQs fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Admin FAQs fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch FAQs' });
   }
 });
@@ -67,7 +68,7 @@ router.post('/api/admin/faqs', isStaffOrAdmin, async (req, res) => {
     
     res.status(201).json(newFaq);
   } catch (error: unknown) {
-    logger.error('FAQ creation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('FAQ creation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create FAQ' });
   }
 });
@@ -99,7 +100,7 @@ router.put('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('FAQ update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('FAQ update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update FAQ' });
   }
 });
@@ -122,7 +123,7 @@ router.delete('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, deleted });
   } catch (error: unknown) {
-    logger.error('FAQ deletion error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('FAQ deletion error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete FAQ' });
   }
 });
@@ -153,7 +154,7 @@ router.post('/api/admin/faqs/reorder', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, updated: order.length });
   } catch (error: unknown) {
-    logger.error('FAQ reorder error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('FAQ reorder error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to reorder FAQs' });
   }
 });
@@ -177,7 +178,7 @@ router.post('/api/admin/faqs/seed', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, count: inserted.length, faqs: inserted });
   } catch (error: unknown) {
-    logger.error('FAQ seeding error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('FAQ seeding error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to seed FAQs' });
   }
 });

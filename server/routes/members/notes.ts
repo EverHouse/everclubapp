@@ -6,6 +6,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { logger } from '../../core/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/api/members/:email/notes', isStaffOrAdmin, async (req, res) => {
     
     res.json(notes);
   } catch (error: unknown) {
-    logger.error('Member notes error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Member notes error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch member notes' });
   }
 });
@@ -54,7 +55,7 @@ router.post('/api/members/:email/notes', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'create_note', 'note', String(result[0].id), normalizedEmail);
     res.status(201).json(result[0]);
   } catch (error: unknown) {
-    logger.error('Create note error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Create note error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create note' });
   }
 });
@@ -86,7 +87,7 @@ router.put('/api/members/:email/notes/:noteId', isStaffOrAdmin, async (req, res)
     logFromRequest(req, 'update_note', 'note', noteId as string, normalizedEmail);
     res.json(result[0]);
   } catch (error: unknown) {
-    logger.error('Update note error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Update note error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update note' });
   }
 });
@@ -112,7 +113,7 @@ router.delete('/api/members/:email/notes/:noteId', isStaffOrAdmin, async (req, r
     logFromRequest(req, 'delete_note', 'note', noteId as string, normalizedEmail);
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Delete note error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Delete note error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete note' });
   }
 });

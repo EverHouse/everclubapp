@@ -196,7 +196,7 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
                    updated_at = NOW()`);
               logger.info('[QuickCharge] Created visitor record for new customer', { extra: { memberEmail } });
               findOrCreateHubSpotContact(memberEmail, firstName, lastName, undefined, undefined, { role: 'visitor' }).catch((err) => {
-                logger.error('[QuickCharge] Background HubSpot sync for visitor failed', { error: new Error(getErrorMessage(err)) });
+                logger.error('[QuickCharge] Background HubSpot sync for visitor failed', { extra: { error: getErrorMessage(err) } });
               });
             }
           } else if (!existingUser.rows[0].stripe_customer_id) {
@@ -356,8 +356,8 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
       paymentIntentId: result.paymentIntentId
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating quick charge', { error: new Error(getErrorMessage(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'create quick charge');
+    logger.error('[Stripe] Error creating quick charge', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create quick charge');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
       retryable: true
@@ -425,7 +425,7 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, validateBo
           metadata.lastName || '',
           metadata.phone || undefined
         ).catch((err) => {
-          logger.error('[Stripe] Background HubSpot sync after payment confirmation failed', { error: new Error(getErrorMessage(err)) });
+          logger.error('[Stripe] Background HubSpot sync after payment confirmation failed', { extra: { error: getErrorMessage(err) } });
         });
       }
     }
@@ -452,8 +452,8 @@ router.post('/api/stripe/staff/quick-charge/confirm', isStaffOrAdmin, validateBo
     logger.info('[Stripe] Quick charge confirmed: by', { extra: { paymentIntentId, staffEmail } });
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error confirming quick charge', { error: new Error(getErrorMessage(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'confirm quick charge');
+    logger.error('[Stripe] Error confirming quick charge', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm quick charge');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true
@@ -509,7 +509,7 @@ router.post('/api/stripe/staff/quick-charge/attach-email', isStaffOrAdmin, valid
             logger.info('[AttachEmail] Created visitor record for guest checkout', { extra: { email } });
 
             findOrCreateHubSpotContact(email, '', '', undefined, undefined, { role: 'visitor' }).catch((err) => {
-              logger.error('[AttachEmail] Background HubSpot sync failed', { error: new Error(getErrorMessage(err)) });
+              logger.error('[AttachEmail] Background HubSpot sync failed', { extra: { error: getErrorMessage(err) } });
             });
           }
         }
@@ -550,7 +550,7 @@ router.post('/api/stripe/staff/quick-charge/attach-email', isStaffOrAdmin, valid
 
     res.json({ success: true, stripeCustomerId });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error attaching email to payment', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Stripe] Error attaching email to payment', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to attach email to payment' });
   }
 });
@@ -745,7 +745,7 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
       });
     }
   } catch (error: unknown) {
-    logger.error('[Stripe] Error with POS saved card charge', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Stripe] Error with POS saved card charge', { extra: { error: getErrorMessage(error) } });
 
     if ((error as StripeError).type === 'StripeCardError') {
       return res.status(400).json({
@@ -754,7 +754,7 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
       });
     }
 
-    await alertOnExternalServiceError('Stripe', error as Error, 'pos saved card charge');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'pos saved card charge');
     res.status(500).json({
       error: 'Failed to charge card. Please try another payment method.',
       retryable: true
@@ -798,7 +798,7 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
     if ((error as StripeError)?.code === 'resource_missing') {
       logger.warn('[Stripe] Stale customer ID for — returning hasSavedCard: false', { extra: { reqParamsEmail: req.params.email } });
     } else {
-      logger.error('[Stripe] Error checking saved card', { error: new Error(getErrorMessage(error)) });
+      logger.error('[Stripe] Error checking saved card', { extra: { error: getErrorMessage(error) } });
     }
     res.json({ hasSavedCard: false, error: 'Could not check saved card' });
   }
@@ -888,7 +888,7 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
 
     res.json({ totalCents, items });
   } catch (error: unknown) {
-    logger.error('[Staff] Error fetching member balance', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Staff] Error fetching member balance', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch member balance' });
   }
 });
@@ -928,7 +928,7 @@ router.post('/api/purchases/send-receipt', isStaffOrAdmin, validateBody(sendRece
       res.status(500).json({ error: result.error || 'Failed to send receipt' });
     }
   } catch (error: unknown) {
-    logger.error('[Purchases] Error sending receipt', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Purchases] Error sending receipt', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send receipt email' });
   }
 });
@@ -1018,7 +1018,7 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, val
       amountPaid: paidInvoice.amount_paid
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error charging subscription invoice', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Stripe] Error charging subscription invoice', { extra: { error: getErrorMessage(error) } });
     
     if ((error as StripeError).type === 'StripeCardError') {
       return res.status(400).json({ 
@@ -1027,7 +1027,7 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, val
       });
     }
     
-    await alertOnExternalServiceError('Stripe', error as Error, 'charge subscription invoice');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'charge subscription invoice');
     res.status(500).json({ 
       error: 'Failed to charge subscription invoice',
       retryable: true

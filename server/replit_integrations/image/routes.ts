@@ -26,7 +26,7 @@ export function registerImageRoutes(app: Express): void {
         b64_json: imageData?.b64_json,
       });
     } catch (error: unknown) {
-      logger.error("Error generating image:", { error: getErrorMessage(error) });
+      logger.error("Error generating image:", { extra: { error: getErrorMessage(error) } });
       res.status(500).json({ error: "Failed to generate image" });
     }
   });

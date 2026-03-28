@@ -73,9 +73,11 @@ async function checkStuckCancellations(): Promise<void> {
     }
 
   } catch (error: unknown) {
-    logger.error('[Stuck Cancellations] Scheduler error:', { error: error as Error });
+    logger.error('[Stuck Cancellations] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Stuck Cancellation', false, getErrorMessage(error));
-    logger.error('Failed to check stuck cancellation bookings', { error: error as Error, extra: { context: 'stuck_cancellation_scheduler' } });
+    logger.error('Failed to check stuck cancellation bookings', {
+      extra: { error: getErrorMessage(error), context: 'stuck_cancellation_scheduler' }
+    });
   }
 }
 
@@ -106,7 +108,7 @@ export function startStuckCancellationScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCheck().catch((err: unknown) => {
-      logger.error('[Stuck Cancellations] Uncaught error:', { error: err as Error });
+      logger.error('[Stuck Cancellations] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Stuck Cancellation', false, getErrorMessage(err));
     });
   }, 2 * 60 * 60 * 1000);
@@ -114,7 +116,7 @@ export function startStuckCancellationScheduler(): void {
   timeoutId = setTimeout(() => {
     timeoutId = null;
     guardedCheck().catch((err: unknown) => {
-      logger.error('[Stuck Cancellations] Initial run error:', { error: err as Error });
+      logger.error('[Stuck Cancellations] Initial run error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Stuck Cancellation', false, getErrorMessage(err));
     });
   }, 60 * 1000);

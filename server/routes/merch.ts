@@ -78,7 +78,7 @@ router.get('/api/merch', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Merch items error', { error: getErrorMessage(error) });
+    logger.error('Merch items error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch merch items' });
   }
 });
@@ -124,18 +124,18 @@ router.post('/api/merch', isStaffOrAdmin, validateBody(merchItemSchema), async (
       synced = pushResult.success;
       if (!pushResult.success) {
         syncError = pushResult.error || 'Stripe sync failed';
-        logger.error('[AutoPush] Merch item creation push failed', { error: getErrorMessage(syncError) });
+        logger.error('[AutoPush] Merch item creation push failed', { extra: { error: getErrorMessage(syncError) } });
       }
     } catch (err) {
       syncError = getErrorMessage(err);
-      logger.error('[AutoPush] Merch item creation push exception', { error: getErrorMessage(syncError) });
+      logger.error('[AutoPush] Merch item creation push exception', { extra: { error: getErrorMessage(syncError) } });
     }
 
     invalidateCache(MERCH_CACHE_KEY);
     logFromRequest(req, 'create_merch_item', 'merch', String(newItem.id), newItem.name || name, {});
     res.status(201).json({ ...newItem, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Merch item creation error', { error: getErrorMessage(error) });
+    logger.error('Merch item creation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create merch item' });
   }
 });
@@ -195,18 +195,18 @@ router.put('/api/merch/:id', isStaffOrAdmin, validateBody(merchItemUpdateSchema)
       synced = pushResult.success;
       if (!pushResult.success) {
         syncError = pushResult.error || 'Stripe sync failed';
-        logger.error('[AutoPush] Merch item push failed', { error: getErrorMessage(syncError) });
+        logger.error('[AutoPush] Merch item push failed', { extra: { error: getErrorMessage(syncError) } });
       }
     } catch (err) {
       syncError = getErrorMessage(err);
-      logger.error('[AutoPush] Merch item push exception', { error: getErrorMessage(syncError) });
+      logger.error('[AutoPush] Merch item push exception', { extra: { error: getErrorMessage(syncError) } });
     }
 
     invalidateCache(MERCH_CACHE_KEY);
     logFromRequest(req, 'update_merch_item', 'merch', String(id), name, {});
     res.json({ ...updatedItem, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Merch item update error', { error: getErrorMessage(error) });
+    logger.error('Merch item update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update merch item' });
   }
 });
@@ -240,7 +240,7 @@ router.delete('/api/merch/:id', isStaffOrAdmin, async (req, res) => {
         if (isStripeResourceMissing(stripeErr)) {
           logger.info(`[Merch] Stripe product ${existing[0].stripeProductId} not found — proceeding with delete`);
         } else {
-          logger.warn(`[Merch] Could not archive Stripe product ${existing[0].stripeProductId} — proceeding with delete anyway`, { error: getErrorMessage(stripeErr) });
+          logger.warn(`[Merch] Could not archive Stripe product ${existing[0].stripeProductId} — proceeding with delete anyway`, { extra: { error: getErrorMessage(stripeErr) } });
         }
       }
     }
@@ -250,7 +250,7 @@ router.delete('/api/merch/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'delete_merch_item', 'merch', String(id), existing[0].name || undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Merch item delete error', { error: getErrorMessage(error) });
+    logger.error('Merch item delete error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete merch item' });
   }
 });

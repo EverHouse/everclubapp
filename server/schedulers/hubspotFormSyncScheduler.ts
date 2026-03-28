@@ -17,7 +17,7 @@ async function runSync(): Promise<void> {
   try {
     await syncHubSpotFormSubmissions();
   } catch (error: unknown) {
-    logger.error('[HubSpot FormSync] Scheduler error:', { error: error as Error });
+    logger.error('[HubSpot FormSync] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('HubSpot Form Sync', false, getErrorMessage(error));
   } finally {
     isSyncing = false;
@@ -38,11 +38,11 @@ export function startHubSpotFormSyncScheduler(): void {
     try {
       await runSync();
     } catch (err: unknown) {
-      logger.error('[HubSpot FormSync] Initial run failed:', { error: err as Error });
+      logger.error('[HubSpot FormSync] Initial run failed:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('HubSpot Form Sync', false, getErrorMessage(err));
     }
     logFormIdResolutionStatus().catch(err => {
-      logger.error('[HubSpot FormSync] Failed to log form ID resolution status:', { error: err as Error });
+      logger.error('[HubSpot FormSync] Failed to log form ID resolution status:', { extra: { error: getErrorMessage(err) } });
     });
   }, 60000);
 

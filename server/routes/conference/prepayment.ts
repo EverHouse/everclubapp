@@ -79,11 +79,11 @@ router.post('/api/member/conference/prepay/estimate', isAuthenticated, async (re
       extra: { memberEmail: normalizedEmail, date, durationMinutes, overageMinutes, totalCents }
     });
 
-    try { logFromRequest(req, { action: 'create_conference_prepayment', resourceType: 'payment', details: { memberEmail: normalizedEmail, date, startTime, durationMinutes, overageMinutes, totalCents, estimateOnly: true } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_conference_prepayment estimate:', { error: getErrorMessage(auditErr) }); }
+    try { logFromRequest(req, { action: 'create_conference_prepayment', resourceType: 'payment', details: { memberEmail: normalizedEmail, date, startTime, durationMinutes, overageMinutes, totalCents, estimateOnly: true } }); } catch (auditErr) { logger.warn('[Audit] Failed to log create_conference_prepayment estimate:', { extra: { error: getErrorMessage(auditErr) } }); }
 
     res.json(response);
   } catch (error: unknown) {
-    logger.error('[ConferencePrepay] Error calculating estimate', { error: getErrorMessage(error) });
+    logger.error('[ConferencePrepay] Error calculating estimate', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to calculate prepayment estimate' });
   }
 });

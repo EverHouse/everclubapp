@@ -36,7 +36,7 @@ router.get('/api/admin/calendars', isStaffOrAdmin, async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    logger.error('Calendar status check error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar status check error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ 
       error: 'Failed to check calendar status',
       details: getErrorMessage(error) 
@@ -69,7 +69,7 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
       availableSlots: result.slots.filter(s => s.available)
     });
   } catch (error: unknown) {
-    logger.error('Conference calendar availability error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Conference calendar availability error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch conference room availability' });
   }
 });
@@ -88,7 +88,7 @@ router.get('/api/calendars', async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    logger.error('Calendar list error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar list error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to list calendars' });
   }
 });
@@ -126,7 +126,7 @@ router.get('/api/calendar/availability', async (req, res) => {
       })),
     });
   } catch (error: unknown) {
-    logger.error('Calendar availability error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar availability error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch calendar availability', details: safeErrorDetail(error) });
   }
 });
@@ -156,7 +156,7 @@ router.post('/api/admin/conference-room/backfill', isAdmin, async (req, res) => 
       }
     });
   } catch (error: unknown) {
-    logger.error('Conference room backfill error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Conference room backfill error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to run backfill', details: safeErrorDetail(error) });
   }
 });
@@ -190,7 +190,7 @@ router.post('/api/admin/bookings/sync-history', isAdmin, async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    logger.error('Booking sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Booking sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to run sync', details: safeErrorDetail(error) });
   }
 });
@@ -215,7 +215,7 @@ router.post('/api/admin/bookings/sync-calendar', isStaffOrAdmin, async (req, res
       }
     });
   } catch (error: unknown) {
-    logger.error('Calendar sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Calendar sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync calendar' });
   }
 });
@@ -290,7 +290,7 @@ router.post('/api/admin/calendar/sync-all', isStaffOrAdmin, async (req, res) => 
       },
     });
   } catch (error: unknown) {
-    logger.error('Full calendar sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Full calendar sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, error: 'Failed to sync calendars' });
   }
 });
@@ -355,7 +355,7 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
           results.wellness.cleaned++;
         } catch (err: unknown) {
           results.wellness.errors++;
-          logger.warn(`[Migration] Failed to clean wellness #${row.id}`, { error: getErrorMessage(err) });
+          logger.warn(`[Migration] Failed to clean wellness #${row.id}`, { extra: { error: getErrorMessage(err) } });
         }
         await sleep(THROTTLE_MS);
       }
@@ -397,7 +397,7 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
           results.events.cleaned++;
         } catch (err: unknown) {
           results.events.errors++;
-          logger.warn(`[Migration] Failed to clean event #${row.id}`, { error: getErrorMessage(err) });
+          logger.warn(`[Migration] Failed to clean event #${row.id}`, { extra: { error: getErrorMessage(err) } });
         }
         await sleep(THROTTLE_MS);
       }
@@ -434,14 +434,14 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
                 },
               });
             } catch (patchErr: unknown) {
-              logger.warn(`[Migration] Failed to patch closure event ${eventId} for closure #${row.id}`, { error: getErrorMessage(patchErr) });
+              logger.warn(`[Migration] Failed to patch closure event ${eventId} for closure #${row.id}`, { extra: { error: getErrorMessage(patchErr) } });
             }
             await sleep(THROTTLE_MS);
           }
           results.closures.cleaned++;
         } catch (err: unknown) {
           results.closures.errors++;
-          logger.warn(`[Migration] Failed to clean closure #${row.id}`, { error: getErrorMessage(err) });
+          logger.warn(`[Migration] Failed to clean closure #${row.id}`, { extra: { error: getErrorMessage(err) } });
         }
       }
     }
@@ -453,7 +453,7 @@ router.post('/api/admin/calendar/migrate-clean-descriptions', isAdmin, async (re
       data: { success: true, results }
     });
   } catch (error: unknown) {
-    logger.error('[Migration] Calendar cleanup failed', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Migration] Calendar cleanup failed', { extra: { error: getErrorMessage(error) } });
     calendarCleanupRunning = false;
     broadcastToStaff({
       type: 'calendar_cleanup_complete',

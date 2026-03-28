@@ -159,7 +159,7 @@ router.get('/api/hubspot/contacts', isStaffOrAdmin, validateQuery(hubspotContact
   
   return res.json(buildResponse([], true, false));
   } catch (error: unknown) {
-    logger.error('Failed to fetch contacts', { error: new Error(getErrorMessage(error)) });
+    logger.error('Failed to fetch contacts', { extra: { error: getErrorMessage(error) } });
     return res.status(500).json({ error: 'Failed to fetch contacts' });
   }
 });
@@ -202,7 +202,7 @@ router.get('/api/hubspot/contacts/:id', isStaffOrAdmin, async (req, res) => {
       joinDate: normalizeDateToYYYYMMDD(contact.properties.createdate) || null
     });
   } catch (error: unknown) {
-    logger.error('API error', { error: new Error(getErrorMessage(error)) });
+    logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Request failed' });
   }
 });

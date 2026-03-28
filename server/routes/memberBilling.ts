@@ -294,7 +294,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
 
     res.json(billingInfo);
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error getting billing info', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error getting billing info', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -418,7 +418,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
       items,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error fetching outstanding balance', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error fetching outstanding balance', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -502,7 +502,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
     
     res.json({ success: true, billingProvider });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error updating billing source', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error updating billing source', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -561,7 +561,7 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
       durationDays,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error pausing subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error pausing subscription', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -600,7 +600,7 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
     
     res.json({ success: true, subscriptionId: subscription.id, status: 'active' });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error resuming subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error resuming subscription', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -672,7 +672,7 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
       noticePeriodDays: 30,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error canceling subscription', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error canceling subscription', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to process cancellation request' });
   }
 });
@@ -730,7 +730,7 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
       message: 'Cancellation has been reversed'
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error undoing cancellation', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error undoing cancellation', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to undo cancellation' });
   }
 });
@@ -802,7 +802,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
       endingBalance: transaction.ending_balance,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error applying credit', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error applying credit', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -883,7 +883,7 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
       couponId: appliedCouponId,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error applying discount', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error applying discount', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -914,7 +914,7 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
 
     res.json({ invoices: result.invoices });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error getting invoices', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error getting invoices', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -944,7 +944,7 @@ router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (
 
     res.json({ transactions: result.transactions });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error getting payment history', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error getting payment history', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -983,7 +983,7 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
       url: session.url,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error creating payment link', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error creating payment link', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -1100,7 +1100,7 @@ router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, asyn
       billingStartDate: billingStartDate,
     });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error initiating migration', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error initiating migration', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -1138,7 +1138,7 @@ router.post('/api/member-billing/:email/cancel-migration', isStaffOrAdmin, async
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error cancelling migration', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error cancelling migration', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });
@@ -1190,7 +1190,7 @@ router.get('/api/member-billing/:email/migration-status', isStaffOrAdmin, async 
 
     res.json(migrationInfo);
   } catch (error: unknown) {
-    logger.error('[MemberBilling] Error getting migration status', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberBilling] Error getting migration status', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Billing operation failed', details: safeErrorDetail(error) });
   }
 });

@@ -148,7 +148,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       WHERE id = ${user.id}`);
     
     syncCustomerMetadataToStripe(normalizedEmail).catch((err) => {
-      logger.error('[DataTools] Background Stripe sync after HubSpot resync failed:', { error: getErrorMessage(err) });
+      logger.error('[DataTools] Background Stripe sync after HubSpot resync failed:', { extra: { error: getErrorMessage(err) } });
     });
     
     await logBillingAudit({
@@ -178,7 +178,7 @@ router.post('/api/data-tools/resync-member', isAdmin, async (req: Request, res: 
       hubspotContactId
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Resync member error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Resync member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to resync member', details: safeErrorDetail(error) });
   }
 });
@@ -196,7 +196,7 @@ router.post('/api/data-tools/bulk-push-to-hubspot', isAdmin, async (req: Request
     }
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[DataTools] Bulk push to HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Bulk push to HubSpot error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to bulk push to HubSpot', details: safeErrorDetail(error) });
   }
 });
@@ -293,7 +293,7 @@ router.post('/api/data-tools/sync-members-to-hubspot', isAdmin, async (req: Requ
       errors: errors.slice(0, 10)
     });
   } catch (error: unknown) {
-    logger.error('[DataTools] Sync members to HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[DataTools] Sync members to HubSpot error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync members to HubSpot', details: safeErrorDetail(error) });
   }
 });

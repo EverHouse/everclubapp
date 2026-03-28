@@ -38,7 +38,7 @@ async function tryClaimReconciliationSlot(todayStr: string): Promise<boolean> {
     
     return result.length > 0;
   } catch (err: unknown) {
-    logger.error('[Stripe Reconciliation] Database error:', { error: err as Error });
+    logger.error('[Stripe Reconciliation] Database error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Stripe Reconciliation', false, getErrorMessage(err));
     return false;
   }
@@ -51,7 +51,7 @@ async function markReconciliationSlotCompleted(todayStr: string): Promise<void> 
       .set({ value: `completed:${todayStr}`, updatedAt: new Date() })
       .where(sql`${systemSettings.key} = ${RECONCILIATION_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Stripe Reconciliation] Failed to mark slot as completed:', { error: err as Error });
+    logger.error('[Stripe Reconciliation] Failed to mark slot as completed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -62,7 +62,7 @@ async function markReconciliationSlotFailed(todayStr: string): Promise<void> {
       .set({ value: `failed:${todayStr}`, updatedAt: new Date() })
       .where(sql`${systemSettings.key} = ${RECONCILIATION_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Stripe Reconciliation] Failed to mark slot as failed:', { error: err as Error });
+    logger.error('[Stripe Reconciliation] Failed to mark slot as failed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -92,7 +92,7 @@ async function checkAndRunReconciliation(): Promise<void> {
           schedulerTracker.recordRun('Stripe Reconciliation', true);
           await markReconciliationSlotCompleted(todayStr);
         } catch (error: unknown) {
-          logger.error('[Stripe Reconciliation] Error running reconciliation:', { error: error as Error });
+          logger.error('[Stripe Reconciliation] Error running reconciliation:', { extra: { error: getErrorMessage(error) } });
           schedulerTracker.recordRun('Stripe Reconciliation', false, getErrorMessage(error));
           await markReconciliationSlotFailed(todayStr);
           
@@ -106,7 +106,7 @@ async function checkAndRunReconciliation(): Promise<void> {
       }
     }
   } catch (error: unknown) {
-    logger.error('[Stripe Reconciliation] Scheduler error:', { error: error as Error });
+    logger.error('[Stripe Reconciliation] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Stripe Reconciliation', false, getErrorMessage(error));
   }
 }
@@ -138,13 +138,13 @@ export function startStripeReconciliationScheduler(): void {
   schedulerTracker.recordRun('Stripe Reconciliation', true);
   
   guardedCheckAndRunReconciliation().catch((err: unknown) => {
-    logger.error('[Stripe Reconciliation] Initial check error:', { error: err as Error });
+    logger.error('[Stripe Reconciliation] Initial check error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Stripe Reconciliation', false, getErrorMessage(err));
   });
   
   intervalId = setInterval(() => {
     guardedCheckAndRunReconciliation().catch((err: unknown) => {
-      logger.error('[Stripe Reconciliation] Uncaught error:', { error: err as Error });
+      logger.error('[Stripe Reconciliation] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Stripe Reconciliation', false, getErrorMessage(err));
     });
   }, 5 * 60 * 1000);

@@ -80,7 +80,7 @@ router.post('/api/closures/backfill-blocks', isStaffOrAdmin, async (req, res) =>
       details: results 
     });
   } catch (error: unknown) {
-    logger.error('Backfill error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Backfill error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to backfill availability blocks' });
   }
 });
@@ -108,7 +108,7 @@ router.post('/api/closures/sync', isStaffOrAdmin, async (req, res) => {
       stats: result
     });
   } catch (error: unknown) {
-    logger.error('Manual closure sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Manual closure sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync closures' });
   }
 });
@@ -187,7 +187,7 @@ router.post('/api/closures/fix-orphaned', isAdmin, async (req, res) => {
       details: results
     });
   } catch (error: unknown) {
-    logger.error('[Fix Orphaned] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Fix Orphaned] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fix orphaned closures' });
   }
 });
@@ -221,7 +221,7 @@ router.post('/api/admin/backfill-calendar-extended-properties', isAdmin, async (
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
     backfillStatus = { running: false, startedAt: backfillStatus.startedAt, error: msg };
-    logger.error('Extended properties backfill error', { error: error instanceof Error ? error : new Error(msg) });
+    logger.error('Extended properties backfill error', { extra: { error: getErrorMessage(error) } });
   }
 });
 

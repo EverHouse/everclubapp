@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 import { ACTIVE_BOOKING_STATUSES } from '../../../shared/constants/statuses';
 
 interface UserIdRow {
@@ -250,8 +251,7 @@ export async function findConflictingBookings(
     };
   } catch (error: unknown) {
     logger.error('[conflictDetection] Error checking conflicts', {
-      error,
-      extra: { memberEmail, date, startTime, endTime }
+      extra: { error: getErrorMessage(error), memberEmail, date, startTime, endTime }
     });
     throw error;
   }

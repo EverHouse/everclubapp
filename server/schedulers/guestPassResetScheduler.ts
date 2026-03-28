@@ -21,14 +21,14 @@ async function tryClaimResetSlot(yearKey: string): Promise<boolean> {
     );
     return (result.rowCount || 0) > 0;
   } catch (err: unknown) {
-    logger.error('[Guest Pass Reset] Failed to claim reset slot:', { error: err as Error });
+    logger.error('[Guest Pass Reset] Failed to claim reset slot:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Guest Pass Reset', false, getErrorMessage(err));
     alertOnScheduledTaskFailure(
       'Guest Pass Reset',
       err instanceof Error ? err : new Error(getErrorMessage(err)),
       { context: 'Failed to claim yearly reset slot' }
     ).catch((alertErr: unknown) => {
-      logger.error('[Guest Pass Reset] Failed to send staff alert:', { error: alertErr as Error });
+      logger.error('[Guest Pass Reset] Failed to send staff alert:', { extra: { error: getErrorMessage(alertErr) } });
     });
     return false;
   }
@@ -84,7 +84,7 @@ async function resetGuestPasses(): Promise<void> {
     }
     
   } catch (error: unknown) {
-    logger.error('[Guest Pass Reset] Scheduler error:', { error: error as Error });
+    logger.error('[Guest Pass Reset] Scheduler error:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Guest Pass Reset', false, getErrorMessage(error));
   }
 }
@@ -117,7 +117,7 @@ export function startGuestPassResetScheduler(): void {
   
   intervalId = setInterval(() => {
     guardedResetGuestPasses().catch((err: unknown) => {
-      logger.error('[Guest Pass Reset] Uncaught error:', { error: err as Error });
+      logger.error('[Guest Pass Reset] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Guest Pass Reset', false, getErrorMessage(err));
     });
   }, 60 * 60 * 1000);

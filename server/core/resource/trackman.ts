@@ -362,7 +362,7 @@ export async function linkTrackmanToMember(
       }
     } catch (sessionErr: unknown) {
       logger.warn('[link-trackman-to-member] Failed to create session after member assignment', {
-        extra: { bookingId: result.booking.id, error: sessionErr }
+        extra: { bookingId: result.booking.id, error: getErrorMessage(sessionErr) }
       });
     }
   }
@@ -390,7 +390,7 @@ export async function linkTrackmanToMember(
       });
     } catch (partErr: unknown) {
       logger.warn('[link-trackman-to-member] Failed to add additional player participants', {
-        extra: { bookingId: result.booking.id, sessionId: finalSessionId, error: partErr }
+        extra: { bookingId: result.booking.id, sessionId: finalSessionId, error: getErrorMessage(partErr) }
       });
     }
   }
@@ -403,7 +403,7 @@ export async function linkTrackmanToMember(
       });
     } catch (recalcErr: unknown) {
       logger.warn('[link-trackman-to-member] Failed to recalculate fees after assignment', {
-        extra: { bookingId: result.booking.id, sessionId: finalSessionId, error: recalcErr }
+        extra: { bookingId: result.booking.id, sessionId: finalSessionId, error: getErrorMessage(recalcErr) }
       });
     }
   }

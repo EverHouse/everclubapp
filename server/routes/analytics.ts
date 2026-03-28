@@ -211,7 +211,7 @@ router.get('/api/analytics/booking-stats', isStaffOrAdmin, async (_req: Request,
       avgSessionMinutes,
     });
   } catch (error) {
-    logger.error('Failed to fetch booking analytics', { error: getErrorMessage(error) });
+    logger.error('Failed to fetch booking analytics', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch booking analytics' });
   }
 });
@@ -268,7 +268,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         const sortedMonths = Object.keys(months).sort();
         return { rows: sortedMonths.map(month => ({ month, ...months[month] })) };
       }).catch(err => {
-        logger.error('[Analytics] Failed to fetch Stripe revenue data', { error: getErrorMessage(err) });
+        logger.error('[Analytics] Failed to fetch Stripe revenue data', { extra: { error: getErrorMessage(err) } });
         return { rows: [] };
       }),
 
@@ -383,7 +383,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
       })),
     });
   } catch (error) {
-    logger.error('Failed to fetch extended analytics', { error: getErrorMessage(error) });
+    logger.error('Failed to fetch extended analytics', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch extended analytics' });
   }
 });
@@ -501,7 +501,7 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
       })),
     });
   } catch (error) {
-    logger.error('Failed to fetch membership insights', { error: getErrorMessage(error) });
+    logger.error('Failed to fetch membership insights', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch membership insights' });
   }
 });

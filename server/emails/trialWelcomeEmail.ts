@@ -190,7 +190,7 @@ export async function sendTrialWelcomeWithQrEmail(
     logger.info(`[TrialWelcomeEmail] Sent trial welcome email to ${email} for user #${params.userId}`);
     return { success: true };
   } catch (error: unknown) {
-    logger.error(`[TrialWelcomeEmail] Failed to send to ${email}: ${getErrorMessage(error)}`, { error: error as Error });
+    logger.error(`[TrialWelcomeEmail] Failed to send to ${email}: ${getErrorMessage(error)}`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }

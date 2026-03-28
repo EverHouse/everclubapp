@@ -227,7 +227,7 @@ export async function assignWithPlayers(
       }
     } catch (partErr: unknown) {
       logger.warn('[assign-with-players] Failed to add participants to booking_participants', {
-        extra: { bookingId, sessionId, error: partErr }
+        extra: { bookingId, sessionId, error: getErrorMessage(partErr) }
       });
     }
   }
@@ -240,7 +240,7 @@ export async function assignWithPlayers(
       });
     } catch (recalcErr: unknown) {
       logger.warn('[assign-with-players] Failed to recalculate fees after assignment', {
-        extra: { bookingId, sessionId, error: recalcErr }
+        extra: { bookingId, sessionId, error: getErrorMessage(recalcErr) }
       });
     }
   }
@@ -327,7 +327,7 @@ export async function assignWithPlayers(
       });
     } catch (notifyErr: unknown) {
       logger.warn('[assign-with-players] Failed to notify member', {
-        extra: { bookingId, error: notifyErr }
+        extra: { bookingId, error: getErrorMessage(notifyErr) }
       });
     }
   }

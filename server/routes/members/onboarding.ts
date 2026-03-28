@@ -109,7 +109,7 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
       createdAt: finalUser.created_at,
     });
   } catch (error: unknown) {
-    logger.error('[onboarding] Failed to get onboarding status', { error: new Error(getErrorMessage(error)) });
+    logger.error('[onboarding] Failed to get onboarding status', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get onboarding status' });
   }
 });
@@ -156,7 +156,7 @@ router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req,
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[onboarding] Failed to complete step', { error: new Error(getErrorMessage(error)) });
+    logger.error('[onboarding] Failed to complete step', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to complete step' });
   }
 });
@@ -173,7 +173,7 @@ router.post('/api/member/onboarding/dismiss', isAuthenticated, async (req, res) 
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[onboarding] Failed to dismiss', { error: new Error(getErrorMessage(error)) });
+    logger.error('[onboarding] Failed to dismiss', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to dismiss onboarding' });
   }
 });
@@ -218,7 +218,7 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
       AND waiver_signed_at IS NOT NULL AND first_booking_at IS NOT NULL AND app_installed_at IS NOT NULL AND concierge_saved_at IS NOT NULL`).catch((err) => logger.warn('[Onboarding] Non-critical onboarding completion update failed:', { extra: { error: getErrorMessage(err) } }));
 
     syncProfileToExternalServices(email, firstName, lastName, phone).catch((err) => {
-      logger.error('[onboarding] Background sync to Stripe/HubSpot failed', { error: new Error(getErrorMessage(err)) });
+      logger.error('[onboarding] Background sync to Stripe/HubSpot failed', { extra: { error: getErrorMessage(err) } });
     });
 
     sendPassUpdateForMemberByEmail(email).catch((err) => {
@@ -232,7 +232,7 @@ router.put('/api/member/profile', isAuthenticated, async (req, res) => {
       phone: updated.phone,
     });
   } catch (error: unknown) {
-    logger.error('[onboarding] Failed to update profile', { error: new Error(getErrorMessage(error)) });
+    logger.error('[onboarding] Failed to update profile', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update profile' });
   }
 });
@@ -315,7 +315,7 @@ async function syncProfileToExternalServices(
       }
     }
   } catch (error: unknown) {
-    logger.error('[ProfileSync] Error syncing to external services', { error: new Error(getErrorMessage(error)) });
+    logger.error('[ProfileSync] Error syncing to external services', { extra: { error: getErrorMessage(error) } });
   }
 }
 

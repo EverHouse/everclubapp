@@ -151,7 +151,7 @@ async function autoFinalizeDraftInvoices(): Promise<void> {
 
     schedulerTracker.recordRun(SCHEDULER_NAME, errorCount === 0, errorCount > 0 ? `${errorCount} finalization errors` : undefined, Date.now() - startMs);
   } catch (error: unknown) {
-    logger.error('[Invoice Auto-Finalize] Error running auto-finalize:', { error: error as Error });
+    logger.error('[Invoice Auto-Finalize] Error running auto-finalize:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun(SCHEDULER_NAME, false, getErrorMessage(error), Date.now() - startMs);
   }
 }
@@ -183,14 +183,14 @@ export function startInvoiceAutoFinalizeScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedAutoFinalize().catch((err: unknown) => {
-      logger.error('[Invoice Auto-Finalize] Uncaught error:', { error: err as Error });
+      logger.error('[Invoice Auto-Finalize] Uncaught error:', { extra: { error: getErrorMessage(err) } });
     });
   }, 30 * 60 * 1000);
 
   initialTimeoutId = setTimeout(() => {
     initialTimeoutId = null;
     guardedAutoFinalize().catch((err: unknown) => {
-      logger.error('[Invoice Auto-Finalize] Initial run error:', { error: err as Error });
+      logger.error('[Invoice Auto-Finalize] Initial run error:', { extra: { error: getErrorMessage(err) } });
     });
   }, 30000);
 }

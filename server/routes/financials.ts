@@ -161,7 +161,7 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
       nextCursor
     });
   } catch (error: unknown) {
-    logger.error('[Financials] Error fetching recent transactions', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials] Error fetching recent transactions', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch recent transactions'
@@ -373,7 +373,7 @@ router.post('/api/financials/backfill-stripe-cache', isStaffOrAdmin, async (req:
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error: unknown) {
-    logger.error('[Financials Backfill] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials Backfill] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to backfill Stripe cache'
@@ -530,7 +530,7 @@ router.post('/api/financials/sync-member-payments', isStaffOrAdmin, async (req: 
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error: unknown) {
-    logger.error('[Financials Sync] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials Sync] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to sync member payments'
@@ -574,7 +574,7 @@ router.get('/api/financials/cache-stats', isStaffOrAdmin, async (req: Request, r
       byTypeAndSource: statsResult.rows
     });
   } catch (error: unknown) {
-    logger.error('[Financials] Error fetching cache stats', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials] Error fetching cache stats', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch cache stats'
@@ -693,8 +693,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
               additionalSubs.push(sub);
             }
           } else {
-            const error = result.reason as Error;
-            logger.info('[Financials] Error fetching subs', { extra: { error: getErrorMessage(error) } });
+            logger.info('[Financials] Error fetching subs', { extra: { error: getErrorMessage(result.reason) } });
           }
         }
         
@@ -771,7 +770,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       nextCursor: subscriptions.has_more && lastItem ? lastItem.id : null,
     });
   } catch (error: unknown) {
-    logger.error('[Financials] Error fetching subscriptions', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials] Error fetching subscriptions', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch subscriptions',
@@ -827,7 +826,7 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
       res.status(500).json({ success: false, error: result.error || 'Failed to send reminder' });
     }
   } catch (error: unknown) {
-    logger.error('[Financials] Error sending subscription reminder', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials] Error sending subscription reminder', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to send reminder',
@@ -952,7 +951,7 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
       nextCursor: invoices.has_more && lastItem ? lastItem.id : null,
     });
   } catch (error: unknown) {
-    logger.error('[Financials] Error fetching invoices', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Financials] Error fetching invoices', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch invoices',

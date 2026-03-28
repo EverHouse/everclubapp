@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { logger } from '../core/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
+import { getErrorMessage } from '../utils/errorUtils';
 
 interface ResendConnectionSettings {
   api_key: string;
@@ -121,7 +122,7 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
       options.to = remaining;
     }
   } catch (suppressErr: unknown) {
-    logger.warn('[Email] Suppression list check failed, proceeding with send', { error: suppressErr as Error });
+    logger.warn('[Email] Suppression list check failed, proceeding with send', { extra: { error: getErrorMessage(suppressErr) } });
   }
 
   try {
@@ -154,14 +155,13 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
         `);
       }
     } catch (trackErr: unknown) {
-      logger.warn('Failed to track sent email event locally', { error: trackErr as Error });
+      logger.warn('Failed to track sent email event locally', { extra: { error: getErrorMessage(trackErr) } });
     }
 
     return { success: true, id: emailId || undefined };
   } catch (error: unknown) {
-    logger.error('Failed to send email', { 
-      error: error as Error,
-      extra: { subject: options.subject, to: options.to }
+    logger.error('Failed to send email', {
+      extra: { error: getErrorMessage(error), subject: options.subject, to: options.to }
     });
     return { success: false };
   }

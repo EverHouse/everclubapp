@@ -3,6 +3,7 @@ import { logger } from '../core/logger';
 import { isEmailCategoryEnabled } from '../core/settingsHelper';
 import QRCode from 'qrcode';
 import { emailLayout, CLUB_COLORS, formatDate } from './emailLayout';
+import { getErrorMessage } from '../utils/errorUtils';
 
 async function generateQrDataUri(data: string): Promise<string> {
   return await QRCode.toDataURL(data, {
@@ -150,7 +151,7 @@ export async function sendPassWithQrEmail(
     
     logger.info(`[PassEmails] Sent QR pass email to ${email} for pass #${passDetails.passId}`);
   } catch (error: unknown) {
-    logger.error('[PassEmails] Error sending pass email:', { error: error as Error });
+    logger.error('[PassEmails] Error sending pass email:', { extra: { error: getErrorMessage(error) } });
     throw error;
   }
 }
@@ -366,6 +367,6 @@ export async function sendRedemptionConfirmationEmail(
     
     logger.info(`[PassEmails] Sent redemption confirmation to ${email}`);
   } catch (error: unknown) {
-    logger.error('[PassEmails] Error sending redemption confirmation:', { error: error as Error });
+    logger.error('[PassEmails] Error sending redemption confirmation:', { extra: { error: getErrorMessage(error) } });
   }
 }

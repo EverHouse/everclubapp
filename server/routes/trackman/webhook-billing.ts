@@ -47,7 +47,7 @@ export async function updateBaySlotCache(
          player_count = EXCLUDED.player_count,
          updated_at = NOW()`);
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to update bay slot cache', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to update bay slot cache', { extra: { error: getErrorMessage(e) } });
   }
 }
 
@@ -302,10 +302,10 @@ export async function createBookingForMember(
             await db.execute(sql`UPDATE booking_sessions SET start_time = ${startTime}, end_time = ${endTime} WHERE id = ${(sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id}`);
             await recalculateSessionFees((sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id as number, 'trackman_webhook');
             syncBookingInvoice(pendingBookingId, (sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id as number).catch((syncErr: unknown) => {
-              logger.warn('[Trackman Webhook] Invoice sync failed after time update', { extra: { bookingId: pendingBookingId, error: syncErr } });
+              logger.warn('[Trackman Webhook] Invoice sync failed after time update', { extra: { bookingId: pendingBookingId, error: getErrorMessage(syncErr) } });
             });
           } catch (recalcErr: unknown) {
-            logger.warn('[Trackman Webhook] Failed to recalculate fees', { extra: { bookingId: pendingBookingId, error: recalcErr } });
+            logger.warn('[Trackman Webhook] Failed to recalculate fees', { extra: { bookingId: pendingBookingId, error: getErrorMessage(recalcErr) } });
           }
         }
       } else {
@@ -369,7 +369,7 @@ export async function createBookingForMember(
             
             const feeBreakdown = await recalculateSessionFees(newSessionId, 'trackman_webhook');
             syncBookingInvoice(pendingBookingId, newSessionId).catch((syncErr: unknown) => {
-              logger.warn('[Trackman Webhook] Invoice sync failed after session creation', { extra: { bookingId: pendingBookingId, sessionId: newSessionId, error: syncErr } });
+              logger.warn('[Trackman Webhook] Invoice sync failed after session creation', { extra: { bookingId: pendingBookingId, sessionId: newSessionId, error: getErrorMessage(syncErr) } });
             });
             logger.info('[Trackman Webhook] Created session and participants for linked booking', {
               extra: { bookingId: pendingBookingId, sessionId: newSessionId, playerCount, slotDuration, transferredFromRequest: transferredCount, genericGuestSlots: remainingSlots }
@@ -400,7 +400,7 @@ export async function createBookingForMember(
             }
           }
         } catch (sessionErr: unknown) {
-          logger.error('[Trackman Webhook] Failed to ensure session for linked booking — reverting to pending', { extra: { bookingId: pendingBookingId, trackmanBookingId, error: sessionErr } });
+          logger.error('[Trackman Webhook] Failed to ensure session for linked booking — reverting to pending', { extra: { bookingId: pendingBookingId, trackmanBookingId, error: getErrorMessage(sessionErr) } });
           const revertResult2 = await db.execute(sql`UPDATE booking_requests SET status = 'pending', updated_at = NOW() WHERE id = ${pendingBookingId} AND status = 'approved'`);
           if (!revertResult2.rowCount || revertResult2.rowCount === 0) {
             logger.warn('[Trackman Webhook] Revert to pending skipped — status already changed', { extra: { bookingId: pendingBookingId, trackmanBookingId } });
@@ -661,7 +661,7 @@ export async function createBookingForMember(
               
               await recalculateSessionFees(sessionId, 'trackman_webhook');
               syncBookingInvoice(bookingId, sessionId).catch((syncErr: unknown) => {
-                logger.warn('[Trackman Webhook] Invoice sync failed after guest creation', { extra: { bookingId, sessionId, error: syncErr } });
+                logger.warn('[Trackman Webhook] Invoice sync failed after guest creation', { extra: { bookingId, sessionId, error: getErrorMessage(syncErr) } });
               });
               logger.info('[Trackman Webhook] Created guest participants and cached fees', {
                 extra: { sessionId, playerCount, slotDuration }
@@ -678,7 +678,7 @@ export async function createBookingForMember(
           }
         }
       } catch (sessionErr: unknown) {
-        logger.error('[Trackman Webhook] Failed to ensure session for booking', { extra: { bookingId, trackmanBookingId, error: sessionErr } });
+        logger.error('[Trackman Webhook] Failed to ensure session for booking', { extra: { bookingId, trackmanBookingId, error: getErrorMessage(sessionErr) } });
       }
       
       const bayNameForNotification = `Bay ${resourceId}`;
@@ -730,7 +730,7 @@ export async function createBookingForMember(
     
     return { success: false };
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to create booking for member', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to create booking for member', { extra: { error: getErrorMessage(e) } });
     return { success: false };
   }
 }
@@ -893,19 +893,19 @@ export async function tryMatchByBayDateTime(
 
         await recalculateSessionFees(sessionResult.sessionId, 'trackman_auto_match');
         syncBookingInvoice(bookingId, sessionResult.sessionId).catch((syncErr: unknown) => {
-          logger.warn('[Trackman Webhook] Invoice sync failed after auto-match', { extra: { bookingId, sessionId: sessionResult.sessionId, error: syncErr } });
+          logger.warn('[Trackman Webhook] Invoice sync failed after auto-match', { extra: { bookingId, sessionId: sessionResult.sessionId, error: getErrorMessage(syncErr) } });
         });
         logger.info('[Trackman Webhook] Processed bay/date/time matched booking', {
           extra: { bookingId, sessionId: sessionResult.sessionId, playerCount, transferredFromRequest: transferredCount, genericGuestSlots: remainingSlots }
         });
       }
     } catch (sessionErr: unknown) {
-      logger.warn('[Trackman Webhook] Failed to ensure session for bay/date/time match', { extra: { bookingId, error: sessionErr } });
+      logger.warn('[Trackman Webhook] Failed to ensure session for bay/date/time match', { extra: { bookingId, error: getErrorMessage(sessionErr) } });
     }
 
     return { matched: true, bookingId, memberEmail, memberName };
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to match by bay/date/time', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to match by bay/date/time', { extra: { error: getErrorMessage(e) } });
     return { matched: false };
   }
 }
@@ -941,7 +941,7 @@ export async function refundGuestPassesForCancelledBooking(bookingId: number, me
     
     return refundedCount;
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to refund guest passes for cancelled booking', { error: e as Error });
+    logger.error('[Trackman Webhook] Failed to refund guest passes for cancelled booking', { extra: { error: getErrorMessage(e) } });
     return 0;
   }
 }

@@ -112,7 +112,7 @@ router.post('/api/data-integrity/fix/deactivate-stale-member', isAdmin, validate
 
     res.json({ success: true, message: `Deactivated MindBody member #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Deactivate stale member error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {
@@ -154,7 +154,7 @@ router.post('/api/data-integrity/fix/change-billing-provider', isAdmin, validate
 
     res.json({ success: true, message: `Changed billing provider to ${newProvider} for user #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Change billing provider error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {
@@ -242,7 +242,7 @@ router.post('/api/data-integrity/fix/activate-stuck-member', isAdmin, validateBo
 
     res.json({ success: true, message: `Activated stuck member #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Activate stuck member error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {
@@ -493,7 +493,7 @@ router.post('/api/data-integrity/fix/accept-tier', isAdmin, validateBody(acceptT
 
     res.json({ success: true, message: `Accepted tier "${acceptedTier}" from ${source} for user #${userId}` });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Accept tier error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {
@@ -599,7 +599,7 @@ router.post('/api/data-integrity/fix/clear-stripe-customer-id', isAdmin, validat
       res.json({ success: true, message: `No matching Stripe customer found for "${memberName}" by email — cleared orphaned billing fields`, relinked: false });
     }
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Fix orphaned Stripe customer ID error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {
@@ -652,7 +652,7 @@ router.post('/api/data-integrity/fix/bulk-change-billing-provider', isAdmin, val
 
     res.json({ success: true, message: `Changed billing provider to ${newProvider} for ${successCount} member(s)`, results });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Bulk change billing provider error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {
@@ -706,7 +706,7 @@ router.post('/api/data-integrity/fix/link-stripe-customer-only', isAdmin, valida
       isNew: custResult.isNew
     });
   } catch (error: unknown) {
-    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { error: rollbackErr instanceof Error ? rollbackErr : new Error(String(rollbackErr)) }); });
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
     logger.error('[DataIntegrity] Link Stripe customer only error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
   } finally {

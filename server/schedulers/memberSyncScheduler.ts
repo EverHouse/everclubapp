@@ -37,7 +37,7 @@ async function runDailyMemberSync(): Promise<void> {
     schedulerTracker.recordRun('Member Sync', true);
     await setLastMemberSyncTime(Date.now());
   } catch (err: unknown) {
-    logger.error('[MemberSync] Daily reconciliation failed:', { error: err as Error });
+    logger.error('[MemberSync] Daily reconciliation failed:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Member Sync', false, getErrorMessage(err));
   } finally {
     isRunning = false;

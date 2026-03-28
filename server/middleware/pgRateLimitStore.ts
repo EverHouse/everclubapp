@@ -2,6 +2,7 @@ import type { Store, Options, IncrementResponse } from 'express-rate-limit';
 import type { Pool } from 'pg';
 import { pool } from '../core/db';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 let tablePromise: Promise<void> | null = null;
 
@@ -85,7 +86,7 @@ export class PgRateLimitStore implements Store {
         resetTime: new Date((row.window_start as Date).getTime() + this.windowMs),
       };
     } catch (err) {
-      logger.error('[PgRateLimitStore] increment failed, blocking as precaution', { extra: { error: String(err) } });
+      logger.error('[PgRateLimitStore] increment failed, blocking as precaution', { extra: { error: getErrorMessage(err) } });
       return { totalHits: Infinity, resetTime: new Date(Date.now() + this.windowMs) };
     }
   }
@@ -98,7 +99,7 @@ export class PgRateLimitStore implements Store {
         [prefixed]
       );
     } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] decrement failed', { extra: { error: String(err) } });
+      logger.warn('[PgRateLimitStore] decrement failed', { extra: { error: getErrorMessage(err) } });
     }
   }
 
@@ -107,7 +108,7 @@ export class PgRateLimitStore implements Store {
     try {
       await pool.query(`DELETE FROM rate_limit_hits WHERE key = $1`, [prefixed]);
     } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] resetKey failed', { extra: { error: String(err) } });
+      logger.warn('[PgRateLimitStore] resetKey failed', { extra: { error: getErrorMessage(err) } });
     }
   }
 
@@ -115,7 +116,7 @@ export class PgRateLimitStore implements Store {
     try {
       await pool.query(`DELETE FROM rate_limit_hits WHERE key LIKE $1`, [`${this.prefix}:%`]);
     } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] resetAll failed', { extra: { error: String(err) } });
+      logger.warn('[PgRateLimitStore] resetAll failed', { extra: { error: getErrorMessage(err) } });
     }
   }
 
@@ -163,7 +164,7 @@ export class PgRateLimitStore implements Store {
         }
       }
     } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] cleanup failed', { extra: { error: String(err) } });
+      logger.warn('[PgRateLimitStore] cleanup failed', { extra: { error: getErrorMessage(err) } });
     } finally {
       this.cleanupRunning = false;
     }

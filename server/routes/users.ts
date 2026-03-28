@@ -7,6 +7,7 @@ import { normalizeEmail, getAlternateDomainEmail } from '../core/utils/emailNorm
 import { getErrorCode } from '../utils/errorUtils';
 import { logFromRequest } from '../core/auditLog';
 import { logger, logAndRespond } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.get('/api/staff-users/by-email/:email', isStaffOrAdmin, async (req, res) 
     
     res.json(result[0]);
   } catch (error: unknown) {
-    logger.error('API error fetching staff user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error fetching staff user', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch staff user' });
   }
 });
@@ -70,7 +71,7 @@ router.get('/api/staff-users', isStaffOrAdmin, async (req, res) => {
           .limit(500);
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error fetching staff users', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error fetching staff users', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch staff users' });
   }
 });
@@ -210,7 +211,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
       created_by: result[0].createdBy
     });
   } catch (error: unknown) {
-    logger.error('API error updating staff user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error updating staff user', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update staff user' });
   }
 });
@@ -288,7 +289,7 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    logger.error('API error removing staff user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error removing staff user', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to remove staff user' });
   }
 });
@@ -313,7 +314,7 @@ router.get('/api/admin-users', isAdmin, async (req, res) => {
       .limit(500);
     res.json(result);
   } catch (error: unknown) {
-    logger.error('API error fetching admin users', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error fetching admin users', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch admin users' });
   }
 });
@@ -442,7 +443,7 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
       created_by: result[0].createdBy
     });
   } catch (error: unknown) {
-    logger.error('API error updating admin user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error updating admin user', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update admin user' });
   }
 });
@@ -527,7 +528,7 @@ router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
       }
     });
   } catch (error: unknown) {
-    logger.error('API error removing admin user', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error removing admin user', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to remove admin user' });
   }
 });
@@ -560,7 +561,7 @@ router.post('/api/users/batch-emails', isStaffOrAdmin, async (req, res) => {
     
     res.json({ emails });
   } catch (error: unknown) {
-    logger.error('API error fetching user emails', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('API error fetching user emails', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch user emails' });
   }
 });

@@ -38,7 +38,7 @@ router.get('/api/staff/passes/unredeemed', isStaffOrAdmin, async (req: Request, 
 
     res.json({ passes });
   } catch (error: unknown) {
-    logger.error('[Passes] Error fetching unredeemed passes', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Passes] Error fetching unredeemed passes', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch unredeemed passes' });
   }
 });
@@ -76,7 +76,7 @@ router.get('/api/staff/passes/search', isStaffOrAdmin, async (req: Request, res:
 
     res.json({ passes });
   } catch (error: unknown) {
-    logger.error('[Passes] Error searching passes', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Passes] Error searching passes', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to search passes' });
   }
 });
@@ -264,7 +264,7 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
       redeemedAt: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    logger.error('[Passes] Error redeeming pass', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Passes] Error redeeming pass', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to redeem pass' });
   }
 });
@@ -302,7 +302,7 @@ router.get('/api/staff/passes/golf-sim/by-email', isStaffOrAdmin, async (req: Re
 
     res.json({ passes });
   } catch (error: unknown) {
-    logger.error('[Passes] Error searching golf sim passes by email', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Passes] Error searching golf sim passes by email', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to search golf sim passes' });
   }
 });
@@ -324,7 +324,7 @@ router.get('/api/staff/passes/:passId/history', isStaffOrAdmin, async (req: Requ
 
     res.json({ logs });
   } catch (error: unknown) {
-    logger.error('[Passes] Error fetching pass history', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Passes] Error fetching pass history', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch pass history' });
   }
 });
@@ -426,7 +426,7 @@ router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Requ
       refundedBy: staffEmail,
     });
   } catch (error: unknown) {
-    logger.error('[Passes] Error refunding pass', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Passes] Error refunding pass', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to refund pass' });
   }
 });

@@ -141,7 +141,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
           filledCountsMap.set(Number(row.booking_id), parseInt(String(row.filled_count), 10) || 0);
         }
       } catch (err) {
-        logger.debug('[Command Center] Failed to query filled player counts', { error: getErrorMessage(err) });
+        logger.debug('[Command Center] Failed to query filled player counts', { extra: { error: getErrorMessage(err) } });
       }
     }
 
@@ -161,7 +161,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
         AND created_at >= to_timestamp(${startOfDayUnix}) AND created_at < to_timestamp(${endOfDayUnix})
       `);
       financials.todayRevenueCents = parseInt(String(todayRevenue.rows[0]?.total_cents || '0'), 10);
-    } catch (err) { logger.debug('[Command Center] Failed to query today revenue — table may not have expected structure', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.debug('[Command Center] Failed to query today revenue — table may not have expected structure', { extra: { error: getErrorMessage(err) } }); }
     
     res.json({
       counts: {
@@ -179,7 +179,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: unknown) {
-    logger.error('Error fetching command center data', { error: getErrorMessage(error) });
+    logger.error('Error fetching command center data', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch command center data' });
   }
 });
@@ -230,7 +230,7 @@ router.get('/api/admin/dashboard-summary', isStaffOrAdmin, async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: unknown) {
-    logger.error('Error fetching dashboard summary', { error: getErrorMessage(error) });
+    logger.error('Error fetching dashboard summary', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch dashboard summary' });
   }
 });
@@ -273,7 +273,7 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
         )
       `);
       results.todayRevenueCents = parseInt(String(todayRevenue.rows[0]?.total_cents || '0'), 10);
-    } catch (err) { logger.debug('[Financials] Failed to query today revenue — table may not exist', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.debug('[Financials] Failed to query today revenue — table may not exist', { extra: { error: getErrorMessage(err) } }); }
     
     // Overdue payments from booking sessions
     try {
@@ -296,7 +296,7 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
           )
       `);
       results.overduePaymentsCount = parseInt(String(overdueCount.rows[0]?.count || '0'), 10);
-    } catch (err) { logger.debug('[Financials] Failed to query overdue payments — table may not exist', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.debug('[Financials] Failed to query overdue payments — table may not exist', { extra: { error: getErrorMessage(err) } }); }
     
     // Failed payments - only query if table exists
     try {
@@ -306,7 +306,7 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
         WHERE status = 'requires_payment_method' OR status = 'requires_confirmation'
       `);
       results.failedPaymentsCount = parseInt(String(failedPayments.rows[0]?.count || '0'), 10);
-    } catch (err) { logger.debug('[Financials] Failed to query failed payments — table may not exist', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.debug('[Financials] Failed to query failed payments — table may not exist', { extra: { error: getErrorMessage(err) } }); }
     
     // Pending authorizations - count uncaptured payment intents
     try {
@@ -316,14 +316,14 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
         WHERE status = 'requires_capture'
       `);
       results.pendingAuthorizationsCount = parseInt(String(pendingAuths.rows[0]?.count || '0'), 10);
-    } catch (err) { logger.debug('[Financials] Failed to query pending authorizations — table may not exist', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.debug('[Financials] Failed to query pending authorizations — table may not exist', { extra: { error: getErrorMessage(err) } }); }
     
     res.json({
       ...results,
       timestamp: new Date().toISOString()
     });
   } catch (error: unknown) {
-    logger.error('Error fetching financials summary', { error: getErrorMessage(error) });
+    logger.error('Error fetching financials summary', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch financials summary' });
   }
 });
@@ -376,7 +376,7 @@ router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
           filledMap.set(Number(row.booking_id), parseInt(String(row.filled_count), 10) || 0);
         }
       } catch (err) {
-        logger.debug('[Todays Bookings] Failed to query filled player counts', { error: getErrorMessage(err) });
+        logger.debug('[Todays Bookings] Failed to query filled player counts', { extra: { error: getErrorMessage(err) } });
       }
     }
 
@@ -393,7 +393,7 @@ router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: unknown) {
-    logger.error('Error fetching todays bookings', { error: getErrorMessage(error) });
+    logger.error('Error fetching todays bookings', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch todays bookings' });
   }
 });
@@ -417,7 +417,7 @@ router.get('/api/staff/list', isStaffOrAdmin, async (req, res) => {
     `);
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('Error fetching staff list', { error: getErrorMessage(error) });
+    logger.error('Error fetching staff list', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch staff list' });
   }
 });
@@ -454,7 +454,7 @@ router.get('/api/directory/team', isStaffOrAdmin, async (req, res) => {
     `);
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('Error fetching directory team', { error: getErrorMessage(error) });
+    logger.error('Error fetching directory team', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch team directory' });
   }
 });

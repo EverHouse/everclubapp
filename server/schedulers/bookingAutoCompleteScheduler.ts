@@ -258,7 +258,7 @@ async function autoCompletePastBookings(): Promise<void> {
           }
         } catch (err) {
           sessionErrors++;
-          logger.error(`[Booking Auto-Complete] Failed to create session for booking #${booking.id}:`, { error: err as Error });
+          logger.error(`[Booking Auto-Complete] Failed to create session for booking #${booking.id}:`, { extra: { error: getErrorMessage(err) } });
         }
       } else if (booking.sessionId) {
         try {
@@ -380,7 +380,7 @@ async function autoCompletePastBookings(): Promise<void> {
     }
 
   } catch (error: unknown) {
-    logger.error('[Booking Auto-Complete] Error auto-completing bookings:', { error: error as Error });
+    logger.error('[Booking Auto-Complete] Error auto-completing bookings:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Booking Auto-Complete', false, getErrorMessage(error));
   }
 }
@@ -412,14 +412,14 @@ export function startBookingAutoCompleteScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedAutoComplete().catch((err: unknown) => {
-      logger.error('[Booking Auto-Complete] Uncaught error:', { error: err as Error });
+      logger.error('[Booking Auto-Complete] Uncaught error:', { extra: { error: getErrorMessage(err) } });
     });
   }, 60 * 60 * 1000);
 
   initialTimeoutId = setTimeout(() => {
     initialTimeoutId = null;
     guardedAutoComplete().catch((err: unknown) => {
-      logger.error('[Booking Auto-Complete] Initial run error:', { error: err as Error });
+      logger.error('[Booking Auto-Complete] Initial run error:', { extra: { error: getErrorMessage(err) } });
     });
   }, 30000);
 }
@@ -525,7 +525,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
           }
         }
       } catch (err) {
-        logger.error(`[Booking Auto-Complete] Manual: failed to create session for booking #${booking.id}:`, { error: err as Error });
+        logger.error(`[Booking Auto-Complete] Manual: failed to create session for booking #${booking.id}:`, { extra: { error: getErrorMessage(err) } });
       }
     } else if (booking.sessionId) {
       try {

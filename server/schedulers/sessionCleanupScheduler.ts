@@ -26,7 +26,7 @@ export function startSessionCleanupScheduler(): NodeJS.Timeout {
         schedulerTracker.recordRun('Session Cleanup', true);
       }
     } catch (err: unknown) {
-      logger.error('[Session Cleanup] Scheduler error:', { error: err as Error });
+      logger.error('[Session Cleanup] Scheduler error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Session Cleanup', false, getErrorMessage(err));
       lastRunDate = null;
     } finally {

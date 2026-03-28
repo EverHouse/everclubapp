@@ -46,7 +46,7 @@ router.get('/api/stripe/invoices/preview', isStaffOrAdmin, validateQuery(invoice
     
     res.json({ preview: result.preview });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error previewing invoice', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error previewing invoice', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to preview invoice' });
   }
 });
@@ -69,7 +69,7 @@ router.get('/api/stripe/invoices/:customerId', isStaffOrAdmin, async (req: Reque
       count: result.invoices?.length || 0
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error listing invoices', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error listing invoices', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to list invoices' });
   }
 });
@@ -115,7 +115,7 @@ router.post('/api/stripe/invoices', isStaffOrAdmin, async (req: Request, res: Re
       invoice: result.invoice
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error creating invoice', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error creating invoice', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create invoice' });
   }
 });
@@ -156,7 +156,7 @@ router.post('/api/stripe/invoices/:invoiceId/finalize', isStaffOrAdmin, async (r
       invoice: result.invoice
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error finalizing invoice', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error finalizing invoice', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to finalize invoice' });
   }
 });
@@ -173,7 +173,7 @@ router.get('/api/stripe/invoice/:invoiceId', isStaffOrAdmin, async (req: Request
     
     res.json({ invoice: result.invoice });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error getting invoice', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error getting invoice', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get invoice' });
   }
 });
@@ -221,7 +221,7 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
     
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error voiding invoice', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error voiding invoice', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to void invoice' });
   }
 });
@@ -284,7 +284,7 @@ router.get('/api/my-invoices', validateQuery(invoiceEmailQuerySchema), async (re
       count: result.invoices?.length || 0
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error listing member invoices', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error listing member invoices', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to list invoices' });
   }
 });

@@ -208,7 +208,7 @@ export async function sendIntegrityAlertEmail(
     logger.info(`[Integrity Alert] Email sent successfully to ${adminEmail}`);
     return { success: true };
   } catch (error: unknown) {
-    logger.error(`[Integrity Alert] Failed to send email to ${adminEmail}: ${getErrorMessage(error)}`, { error: error as Error });
+    logger.error(`[Integrity Alert] Failed to send email to ${adminEmail}: ${getErrorMessage(error)}`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }

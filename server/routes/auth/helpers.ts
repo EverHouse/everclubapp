@@ -15,7 +15,7 @@ export function regenerateSession(req: Request, userData: Record<string, unknown
     const oldSession = req.session;
     req.session.regenerate((err) => {
       if (err) {
-        logger.error('[Auth] Session regeneration failed', { error: getErrorMessage(err) });
+        logger.error('[Auth] Session regeneration failed', { extra: { error: getErrorMessage(err) } });
         return reject(err);
       }
       req.session.user = userData as typeof req.session.user;
@@ -78,7 +78,7 @@ export async function getStaffUserByEmail(email: string): Promise<StaffUserData 
     }
     return null;
   } catch (error: unknown) {
-    logger.error('Error fetching staff user', { error: getErrorMessage(error) });
+    logger.error('Error fetching staff user', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -177,7 +177,7 @@ export async function upsertUserWithTier(data: UpsertUserData): Promise<string |
     if (!isProduction) logger.info('[Auth] Updated user with role , tier', { extra: { normalizedEmailValue, dataRole: data.role, normalizedTier_none: normalizedTier || 'none' } });
     return result.length > 0 ? result[0].id : null;
   } catch (error: unknown) {
-    logger.error('[Auth] Error upserting user tier', { error: getErrorMessage(error) });
+    logger.error('[Auth] Error upserting user tier', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -270,7 +270,7 @@ export async function createSupabaseToken(user: { id: string, email: string, rol
         !msg?.includes('ENOTFOUND') && 
         !msg?.includes('ECONNREFUSED') &&
         !msg?.includes('timed out')) {
-      logger.error('[Supabase] Failed to generate token', { error: getErrorMessage(error) });
+      logger.error('[Supabase] Failed to generate token', { extra: { error: getErrorMessage(error) } });
     }
     return null;
   }

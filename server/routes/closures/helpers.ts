@@ -45,7 +45,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
     await Promise.all(notifications);
     logger.info('[Push] Sent notification to members', { extra: { subscriptionsLength: subscriptions.length } });
   } catch (error: unknown) {
-    logger.error('Failed to send push notification to members', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Failed to send push notification to members', { extra: { error: getErrorMessage(error) } });
   }
 }
 
@@ -329,7 +329,7 @@ export async function createClosureCalendarEvents(
       return response.data.id || null;
     }
   } catch (error: unknown) {
-    logger.error('Error creating closure calendar event', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error creating closure calendar event', { extra: { error: getErrorMessage(error) } });
     return null;
   }
 }
@@ -341,7 +341,7 @@ export async function deleteClosureCalendarEvents(calendarId: string, eventIds: 
     try {
       await deleteCalendarEvent(eventId.trim(), calendarId);
     } catch (error: unknown) {
-      logger.error('Failed to delete calendar event', { error: error instanceof Error ? error : new Error(String(error)), extra: { eventId } });
+      logger.error('Failed to delete calendar event', { extra: { error: getErrorMessage(error), eventId } });
     }
   }
 }
@@ -403,7 +403,7 @@ export async function patchClosureCalendarEvents(
     try {
       await calendar.events.patch({ calendarId, eventId, requestBody });
     } catch (error: unknown) {
-      logger.warn(`[Closures] Failed to patch calendar event ${eventId}, will fall back to create`, { error: getErrorMessage(error) });
+      logger.warn(`[Closures] Failed to patch calendar event ${eventId}, will fall back to create`, { extra: { error: getErrorMessage(error) } });
       return false;
     }
   }

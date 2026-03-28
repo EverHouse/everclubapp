@@ -151,7 +151,7 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
       guestPassesRemaining
     });
   } catch (error: unknown) {
-    logger.error('Add guest error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Add guest error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to add guest' });
   }
 });
@@ -243,7 +243,7 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
       message: `Guest ${guestDisplayName} removed successfully`
     });
   } catch (error: unknown) {
-    logger.error('Remove guest error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Remove guest error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to remove guest' });
   }
 });
@@ -320,7 +320,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
           await db.execute(sql`UPDATE booking_requests SET session_id = ${sessionId} WHERE id = ${bookingId}`);
           logger.info('[Link Member] Created session for booking without one', { extra: { bookingId, sessionId } });
         } catch (sessErr: unknown) {
-          logger.error('[Link Member] Failed to create session', { error: sessErr instanceof Error ? sessErr : new Error(String(sessErr)) });
+          logger.error('[Link Member] Failed to create session', { extra: { error: getErrorMessage(sessErr) } });
           return res.status(500).json({ error: 'Failed to create booking session' });
         }
       }
@@ -494,7 +494,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       message: `Member ${memberEmail} linked to slot` 
     });
   } catch (error: unknown) {
-    logger.error('Link member error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Link member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to link member to slot' });
   }
 });
@@ -556,7 +556,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
       message: `Member ${memberEmail} unlinked from slot` 
     });
   } catch (error: unknown) {
-    logger.error('Unlink member error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Unlink member error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to unlink member from slot' });
   }
 });

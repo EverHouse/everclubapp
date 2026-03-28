@@ -123,7 +123,7 @@ router.get('/api/training-sections', isStaffOrAdmin, async (req, res) => {
     
     res.json({ sections: result, lastUpdated: lastUpdated?.toISOString() ?? null });
   } catch (error: unknown) {
-    logger.error('Training sections fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Training sections fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch training sections' });
   }
 });
@@ -148,7 +148,7 @@ router.post('/api/admin/training-sections', isAdmin, async (req, res) => {
     logFromRequest(req, 'create_training', 'training', String(newSection.id), newSection.title, {});
     res.status(201).json(newSection);
   } catch (error: unknown) {
-    logger.error('Training section creation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Training section creation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create training section' });
   }
 });
@@ -180,7 +180,7 @@ router.put('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
     logFromRequest(req, 'update_training', 'training', String(id), title, {});
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('Training section update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Training section update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update training section' });
   }
 });
@@ -202,7 +202,7 @@ router.delete('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
     logFromRequest(req, 'delete_training', 'training', String(id), undefined, {});
     res.json({ success: true, deleted });
   } catch (error: unknown) {
-    logger.error('Training section deletion error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Training section deletion error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete training section' });
   }
 });
@@ -222,7 +222,7 @@ router.post('/api/admin/training-sections/seed', isAdmin, async (req, res) => {
       sections: insertedSections 
     });
   } catch (error: unknown) {
-    logger.error('Training seed error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Training seed error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to seed training sections' });
   }
 });

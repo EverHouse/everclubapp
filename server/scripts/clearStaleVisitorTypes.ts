@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 async function run() {
   logger.info('[Migration] Clearing stale visitor_type values for visitor-role users...');
@@ -19,6 +20,6 @@ async function run() {
 }
 
 run().catch((err) => {
-  logger.error('[Migration] Failed to clear stale visitor types', { error: String(err) });
+  logger.error('[Migration] Failed to clear stale visitor types', { extra: { error: getErrorMessage(err) } });
   process.exit(1);
 });

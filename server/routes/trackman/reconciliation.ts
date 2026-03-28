@@ -9,6 +9,7 @@ import {
 } from '../../core/bookingService/trackmanReconciliation';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -43,7 +44,7 @@ router.get('/api/admin/trackman/reconciliation', isStaffOrAdmin, validateQuery(r
       totalCount: result.totalCount
     });
   } catch (error: unknown) {
-    logger.error('Fetch reconciliation discrepancies error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Fetch reconciliation discrepancies error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch attendance discrepancies' });
   }
 });
@@ -53,7 +54,7 @@ router.get('/api/admin/trackman/reconciliation/summary', isStaffOrAdmin, async (
     const summary = await getReconciliationSummary();
     res.json(summary);
   } catch (error: unknown) {
-    logger.error('Fetch reconciliation summary error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Fetch reconciliation summary error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch reconciliation summary' });
   }
 });
@@ -114,7 +115,7 @@ router.put('/api/admin/trackman/reconciliation/:id', isStaffOrAdmin, async (req,
     
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Update reconciliation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Update reconciliation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update reconciliation status' });
   }
 });

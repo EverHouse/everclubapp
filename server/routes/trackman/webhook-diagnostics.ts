@@ -5,6 +5,7 @@ import { logger } from '../../core/logger';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface TotalCountRow {
   total: string;
@@ -69,7 +70,7 @@ router.get('/api/admin/trackman-webhooks', isStaffOrAdmin, validateQuery(webhook
       offset
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch webhook events', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Failed to fetch webhook events', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch webhook events' });
   }
 });
@@ -118,7 +119,7 @@ router.get('/api/admin/trackman-webhooks/stats', isStaffOrAdmin, async (req: Req
       slotStats: slotStats.rows[0],
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch stats', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Failed to fetch stats', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -152,7 +153,7 @@ router.get('/api/admin/trackman-webhook/stats', isStaffOrAdmin, async (req: Requ
       slotStats: slotStats.rows[0],
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch stats', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Failed to fetch stats', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
@@ -188,7 +189,7 @@ router.post('/api/admin/linked-emails', isStaffOrAdmin, async (req: Request, res
     
     res.json({ success: true, message: 'Email link created successfully' });
   } catch (error: unknown) {
-    logger.error('[Linked Emails] Failed to create link', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Linked Emails] Failed to create link', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create email link' });
   }
 });
@@ -221,7 +222,7 @@ router.get('/api/admin/linked-emails/:email', isStaffOrAdmin, async (req: Reques
       }))
     });
   } catch (error: unknown) {
-    logger.error('[Linked Emails] Failed to fetch links', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Linked Emails] Failed to fetch links', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch email links' });
   }
 });
@@ -260,7 +261,7 @@ router.get('/api/availability/trackman-cache', isStaffOrAdmin, async (req: Reque
     
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Failed to fetch availability cache', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Webhook] Failed to fetch availability cache', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch availability' });
   }
 });

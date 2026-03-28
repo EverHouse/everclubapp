@@ -282,11 +282,11 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
               feeResult: feeResult?.totals?.totalCents || 0
             });
           } catch (feeError: unknown) {
-            logger.warn('[Simulate Confirm] Failed to calculate fees (non-blocking)', { error: feeError instanceof Error ? feeError : new Error(String(feeError)) });
+            logger.warn('[Simulate Confirm] Failed to calculate fees (non-blocking)', { extra: { error: getErrorMessage(feeError) } });
           }
         }
       } catch (sessionError: unknown) {
-        logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { error: sessionError instanceof Error ? sessionError : new Error(String(sessionError)) });
+        logger.error('[Simulate Confirm] Failed to create session (non-blocking)', { extra: { error: getErrorMessage(sessionError) } });
       }
     }
 
@@ -323,7 +323,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
         }).catch(err => logger.error('[Simulate Confirm] WebSocket notification error', { extra: { bookingId, userEmail, error: getErrorMessage(err) } }));
       }
     } catch (notifyError: unknown) {
-      logger.error('[Simulate Confirm] Notification error (non-blocking)', { error: notifyError instanceof Error ? notifyError : new Error(String(notifyError)) });
+      logger.error('[Simulate Confirm] Notification error (non-blocking)', { extra: { error: getErrorMessage(notifyError) } });
     }
     
     linkAndNotifyParticipants(bookingId, {
@@ -360,7 +360,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
       totalFeeCents
     });
   } catch (error: unknown) {
-    logger.error('[Simulate Confirm] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Simulate Confirm] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to confirm booking' });
   }
 });
@@ -627,7 +627,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
       results
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Backfill] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Backfill] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to run backfill', details: safeErrorDetail(error) });
   }
 });
@@ -643,7 +643,7 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
     try {
       new URL(dev_url);
     } catch (err) {
-      logger.debug('Invalid dev_url format for replay', { error: getErrorMessage(err) });
+      logger.debug('Invalid dev_url format for replay', { extra: { error: getErrorMessage(err) } });
       return res.status(400).json({ error: 'Invalid dev_url format' });
     }
     
@@ -705,7 +705,7 @@ router.post('/api/trackman/replay-webhooks-to-dev', isAdmin, async (req, res) =>
       errors: errors.slice(0, 10)
     });
   } catch (error: unknown) {
-    logger.error('[Trackman Replay] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Trackman Replay] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to replay webhooks', details: safeErrorDetail(error) });
   }
 });

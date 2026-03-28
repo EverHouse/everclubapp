@@ -59,7 +59,7 @@ router.get('/api/waivers/status', isAuthenticated, async (req, res) => {
       signedAt: user.waiverSignedAt,
     });
   } catch (error: unknown) {
-    logger.error('Error checking waiver status', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error checking waiver status', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to check agreement status' });
   }
 });
@@ -98,7 +98,7 @@ router.post('/api/waivers/sign', isAuthenticated, async (req, res) => {
       signedAt: new Date(),
     });
   } catch (error: unknown) {
-    logger.error('Error signing waiver', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error signing waiver', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sign agreement' });
   }
 });
@@ -115,7 +115,7 @@ router.get('/api/waivers/current-version', isStaffOrAdmin, async (req, res) => {
       updatedAt: result[0]?.updatedAt,
     });
   } catch (error: unknown) {
-    logger.error('Error fetching waiver version', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error fetching waiver version', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch agreement version' });
   }
 });
@@ -168,7 +168,7 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, async (req, res) => {
       message: `Membership Agreement version updated to ${version}. ${affectedCount} members will need to re-sign.`,
     });
   } catch (error: unknown) {
-    logger.error('Error updating waiver version', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error updating waiver version', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update agreement version' });
   }
 });
@@ -293,7 +293,7 @@ router.post('/api/waivers/email-copy', sensitiveActionRateLimiter, isAuthenticat
       res.status(500).json({ error: 'Failed to send email' });
     }
   } catch (error: unknown) {
-    logger.error('Error sending agreement email', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error sending agreement email', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send agreement email' });
   }
 });

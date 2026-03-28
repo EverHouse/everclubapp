@@ -275,7 +275,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           resourceName = resource.name;
         }
       } catch (error: unknown) {
-        logger.error('[Bookings] Failed to fetch resource name', { error: error instanceof Error ? error : new Error(getErrorMessage(error)) });
+        logger.error('[Bookings] Failed to fetch resource name', { extra: { error: getErrorMessage(error) } });
       }
     }
     
@@ -464,9 +464,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             createdBy: 'conference_room_auto_confirm'
           });
         } catch (fallbackErr) {
-          logger.error('[ConferenceRoom] Fallback ensureSession also failed', {
-            error: new Error(getErrorMessage(fallbackErr))
-          });
+          logger.error('[ConferenceRoom] Fallback ensureSession also failed', { extra: { error: getErrorMessage(fallbackErr) } });
         }
       }
     }
@@ -503,7 +501,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           url: '/admin/bookings',
           sendPush: true
         }
-      ).catch((err: unknown) => logger.error('Staff notification failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
+      ).catch((err: unknown) => logger.error('Staff notification failed:', { extra: { error: getErrorMessage(err) } }));
       
       bookingEvents.publish('booking_created', {
         bookingId: row.id,
@@ -517,7 +515,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         playerCount: declared_player_count || undefined,
         status: row.status || 'pending',
         actionBy: 'member'
-      }, { notifyMember: false, notifyStaff: true }).catch((err: unknown) => logger.error('Booking event publish failed:', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) }));
+      }, { notifyMember: false, notifyStaff: true }).catch((err: unknown) => logger.error('Booking event publish failed:', { extra: { error: getErrorMessage(err) } }));
       
       broadcastAvailabilityUpdate({
         resourceId: row.resourceId || undefined,

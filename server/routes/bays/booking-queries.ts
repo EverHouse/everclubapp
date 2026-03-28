@@ -209,7 +209,7 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
           }
         }
       } catch (err: unknown) {
-        logger.error('[FeeEstimate] Failed to resolve member user IDs to emails', { error: new Error(getErrorMessage(err)) });
+        logger.error('[FeeEstimate] Failed to resolve member user IDs to emails', { extra: { error: getErrorMessage(err) } });
       }
     }
     

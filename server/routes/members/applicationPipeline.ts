@@ -3,6 +3,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { logger } from '../../core/logger';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.get('/api/admin/applications', isStaffOrAdmin, async (req, res) => {
 
     res.json(result.rows);
   } catch (error: unknown) {
-    logger.error('[Applications] Failed to fetch pipeline', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Applications] Failed to fetch pipeline', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch applications' });
   }
 });
@@ -62,7 +63,7 @@ router.put('/api/admin/applications/:id/status', isStaffOrAdmin, async (req, res
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Applications] Failed to update status', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Applications] Failed to update status', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update application status' });
   }
 });
@@ -106,7 +107,7 @@ router.post('/api/admin/applications/:id/send-invite', isStaffOrAdmin, async (re
     const data = (await internalRes.json()) as { checkoutUrl?: string };
     res.json({ success: true, checkoutUrl: data.checkoutUrl });
   } catch (error: unknown) {
-    logger.error('[Applications] Failed to send invite', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Applications] Failed to send invite', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send invite' });
   }
 });

@@ -158,7 +158,7 @@ router.get('/api/my/billing', requireAuth, validateQuery(optionalEmailSchema), a
     
     res.json(billingInfo);
   } catch (error: unknown) {
-    logger.error('[MyBilling] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to load billing info' });
   }
 });
@@ -207,7 +207,7 @@ router.get('/api/my/billing/invoices', requireAuth, validateQuery(optionalEmailS
     
     res.json({ invoices });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Invoice error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Invoice error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to load invoices' });
   }
 });
@@ -241,7 +241,7 @@ router.post('/api/my/billing/update-payment-method', requireAuth, async (req, re
     
     res.json({ url: session.url });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Payment update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Payment update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create payment update link' });
   }
 });
@@ -303,7 +303,7 @@ router.post('/api/my/billing/portal', requireAuth, sensitiveActionRateLimiter, v
     
     res.json({ url: session.url });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Portal error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Portal error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to open billing portal' });
   }
 });
@@ -349,7 +349,7 @@ router.post('/api/my/billing/add-payment-method-for-extras', requireAuth, async 
     logger.info('[MyBilling] Payment method setup (for extras) initiated for', { extra: { memberEmail: member.email as string } });
     res.json({ url: session.url });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Add payment method for extras error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Add payment method for extras error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to open payment portal' });
   }
 });
@@ -416,7 +416,7 @@ router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) =
     
     res.json({ url: session.url });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Migration error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Migration error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to initiate billing migration' });
   }
 });
@@ -461,7 +461,7 @@ router.get('/api/my/balance', requireAuth, async (req, res) => {
       isCredit: balanceCents < 0
     });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Balance fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Balance fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch balance' });
   }
 });
@@ -522,7 +522,7 @@ router.post('/api/my/add-funds', requireAuth, paymentRateLimiter, validateBody(a
     
     res.json({ checkoutUrl: session.url });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Add funds error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Add funds error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
@@ -583,7 +583,7 @@ router.get('/api/my-billing/account-balance', requireAuth, validateQuery(billing
       isCredit: balanceCents < 0
     });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Account balance fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Account balance fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch balance' });
   }
 });
@@ -612,7 +612,7 @@ router.post('/api/member-billing/:email/sync-stripe', requireStaffAuth, async (r
     
     res.json({ success: true, created, customerId });
   } catch (error: unknown) {
-    logger.error('[SyncStripe] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[SyncStripe] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync to Stripe' });
   }
 });
@@ -647,7 +647,7 @@ router.post('/api/member-billing/:email/sync-metadata', requireStaffAuth, async 
     logger.info('[SyncMetadata] Updated Stripe customer metadata for', { extra: { memberStripe_customer_id: member.stripe_customer_id, targetEmail } });
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[SyncMetadata] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[SyncMetadata] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync metadata' });
   }
 });
@@ -772,7 +772,7 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
       message: `Tier updated from ${previousTier || 'none'} to ${newTier}`
     });
   } catch (error: unknown) {
-    logger.error('[SyncTierFromStripe] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[SyncTierFromStripe] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync tier from Stripe' });
   }
 });
@@ -826,7 +826,7 @@ router.post('/api/member-billing/:email/backfill-cache', requireStaffAuth, async
     logger.info('[BackfillCache] Cached transactions for', { extra: { transactionCount, targetEmail } });
     res.json({ success: true, transactionCount });
   } catch (error: unknown) {
-    logger.error('[BackfillCache] Error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[BackfillCache] Error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to backfill cache' });
   }
 });
@@ -904,7 +904,7 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
       noticePeriodDays: 30,
     });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Cancellation request error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Cancellation request error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to submit cancellation request' });
   }
 });
@@ -928,7 +928,7 @@ router.get('/api/my/billing/cancellation-status', requireAuth, async (req, res) 
       cancellationReason: member.cancellation_reason,
     });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Cancellation status error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Cancellation status error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get cancellation status' });
   }
 });
@@ -972,7 +972,7 @@ router.get('/api/my-billing/receipt/:paymentIntentId', requireAuth, async (req, 
     
     res.status(404).json({ error: 'Receipt not available' });
   } catch (error: unknown) {
-    logger.error('[MyBilling] Receipt fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Receipt fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch receipt' });
   }
 });
@@ -1113,7 +1113,7 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
           });
         }
       } catch (invoiceErr: unknown) {
-        logger.warn('[MyBilling] Failed to fetch invoices for payment history', { error: getErrorMessage(invoiceErr) });
+        logger.warn('[MyBilling] Failed to fetch invoices for payment history', { extra: { error: getErrorMessage(invoiceErr) } });
       }
     }
 
@@ -1195,7 +1195,7 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
         });
       }
     } catch (overdueErr: unknown) {
-      logger.warn('[MyBilling] Failed to fetch overdue booking fees for payment history', { error: getErrorMessage(overdueErr) });
+      logger.warn('[MyBilling] Failed to fetch overdue booking fees for payment history', { extra: { error: getErrorMessage(overdueErr) } });
     }
 
     const deduped = purchases.filter(p => {
@@ -1210,7 +1210,7 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
     deduped.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     res.json(deduped);
   } catch (error: unknown) {
-    logger.error('[MyBilling] Payment history error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MyBilling] Payment history error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch payment history' });
   }
 });

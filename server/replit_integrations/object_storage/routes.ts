@@ -5,6 +5,7 @@ import { ObjectStorageService, ObjectNotFoundError, objectStorageClient } from "
 import { getSessionUser } from "../../types/session";
 import { isAuthenticated } from "../auth";
 import { logger } from "../../core/logger";
+import { getErrorMessage } from "../../utils/errorUtils";
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -79,7 +80,7 @@ export function registerObjectStorageRoutes(app: Express): void {
       
       res.json({ url, objectPath: url });
     } catch (error: unknown) {
-      logger.error("Error uploading file:", { error: error as Error });
+      logger.error("Error uploading file:", { extra: { error: getErrorMessage(error) } });
       res.status(500).json({ error: "Failed to upload file" });
     }
   });
@@ -125,7 +126,7 @@ export function registerObjectStorageRoutes(app: Express): void {
         metadata: { name, size, contentType },
       });
     } catch (error: unknown) {
-      logger.error("Error generating upload URL:", { error: error as Error });
+      logger.error("Error generating upload URL:", { extra: { error: getErrorMessage(error) } });
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
   });
@@ -145,7 +146,7 @@ export function registerObjectStorageRoutes(app: Express): void {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path.startsWith('/objects') ? req.path : `/objects${req.path}`);
       await objectStorageService.downloadObject(objectFile, res);
     } catch (error: unknown) {
-      logger.error("Error serving object:", { error: error as Error });
+      logger.error("Error serving object:", { extra: { error: getErrorMessage(error) } });
       if (error instanceof ObjectNotFoundError) {
         return res.status(404).json({ error: "Object not found" });
       }

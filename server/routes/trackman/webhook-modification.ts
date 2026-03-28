@@ -521,8 +521,7 @@ export async function handleBookingModification(
     return { modified: true, changes, conflictWarning };
   } catch (error: unknown) {
     logger.error('[Trackman Webhook] Failed to apply booking modification', {
-      error: error as Error,
-      extra: { bookingId, trackmanBookingId: incoming.trackmanBookingId, changes }
+      extra: { error: getErrorMessage(error), bookingId, trackmanBookingId: incoming.trackmanBookingId, changes }
     });
     return { modified: false, changes: [] };
   }

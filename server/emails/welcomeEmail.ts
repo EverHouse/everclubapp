@@ -135,7 +135,7 @@ export async function sendWelcomeEmail(email: string, firstName?: string): Promi
     logger.info(`[Welcome Email] Sent successfully to ${email}`);
     return { success: true };
   } catch (error: unknown) {
-    logger.error(`[Welcome Email] Failed to send to ${email}: ${getErrorMessage(error)}`, { error: error as Error });
+    logger.error(`[Welcome Email] Failed to send to ${email}: ${getErrorMessage(error)}`, { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };
   }
 }

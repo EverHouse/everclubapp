@@ -40,7 +40,7 @@ router.get('/api/member/payment-methods', isAuthenticated, async (req: Request, 
     const methods = await listCustomerPaymentMethods(stripeCustomerId);
     return res.json({ paymentMethods: methods });
   } catch (error: unknown) {
-    logger.error('[MemberPayments] Error fetching payment methods', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[MemberPayments] Error fetching payment methods', { extra: { error: getErrorMessage(error) } });
     return res.json({ paymentMethods: [] });
   }
 });

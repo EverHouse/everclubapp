@@ -4,6 +4,7 @@ import path from 'path';
 import { normalizeTierName } from './utils/tierUtils';
 import { logger } from './core/logger';
 import { stripSslMode } from './core/db';
+import { getErrorMessage } from './utils/errorUtils';
 const { Pool } = pg;
 
 const pool = new Pool({
@@ -161,7 +162,7 @@ async function seed() {
           );
           imported++;
         } catch (err: unknown) {
-          logger.error(`  Failed to import ${email}:`, { error: err as Error });
+          logger.error(`  Failed to import ${email}:`, { extra: { error: getErrorMessage(err) } });
           skipped++;
         }
       }
@@ -348,7 +349,7 @@ async function seed() {
     logger.info('Note: Events and wellness classes sync from Google Calendar.');
 
   } catch (error: unknown) {
-    logger.error('Seed error:', { error: error as Error });
+    logger.error('Seed error:', { extra: { error: getErrorMessage(error) } });
     throw error;
   } finally {
     await pool.end();

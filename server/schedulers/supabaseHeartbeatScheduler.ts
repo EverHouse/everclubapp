@@ -80,7 +80,7 @@ export function startSupabaseHeartbeatScheduler(): void {
       await runHeartbeat();
       schedulerTracker.recordRun('Supabase Heartbeat', true);
     } catch (err: unknown) {
-      logger.error('[Supabase Heartbeat] Initial run error:', { error: err as Error });
+      logger.error('[Supabase Heartbeat] Initial run error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Supabase Heartbeat', false, getErrorMessage(err));
     }
   }, 30 * 1000);
@@ -92,7 +92,7 @@ export function startSupabaseHeartbeatScheduler(): void {
     runHeartbeat()
       .then(() => schedulerTracker.recordRun('Supabase Heartbeat', true))
       .catch((err: unknown) => {
-        logger.error('[Supabase Heartbeat] Scheduler error:', { error: err as Error });
+        logger.error('[Supabase Heartbeat] Scheduler error:', { extra: { error: getErrorMessage(err) } });
         schedulerTracker.recordRun('Supabase Heartbeat', false, getErrorMessage(err));
       })
       .finally(() => { heartbeatRunning = false; });

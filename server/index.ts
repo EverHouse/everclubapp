@@ -31,7 +31,7 @@ interface IncomingMessageWithExpressProps extends http.IncomingMessage {
 }
 
 process.on('uncaughtException', (error) => {
-  logger.error('[Process] Uncaught Exception - shutting down:', { error: error as Error });
+  logger.error('[Process] Uncaught Exception - shutting down:', { extra: { error: getErrorMessage(error) } });
   process.exit(1);
 });
 
@@ -76,13 +76,13 @@ async function gracefulShutdown(signal: string) {
       try {
         const { stopSchedulers } = await import('./schedulers');
         stopSchedulers();
-      } catch (err) { logger.warn('[Shutdown] Failed to stop schedulers:', { error: getErrorMessage(err) }); }
+      } catch (err) { logger.warn('[Shutdown] Failed to stop schedulers:', { extra: { error: getErrorMessage(err) } }); }
     }
     if (websocketInitialized) {
       try {
         const { closeWebSocketServer } = await import('./core/websocket');
         closeWebSocketServer();
-      } catch (err) { logger.warn('[Shutdown] Failed to close WebSocket server:', { error: getErrorMessage(err) }); }
+      } catch (err) { logger.warn('[Shutdown] Failed to close WebSocket server:', { extra: { error: getErrorMessage(err) } }); }
     }
 
     if (httpServer) {
@@ -104,13 +104,13 @@ async function gracefulShutdown(signal: string) {
     try {
       const { pool } = await import('./core/db');
       await pool.end();
-    } catch (err) { logger.warn('[Shutdown] Failed to close database pool:', { error: getErrorMessage(err) }); }
+    } catch (err) { logger.warn('[Shutdown] Failed to close database pool:', { extra: { error: getErrorMessage(err) } }); }
 
     clearTimeout(shutdownTimeout);
     logger.info('[Shutdown] Complete');
     process.exit(0);
   } catch (error: unknown) {
-    logger.error('[Shutdown] Error:', { error: error as Error });
+    logger.error('[Shutdown] Error:', { extra: { error: getErrorMessage(error) } });
     clearTimeout(shutdownTimeout);
     process.exit(1);
   }
@@ -188,13 +188,13 @@ httpServer.listen(PORT, '0.0.0.0', () => {
   logger.info(`[Startup] HTTP server listening on port ${PORT} - health check ready`);
 
   initializeApp().catch((err) => {
-    logger.error('[Startup] Express initialization failed:', { error: err as Error });
+    logger.error('[Startup] Express initialization failed:', { extra: { error: getErrorMessage(err) } });
     process.exit(1);
   });
 });
 
 httpServer.on('error', (err: unknown) => {
-  logger.error(`[Startup] Server failed to start:`, { error: err as Error });
+  logger.error(`[Startup] Server failed to start:`, { extra: { error: getErrorMessage(err) } });
   process.exit(1);
 });
 
@@ -310,7 +310,7 @@ async function initializeApp() {
           return;
         }
       } catch (err) {
-        logger.debug('CORS origin parsing failed', { error: getErrorMessage(err) });
+        logger.debug('CORS origin parsing failed', { extra: { error: getErrorMessage(err) } });
       }
       callback(new Error('Not allowed by CORS'));
     };
@@ -586,7 +586,7 @@ async function initializeApp() {
     setupSupabaseAuthRoutes(app);
     registerAuthRoutes(app);
   } catch (err: unknown) {
-    logger.error('[Startup] Auth routes setup failed:', { error: err as Error });
+    logger.error('[Startup] Auth routes setup failed:', { extra: { error: getErrorMessage(err) } });
   }
 
   registerRoutes(app);
@@ -656,7 +656,7 @@ async function initializeApp() {
       }
       logger.info('[Startup] Cached index.html for fast serving', { mainCssPath });
     } catch (err: unknown) {
-      logger.error('[Startup] Failed to cache index.html:', { error: err as Error });
+      logger.error('[Startup] Failed to cache index.html:', { extra: { error: getErrorMessage(err) } });
     }
   }
 
@@ -664,7 +664,7 @@ async function initializeApp() {
     initWebSocketServer(httpServer!);
     websocketInitialized = true;
   } catch (err: unknown) {
-    logger.error('[Startup] WebSocket initialization failed:', { error: err as Error });
+    logger.error('[Startup] WebSocket initialization failed:', { extra: { error: getErrorMessage(err) } });
   }
 
   isReady = true;
@@ -680,7 +680,7 @@ async function initializeApp() {
           logger.warn(`[Startup] Critical failures on attempt ${attempt} — retrying in 30s...`, { extra: { criticalFailures: startupHealth.criticalFailures } });
           setTimeout(() => {
             runStartupTasks().then(() => handleStartupResult(attempt + 1)).catch((err) => {
-              logger.error('[Startup] Startup retry failed unexpectedly:', { error: err as Error });
+              logger.error('[Startup] Startup retry failed unexpectedly:', { extra: { error: getErrorMessage(err) } });
             });
           }, 30000);
         } else {
@@ -702,17 +702,17 @@ async function initializeApp() {
           schedulersInitialized = true;
           logger.info('[Startup] Schedulers initialized after startup tasks completed');
         } catch (err: unknown) {
-          logger.error('[Startup] Scheduler initialization failed:', { error: err as Error });
+          logger.error('[Startup] Scheduler initialization failed:', { extra: { error: getErrorMessage(err) } });
         }
       })
       .catch((err) => {
-        logger.error('[Startup] Startup tasks failed unexpectedly:', { error: err as Error });
+        logger.error('[Startup] Startup tasks failed unexpectedly:', { extra: { error: getErrorMessage(err) } });
         try {
           initSchedulers();
           schedulersInitialized = true;
           logger.warn('[Startup] Schedulers initialized despite startup task failure');
         } catch (schedErr: unknown) {
-          logger.error('[Startup] Scheduler initialization also failed:', { error: schedErr as Error });
+          logger.error('[Startup] Scheduler initialization also failed:', { extra: { error: getErrorMessage(schedErr) } });
         }
       });
 
@@ -721,7 +721,7 @@ async function initializeApp() {
         try {
           await autoSeedResources(db, sql, resources, isProduction);
         } catch (err: unknown) {
-          logger.error('[Startup] Auto-seed resources failed:', { error: err as Error });
+          logger.error('[Startup] Auto-seed resources failed:', { extra: { error: getErrorMessage(err) } });
         }
       }, 30000);
     }

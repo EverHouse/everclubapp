@@ -320,7 +320,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
       breakdown
     });
   } catch (error: unknown) {
-    logger.error('[Member Balance] Error getting balance', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Member Balance] Error getting balance', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get balance' });
   }
 });
@@ -618,8 +618,8 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
       error: paymentResult.error
     });
   } catch (error: unknown) {
-    logger.error('[Member Balance] Error creating payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create balance payment');
+    logger.error('[Member Balance] Error creating payment', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create balance payment');
     res.status(500).json({ 
       error: 'Payment processing failed. Please try again.',
       retryable: true
@@ -651,8 +651,8 @@ router.post('/api/member/balance/confirm', isAuthenticated, async (req: Request,
 
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Member Balance] Error confirming payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm balance payment');
+    logger.error('[Member Balance] Error confirming payment', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm balance payment');
     res.status(500).json({ 
       error: 'Payment confirmation failed. Please try again.',
       retryable: true

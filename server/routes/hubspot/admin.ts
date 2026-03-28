@@ -21,7 +21,7 @@ router.post('/api/admin/hubspot/sync-form-submissions', isStaffOrAdmin, async (r
     const result = await syncHubSpotFormSubmissions({ force: true });
     res.json(result);
   } catch (error: unknown) {
-    logger.error('[HubSpot FormSync] Manual sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[HubSpot FormSync] Manual sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync form submissions' });
   }
 });
@@ -31,7 +31,7 @@ router.get('/api/admin/hubspot/form-sync-status', isAdmin, async (_req: Request,
     const { getFormSyncStatus } = await import('../../core/hubspot/formSync');
     res.json(getFormSyncStatus());
   } catch (error: unknown) {
-    logger.error('[HubSpot FormSync] Status check error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[HubSpot FormSync] Status check error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get form sync status' });
   }
 });
@@ -42,7 +42,7 @@ router.post('/api/admin/hubspot/form-sync-reset', isAdmin, async (_req: Request,
     resetFormSyncAccessDeniedFlag();
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[HubSpot FormSync] Reset error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[HubSpot FormSync] Reset error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to reset form sync flags' });
   }
 });
@@ -64,7 +64,7 @@ router.post('/api/admin/hubspot/set-forms-token', isAdmin, async (req: Request, 
       syncResult,
     });
   } catch (error: unknown) {
-    logger.error('[HubSpot FormSync] Set token error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[HubSpot FormSync] Set token error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to save token' });
   }
 });

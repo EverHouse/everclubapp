@@ -84,7 +84,7 @@ router.get('/api/cafe-menu', async (req, res) => {
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Cafe menu error', { error: getErrorMessage(error) });
+    logger.error('Cafe menu error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch cafe menu' });
   }
 });
@@ -126,11 +126,11 @@ router.post('/api/cafe-menu', isStaffOrAdmin, validateBody(cafeItemSchema), asyn
       synced = pushResult.success;
       if (!pushResult.success) {
         syncError = pushResult.error || 'Stripe sync failed';
-        logger.error('[AutoPush] Cafe item creation push failed', { error: getErrorMessage(syncError) });
+        logger.error('[AutoPush] Cafe item creation push failed', { extra: { error: getErrorMessage(syncError) } });
       }
     } catch (err) {
       syncError = getErrorMessage(err);
-      logger.error('[AutoPush] Cafe item creation push exception', { error: getErrorMessage(syncError) });
+      logger.error('[AutoPush] Cafe item creation push exception', { extra: { error: getErrorMessage(syncError) } });
     }
 
     invalidateCache(CAFE_CACHE_KEY);
@@ -138,7 +138,7 @@ router.post('/api/cafe-menu', isStaffOrAdmin, validateBody(cafeItemSchema), asyn
     logFromRequest(req, 'create_cafe_item', 'cafe', String(newItem.id), newItem.name || name, {});
     res.status(201).json({ ...newItem, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Cafe item creation error', { error: getErrorMessage(error) });
+    logger.error('Cafe item creation error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create cafe item' });
   }
 });
@@ -194,11 +194,11 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, validateBody(cafeItemUpdateSche
       synced = pushResult.success;
       if (!pushResult.success) {
         syncError = pushResult.error || 'Stripe sync failed';
-        logger.error('[AutoPush] Cafe item push failed', { error: getErrorMessage(syncError) });
+        logger.error('[AutoPush] Cafe item push failed', { extra: { error: getErrorMessage(syncError) } });
       }
     } catch (err) {
       syncError = getErrorMessage(err);
-      logger.error('[AutoPush] Cafe item push exception', { error: getErrorMessage(syncError) });
+      logger.error('[AutoPush] Cafe item push exception', { extra: { error: getErrorMessage(syncError) } });
     }
 
     invalidateCache(CAFE_CACHE_KEY);
@@ -206,7 +206,7 @@ router.put('/api/cafe-menu/:id', isStaffOrAdmin, validateBody(cafeItemUpdateSche
     logFromRequest(req, 'update_cafe_item', 'cafe', String(id), name, {});
     res.json({ ...updatedItem, synced, syncError });
   } catch (error: unknown) {
-    logger.error('Cafe item update error', { error: getErrorMessage(error) });
+    logger.error('Cafe item update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update cafe item' });
   }
 });
@@ -235,7 +235,7 @@ router.delete('/api/cafe-menu/inactive/all', isAdmin, async (req, res) => {
           }
         } catch (stripeErr: unknown) {
           if (!isStripeResourceMissing(stripeErr)) {
-            logger.warn(`[Cafe] Could not archive Stripe product ${item.stripeProductId} for "${item.name}"`, { error: getErrorMessage(stripeErr) });
+            logger.warn(`[Cafe] Could not archive Stripe product ${item.stripeProductId} for "${item.name}"`, { extra: { error: getErrorMessage(stripeErr) } });
           }
         }
       }
@@ -248,7 +248,7 @@ router.delete('/api/cafe-menu/inactive/all', isAdmin, async (req, res) => {
     logger.info(`[Cafe] Bulk delete complete: removed ${inactive.length} inactive items`);
     res.json({ success: true, deleted: inactive.length });
   } catch (error: unknown) {
-    logger.error('[Cafe] Bulk delete inactive cafe items error', { error: getErrorMessage(error) });
+    logger.error('[Cafe] Bulk delete inactive cafe items error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete inactive items' });
   }
 });
@@ -282,7 +282,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
         if (isStripeResourceMissing(stripeErr)) {
           logger.info(`[Cafe] Stripe product ${existing[0].stripeProductId} not found — proceeding with delete`);
         } else {
-          logger.warn(`[Cafe] Could not archive Stripe product ${existing[0].stripeProductId} — proceeding with delete anyway (product may need manual cleanup in Stripe)`, { error: getErrorMessage(stripeErr) });
+          logger.warn(`[Cafe] Could not archive Stripe product ${existing[0].stripeProductId} — proceeding with delete anyway (product may need manual cleanup in Stripe)`, { extra: { error: getErrorMessage(stripeErr) } });
         }
       }
     }
@@ -293,7 +293,7 @@ router.delete('/api/cafe-menu/:id', isStaffOrAdmin, async (req, res) => {
     logFromRequest(req, 'delete_cafe_item', 'cafe', String(id), existing[0].name || undefined, {});
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('Cafe item delete error', { error: getErrorMessage(error) });
+    logger.error('Cafe item delete error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to delete cafe item' });
   }
 });
@@ -369,7 +369,7 @@ router.post('/api/admin/seed-cafe', isAdmin, async (req, res) => {
       totalAfter: existingCount + inserted
     });
   } catch (error: unknown) {
-    logger.error('Cafe seed error', { error: getErrorMessage(error) });
+    logger.error('Cafe seed error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to seed cafe menu' });
   }
 });

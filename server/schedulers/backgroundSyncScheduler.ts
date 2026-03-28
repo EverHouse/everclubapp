@@ -35,7 +35,7 @@ async function syncWithRetry<T extends { error?: string }>(
   try {
     result = await syncFn();
   } catch (err) {
-    logger.debug(`[Auto-sync] ${name} initial attempt threw, using fallback`, { error: getErrorMessage(err) });
+    logger.debug(`[Auto-sync] ${name} initial attempt threw, using fallback`, { extra: { error: getErrorMessage(err) } });
     result = fallback;
   }
 
@@ -54,7 +54,7 @@ async function syncWithRetry<T extends { error?: string }>(
   try {
     result = await syncFn();
   } catch (err) {
-    logger.debug(`[Auto-sync] ${name} retry attempt threw, using fallback`, { error: getErrorMessage(err) });
+    logger.debug(`[Auto-sync] ${name} retry attempt threw, using fallback`, { extra: { error: getErrorMessage(err) } });
     result = fallback;
   }
 
@@ -76,7 +76,7 @@ async function syncWithRetry<T extends { error?: string }>(
       new Error(result.error || `${name} sync failed`),
       { calendarName: name }
     ).catch((err: unknown) => {
-      logger.error(`[Auto-sync] Failed to send ${name} failure alert:`, { error: err as Error });
+      logger.error(`[Auto-sync] Failed to send ${name} failure alert:`, { extra: { error: getErrorMessage(err) } });
     });
   } else {
     logger.info(`[Auto-sync] ${name}: first consecutive failure — will alert if next sync also fails`);
@@ -98,7 +98,7 @@ const runBackgroundSync = async () => {
     logger.info(`[Auto-sync] Events: ${eventsMsg}, Wellness: ${wellnessMsg}, Closures: ${closuresMsg}, ConfRoom: ${confRoomMsg}`);
     schedulerTracker.recordRun('Background Sync', true);
   } catch (err: unknown) {
-    logger.error('[Auto-sync] Calendar sync failed:', { error: err as Error });
+    logger.error('[Auto-sync] Calendar sync failed:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Background Sync', false, getErrorMessage(err));
   } finally {
     currentTimeoutId = setTimeout(runBackgroundSync, SYNC_INTERVAL_MS);

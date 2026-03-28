@@ -92,7 +92,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         logger.warn('[Supabase Auth] Signup timed out');
         return res.status(504).json({ error: 'Authentication service timeout' });
       }
-      logger.error('Supabase signup error:', { error: msg });
+      logger.error('Supabase signup error:', { extra: { error: msg } });
       res.status(500).json({ error: 'Signup failed' });
     }
   });
@@ -132,7 +132,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         logger.warn('[Supabase Auth] Login timed out');
         return res.status(504).json({ error: 'Authentication service timeout' });
       }
-      logger.error('Supabase login error:', { error: msg });
+      logger.error('Supabase login error:', { extra: { error: msg } });
       res.status(500).json({ error: 'Login failed' });
     }
   });
@@ -155,7 +155,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         logger.warn('[Supabase Auth] Logout timed out');
         return res.status(504).json({ error: 'Authentication service timeout' });
       }
-      logger.error('Supabase logout error:', { error: msg });
+      logger.error('Supabase logout error:', { extra: { error: msg } });
       res.status(500).json({ error: 'Logout failed' });
     }
   });
@@ -182,7 +182,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         logger.warn('[Supabase Auth] Forgot password timed out');
         return res.status(504).json({ error: 'Authentication service timeout' });
       }
-      logger.error('Forgot password error:', { error: msg });
+      logger.error('Forgot password error:', { extra: { error: msg } });
       res.status(500).json({ error: 'Failed to send reset email' });
     }
   });
@@ -219,7 +219,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         logger.warn('[Supabase Auth] Get user timed out');
         return res.status(504).json({ error: 'Authentication service timeout' });
       }
-      logger.error('Get user error:', { error: msg });
+      logger.error('Get user error:', { extra: { error: msg } });
       res.status(500).json({ error: 'Failed to get user' });
     }
   });
@@ -249,7 +249,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         logger.warn('[Supabase Auth] OAuth timed out');
         return res.status(504).json({ error: 'Authentication service timeout' });
       }
-      logger.error('OAuth error:', { error: msg });
+      logger.error('OAuth error:', { extra: { error: msg } });
       res.status(500).json({ error: 'OAuth failed' });
     }
   });

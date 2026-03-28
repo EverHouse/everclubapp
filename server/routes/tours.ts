@@ -142,7 +142,7 @@ router.get('/api/tours', isStaffOrAdmin, async (req, res) => {
     const result = await query.limit(200);
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Tours fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tours fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch tours' });
   }
 });
@@ -158,7 +158,7 @@ router.get('/api/tours/today', isStaffOrAdmin, async (req, res) => {
       .orderBy(asc(tours.startTime));
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Today tours fetch error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Today tours fetch error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch today tours' });
   }
 });
@@ -203,7 +203,7 @@ router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('Tour check-in error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour check-in error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to check in tour' });
   }
 });
@@ -290,7 +290,7 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
     
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('Tour status update error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour status update error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update tour status' });
   }
 });
@@ -300,7 +300,7 @@ router.post('/api/tours/sync', isStaffOrAdmin, async (req, res) => {
     const result = await syncToursFromHubSpot();
     res.json(result);
   } catch (error: unknown) {
-    logger.error('Tours sync error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tours sync error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to sync tours' });
   }
 });
@@ -338,7 +338,7 @@ router.post('/api/tours/book', checkoutRateLimiter, async (req, res) => {
     
     res.json({ id: newTour.id, message: 'Tour request created' });
   } catch (error: unknown) {
-    logger.error('Tour booking error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour booking error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create tour request' });
   }
 });
@@ -394,7 +394,7 @@ router.patch('/api/tours/:id/confirm', checkoutRateLimiter, async (req, res) => 
     
     res.json(updated);
   } catch (error: unknown) {
-    logger.error('Tour confirm error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tour confirm error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to confirm tour' });
   }
 });
@@ -458,7 +458,7 @@ router.get('/api/tours/needs-review', isStaffOrAdmin, async (req, res) => {
     
     res.json({ unmatchedMeetings });
   } catch (error: unknown) {
-    logger.error('Tours needs-review error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Tours needs-review error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch HubSpot meetings needing review' });
   }
 });
@@ -505,7 +505,7 @@ router.post('/api/tours/link-hubspot', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, tour: updated });
   } catch (error: unknown) {
-    logger.error('Link HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Link HubSpot error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to link HubSpot meeting to tour' });
   }
 });
@@ -545,7 +545,7 @@ router.post('/api/tours/create-from-hubspot', isStaffOrAdmin, async (req, res) =
     
     res.json({ success: true, tour: newTour });
   } catch (error: unknown) {
-    logger.error('Create from HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Create from HubSpot error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create tour from HubSpot meeting' });
   }
 });
@@ -573,7 +573,7 @@ router.post('/api/tours/dismiss-hubspot', isStaffOrAdmin, async (req, res) => {
     
     res.json({ success: true, dismissed });
   } catch (error: unknown) {
-    logger.error('Dismiss HubSpot error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Dismiss HubSpot error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to dismiss HubSpot meeting' });
   }
 });
@@ -730,7 +730,7 @@ export async function sendTodayTourReminders(): Promise<number> {
     
     return todayTours.length;
   } catch (error: unknown) {
-    logger.error('Error sending tour reminders', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error sending tour reminders', { extra: { error: getErrorMessage(error) } });
     return 0;
   }
 }
@@ -956,7 +956,7 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
     
     return { synced: allMeetings.length, created, updated, cancelled };
   } catch (error: unknown) {
-    logger.error('Error syncing tours from HubSpot', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Error syncing tours from HubSpot', { extra: { error: getErrorMessage(error) } });
     return { synced: 0, created: 0, updated: 0, cancelled: 0, error: getErrorMessage(error) || 'Failed to sync tours from HubSpot' };
   }
 }
@@ -967,7 +967,7 @@ router.get('/api/tours/scheduler-url', async (req, res) => {
     const url = await getSettingValue('hubspot.tour_scheduler_url', '');
     return res.json({ url: url || null });
   } catch (err) {
-    logger.error('[Tours] Failed to fetch scheduler URL:', { error: getErrorMessage(err) });
+    logger.error('[Tours] Failed to fetch scheduler URL:', { extra: { error: getErrorMessage(err) } });
     return res.json({ url: null });
   }
 });

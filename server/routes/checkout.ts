@@ -10,6 +10,7 @@ import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -180,7 +181,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
       clientSecret: session.client_secret,
     });
   } catch (error: unknown) {
-    logger.error('[Checkout] Session creation error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Checkout] Session creation error', { extra: { error: getErrorMessage(error) } });
     const stripeErr = error as { type?: string; code?: string; raw?: { code?: string }; message?: string };
     const isStalePrice =
       stripeErr.type === 'StripeInvalidRequestError' && (
@@ -245,7 +246,7 @@ router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, 
       accountReady,
     });
   } catch (error: unknown) {
-    logger.error('[Checkout] Session retrieval error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Checkout] Session retrieval error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to retrieve session' });
   }
 });

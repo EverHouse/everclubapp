@@ -36,7 +36,7 @@ async function checkAndRunCleanup(): Promise<void> {
       schedulerTracker.recordRun('Weekly Cleanup', true);
     }
   } catch (err: unknown) {
-    logger.error('[Cleanup] Scheduler error:', { error: err as Error });
+    logger.error('[Cleanup] Scheduler error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Weekly Cleanup', false, getErrorMessage(err));
   } finally {
     isRunning = false;

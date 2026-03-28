@@ -49,7 +49,7 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
       });
 
       client.on('error', (err) => {
-        logger.error('[WalletPass APN] HTTP/2 connection error', { error: getErrorMessage(err) });
+        logger.error('[WalletPass APN] HTTP/2 connection error', { extra: { error: getErrorMessage(err) } });
         if (!settled) {
           try { client.close(); } catch { /* already closed */ }
         }
@@ -92,7 +92,7 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
       });
 
       req.on('error', (err) => {
-        logger.error('[WalletPass APN] Request error', { error: getErrorMessage(err) });
+        logger.error('[WalletPass APN] Request error', { extra: { error: getErrorMessage(err) } });
         if (!settled) {
           try { client.close(); } catch { /* already closed */ }
         }
@@ -111,7 +111,7 @@ async function sendApnPush(pushToken: string, passTypeId: string): Promise<boole
         }
       }, 10000);
     } catch (err) {
-      logger.error('[WalletPass APN] Failed to send push', { error: getErrorMessage(err) });
+      logger.error('[WalletPass APN] Failed to send push', { extra: { error: getErrorMessage(err) } });
       resolve(false);
     }
   });

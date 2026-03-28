@@ -844,7 +844,7 @@ export async function checkOrphanedStripeSubscriptions(): Promise<IntegrityCheck
         }
       } catch (err: unknown) {
         if (isStripeResourceMissing(err)) continue;
-        logger.warn('[DataIntegrity] Error fetching Stripe customer:', { customerId, error: getErrorMessage(err) });
+        logger.warn('[DataIntegrity] Error fetching Stripe customer:', { extra: { customerId, error: getErrorMessage(err) } });
       }
     }
   } catch (error: unknown) {

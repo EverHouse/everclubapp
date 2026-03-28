@@ -70,7 +70,7 @@ export function normalizeToISODate(input: string | undefined | null): string {
       const d = parsed.getDate();
       return `${y}-${pad(m)}-${pad(d)}`;
     }
-  } catch (err: unknown) { logger.warn('[DateNormalize] Date parsing fallback failed:', { error: getErrorMessage(err) }); }
+  } catch (err: unknown) { logger.warn('[DateNormalize] Date parsing fallback failed:', { extra: { error: getErrorMessage(err) } }); }
 
   return getTodayPacific();
 }

@@ -97,7 +97,7 @@ async function notifyMemberBookingConfirmed(
       );
     }
   } catch (e: unknown) {
-    logger.error('[Trackman Webhook] Failed to notify member', { error: new Error(getErrorMessage(e)) });
+    logger.error('[Trackman Webhook] Failed to notify member', { extra: { error: getErrorMessage(e) } });
   }
 }
 
@@ -198,7 +198,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     }).then(() => {
       logger.info('[Trackman Webhook] Forwarded to dev environment');
     }).catch(err => {
-      logger.warn('[Trackman Webhook] Failed to forward to dev', { error: getErrorMessage(err) });
+      logger.warn('[Trackman Webhook] Failed to forward to dev', { extra: { error: getErrorMessage(err) } });
     });
   }
   
@@ -575,7 +575,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     );
     
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Processing error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Trackman Webhook] Processing error', { extra: { error: getErrorMessage(error) } });
     
     await logWebhookEvent(
       'error',
@@ -588,7 +588,7 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     );
   }
   } catch (error: unknown) {
-    logger.error('[Trackman Webhook] Unhandled error', { error: new Error(getErrorMessage(error)) });
+    logger.error('[Trackman Webhook] Unhandled error', { extra: { error: getErrorMessage(error) } });
     if (!res.headersSent) {
       return res.status(500).json({ error: 'Internal server error' });
     }

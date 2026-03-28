@@ -173,7 +173,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         });
         
         if (consumeResult.passesRemaining !== undefined) {
-          try { broadcastMemberStatsUpdated(booking.owner_email, { guestPasses: consumeResult.passesRemaining }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error', { error: getErrorMessage(err) }); }
+          try { broadcastMemberStatsUpdated(booking.owner_email, { guestPasses: consumeResult.passesRemaining }); } catch (err: unknown) {logger.error('[Broadcast] Stats update error', { extra: { error: getErrorMessage(err) } }); }
         }
         
         settleBookingInvoiceAfterCheckin(bookingId, sessionId, booking.owner_email).catch((err: unknown) => {

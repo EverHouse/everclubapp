@@ -378,8 +378,7 @@ router.post('/api/admin/booking/:bookingId/recalculate-fees', isStaffOrAdmin, as
         }
       } catch (prepayError: unknown) {
         logger.warn('[recalculate-fees] Failed to create prepayment intent (non-blocking)', {
-          error: prepayError as Error,
-          extra: { sessionId: booking.session_id, bookingId }
+          extra: { error: getErrorMessage(prepayError), sessionId: booking.session_id, bookingId }
         });
       }
     }

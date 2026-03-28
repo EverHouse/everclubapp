@@ -67,7 +67,7 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
         });
       }
     } catch (calError: unknown) {
-      logger.error('Failed to fetch Google Calendar busy times', { error: calError as Error });
+      logger.error('Failed to fetch Google Calendar busy times', { extra: { error: getErrorMessage(calError) } });
     }
 
     const todayStr = getTodayPacific();

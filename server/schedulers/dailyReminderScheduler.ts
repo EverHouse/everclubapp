@@ -39,7 +39,7 @@ async function tryClaimReminderSlot(todayStr: string): Promise<boolean> {
     
     return result.length > 0;
   } catch (err: unknown) {
-    logger.error('[Daily Reminders] Database error:', { error: err as Error });
+    logger.error('[Daily Reminders] Database error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Daily Reminder', false, getErrorMessage(err));
     return false;
   }
@@ -49,7 +49,7 @@ async function markReminderSlotCompleted(todayStr: string): Promise<void> {
   try {
     await db.update(systemSettings).set({ value: `completed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${REMINDER_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Daily Reminders] Failed to mark slot as completed:', { error: err as Error });
+    logger.error('[Daily Reminders] Failed to mark slot as completed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -57,7 +57,7 @@ async function markReminderSlotFailed(todayStr: string): Promise<void> {
   try {
     await db.update(systemSettings).set({ value: `failed:${todayStr}`, updatedAt: new Date() }).where(sql`${systemSettings.key} = ${REMINDER_SETTING_KEY}`);
   } catch (err: unknown) {
-    logger.error('[Daily Reminders] Failed to mark slot as failed:', { error: err as Error });
+    logger.error('[Daily Reminders] Failed to mark slot as failed:', { extra: { error: getErrorMessage(err) } });
   }
 }
 
@@ -79,14 +79,14 @@ async function checkAndSendReminders(): Promise<void> {
           schedulerTracker.recordRun('Daily Reminder', true);
           await markReminderSlotCompleted(todayStr);
         } catch (err: unknown) {
-          logger.error('[Daily Reminders] Send failed:', { error: err as Error });
+          logger.error('[Daily Reminders] Send failed:', { extra: { error: getErrorMessage(err) } });
           schedulerTracker.recordRun('Daily Reminder', false, getErrorMessage(err));
           await markReminderSlotFailed(todayStr);
         }
       }
     }
   } catch (err: unknown) {
-    logger.error('[Daily Reminders] Scheduler error:', { error: err as Error });
+    logger.error('[Daily Reminders] Scheduler error:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Daily Reminder', false, getErrorMessage(err));
   }
 }
@@ -115,7 +115,7 @@ export function startDailyReminderScheduler(): void {
 
   intervalId = setInterval(() => {
     guardedCheckAndSendReminders().catch((err: unknown) => {
-      logger.error('[Daily Reminders] Uncaught error:', { error: err as Error });
+      logger.error('[Daily Reminders] Uncaught error:', { extra: { error: getErrorMessage(err) } });
       schedulerTracker.recordRun('Daily Reminder', false, getErrorMessage(err));
     });
   }, 30 * 60 * 1000);

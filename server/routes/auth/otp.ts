@@ -91,13 +91,13 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
               await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
               logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
             } catch (hubspotError: unknown) {
-              logger.error('[Auth] HubSpot sync failed for auto-fix', { error: getErrorMessage(hubspotError) });
+              logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } });
             }
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         } catch (stripeError: unknown) {
-          logger.error('[Auth] Failed to verify Stripe subscription', { error: getErrorMessage(stripeError), extra: { email: normalizedEmail } });
+          logger.error('[Auth] Failed to verify Stripe subscription', { extra: { error: getErrorMessage(stripeError), email: normalizedEmail } });
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
       } else if (!activeStatuses.includes(dbMemberStatus)) {
@@ -138,7 +138,7 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
             }).where(eq(users.id, dbUser[0].id));
           }
         } catch (hsErr: unknown) {
-          logger.warn('[Auth] HubSpot name backfill failed during verify-member', { error: hsErr instanceof Error ? hsErr : new Error(String(hsErr)) });
+          logger.warn('[Auth] HubSpot name backfill failed during verify-member', { extra: { error: getErrorMessage(hsErr) } });
         }
       }
 
@@ -213,7 +213,7 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
           updatedAt: new Date()
         }).where(eq(users.id, dbUser[0].id));
       } catch (backfillErr: unknown) {
-        logger.warn('[Auth] Name backfill from HubSpot failed during verify-member', { error: backfillErr instanceof Error ? backfillErr : new Error(String(backfillErr)) });
+        logger.warn('[Auth] Name backfill from HubSpot failed during verify-member', { extra: { error: getErrorMessage(backfillErr) } });
       }
     }
 
@@ -258,7 +258,7 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
     
     res.json({ success: true, member });
   } catch (error: unknown) {
-    logger.error('Member verification error', { error: getErrorMessage(error) });
+    logger.error('Member verification error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to verify membership' });
   }
 });
@@ -318,7 +318,7 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
         } catch (stripeError: unknown) {
-          logger.error('[Auth] Failed to verify Stripe subscription status', { error: getErrorMessage(stripeError), extra: { email: normalizedEmail } });
+          logger.error('[Auth] Failed to verify Stripe subscription status', { extra: { error: getErrorMessage(stripeError), email: normalizedEmail } });
           return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
         }
       } else if (!activeStatuses.includes(dbMemberStatus)) {
@@ -667,14 +667,14 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
                 UPDATE users SET welcome_email_sent = false, welcome_email_sent_at = NULL, updated_at = NOW()
                 WHERE LOWER(email) = LOWER(${member.email})
               `);
-              logger.warn('[Welcome Email] Send failed, reset flag for retry', { email: member.email });
+              logger.warn('[Welcome Email] Send failed, reset flag for retry', { extra: { email: member.email } });
             }
           }
         }
       } catch (error: unknown) {
-        logger.error('[Welcome Email] Error checking/sending', { error: getErrorMessage(error) });
+        logger.error('[Welcome Email] Error checking/sending', { extra: { error: getErrorMessage(error) } });
       }
-    })().catch(err => logger.error('[Welcome Email] Unhandled async error', { error: getErrorMessage(err) }));
+    })().catch(err => logger.error('[Welcome Email] Unhandled async error', { extra: { error: getErrorMessage(err) } }));
     
     req.session.save((err) => {
       if (err) {
@@ -684,7 +684,7 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
       res.json({ success: true, member, shouldSetupPassword, supabaseToken });
     });
   } catch (error: unknown) {
-    logger.error('OTP verification error', { error: getErrorMessage(error) });
+    logger.error('OTP verification error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to verify code' });
   }
 });

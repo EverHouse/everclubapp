@@ -82,7 +82,7 @@ export async function checkStaleWaivers(): Promise<{
       waivers: staleWaivers
     };
   } catch (error: unknown) {
-    logger.error('[Waiver Review] Error checking stale waivers:', { error: error as Error });
+    logger.error('[Waiver Review] Error checking stale waivers:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Waiver Review', false, getErrorMessage(error));
     throw error;
   }
@@ -100,7 +100,7 @@ async function scheduledCheck(): Promise<void> {
     lastCheckTime = now;
     await checkStaleWaivers();
   } catch (error: unknown) {
-    logger.error('[Waiver Review] Scheduled check failed:', { error: error as Error });
+    logger.error('[Waiver Review] Scheduled check failed:', { extra: { error: getErrorMessage(error) } });
     schedulerTracker.recordRun('Waiver Review', false, getErrorMessage(error));
     
     alertOnScheduledTaskFailure(
@@ -108,7 +108,7 @@ async function scheduledCheck(): Promise<void> {
       error instanceof Error ? error : new Error(getErrorMessage(error)),
       { context: 'Scheduled check for stale waivers' }
     ).catch((alertErr: unknown) => {
-      logger.error('[Waiver Review] Failed to send staff alert:', { error: alertErr as Error });
+      logger.error('[Waiver Review] Failed to send staff alert:', { extra: { error: getErrorMessage(alertErr) } });
       schedulerTracker.recordRun('Waiver Review', false, String(alertErr));
     });
   }
@@ -132,7 +132,7 @@ export function startWaiverReviewScheduler(): void {
     isRunning = true;
     scheduledCheck()
       .catch((err: unknown) => {
-        logger.error('[Waiver Review] Uncaught error:', { error: err as Error });
+        logger.error('[Waiver Review] Uncaught error:', { extra: { error: getErrorMessage(err) } });
         schedulerTracker.recordRun('Waiver Review', false, getErrorMessage(err));
       })
       .finally(() => { isRunning = false; });

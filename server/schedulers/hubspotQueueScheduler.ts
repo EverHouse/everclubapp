@@ -62,7 +62,7 @@ async function processQueue(): Promise<void> {
           });
         }
       } catch (reconcileErr: unknown) {
-        logger.error('[HubSpot Queue] Reconciliation failed (non-blocking)', { error: getErrorMessage(reconcileErr) });
+        logger.error('[HubSpot Queue] Reconciliation failed (non-blocking)', { extra: { error: getErrorMessage(reconcileErr) } });
       }
     }
 
@@ -109,13 +109,13 @@ export function startHubSpotQueueScheduler(): void {
         logger.error(`[HubSpot] Property errors: ${result.errors.join(', ')}`);
       }
     } catch (err: unknown) {
-      logger.error('[HubSpot] Failed to ensure properties exist:', { error: err as Error });
+      logger.error('[HubSpot] Failed to ensure properties exist:', { extra: { error: getErrorMessage(err) } });
     }
   }, 15000);
   
   setTimeout(() => {
     processQueue().catch((err: unknown) => {
-      logger.error('[HubSpot Queue] Initial run failed:', { error: err as Error });
+      logger.error('[HubSpot Queue] Initial run failed:', { extra: { error: getErrorMessage(err) } });
     });
   }, 30000);
   

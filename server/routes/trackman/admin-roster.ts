@@ -1213,7 +1213,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       })()
     });
   } catch (error: unknown) {
-    logger.error('Get booking members error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('Get booking members error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get booking members' });
   }
 });

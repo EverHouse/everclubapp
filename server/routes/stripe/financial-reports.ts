@@ -1,6 +1,7 @@
 import { logger } from '../../core/logger';
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
+import { getErrorMessage } from '../../utils/errorUtils';
 
 interface StripeChargeExpanded extends Stripe.Charge {
   invoice: string | { id: string } | null;
@@ -94,7 +95,7 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
 
     res.json({ payments });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error fetching payments', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error fetching payments', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch payments' });
   }
 });
@@ -274,7 +275,7 @@ router.get('/api/stripe/transactions/today', isStaffOrAdmin, async (req: Request
 
     res.json(allTransactions);
   } catch (error: unknown) {
-    logger.error('[Stripe] Error fetching today transactions', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error fetching today transactions', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
@@ -284,7 +285,7 @@ router.get('/api/payments/refundable', isStaffOrAdmin, async (req: Request, res:
     const payments = await getRefundablePayments();
     res.json(payments);
   } catch (error: unknown) {
-    logger.error('[Payments] Error fetching refundable payments', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error fetching refundable payments', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch refundable payments' });
   }
 });
@@ -295,7 +296,7 @@ router.get('/api/payments/refunded', isStaffOrAdmin, async (req: Request, res: R
     const payments = await getRefundedPayments();
     res.json(payments);
   } catch (error: unknown) {
-    logger.error('[Payments] Error fetching refunded payments', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error fetching refunded payments', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch refunded payments' });
   }
 });
@@ -305,7 +306,7 @@ router.get('/api/payments/failed', isStaffOrAdmin, async (req: Request, res: Res
     const payments = await getFailedPayments();
     res.json(payments);
   } catch (error: unknown) {
-    logger.error('[Payments] Error fetching failed payments', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error fetching failed payments', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch failed payments' });
   }
 });
@@ -315,7 +316,7 @@ router.get('/api/payments/pending-authorizations', isStaffOrAdmin, async (req: R
     const authorizations = await getPendingAuthorizations();
     res.json(authorizations);
   } catch (error: unknown) {
-    logger.error('[Payments] Error fetching pending authorizations', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error fetching pending authorizations', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch pending authorizations' });
   }
 });
@@ -492,7 +493,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
       transactionCount
     });
   } catch (error: unknown) {
-    logger.error('[Payments] Error getting daily summary', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error getting daily summary', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to get daily summary' });
   }
 });

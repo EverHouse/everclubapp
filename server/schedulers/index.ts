@@ -31,6 +31,7 @@ import { stopBookingValidationPruner } from '../core/bookingValidation';
 import { schedulerTracker } from '../core/schedulerTracker';
 import { isProduction } from '../core/db';
 import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const intervalIds: NodeJS.Timeout[] = [];
 const staggerTimeouts: NodeJS.Timeout[] = [];
@@ -43,7 +44,7 @@ function staggerStart(delayMs: number, name: string, fn: () => void): void {
       logger.info(`[Schedulers] Starting ${name} (staggered +${Math.round(delayMs / 1000)}s)`);
       fn();
     } catch (err) {
-      logger.error(`[Schedulers] Failed to start ${name}:`, { error: err as Error });
+      logger.error(`[Schedulers] Failed to start ${name}:`, { extra: { error: getErrorMessage(err) } });
     }
   }, delayMs);
   staggerTimeouts.push(timeout);

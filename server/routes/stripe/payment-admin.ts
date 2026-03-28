@@ -109,7 +109,7 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
       details: results 
     });
   } catch (error: unknown) {
-    logger.error('[Stripe] Error cleaning up stale intents', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Stripe] Error cleaning up stale intents', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to cleanup stale intents' });
   }
 });
@@ -164,7 +164,7 @@ router.post('/api/payments/adjust-guest-passes', isStaffOrAdmin, validateBody(ad
       remaining: newCount - passesUsed
     });
   } catch (error: unknown) {
-    logger.error('[GuestPasses] Error adjusting guest passes', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[GuestPasses] Error adjusting guest passes', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to adjust guest passes' });
   }
 });
@@ -199,7 +199,7 @@ router.post('/api/payments/add-note', isStaffOrAdmin, validateBody(addPaymentNot
     logger.info('[Payments] Note added to transaction by', { extra: { transactionId, finalPerformedByName } });
     res.json({ success: true });
   } catch (error: unknown) {
-    logger.error('[Payments] Error adding note', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error adding note', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to add note' });
   }
 });
@@ -224,7 +224,7 @@ router.get('/api/payments/:paymentIntentId/notes', isStaffOrAdmin, async (req: R
 
     res.json({ notes });
   } catch (error: unknown) {
-    logger.error('[Payments] Error fetching notes', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error fetching notes', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch notes' });
   }
 });
@@ -392,8 +392,8 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
       });
     }
   } catch (error: unknown) {
-    logger.error('[Payments] Error retrying payment', { error: error instanceof Error ? error : new Error(String(error)) });
-    await alertOnExternalServiceError('Stripe', error as Error, 'retry payment');
+    logger.error('[Payments] Error retrying payment', { extra: { error: getErrorMessage(error) } });
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'retry payment');
     res.status(500).json({ 
       error: 'Payment retry failed. Please try again.',
       retryable: true
@@ -450,7 +450,7 @@ router.post('/api/payments/cancel', isStaffOrAdmin, validateBody(cancelPaymentSc
 
     res.json({ success: true, message: 'Payment canceled successfully' });
   } catch (error: unknown) {
-    logger.error('[Payments] Error canceling payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error canceling payment', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to cancel payment' });
   }
 });
@@ -639,7 +639,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
       newStatus
     });
   } catch (error: unknown) {
-    logger.error('[Payments] Error creating refund', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error creating refund', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create refund' });
   }
 });
@@ -695,7 +695,7 @@ router.post('/api/payments/capture', isStaffOrAdmin, validateBody(capturePayment
       paymentIntentId
     });
   } catch (error: unknown) {
-    logger.error('[Payments] Error capturing payment', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error capturing payment', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to capture payment' });
   }
 });
@@ -741,7 +741,7 @@ router.post('/api/payments/void-authorization', isStaffOrAdmin, validateBody(voi
       paymentIntentId
     });
   } catch (error: unknown) {
-    logger.error('[Payments] Error voiding authorization', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[Payments] Error voiding authorization', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to void authorization' });
   }
 });

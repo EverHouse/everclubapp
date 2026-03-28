@@ -2,6 +2,7 @@ import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled, getSettingValue } from '../core/settingsHelper';
 import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { getErrorMessage } from '../utils/errorUtils';
 
 interface BookingConfirmationData {
   date: string;
@@ -140,7 +141,7 @@ export async function sendBookingConfirmationEmail(
     logger.info('[BookingEmails] Sent booking confirmation email', { extra: { email, date: data.date } });
     return true;
   } catch (error: unknown) {
-    logger.error('[BookingEmails] Failed to send booking confirmation', { error: error as Error });
+    logger.error('[BookingEmails] Failed to send booking confirmation', { extra: { error: getErrorMessage(error) } });
     return false;
   }
 }
