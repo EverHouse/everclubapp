@@ -572,7 +572,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                 subscriptionId={null}
                 userId={context.ownerId}
                 description={frozenPaymentData.description}
-                paymentMetadata={{ bookingId: String(bookingId), ownerEmail: context.ownerEmail, userId: context.ownerId, ownerName: context.ownerName, paymentType: 'booking_fee' }}
+                paymentMetadata={{ bookingId: String(bookingId), ...(context.sessionId ? { sessionId: String(context.sessionId) } : {}), ownerEmail: context.ownerEmail, userId: context.ownerId, ownerName: context.ownerName, paymentType: 'booking_fee' }}
                 onSuccess={(piId) => handleStripePaymentSuccess(piId)}
                 onError={(msg) => showToast(msg, 'error')}
                 onCancel={() => { setShowStripePayment(false); setFrozenPaymentData(null); setPaymentMethod('online'); }}

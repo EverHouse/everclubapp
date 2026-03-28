@@ -79,9 +79,10 @@ export function TerminalPayment({
     clearTimeoutRef();
     timeoutRef.current = setTimeout(async () => {
       clearPollingRef();
-      if (selectedReader) {
+      const currentReader = selectedReaderRef.current;
+      if (currentReader) {
         try {
-          await postWithCredentials('/api/stripe/terminal/cancel-payment', { readerId: selectedReader, paymentIntentId: paymentIntentIdRef.current });
+          await postWithCredentials('/api/stripe/terminal/cancel-payment', { readerId: currentReader, paymentIntentId: paymentIntentIdRef.current });
         } catch (err: unknown) {
           console.error('Error canceling on timeout:', err);
         }
@@ -91,7 +92,7 @@ export function TerminalPayment({
       setProcessing(false);
       processingRef.current = false;
     }, 120000);
-  }, [clearTimeoutRef, clearPollingRef, selectedReader]);
+  }, [clearTimeoutRef, clearPollingRef]);
 
   const fetchReaders = useCallback(async () => {
     try {
@@ -240,7 +241,9 @@ export function TerminalPayment({
       return;
     }
 
-    if (subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
+    const hasPaymentMetadata = paymentMetadata && Object.keys(paymentMetadata).length > 0;
+    const isRegularPayment = amount > 0 && hasPaymentMetadata;
+    if (!isRegularPayment && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
       onError('Subscription is still being created. Please wait a moment and try again.');
       return;
     }
@@ -348,6 +351,20 @@ export function TerminalPayment({
           return;
         }
       } catch (err: unknown) {
+        const currentPiId = paymentIntentIdRef.current;
+        if (err instanceof Error && 'errorData' in err) {
+          const apiErr = err as Error & { errorData?: { alreadySucceeded?: boolean } };
+          if (apiErr.errorData?.alreadySucceeded && currentPiId) {
+            setStatus('success');
+            setStatusMessage('Payment already processed successfully!');
+            setCanceling(false);
+            if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+            successTimeoutRef.current = setTimeout(() => {
+              onSuccess(currentPiId);
+            }, 1500);
+            return;
+          }
+        }
         console.error('Error canceling payment:', err);
       }
     }

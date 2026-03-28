@@ -49,6 +49,34 @@ interface CardPresentExpanded extends Stripe.PaymentMethod.CardPresent {
   generated_card?: string;
 }
 
+const RECONCILED_TTL_MS = 10 * 60 * 1000;
+const RECONCILED_MAX_SIZE = 500;
+const reconciledPIs = new Map<string, number>();
+
+function markReconciled(piId: string): void {
+  reconciledPIs.set(piId, Date.now());
+  if (reconciledPIs.size > RECONCILED_MAX_SIZE) {
+    const now = Date.now();
+    for (const [key, ts] of reconciledPIs) {
+      if (now - ts > RECONCILED_TTL_MS) reconciledPIs.delete(key);
+    }
+    if (reconciledPIs.size > RECONCILED_MAX_SIZE) {
+      const oldest = reconciledPIs.keys().next().value;
+      if (oldest) reconciledPIs.delete(oldest);
+    }
+  }
+}
+
+function isReconciled(piId: string): boolean {
+  const ts = reconciledPIs.get(piId);
+  if (ts == null) return false;
+  if (Date.now() - ts > RECONCILED_TTL_MS) {
+    reconciledPIs.delete(piId);
+    return false;
+  }
+  return true;
+}
+
 const router = Router();
 
 router.post('/api/stripe/terminal/connection-token', isStaffOrAdmin, async (req: Request, res: Response) => {
@@ -181,9 +209,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
-            // Check if this email resolves to an existing user via linked email
-            const { resolveUserByEmail: resolveTerminalUser } = await import('../../core/stripe/customers');
-            const resolvedTerminal = await resolveTerminalUser(metadata.ownerEmail);
+            const resolvedTerminal = await resolveUserByEmail(metadata.ownerEmail);
             if (resolvedTerminal) {
               if (!resolvedTerminal.stripeCustomerId) {
                 const terminalUserCheck = await db.execute(sql`SELECT archived_at FROM users WHERE id = ${resolvedTerminal.userId}`);
@@ -313,7 +339,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
           ...(customerId ? { customer: customerId } : {}),
           ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
         }, {
-          idempotencyKey: `terminal_fallback_${customerId || 'anon'}_${amount}_${Math.floor(Date.now() / 300000)}`
+          idempotencyKey: `terminal_fallback_${customerId || 'anon'}_${amount}_${Math.floor(Date.now() / 30000)}`
         });
       }
     } else {
@@ -385,7 +411,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
         ...(customerId ? { customer: customerId } : {}),
         ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
       }, {
-        idempotencyKey: `terminal_${customerId || 'anon'}_${amount}_${Math.floor(Date.now() / 300000)}`
+        idempotencyKey: `terminal_${customerId || 'anon'}_${amount}_${Math.floor(Date.now() / 30000)}`
       });
     }
     
@@ -436,8 +462,11 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
       readerAction: reader.action
     });
   } catch (error: unknown) {
-    logger.error('[Terminal] Error processing payment', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to process payment' });
+    const errMsg = getErrorMessage(error);
+    logger.error('[Terminal] Error processing payment', { error: errMsg });
+    const stripeType = (error as { type?: string })?.type;
+    const safeMessage = stripeType?.startsWith('Stripe') ? errMsg : 'Failed to process payment';
+    res.status(500).json({ error: safeMessage });
   }
 });
 
@@ -451,19 +480,23 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
     
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId as string);
 
+    const piIdStr = paymentIntentId as string;
+    const alreadyReconciled = isReconciled(piIdStr);
+
     const draftInvoiceId = paymentIntent.metadata?.draftInvoiceId || paymentIntent.metadata?.invoice_id;
-    if (paymentIntent.status === 'succeeded' && draftInvoiceId) {
+    if (paymentIntent.status === 'succeeded' && draftInvoiceId && !alreadyReconciled) {
       try {
         const inv = await stripe.invoices.retrieve(draftInvoiceId);
         if (inv.status === 'draft' || inv.status === 'open') {
           const { finalizeInvoicePaidOutOfBand } = await import('../../core/stripe/invoices');
-          const oobResult = await finalizeInvoicePaidOutOfBand(draftInvoiceId, { terminalPaymentIntentId: paymentIntentId as string });
+          const oobResult = await finalizeInvoicePaidOutOfBand(draftInvoiceId, { terminalPaymentIntentId: piIdStr });
           if (oobResult.success) {
+            markReconciled(piIdStr);
             try {
               await stripe.invoices.update(draftInvoiceId, {
                 metadata: {
                   ...(inv.metadata || {}),
-                  terminalPaymentIntentId: paymentIntentId as string,
+                  terminalPaymentIntentId: piIdStr,
                   paidVia: 'terminal',
                 },
               });
@@ -475,6 +508,7 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
             logger.warn('[Terminal] Could not finalize invoice via terminal PI', { extra: { invoiceId: draftInvoiceId, error: oobResult.error } });
           }
         } else if (inv.status === 'paid') {
+          markReconciled(piIdStr);
           logger.info('[Terminal] Invoice already paid, no action needed', { extra: { invoiceId: draftInvoiceId } });
         }
       } catch (invErr: unknown) {
@@ -483,17 +517,18 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
     }
 
     const bookingIdFromMeta = paymentIntent.metadata?.bookingId;
-    if (paymentIntent.status === 'succeeded' && bookingIdFromMeta && !draftInvoiceId) {
+    if (paymentIntent.status === 'succeeded' && bookingIdFromMeta && !draftInvoiceId && !alreadyReconciled) {
       try {
         const bookingInvoiceId = await getBookingInvoiceId(parseInt(bookingIdFromMeta, 10));
         if (bookingInvoiceId) {
           const { finalizeInvoicePaidOutOfBand: finalizeBookingInvoiceOOB } = await import('../../core/billing/bookingInvoiceService');
           const oobResult = await finalizeBookingInvoiceOOB({
             bookingId: parseInt(bookingIdFromMeta, 10),
-            terminalPaymentIntentId: paymentIntentId as string,
+            terminalPaymentIntentId: piIdStr,
             paidVia: 'terminal',
           });
           if (oobResult.success) {
+            markReconciled(piIdStr);
             logger.info('[Terminal] Booking invoice finalized OOB after terminal payment', {
               extra: { invoiceId: bookingInvoiceId, paymentIntentId }
             });
@@ -506,11 +541,11 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
       }
     }
 
-    if (paymentIntent.status === 'succeeded') {
+    if (paymentIntent.status === 'succeeded' && !alreadyReconciled) {
       try {
         const localRecord = await db.execute(sql`SELECT id, status FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId}`);
         if (localRecord.rows.length > 0 && localRecord.rows[0].status !== 'succeeded') {
-          const result = await confirmPaymentSuccess(paymentIntentId as string, 'system', 'Terminal auto-sync');
+          const result = await confirmPaymentSuccess(piIdStr, 'system', 'Terminal auto-sync');
           logger.info('[Terminal] Auto-synced payment via confirmPaymentSuccess', { extra: { paymentIntentId, result } });
         }
       } catch (syncErr: unknown) {
@@ -920,8 +955,11 @@ router.post('/api/stripe/terminal/process-subscription-payment', isStaffOrAdmin,
       readerAction: reader.action
     });
   } catch (error: unknown) {
-    logger.error('[Terminal] Error processing subscription payment', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to process subscription payment' });
+    const errMsg = getErrorMessage(error);
+    logger.error('[Terminal] Error processing subscription payment', { error: errMsg });
+    const stripeType = (error as { type?: string })?.type;
+    const safeMessage = stripeType?.startsWith('Stripe') ? errMsg : 'Failed to process subscription payment';
+    res.status(500).json({ error: safeMessage });
   }
 });
 
@@ -1347,7 +1385,7 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
           originalPaymentIntentId: paymentIntentId,
         },
       }, {
-        idempotencyKey: `terminal_existing_${paymentIntentId}_${Math.floor(Date.now() / 300000)}`,
+        idempotencyKey: `terminal_existing_${paymentIntentId}_${Math.floor(Date.now() / 30000)}`,
       });
       terminalPiId = newPi.id;
       logger.info('[Terminal] Created new card_present PI for terminal', { extra: { newPiId: newPi.id, originalPiId: paymentIntentId } });
@@ -1382,8 +1420,11 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
       readerAction: reader.action
     });
   } catch (error: unknown) {
-    logger.error('[Terminal] Error processing existing payment', { error: getErrorMessage(error) });
-    res.status(500).json({ error: 'Failed to process existing payment on terminal' });
+    const errMsg = getErrorMessage(error);
+    logger.error('[Terminal] Error processing existing payment', { error: errMsg });
+    const stripeType = (error as { type?: string })?.type;
+    const safeMessage = stripeType?.startsWith('Stripe') ? errMsg : 'Failed to process existing payment on terminal';
+    res.status(500).json({ error: safeMessage });
   }
 });
 
