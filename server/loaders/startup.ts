@@ -837,6 +837,13 @@ export async function runStartupTasks(): Promise<void> {
                     }
                   }
 
+                  if (participantType !== 'guest' && !resolvedUserId) {
+                    logger.warn('[Startup] Cannot rebuild owner/member participant without user_id, downgrading to guest', {
+                      extra: { sessionId: row.session_id, email: rpEmail, originalType: participantType }
+                    });
+                    participantType = 'guest';
+                  }
+
                   await tx.execute(sql`
                     INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, invited_at)
                     VALUES (${row.session_id}, ${resolvedUserId}, ${participantType}, ${resolvedName}, ${slotDuration}, 'pending', NOW())

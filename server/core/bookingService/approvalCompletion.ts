@@ -179,6 +179,12 @@ export async function devConfirmBooking(params: DevConfirmParams) {
           }
 
           try {
+            if (participantType !== 'guest' && !resolvedUserId) {
+              logger.warn('[Dev Confirm] Cannot create owner/member participant without user_id, downgrading to guest', {
+                extra: { sessionId, email: rp.email, originalType: participantType }
+              });
+              participantType = 'guest' as typeof participantType;
+            }
             const insertUserId = participantType === 'guest' ? null : resolvedUserId;
             await tx.execute(sql`
               INSERT INTO booking_participants (session_id, user_id, guest_id, participant_type, display_name, created_at)

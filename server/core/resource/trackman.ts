@@ -380,8 +380,16 @@ export async function linkTrackmanToMember(
           const memberLookup = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${player.email}) LIMIT 1`);
           const memberRow = (memberLookup.rows as unknown as MemberLookupRow[])[0];
           const displayName = memberRow ? [memberRow.first_name, memberRow.last_name].filter(Boolean).join(' ') || player.email : player.email;
-          await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
-             VALUES (${finalSessionId}, ${memberRow?.id || null}, 'member', ${displayName}, ${slotDuration}, 'pending', NOW())`);
+          if (memberRow?.id) {
+            await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
+               VALUES (${finalSessionId}, ${memberRow.id}, 'member', ${displayName}, ${slotDuration}, 'pending', NOW())`);
+          } else {
+            await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, created_at)
+               VALUES (${finalSessionId}, 'guest', ${displayName}, ${slotDuration}, 'pending', NOW())`);
+            logger.warn('[link-trackman-to-member] Member email not found in system, added as guest instead', {
+              extra: { email: player.email, sessionId: finalSessionId }
+            });
+          }
         }
       }
 

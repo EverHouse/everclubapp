@@ -809,11 +809,17 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.userEmail})`);
           const userId = (userResult.rows[0] as { id: string })?.id || null;
           
-          await db.execute(sql`
-            INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-            VALUES (${sessionId}, ${userId}, 'owner', ${booking.userName || booking.userEmail}, 'waived', ${slotDuration})
-            ON CONFLICT DO NOTHING
-          `);
+          if (userId) {
+            await db.execute(sql`
+              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
+              VALUES (${sessionId}, ${userId}, 'owner', ${booking.userName || booking.userEmail}, 'waived', ${slotDuration})
+              ON CONFLICT DO NOTHING
+            `);
+          } else {
+            logger.warn('[DataTools] Owner email not found in system, skipping owner participant', {
+              extra: { sessionId, userEmail: booking.userEmail }
+            });
+          }
           
           for (let i = 1; i < booking.playerCount; i++) {
             await db.execute(sql`
