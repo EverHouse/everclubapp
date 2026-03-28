@@ -381,7 +381,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
     }
 
     let emailSent = false;
-    if (member.stripe_customer_id && !usedCheckout) {
+    if (member.stripe_customer_id && !usedCheckout && member.membership_status === 'past_due') {
       const { sendGracePeriodReminderEmail } = await import('../../emails/membershipEmails');
       const emailResult = await sendGracePeriodReminderEmail(member.email as string, {
         memberName: memberName as string,
