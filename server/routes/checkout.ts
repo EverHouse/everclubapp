@@ -161,6 +161,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
 
     if (email) {
       const [existingUser] = await db.select({
+        id: users.id,
         stripeCustomerId: users.stripeCustomerId,
         migrationStatus: users.migrationStatus,
       })
