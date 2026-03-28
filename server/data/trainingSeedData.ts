@@ -35,6 +35,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'New Notice', content: 'Create a facility notice or closure directly from the FAB. Set the title, dates, affected areas, and member visibility without navigating to the Facility page.', pageIcon: 'notifications' },
       { title: 'New Wellness', content: 'Create a new wellness session (e.g., yoga, meditation, fitness class). Set the title, date, time, capacity, and description.', pageIcon: 'spa' },
       { title: 'New Event', content: 'Create a new club event. Set the title, date, time, location, capacity, and description. Members will see it on their Events page.', pageIcon: 'celebration' },
+      { title: 'Context-Aware FAB', content: 'The FAB appears on most staff pages and provides the same six actions regardless of where you are. This means you can create a new notice while viewing the calendar, or start a check-in while browsing the directory — no need to navigate first.', pageIcon: 'touch_app' },
     ]
   },
   {
@@ -72,6 +73,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Duplicate Scan Protection', content: 'If the same member is scanned twice within 2 minutes, you will see a friendly "already checked in" message instead of an error. This prevents accidental duplicate check-ins.', pageIcon: 'shield' },
       { title: 'Visit Tracking', content: 'Walk-in check-ins automatically count toward the member\'s lifetime visits. Visit counts are displayed on the membership card, in the staff profile drawer, and in the member directory. Visits also sync to HubSpot.', pageIcon: 'trending_up' },
       { title: 'First Visit Alert', content: 'If a trialing member checks in for the very first time (lifetime visits = 1), the system automatically sends them a first visit confirmation email. This helps new members feel welcomed.', pageIcon: 'celebration' },
+      { title: 'Paused/Past Due Member Handling', content: 'When scanning a member with "paused" or "past_due" status, the confirmation popup turns amber or red with a warning sound. The member\'s status badge is prominently displayed so staff can verify the situation before granting facility access. Paused members retain limited access; past due members should be encouraged to update their payment method.', pageIcon: 'warning' },
     ]
   },
   {
@@ -97,6 +99,8 @@ export const TRAINING_SEED_DATA = [
       { title: 'Owner Reassignment', content: 'In the Booking Sheet, tap the swap icon next to the owner\'s name to reassign the booking to a different member. The system updates the display name, recalculates fees based on the new owner\'s tier, and logs the change.' },
       { title: 'Manual Booking', content: 'Manual bookings for walk-ins or phone reservations can be created by tapping an empty cell on the Calendar Grid, which pre-fills the bay and time. You can also create one from the Bookings page.' },
       { title: 'Import', content: 'The Import button at the top of the Bookings page lets admins upload Trackman CSV files to batch-import historical booking data.' },
+      { title: 'Day Pass Redemption During Resolution', content: 'When resolving an unmatched Trackman booking for a day pass holder, staff can provide the day pass purchase ID. The system validates ownership, checks remaining uses, and automatically redeems the pass. Fees are recalculated to zero out the day pass holder\'s charges. Multiple day passes can be applied in a single resolution if multiple participants have passes.', pageIcon: 'confirmation_number' },
+      { title: 'Auto-Finalize Draft Invoices', content: 'When a booking has an associated draft invoice, it auto-finalizes after the session\'s start time passes. This ensures members are billed even if staff doesn\'t manually check in the booking. The system creates the invoice upon approval and finalizes it automatically based on the session schedule.', pageIcon: 'receipt' },
       { title: 'Decline with Notes', content: 'If you need to decline a request, add staff notes explaining why. The member will be notified and can see the reason.' },
       { title: 'Guardian Consent for Minors', content: 'When a member under 18 makes a booking, the system requires guardian consent. Staff will see a consent form that captures guardian name, relationship, and phone number before the booking can proceed.' },
       { title: 'One Pending Request at a Time', content: 'Members can only have one pending booking request at a time. They must wait for it to be approved or declined before submitting another.' },
@@ -186,6 +190,9 @@ export const TRAINING_SEED_DATA = [
     steps: [
       { title: 'Starting Check-In', content: 'Tap a booking to open the Booking Sheet, then tap the "Check In" button at the bottom. This opens the billing and payment section within the sheet.', pageIcon: 'point_of_sale' },
       { title: 'Complete Roster First', content: 'Check-in is disabled until all player slots are filled. If the roster is incomplete, you\'ll see a prompt to add the remaining players before proceeding.' },
+      { title: 'Day Pass Redemption at Check-In', content: 'If a participant has a pre-purchased day pass, staff can apply it during the check-in billing step. The system checks pass ownership, validates remaining uses, and recalculates fees to zero out the day pass holder\'s overage charge. See the dedicated Day Pass Redemption guide for details.', pageIcon: 'confirmation_number' },
+      { title: 'Prepayment Enforcement', content: 'After a booking is approved and linked to Trackman, the system generates an itemized invoice. Members can prepay from their dashboard before the session. If fees change due to roster edits, the invoice updates automatically. If the member has already paid, check-in proceeds without additional charges.', pageIcon: 'payment' },
+      { title: 'Failed Side Effects Tracking', content: 'If any post-check-in side effects fail (such as Apple Wallet pass updates, HubSpot sync, or usage recording), the system logs the specific failures and continues with the check-in. Staff are notified of any failures that need manual follow-up.', pageIcon: 'warning' },
       { title: 'Financial Summary', content: 'The Booking Sheet shows a Financial Summary with a per-participant breakdown. Each person\'s row shows their name, tier, fee type, and amount owed. The grand total appears at the bottom.' },
       { title: 'Orange Badge = Time Overage', content: `An orange badge means the person exceeded their daily time allowance and owes an overage fee ($${PRICING.OVERAGE_RATE_DOLLARS} per extra ${PRICING.OVERAGE_BLOCK_MINUTES}-minute block).` },
       { title: 'Blue Badge = Guest Fee', content: `A blue badge indicates a flat $${PRICING.GUEST_FEE_DOLLARS} guest fee for bringing a non-member who doesn't have a guest pass covering them.` },
@@ -215,6 +222,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Default at Check-In', content: 'Card Reader is the default payment method in the booking check-in billing screen. You can switch to online card if needed.', pageIcon: 'toggle_on' },
       { title: 'Card on File', content: 'If a customer has a saved card in Stripe, you will also see a "Card on File" option showing their card brand and last 4 digits. Tap it to charge instantly without needing the reader.', pageIcon: 'credit_card' },
       { title: 'Reusing Incomplete Charges', content: 'If a member started an online payment but did not finish, you can collect that same charge on the card reader instead of creating a duplicate. The system detects and reuses the pending charge.', pageIcon: 'sync' },
+      { title: 'Reader Troubleshooting', content: 'If the reader doesn\'t respond, check its online status in Settings > Stripe Terminal. The system monitors reader connectivity and shows whether each reader is online or offline. If the reader is offline, try power cycling it. If the connection persists, remove and re-register the reader.', pageIcon: 'build' },
     ]
   },
   {
@@ -313,6 +321,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Tour Status', content: 'Update the tour status as needed: Scheduled (upcoming), Pending, Checked In, Completed (attended), Cancelled, or No Show.' },
       { title: 'Past Tours', content: 'Past tours automatically appear in a "Past Tours" section at the bottom of the page for reference and follow-up.' },
       { title: 'Tour Notifications', content: 'Staff receive notifications when new tours are scheduled. Daily reminder emails are sent at 6pm for the next day\'s tours.' },
+      { title: 'Tour to Lead Conversion', content: 'After a tour is marked as Completed, staff can follow up by sending a membership application link or checkout invite. Tour visitors appear in the Visitors tab of the Directory with source information for tracking conversion rates.', pageIcon: 'trending_up' },
     ]
   },
   {
@@ -336,6 +345,9 @@ export const TRAINING_SEED_DATA = [
       { title: 'Filter & Search', content: 'Use the resource filter dropdown to view notices for specific areas (All, Entire Facility, All Bays, or individual simulators). Use the date picker to find notices active on a specific day. Past notices appear in a collapsible section at the bottom.' },
       { title: 'Member Visibility', content: 'Toggle "Show to Members" when creating notices to control whether members see the notice in their app. Blocking notices (with affected resources) are always forced visible to members.' },
       { title: 'Resource Blocks Tab', content: 'The Resource Blocks sub-tab shows granular time-based blocks on specific resources. These are used for maintenance holds, private events, and other blocks that prevent bookings on individual bays or rooms without creating a full facility notice.' },
+      { title: 'Wellness Class Blocks', content: 'When a wellness class is created with "Block Bookings" enabled, the system automatically creates resource blocks on the affected simulators or conference room during the class time. These blocks are linked to the class and are removed automatically if the class is cancelled.', pageIcon: 'event_busy' },
+      { title: 'Morning Closure Scheduler', content: 'The system runs a daily scheduler that checks for facility closures starting the current day. If a full-facility or partial closure is active, members with affected bookings receive automated notifications. Staff are alerted via push notification and in-app banner about the active closure.', pageIcon: 'alarm' },
+      { title: 'Check-In Workflow During Closures', content: 'When a facility closure is active, the check-in system validates whether the member\'s booking is affected. If the booking is in a blocked resource, check-in is prevented and a warning message directs the member to speak with staff. Unaffected resources remain available for check-in as normal.', pageIcon: 'block' },
     ]
   },
   {
@@ -352,6 +364,10 @@ export const TRAINING_SEED_DATA = [
       { title: 'Needs Review Items', content: 'Events or classes synced from Google Calendar may show a "Needs Review" flag in an amber section at the top. This happens when a category prefix is missing (e.g., [Social]), description is incomplete, or a conflict is detected with a previously reviewed item.' },
       { title: 'Conflict Detection', content: 'If an event was previously reviewed in the app but then modified directly in Google Calendar, the system flags it with a "Conflict Detected" badge. This ensures staff are aware of external changes that may need attention.', pageIcon: 'warning' },
       { title: 'Resolving Needs Review', content: 'Tap "Edit Event" on any flagged item to fill in missing info like category, description, or location. Saving with valid data automatically clears the review flag. For recurring wellness sessions, use "Apply to All" to sync changes across future dates.' },
+      { title: 'Wellness Waitlist', content: 'When a wellness class reaches full capacity, members can join a waitlist if the class has waitlisting enabled. Waitlisted members appear in the enrollment list with a "Waitlisted" badge. If a confirmed attendee cancels, the next person on the waitlist is automatically promoted and notified.', pageIcon: 'hourglass_top' },
+      { title: 'Google Calendar Sync', content: 'Wellness classes are bidirectionally synced with Google Calendar. Creating a class in the app creates a Google Calendar event. Changes in the app are pushed to Calendar, and changes in Calendar trigger a review flag in the app. The calendar event title uses the format "Class Title with Instructor."', pageIcon: 'sync' },
+      { title: 'Class Conflict Detection', content: 'When creating or editing a wellness class, the system checks for scheduling conflicts with existing facility blocks and bookings. If a class blocks simulators or the conference room, availability blocks are automatically created for those resources during the class time.', pageIcon: 'warning' },
+      { title: 'MedSpa Tab Reference', content: 'The member-facing Wellness page has a MedSpa tab showing IV drip menus, wellness shots, injectables, and weight loss services from the club\'s MedSpa partner (Amarie Aesthetics). Members can book directly from this tab via an external link. See the dedicated MedSpa Menu guide for details.', pageIcon: 'spa' },
       { title: 'Sync with Eventbrite', content: 'Click the Eventbrite sync button to pull in member events and attendee data from your Eventbrite organization. RSVPs are tracked and viewable in the participant details.' },
       { title: 'Sync with Google Calendar', content: 'Click the Google Calendar sync button to sync events and wellness classes bidirectionally. Changes made in the app are pushed to Google Calendar, and new items in Google Calendar are pulled into the app.' },
       { title: 'Block Bookings', content: 'When creating or editing an event or wellness class, enable "Block Bookings" to automatically create availability blocks on simulators or the conference room during that time. This prevents members from booking those resources while the event is in progress.', pageIcon: 'block' },
@@ -405,8 +421,9 @@ export const TRAINING_SEED_DATA = [
       { title: 'ID on File', content: 'In the Overview tab, staff can view a stored ID image if one was scanned during registration. Options include viewing the ID full-size, re-scanning with a new ID, or removing the image from the record.', pageIcon: 'badge' },
       { title: 'Billing Tab', content: 'The Billing tab shows the member\'s billing provider, subscription details, payment methods, and guest pass balance. For Stripe members, you can pause, apply discounts, change tier, or cancel the subscription.' },
       { title: 'Activity Tab', content: 'In the Activity tab, view all member bookings, event RSVPs, wellness enrollments, and visit history. You can mark bookings as Attended or No Show directly from the profile.' },
-      { title: 'Notes Tab', content: 'The Notes tab lets staff add, edit, and delete internal notes. Pin important notes to the top of the profile so all staff see them first.' },
-      { title: 'Comms Tab', content: 'The Comms tab is a log for recording interactions with the member: Email, Call, Meeting, Note, or SMS with direction (Inbound or Outbound). Useful for tracking follow-ups and troubleshooting communication issues.', pageIcon: 'chat' },
+      { title: 'Notes Tab', content: 'The Notes tab lets staff add, edit, and delete internal notes. Pin important notes so they appear at the top of the profile and surface during check-in. Multiple notes can be pinned simultaneously. Pinned notes are highlighted with a yellow ring and pin icon.', pageIcon: 'push_pin' },
+      { title: 'Comms Tab', content: 'The Comms tab is a communication timeline for recording interactions with the member. Log entries include type (Email, Call, Meeting, Note, or SMS), direction (Inbound or Outbound), subject, and optional body. Entries are shown newest-first with icons for each communication type. Useful for tracking follow-ups and troubleshooting.', pageIcon: 'chat' },
+      { title: 'Alternate Emails for Trackman', content: 'In the Overview tab, staff can manage multiple linked emails used for Trackman matching. This includes manually linked emails and emails discovered through the user_linked_emails table. All linked emails are used for automatic booking matching.', pageIcon: 'link' },
       { title: 'Visitor Profile Differences', content: 'When viewing a visitor, the Overview tab is hidden. The drawer defaults to the Billing tab and shows only Billing, Activity, Comms, and Notes.', pageIcon: 'person' },
       { title: 'View As Member (Admin Only)', content: 'Admins can tap "View As" to see the app from a member\'s perspective. A banner shows when viewing as another member. Exit by tapping the banner.' },
       { title: 'Privacy Controls', content: 'Members can access Privacy settings from their Profile. This includes options to opt out of data sharing (CCPA compliant) and request a data export.' },
@@ -428,6 +445,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Add Staff Notes', content: 'Add internal notes to track follow-up actions or important details about the inquiry. Notes are visible to all staff.' },
       { title: 'Update Status', content: 'Mark inquiries as Read, Replied, or Archived to keep track of which ones need attention.' },
       { title: 'HubSpot Sync', content: 'Use the "Sync from HubSpot" button to pull recent form submissions from HubSpot into the inquiries list. Staff are notified via push and in-app alerts when new inquiries arrive.', pageIcon: 'sync' },
+      { title: 'Private Hire Inquiries', content: 'Private Hire inquiries include event details such as date, time, group size, and special requests. These are used for corporate events, private parties, or exclusive bookings. See the dedicated Private Hire Inquiry guide for the full pipeline and follow-up workflow.', pageIcon: 'event' },
     ]
   },
   {
@@ -442,6 +460,9 @@ export const TRAINING_SEED_DATA = [
       { title: 'Prices from Stripe', content: 'All cafe item names, prices, and categories are pulled from the Stripe Product Catalog. To change a price or add a new item, update it in the Stripe Dashboard and it will sync to the app automatically.', pageIcon: 'sync' },
       { title: 'View in POS', content: 'Cafe items appear in the POS Register under the Cafe category tab. Staff can add items to a customer\'s cart and check out from there.', pageIcon: 'point_of_sale' },
       { title: 'Managed by Stripe Label', content: 'When viewing cafe items in the app, you will see a "Managed by Stripe" label. This means the item cannot be edited directly in the app — make changes in Stripe Dashboard instead.', pageIcon: 'lock' },
+      { title: 'Menu Updates', content: 'When Stripe products are added, modified, or removed, the cafe menu updates automatically on the next sync. Price changes are reflected immediately after sync. Staff do not need to manually update menu items in the app.', pageIcon: 'refresh' },
+      { title: 'Real-Time WebSocket Updates', content: 'When a Stripe product sync completes, the app broadcasts a WebSocket event to all connected clients. The cafe menu refreshes automatically without staff needing to reload the page. This ensures the menu is always current across all devices.', pageIcon: 'wifi' },
+      { title: 'Public Menu Page', content: 'The cafe menu is publicly accessible at /menu without requiring login. This page displays all active cafe items organized by category with prices. It can be shared with members or displayed on in-venue screens for easy browsing.', pageIcon: 'public' },
     ]
   },
   {
@@ -552,6 +573,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Update Status', content: 'Change the status as you work on issues. Mark as "In Progress" when investigating, and "Resolved" when fixed. The system records who resolved it and when.' },
       { title: 'Staff Notes', content: 'Add internal-only staff notes to bug reports for team coordination. Notes are not visible to the member who reported the bug.' },
       { title: 'Delete Reports', content: 'Admins can permanently delete a bug report after a confirmation prompt. Use this for spam or duplicate reports.' },
+      { title: 'Screenshot Attachments', content: 'Members and staff can attach screenshots when submitting bug reports. Screenshots are stored and displayed inline in the report detail view. Staff can view full-size screenshots by tapping them.', pageIcon: 'broken_image' },
       { title: 'Member Visibility', content: 'Members can see the status of their own reports from their Profile page, so keep statuses updated.' },
     ]
   },
@@ -578,10 +600,13 @@ export const TRAINING_SEED_DATA = [
     sortOrder: 31,
     isAdminOnly: true,
     steps: [
-      { title: 'What is Data Integrity?', content: 'The Data Integrity dashboard runs automated checks to make sure member data is consistent across the app, Stripe, and HubSpot. It catches things like mismatched tiers, missing Stripe customers, or stale subscription data.', pageIcon: 'verified' },
-      { title: 'Running a Check', content: 'Go to Data Integrity from the Admin section. Tap "Run Integrity Check" to scan all member records. Results are grouped by severity: Critical, High, Medium, and Low.', pageIcon: 'play_arrow' },
-      { title: 'Issue Categories', content: 'Common issues include: members with no Stripe customer, Stripe subscription status mismatches, tier mismatches between app and Stripe, missing HubSpot contacts, and duplicate accounts.', pageIcon: 'category' },
+      { title: 'What is Data Integrity?', content: 'The Data Integrity dashboard runs 23+ automated checks to make sure member data is consistent across the app, Stripe, and HubSpot. It catches things like mismatched tiers, missing Stripe customers, stale subscription data, orphaned records, and sync failures.', pageIcon: 'verified' },
+      { title: 'Running a Check', content: 'Go to Data Integrity from the Admin section. Tap "Run Integrity Check" to scan all member records. Results are grouped by severity: Critical (requires immediate action), High (should be resolved soon), Medium (should be reviewed), and Low (informational).', pageIcon: 'play_arrow' },
+      { title: 'Issue Categories', content: 'The 23+ automated checks cover: members with no Stripe customer, Stripe subscription status mismatches, tier mismatches between app and Stripe, missing HubSpot contacts, duplicate accounts, orphaned sessions, stale waiver states, ghost members, missing billing providers, and more. Each check has a severity classification.', pageIcon: 'category' },
       { title: 'Resolving Issues', content: 'Each issue includes a description and suggested action. Some can be auto-fixed (like syncing a tier to Stripe), while others may require manual review.', pageIcon: 'build' },
+      { title: 'Webhook Monitor', content: 'The Webhook Monitor section shows the status of incoming Stripe webhooks. It tracks successful deliveries, failures, and processing times. Use this to detect webhook outages or Stripe connectivity issues.', pageIcon: 'webhook' },
+      { title: 'Job Queue Monitor', content: 'The Job Queue Monitor shows the status of background processing jobs (HubSpot sync, email delivery, etc.). It displays pending, processing, completed, and failed job counts. Failed jobs can be retried from this section.', pageIcon: 'format_list_numbered' },
+      { title: 'Scheduler Tracker', content: 'The Scheduler Tracker shows the execution status of all 29 scheduled tasks (daily reminders, onboarding nudges, grace period processing, yearly guest pass reset, etc.). Each entry shows the last run time, next scheduled run, and whether the last execution succeeded or failed.', pageIcon: 'schedule' },
       { title: 'Calendar Status', content: 'The Calendar Status section shows which Google Calendars are connected (Events, Wellness, Closures, Tours) and whether each is syncing correctly. Use this to diagnose sync issues.', pageIcon: 'calendar_month' },
       { title: 'Check History', content: 'The dashboard shows a history of past integrity checks with issue counts over time, so you can track whether data quality is improving.', pageIcon: 'history' },
     ]
@@ -595,10 +620,12 @@ export const TRAINING_SEED_DATA = [
     isAdminOnly: false,
     steps: [
       { title: 'Access the POS', content: 'The POS Register is the first tab on the Financials page. It opens by default when you navigate to Financials.', pageIcon: 'point_of_sale' },
-      { title: 'Category Tabs', content: 'Browse products by category: All, Passes (day passes and guest passes), Cafe (food and drinks synced from Stripe, organized by Breakfast, Lunch, Dessert, Shareables, Sides), or Merch. Tap an item to add it to the cart.', pageIcon: 'grid_view' },
+      { title: 'Category Tabs', content: 'Browse products by category: All, Passes (day passes and guest passes), Cafe (food and drinks synced from Stripe, organized by Breakfast, Lunch, Dessert, Shareables, Sides), or Merch (club merchandise with stock tracking). Tap an item to add it to the cart.', pageIcon: 'grid_view' },
+      { title: 'Merch in POS', content: 'The Merch tab shows all active merchandise items with prices and available stock. Items with limited stock display a quantity indicator. Out-of-stock items are visually dimmed. Stock is automatically deducted when a sale completes and restored if a refund is processed.', pageIcon: 'shopping_bag' },
       { title: 'Cart & Quantities', content: 'The cart shows all added items with quantities. Tap + or - to adjust, or remove items. The total updates automatically.', pageIcon: 'shopping_cart' },
       { title: 'Select a Customer', content: 'Search for an existing member by name or email. For walk-ins, switch to "New Customer" and fill in their details — or use the ID scanner to auto-fill from a driver\'s license.', pageIcon: 'person_search' },
       { title: 'Payment Methods', content: 'Payment options include: Online Card (customer enters card details), Card Reader (tap or insert on the Stripe Terminal), Card on File (charge the member\'s saved card), or Mark Paid for cash/external payments.', pageIcon: 'credit_card' },
+      { title: 'Stripe Terminal Reader Pairing', content: 'Before using the Card Reader option, a Stripe Terminal reader must be paired. Go to Settings > Stripe Terminal to discover and register readers. For testing, you can create a simulated reader. The system monitors reader online/offline status and shows the connection state in the payment flow.', pageIcon: 'contactless' },
       { title: 'After Payment', content: 'Once payment is confirmed, you can send a receipt to the customer\'s email. Tap "New Sale" to clear the cart and start a fresh transaction.', pageIcon: 'receipt' },
     ]
   },
@@ -616,8 +643,9 @@ export const TRAINING_SEED_DATA = [
       { title: 'Resource Slot Durations', content: 'Configure default booking lengths for golf simulators, conference rooms, and tours. These control the time slot options members see when booking.', pageIcon: 'timer' },
       { title: 'Apple Wallet Pass', content: 'Toggle Apple Wallet membership cards on or off. Configure the Pass Type ID and Team ID. Wallet certificate secrets are managed through environment variables. Use the "Send Push Update" button to notify all devices to refresh their passes.', pageIcon: 'wallet' },
       { title: 'NFC & Kiosk Setup', content: 'Generate and view the NFC check-in URL used for programming NFC tags at the front desk. Configure the self-service kiosk by setting a 4-digit exit passcode that staff use to return to the admin portal from kiosk mode.', pageIcon: 'nfc' },
+      { title: 'Email Category Toggles', content: 'Control which categories of automated emails are sent. Eight categories are available: Auth (always on), Welcome, Booking, Passes, Payments, Membership, Onboarding, and System. Toggling a category off acts as a master kill-switch for all emails in that group. Staff-initiated actions bypass these toggles to ensure critical manual communications are delivered.', pageIcon: 'toggle_on' },
       { title: 'Alert Toggles', content: 'Enable or disable automatic alerts for data integrity issues and sync failures. When enabled, admins receive notifications when something needs attention.', pageIcon: 'notifications_active' },
-      { title: 'Scheduler Configuration', content: 'Set execution times for automated tasks: Daily Reminders (next-day booking reminders), Morning Closures (daily closure notifications), Onboarding Nudges (new member follow-ups), and Grace Period processing (payment failure handling). Adjust max nudge count and grace period days.', pageIcon: 'schedule' },
+      { title: 'Scheduler Configuration', content: 'Set execution times for automated tasks: Daily Reminders (next-day booking reminders at 6 PM Pacific), Morning Closures (daily closure notifications), Onboarding Nudges (new member follow-ups at 10 AM Pacific with 24h/72h/7d intervals), and Grace Period processing (payment failure handling at 10 AM Pacific). Adjust max nudge count and grace period days.', pageIcon: 'schedule' },
       { title: 'Trial Coupon Code', content: 'Set a global coupon code used for trial memberships. This code is automatically applied when creating trial subscriptions.', pageIcon: 'sell' },
       { title: 'Data Cleanup', content: 'Set the retention period (in days) for old notifications, push subscriptions, and dismissed notices. Records older than this threshold are automatically deleted to keep the database lean.', pageIcon: 'delete_sweep' },
       { title: 'HubSpot Form IDs', content: 'Manually override HubSpot Form IDs for Membership, Private Hire, Event Inquiry, Guest Check-in, and Contact forms. Set the HubSpot meeting scheduler URL for tour booking.', pageIcon: 'integration_instructions' },
@@ -672,6 +700,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Auto-Conversion', content: 'When an applicant completes their checkout through the invite link, their status automatically changes to "Converted." The system creates their member account, sets their membership to active, and notifies staff.', pageIcon: 'auto_awesome' },
       { title: 'HubSpot Sync', content: 'Use the "Sync from HubSpot" button to pull new membership applications from HubSpot form submissions. When an applicant converts, their HubSpot contact is automatically updated with the appropriate lifecycle stage.', pageIcon: 'sync' },
       { title: 'Status Counts', content: 'Each status tab shows a count badge so you can quickly see how many applications are at each stage of the pipeline.' },
+      { title: 'Application Source Tracking', content: 'Applications track their source (website form, HubSpot, or staff-created). This helps measure which channels generate the most leads. Source data syncs to HubSpot for marketing attribution.', pageIcon: 'trending_up' },
     ]
   },
   {
@@ -713,6 +742,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'At-Risk Members', content: 'A list of members who haven\'t booked in 45+ days. Each entry shows how many days since their last booking. Consider reaching out to these members to re-engage them before they cancel.', pageIcon: 'warning' },
       { title: 'Tier Distribution', content: 'A donut chart showing how many active members are on each membership tier. Useful for understanding your member mix and planning tier-specific promotions.', pageIcon: 'donut_large' },
       { title: 'New Member Growth', content: 'A multi-line chart comparing new member sign-ups vs former members over the last 6 months. Track the impact of marketing campaigns and seasonal trends on acquisition and churn.', pageIcon: 'trending_up' },
+      { title: 'Export & Date Range', content: 'Use the date range picker at the top to adjust the analysis window. Analytics data is computed on-demand from booking and member records. The dashboard loads each section independently so you can start reviewing data as it appears.', pageIcon: 'date_range' },
     ]
   },
   {
@@ -728,6 +758,8 @@ export const TRAINING_SEED_DATA = [
       { title: 'Automatic Updates', content: 'Booking passes update automatically when details change. If staff moves a booking to a different bay or time, the member gets a lock-screen notification on their iPhone with the updated info — no need to check the app.', pageIcon: 'sync' },
       { title: 'Cancellation', content: 'When a booking is cancelled, the Apple Wallet pass is automatically voided and visually struck through on the member\'s device. The member sees the status change without needing to open the app.', pageIcon: 'cancel' },
       { title: 'Email Links', content: 'Booking confirmation emails include an "Add to Apple Wallet" link so members can save the pass directly from their email. This works for approved, confirmed, and checked-in bookings.', pageIcon: 'email' },
+      { title: 'Admin Push Update', content: 'Admins can force-push an update to all Apple Wallet passes from Settings > Apple Wallet Pass. This is useful after changing the pass design or branding. All registered devices receive a push notification to refresh their passes.', pageIcon: 'system_update' },
+      { title: 'Dynamic Pass Colors', content: 'Apple Wallet passes change color based on the member\'s current status. Active members see the standard brand color, trialing members see a distinct color, past-due members see a warning color, and cancelled/suspended members see a muted color. These updates happen automatically when the member\'s status changes.', pageIcon: 'palette' },
     ]
   },
   {
@@ -743,6 +775,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Logging In with Passkey', content: 'On the login page, members with a registered passkey see a "Sign in with Passkey" option. One tap triggers Face ID or Touch ID, and they\'re logged in instantly — no email code needed.', pageIcon: 'login' },
       { title: 'Multiple Devices', content: 'Members can register passkeys on multiple devices (iPhone, iPad, Mac). Each device has its own passkey. If they get a new device, they just register a new passkey from their profile.', pageIcon: 'devices' },
       { title: 'Fallback Options', content: 'Passkeys are optional. Members can always fall back to email verification code, Google Sign-In, or Apple Sign-In. Removing a passkey from the profile revokes it immediately.', pageIcon: 'key' },
+      { title: 'Credential Management', content: 'Members can view all registered passkeys from Profile > Security. Each entry shows the device name, creation date, and last used date. Members can remove individual passkeys without affecting other login methods.', pageIcon: 'manage_accounts' },
     ]
   },
   {
@@ -804,6 +837,8 @@ export const TRAINING_SEED_DATA = [
       { title: 'Staff Card on File', content: 'Staff can also charge a member\'s saved card from the Booking Sheet. Under payment methods, "Card on File" shows the member\'s saved card brand and last 4 digits. Tap to charge instantly without the card reader.', pageIcon: 'point_of_sale' },
       { title: 'Managing Saved Cards', content: 'Members can view and manage their saved cards from their Profile → Payment Methods. They can remove a card at any time. If they need to update their card (new expiration date), they just make a payment with the new card and it replaces the old one.', pageIcon: 'settings' },
       { title: 'Security', content: 'Saved cards are stored securely by Stripe — the app never sees or stores full card numbers. Each saved card payment is authenticated through Stripe\'s fraud prevention system. If 3D Secure verification is needed, the member is prompted automatically.', pageIcon: 'lock' },
+      { title: 'Off-Session Payments', content: 'When the system needs to charge a member automatically (e.g., auto-finalizing a draft invoice after session time), it uses the saved card for off-session payment. If the off-session charge fails, the member is notified to update their payment method. Staff see the failure in the Transactions tab under Failed Payments.', pageIcon: 'schedule' },
+      { title: 'Stripe Terminal Card Saving', content: 'Cards can also be saved through the Stripe Terminal card reader during in-person registration. When staff process a payment via the terminal, a SetupIntent is created alongside the PaymentIntent to save the card for future use. The member\'s default payment method is automatically updated to the new card.', pageIcon: 'contactless' },
     ]
   },
   {
@@ -821,8 +856,10 @@ export const TRAINING_SEED_DATA = [
       { title: 'Refund on Cancellation', content: 'If a booking is cancelled at least 1 hour before the start time and a guest pass was consumed, the pass is automatically refunded — the member gets it back. Cancellations less than 1 hour before the start time do not refund the pass. If a hold existed (booking not yet completed), the hold is released.', pageIcon: 'undo' },
       { title: 'No Passes Remaining', content: `When a member has used all their yearly passes, new guests are charged the standard $${PRICING.GUEST_FEE_DOLLARS} guest fee. A blue badge appears on the roster row instead of a green one. The member can still bring guests — they just pay the fee.`, pageIcon: 'money_off' },
       { title: 'Viewing Pass Balance', content: 'Open a member\'s profile from the Directory and go to the Billing tab. The guest pass section shows passes used and total available for the year. Staff can see at a glance whether the member has passes remaining.', pageIcon: 'visibility' },
+      { title: 'Pending Guest Count', content: 'The guest pass balance accounts for passes currently on hold (reserved for pending bookings). The Billing tab shows "X used, Y on hold, Z available" so staff can see the full picture. Holds are released if the booking is declined, cancelled, or expires after 30 days.', pageIcon: 'hourglass_top' },
       { title: 'Placeholder Slot Protection', content: 'Guest passes cannot be consumed for placeholder slots (e.g., "Guest 1" or "Guest (pending)"). A real guest name must be assigned before a pass can be applied. This prevents accidental waste of passes on empty slots.', pageIcon: 'shield' },
       { title: 'Yearly Reset', content: 'A scheduled job runs on January 1st (between 3–8 AM Pacific) and resets all guest pass counters to zero. After the reset, every member starts fresh with their full allocation based on their current tier. A safety check ensures the reset only runs once per year.', pageIcon: 'restart_alt' },
+      { title: 'Manual Pass Application', content: 'Staff can manually apply a guest pass during check-in for guests added after the booking was approved. This allows walk-in guests to use available passes without needing to modify the original booking request.', pageIcon: 'add_circle' },
     ]
   },
   {
@@ -846,6 +883,11 @@ export const TRAINING_SEED_DATA = [
       { title: 'Duplicate Detection', content: 'When you enter an email, the system checks for existing accounts. If a match is found, a warning shows the existing user\'s name, role, and status so you can avoid creating a duplicate. A separate alert appears if you recently created a record for the same person.', pageIcon: 'warning' },
       { title: 'Cooldown Timer', content: 'After successfully creating a user, a short cooldown timer prevents accidental double-submissions. Wait for the timer to finish before adding another user.', pageIcon: 'timer' },
       { title: 'Cleanup Failed Signups', content: 'If a member creation fails partway through (e.g., payment error after account creation), the system offers a "Clean Up & Try Again" button to remove the incomplete record and start fresh.', pageIcon: 'delete_sweep' },
+      { title: 'HubSpot Contact Creation', content: 'When a new member is successfully created, their contact is automatically synced to HubSpot with the correct lifecycle stage and membership tier. This ensures the CRM is immediately up to date for follow-up and marketing.', pageIcon: 'sync' },
+      { title: 'Automated Onboarding Emails', content: 'After registration, the system sends a sequence of onboarding nudge emails at 24 hours, 72 hours, and 7 days. These emails encourage the member to complete their profile, book their first session, and explore club features. The sequence is controlled by the Onboarding email category toggle in Settings.', pageIcon: 'forward_to_inbox' },
+      { title: 'Stripe Customer Auto-Creation', content: 'When a new member is created, a Stripe customer record is automatically created and linked to their account. This happens before payment — even if they choose "Send Activation Link," the Stripe customer exists so the checkout session can be properly associated.', pageIcon: 'credit_card' },
+      { title: 'Visitor vs Member vs Sub-Member', content: 'The registration form supports three distinct user types. "New Member" creates a full membership with a Stripe subscription. "Day Pass" creates a visitor record with a one-time purchase. Sub-members are added during member creation as part of a family or corporate group — they share the primary member\'s billing but have their own login credentials and profiles.', pageIcon: 'group' },
+      { title: 'MindBody Legacy Matching', content: 'For clubs migrating from MindBody, the system checks incoming emails against imported MindBody records. If a match is found, the existing MindBody data (visit history, billing history) is linked to the new account rather than creating a duplicate. A notification confirms when legacy data has been merged.', pageIcon: 'link' },
     ]
   },
   {
@@ -865,6 +907,8 @@ export const TRAINING_SEED_DATA = [
       { title: 'Setting Up NFC Tags', content: 'Go to Settings (Admin) and find the NFC & Kiosk Setup section. The system generates the NFC check-in URL for you. Program this URL onto physical NFC tags and place them at the front desk or entry points.', pageIcon: 'settings' },
       { title: 'Kiosk Mode', content: 'Kiosk mode turns a tablet into a self-service QR scan station. Members walk up and scan their membership QR code using the tablet\'s camera. The system reads the QR code (formats include MEMBER:<ID>, URL with memberId, or JSON with memberId), looks up the member, validates their status, and records a walk-in visit. A "Welcome back!" screen shows their name, tier, and visit count.', pageIcon: 'tablet' },
       { title: 'Kiosk Security', content: 'The kiosk stays locked to the check-in screen so members cannot navigate to the staff portal. Staff exit kiosk mode by tapping the lock icon and entering the 4-digit passcode configured in Settings. The kiosk page requires staff or admin authentication on the tablet itself.', pageIcon: 'lock' },
+      { title: 'Kiosk Camera Permissions', content: 'The kiosk tablet needs camera access permission for QR scanning. If the browser blocks camera access, the kiosk will show an error. Ensure the browser has camera permissions granted in the device settings.', pageIcon: 'photo_camera' },
+      { title: 'Pinned Notes at Check-In', content: 'When a member checks in via kiosk or NFC, any pinned notes on their profile are surfaced to staff in the real-time notification. This ensures staff are immediately aware of important member-specific information (e.g., "VIP — comp all drinks" or "Contact re: billing issue").', pageIcon: 'push_pin' },
       { title: 'Error Handling', content: 'If the member is not logged in when they tap the NFC tag, they are redirected to the login page first. If their account is not found or their membership status is cancelled, suspended, terminated, inactive, or archived, a clear error message is displayed asking them to speak to staff.', pageIcon: 'error' },
     ]
   },
@@ -883,9 +927,11 @@ export const TRAINING_SEED_DATA = [
       { title: 'Pause & Resume', content: 'From the Billing tab, staff can pause a member\'s subscription for 30 or 60 days. The member\'s status changes to "paused" and billing collection is paused in Stripe. When ready, tap "Resume" to immediately reactivate billing. Paused members retain their account and can still check in.', pageIcon: 'pause_circle' },
       { title: 'Tier Change Wizard', content: 'To change a member\'s tier, open their profile, go to the Billing tab, and tap "Change Tier." The wizard lets you select a new tier, choose whether the change takes effect immediately (with proration) or at the next billing cycle, and preview the financial impact before confirming.', pageIcon: 'swap_vert' },
       { title: 'Proration Preview', content: 'When changing tiers immediately, the wizard shows a real-time preview of the proration amount (charge for upgrade or credit for downgrade), the next invoice amount, and the effective date. Review this before committing.', pageIcon: 'calculate' },
-      { title: 'Grace Period for Failed Payments', content: 'When a membership payment fails, the system automatically sets the member to "past_due" status and starts a grace period (configurable in Settings, default 3 days). During this time, the member receives daily reminder emails with a link to the Stripe Billing Portal where they can update their payment method. Staff are notified of the failure.', pageIcon: 'timer' },
-      { title: 'Grace Period Expiry', content: 'If the grace period expires without payment, the member\'s status is set to "terminated" and their tier is removed. A scheduled job runs daily at 10 AM Pacific to check for expired grace periods. Staff receive a membership_terminated alert for each affected member.', pageIcon: 'alarm_off' },
-      { title: 'Reactivation', content: 'Cancelled or terminated members can be reactivated by creating a new subscription from the Billing tab. The system creates a fresh Stripe subscription and updates the member\'s status to active.', pageIcon: 'restart_alt' },
+      { title: 'Grace Period for Failed Payments', content: 'When a membership payment fails, the system automatically sets the member to "past_due" status and starts a grace period (configurable in Settings, default 3 days). During this time, the member receives daily reminder emails with a link to the Stripe Billing Portal where they can update their payment method. The grace period scheduler runs daily at 10 AM Pacific.', pageIcon: 'timer' },
+      { title: 'Grace Period Expiry', content: 'If the grace period expires without payment, the member\'s status is set to "terminated" and their tier is removed. The scheduler also processes pending grace period entries. Staff receive a membership_terminated alert for each affected member.', pageIcon: 'alarm_off' },
+      { title: 'Win-Back Email Flow', content: 'After a member is cancelled or terminated, the system can send automated win-back emails encouraging them to reactivate. These emails are controlled by the Membership email category toggle in Settings. Staff can also manually trigger outreach from the member profile.', pageIcon: 'forward_to_inbox' },
+      { title: 'Reactivation', content: 'Cancelled or terminated members can be reactivated by creating a new subscription from the Billing tab. The system creates a fresh Stripe subscription and updates the member\'s status to active. Ghost reactivation blocking prevents members who were terminated due to non-payment from being accidentally reactivated without resolving outstanding balances.', pageIcon: 'restart_alt' },
+      { title: 'Paused Subscription Handling', content: 'Paused subscriptions retain the member\'s account and tier but stop billing collection. The member\'s status shows as "paused" throughout the app including the QR check-in confirmation (with a warning color). Paused members can still check in but staff are alerted to verify their status.', pageIcon: 'pause_circle' },
       { title: 'HubSpot Sync', content: 'All subscription status changes (cancellation, pause, resume, tier change) are automatically synced to HubSpot. The member\'s lifecycle stage and membership status are updated in the CRM.', pageIcon: 'sync' },
     ]
   },
@@ -905,6 +951,7 @@ export const TRAINING_SEED_DATA = [
       { title: 'Conference Room Overage Credits', content: 'When a conference room booking exceeds the daily allowance, the system checks the member\'s credit balance before creating a payment intent. If the credit fully covers the overage, no card charge is needed.', pageIcon: 'meeting_room' },
       { title: 'Viewing Balance', content: 'Members can see their available credit balance on their Profile page under Account Balance. Staff can see it in the member\'s Overview tab in the Directory profile drawer. A negative Stripe balance means the member has credit available.', pageIcon: 'visibility' },
       { title: 'Balance in Outstanding Fees', content: 'The Overview tab also shows any outstanding fees separately from credit balance. This helps staff distinguish between what the member owes and what credit they have available.', pageIcon: 'receipt_long' },
+      { title: 'Credit vs Refund', content: 'Credits differ from refunds. A refund returns money to the member\'s card. A credit adds a balance to the member\'s Stripe account that is applied to future charges. Use credits for service recovery, goodwill gestures, or when a refund is not appropriate.', pageIcon: 'compare' },
     ]
   },
   {
@@ -926,6 +973,262 @@ export const TRAINING_SEED_DATA = [
       { title: 'How It Differs from Member Booking', content: 'Member self-booking creates a pending request that staff must approve. Staff manual booking creates the booking directly. Standard manual bookings default to pending status, but day pass bookings are automatically set to approved.', pageIcon: 'compare' },
       { title: 'Post-Creation', content: 'After creating a manual booking, the calendar grid updates in real time via WebSocket so all staff see the change. The member receives a confirmation notification and, if applicable, an Apple Wallet pass for the booking.', pageIcon: 'notifications' },
       { title: 'Conference Room Fee Estimate', content: 'When manually booking a conference room, the system shows an estimated fee breakdown based on the member\'s daily allowance for their tier. If the booking stays within the allowance, no charge is shown. Overage fees are displayed before submission.', pageIcon: 'calculate' },
+    ]
+  },
+  {
+    guideId: 'merch-management',
+    icon: 'shopping_bag',
+    title: 'Merchandise Management',
+    description: 'Create, edit, and manage club merchandise inventory',
+    sortOrder: 51,
+    isAdminOnly: true,
+    steps: [
+      { title: 'Access Merchandise', content: 'Go to Merch from the Admin section of the sidebar or hamburger menu. This page manages all club merchandise products available for sale in the POS Register.', pageIcon: 'shopping_bag' },
+      { title: 'Adding a Product', content: 'Tap "Add Item" to create a new merchandise product. Enter the product name, price, and optionally a description and stock quantity. Products are active by default and immediately appear in the POS Register under the Merch tab.', pageIcon: 'add_circle' },
+      { title: 'Stock Tracking', content: 'Each product can have a stock quantity. When stock is set, the POS displays the available count. Stock is automatically decremented when a sale is completed and restored when a refund is processed. Products with zero stock are visually dimmed in the POS.', pageIcon: 'shopping_bag' },
+      { title: 'Unlimited Stock', content: 'Leave the stock field empty or null for items without quantity limits (e.g., digital products, services). These items always show as available in the POS.', pageIcon: 'all_inclusive' },
+      { title: 'Editing Products', content: 'Tap any product to edit its name, price, description, or stock quantity. Changes take effect immediately in the POS Register. Price changes affect new sales only — existing completed transactions are not modified.', pageIcon: 'edit' },
+      { title: 'Active/Inactive Toggle', content: 'Deactivate products to remove them from the POS without deleting them. Inactive products are hidden from staff in the register but remain in the database for historical sales reporting.', pageIcon: 'toggle_off' },
+      { title: 'POS Integration', content: 'Active merchandise items appear automatically in the POS Register under the Merch category tab. Staff can add items to the cart, adjust quantities, and check out using any payment method (card reader, online card, card on file, or mark paid).', pageIcon: 'point_of_sale' },
+    ]
+  },
+  {
+    guideId: 'day-pass-redemption',
+    icon: 'redeem',
+    title: 'Day Pass Redemption',
+    description: 'Validate and redeem day passes during bookings and check-in',
+    sortOrder: 52,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What is Day Pass Redemption?', content: 'Day pass redemption is the process of applying a pre-purchased day pass to a simulator booking. This allows the pass holder to play without overage fees. Day passes cover 60 minutes of simulator time for the "day-pass-golf-sim" product type.', pageIcon: 'redeem' },
+      { title: 'Where to Redeem', content: 'Day passes can be redeemed in three places: during booking resolution (when matching Trackman bookings to members), during check-in (in the billing step), and when creating a staff manual booking (providing the purchase ID in the booking form).', pageIcon: 'location_on' },
+      { title: 'Validation Steps', content: 'When a day pass ID is provided, the system validates: (1) the purchase exists, (2) the pass has not already been redeemed, (3) the pass belongs to the participant being checked in, (4) the pass has remaining uses. If any check fails, a clear error message is shown explaining why.', pageIcon: 'verified' },
+      { title: 'Fee Recalculation', content: 'When a valid day pass is applied, the system recalculates fees using computeFeeBreakdown. The day pass holder\'s overage charge is zeroed out. Other participants\' fees are unaffected. The financial summary in the Booking Sheet updates to reflect the change.', pageIcon: 'calculate' },
+      { title: 'Multiple Passes in One Booking', content: 'If multiple participants in the same booking have day passes, each pass can be applied independently. The system tracks which pass was used for which participant.', pageIcon: 'group' },
+      { title: 'POS Redemption (QR Scan)', content: 'For standalone pass redemption (not tied to a booking), go to Financials > POS > Redeem Pass. Scan the visitor\'s QR code or enter the pass ID manually. The system validates the pass and marks it as redeemed. A confirmation email with WiFi details is sent to the visitor.', pageIcon: 'qr_code' },
+      { title: 'Refund Handling', content: 'If a day pass sale is refunded through Stripe, the pass status is automatically updated to "refunded" in the system. A refunded pass cannot be redeemed.', pageIcon: 'undo' },
+    ]
+  },
+  {
+    guideId: 'wellness-class-management',
+    icon: 'fitness_center',
+    title: 'Wellness Class Management',
+    description: 'Create and manage wellness classes with enrollment and waitlist tracking',
+    sortOrder: 53,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Creating a Class', content: 'From the Calendar > Wellness tab, tap the + button to create a new wellness class. Fill in the title, instructor name, date, start time, end time, location, capacity, and description. Select a category prefix (e.g., [MedSpa], [Recovery], [Therapy], [Nutrition]) that syncs with Google Calendar.', pageIcon: 'add_circle' },
+      { title: 'Categories', content: 'Wellness classes are organized by category: MedSpa (aesthetic treatments), Recovery (physical therapy, stretching), Therapy (mental health, meditation), and Nutrition (dietary consultations). Each category has its own color in the calendar view.', pageIcon: 'category' },
+      { title: 'Instructor & Capacity', content: 'Set the instructor name and maximum capacity for each class. The enrollment count is displayed on the class card. When capacity is reached, new enrollments go to the waitlist (if enabled).', pageIcon: 'person' },
+      { title: 'Waitlist Management', content: 'Enable waitlisting on any class to allow members to join a queue when the class is full. Waitlisted members see their position in line. When a confirmed attendee cancels, the next person on the waitlist is automatically promoted and receives a notification.', pageIcon: 'hourglass_top' },
+      { title: 'Enrollment Actions', content: 'Staff can manually enroll or remove members from any class. The enrollment list shows each attendee\'s name, email, enrollment date, and status (confirmed or waitlisted). Tap an attendee to view their profile or remove them.', pageIcon: 'how_to_reg' },
+      { title: 'Google Calendar Sync', content: 'Wellness classes sync bidirectionally with the Wellness Google Calendar. The event title uses the format "[Category] Class Title with Instructor." Changes in the app push to Calendar, and changes in Calendar trigger a "Needs Review" flag in the app.', pageIcon: 'sync' },
+      { title: 'Block Bookings', content: 'Enable "Block Bookings" to automatically create availability blocks on simulators or the conference room during class time. This prevents double-booking resources while the class is in session.', pageIcon: 'block' },
+      { title: 'Recurring Classes', content: 'For recurring wellness sessions, use "Apply to All" when editing to sync changes (title, instructor, capacity) across all future dates. This saves time when updating a weekly series.', pageIcon: 'event_repeat' },
+      { title: 'Conflict Detection', content: 'The system checks for scheduling conflicts with existing facility blocks and bookings before creating a class. If a conflict is found, a warning is shown with details about the conflicting event.', pageIcon: 'warning' },
+    ]
+  },
+  {
+    guideId: 'medspa-menu',
+    icon: 'spa',
+    title: 'MedSpa Menu',
+    description: 'Browse MedSpa service menus and booking links for members',
+    sortOrder: 54,
+    isAdminOnly: false,
+    steps: [
+      { title: 'MedSpa Tab', content: 'The MedSpa tab appears on the member-facing Wellness page. It showcases wellness and aesthetic services offered through the club\'s MedSpa partner (Amarie Aesthetics).', pageIcon: 'spa' },
+      { title: 'Service Categories', content: 'The MedSpa menu is organized into four categories: IV Drip Menu (hydration, recovery, immunity drips), Wellness Shots (quick vitamin and energy shots), Injectables (Botox, fillers, and aesthetic treatments), and Weight Loss (medical weight management programs).', pageIcon: 'category' },
+      { title: 'Pricing Display', content: 'Each service shows a name, brief description, and price. Prices are displayed in a clean card format for easy browsing. Some services show a price range for customizable treatments.', pageIcon: 'attach_money' },
+      { title: 'Booking Link', content: 'Members can book MedSpa appointments by tapping the external booking link. This opens the MedSpa partner\'s scheduling page in a new tab. The link is configured at the system level and can be updated by admins.', pageIcon: 'open_in_new' },
+      { title: 'Staff Reference', content: 'Staff should be familiar with the MedSpa menu to answer member questions about available services and pricing. The menu is read-only in the app — service changes are managed by the MedSpa partner.', pageIcon: 'support_agent' },
+    ]
+  },
+  {
+    guideId: 'kiosk-mode-operations',
+    icon: 'tablet',
+    title: 'Kiosk Mode Operations',
+    description: 'Set up and manage self-service kiosk tablets for member check-in',
+    sortOrder: 55,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What is Kiosk Mode?', content: 'Kiosk mode transforms a tablet into a dedicated self-service check-in station. Members walk up, scan their membership QR code using the tablet\'s camera, and check themselves in without staff assistance.', pageIcon: 'tablet' },
+      { title: 'Setting Up a Kiosk', content: 'To set up a kiosk: (1) Log into the staff portal on the tablet, (2) Navigate to the Kiosk page, (3) The tablet locks into QR scanning mode. The camera activates and shows a scanning overlay for members to present their QR code.', pageIcon: 'settings' },
+      { title: 'QR Code Formats', content: 'The kiosk scanner accepts three QR code formats: "MEMBER:<id>" (standard member QR), a URL containing a memberId parameter, or a JSON object with a memberId field. All three are decoded and used to look up the member.', pageIcon: 'qr_code' },
+      { title: 'Check-In Flow', content: 'When a valid QR code is scanned: the system looks up the member, validates their membership status, records a walk-in visit, and displays a "Welcome back!" confirmation screen showing the member\'s name, tier, and lifetime visit count. The screen automatically resets after a few seconds.', pageIcon: 'check_circle' },
+      { title: 'Status Validation', content: 'The kiosk validates membership status before recording a check-in. Active, trialing, past_due, and paused members can check in (with appropriate status warnings). Cancelled, suspended, terminated, inactive, or archived members are blocked with a message asking them to speak to staff.', pageIcon: 'verified' },
+      { title: 'Exit Passcode', content: 'The kiosk screen is locked so members cannot navigate away. Staff exit kiosk mode by tapping the lock icon in the corner and entering the 4-digit passcode. The passcode is configured in Settings > NFC & Kiosk Setup. Change it periodically for security.', pageIcon: 'lock' },
+      { title: 'Staff Notifications', content: 'Each kiosk check-in triggers a real-time WebSocket notification to all connected staff devices. The notification shows who just checked in, their tier, visit count, and any pinned notes from their profile.', pageIcon: 'notifications' },
+      { title: 'Duplicate Scan Protection', content: 'If the same member scans their QR code twice within 2 minutes, the kiosk shows a friendly "Already checked in!" message instead of recording a duplicate visit.', pageIcon: 'shield' },
+      { title: 'Camera Troubleshooting', content: 'If the kiosk camera is not working: (1) Check browser camera permissions, (2) Ensure no other app is using the camera, (3) Try refreshing the page. The kiosk needs HTTPS to access the camera.', pageIcon: 'photo_camera' },
+    ]
+  },
+  {
+    guideId: 'private-hire-inquiry',
+    icon: 'event',
+    title: 'Private Hire Inquiry Pipeline',
+    description: 'Manage private hire and event booking inquiries from initial contact to booking',
+    sortOrder: 56,
+    isAdminOnly: true,
+    steps: [
+      { title: 'What Are Private Hire Inquiries?', content: 'Private hire inquiries are requests from individuals or companies to rent club facilities for private events, corporate gatherings, or exclusive bookings. They come through the website contact form, HubSpot, or direct staff entry.', pageIcon: 'event' },
+      { title: 'Inquiry Pipeline', content: 'Private hire inquiries follow the standard inquiry pipeline: New → Read → Replied → Archived. Use the status tabs on the Inquiries page to track progress. The "Private Hire" filter chip isolates these from other inquiry types.', pageIcon: 'timeline' },
+      { title: 'Submission Details', content: 'Each private hire inquiry includes: contact name, email, phone, preferred date(s), expected group size, event type, and any special requirements or messages. This information comes from the structured form fields.', pageIcon: 'description' },
+      { title: 'Staff Notes & Follow-Up', content: 'Add internal staff notes to track conversations, pricing discussions, and follow-up actions. Notes are visible to all staff viewing the inquiry. Update the status to "Replied" after making contact.', pageIcon: 'edit_note' },
+      { title: 'Converting to a Booking', content: 'Once a private hire is confirmed, create a facility notice with "Block Bookings" enabled to reserve the required bays or rooms. Set the notice type to "Private Event" and select the affected resources. This automatically prevents members from booking during the event.', pageIcon: 'event_available' },
+      { title: 'HubSpot Integration', content: 'Private hire inquiries synced from HubSpot include the original form submission data. When staff update the status or add notes, these changes are logged for reference. Use the "Sync from HubSpot" button to pull new submissions.', pageIcon: 'sync' },
+      { title: 'Notification Alerts', content: 'Staff receive push notifications and in-app alerts when new private hire inquiries arrive. This ensures timely response to potential event bookings.', pageIcon: 'notifications_active' },
+    ]
+  },
+  {
+    guideId: 'member-onboarding-journey',
+    icon: 'rocket_launch',
+    title: 'Member Onboarding Journey',
+    description: 'Understand the automated onboarding sequence for new members',
+    sortOrder: 57,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Onboarding Overview', content: 'When a new member signs up, the system launches an automated onboarding sequence designed to help them get settled and engaged with the club. This includes welcome emails, follow-up nudges, and status tracking.', pageIcon: 'rocket_launch' },
+      { title: 'Welcome Email', content: 'Immediately after signup, the member receives a welcome email with their membership details, login instructions, and links to download the PWA and complete their profile.', pageIcon: 'forward_to_inbox' },
+      { title: 'Onboarding Nudge Emails', content: 'The system sends automated follow-up emails at three intervals: 24 hours (encourage profile completion and first booking), 72 hours (highlight key features like QR check-in and Apple Wallet), and 7 days (suggest exploring events and wellness classes). These are sent only if the member hasn\'t yet visited the club.', pageIcon: 'schedule' },
+      { title: 'Nudge Logic', content: 'The onboarding scheduler runs daily at 10 AM Pacific. It checks each member\'s signup date and visit count. Members who have already visited are excluded from further nudges. A configurable maximum nudge count (default: 3) prevents over-communication.', pageIcon: 'auto_awesome' },
+      { title: 'Email Category Control', content: 'The entire onboarding email sequence is controlled by the "Onboarding" email category toggle in Settings. Turning this off disables all automated onboarding emails. Individual emails cannot be toggled independently — it is all or nothing.', pageIcon: 'toggle_on' },
+      { title: 'First Visit Detection', content: 'When a new member checks in for the first time (via QR scan, NFC tap, or kiosk), the system automatically sends a first visit confirmation email and excludes them from further onboarding nudges.', pageIcon: 'celebration' },
+      { title: 'Staff Visibility', content: 'Staff can see a member\'s onboarding status in their profile. The "Recently Added (24h)" filter in the Directory highlights new members. The Activity tab shows whether the member has completed key onboarding milestones.', pageIcon: 'visibility' },
+      { title: 'HubSpot Lifecycle Sync', content: 'New member creation automatically updates their HubSpot contact record with the appropriate lifecycle stage and membership tier. This keeps the CRM aligned for marketing follow-up.', pageIcon: 'sync' },
+      { title: 'Application to Activation', content: 'The full onboarding lifecycle is: Application submitted → Staff reviews and approves → Checkout invite sent (with selected tier) → Member completes Stripe payment → Account activated → Welcome email with login credentials → Profile completion and waiver signing → First login and PWA installation → First booking and first visit.', pageIcon: 'timeline' },
+      { title: 'Waiver & Profile Completion', content: 'New members are prompted to complete their profile (photo, phone, address) and sign the digital waiver on first login. The waiver status appears in the member\'s profile drawer. Members cannot be checked in until their waiver is signed.', pageIcon: 'assignment' },
+    ]
+  },
+  {
+    guideId: 'trackman-admin-tools',
+    icon: 'build',
+    title: 'Trackman Admin Resolution Tools',
+    description: 'Resolve unmatched Trackman bookings and manage Trackman integration',
+    sortOrder: 58,
+    isAdminOnly: true,
+    steps: [
+      { title: 'Unmatched Bookings', content: 'When a Trackman CSV is imported, bookings whose email addresses don\'t match any known member appear as "Unmatched." These need manual resolution before billing can proceed.', pageIcon: 'help_outline' },
+      { title: 'Resolution Flow', content: 'To resolve an unmatched booking: (1) Open the unmatched booking in the Bookings page, (2) Search for the correct member by name or email, (3) Select the match. The system learns this email mapping for future imports, so the same email will auto-match next time.', pageIcon: 'search' },
+      { title: 'Multi-Email Matching', content: 'Members can have multiple Trackman-linked emails. When you resolve an unmatched booking, the Trackman email is added to the member\'s linked emails list. All future bookings from that email are automatically matched to the same member.', pageIcon: 'link' },
+      { title: 'Batch Resolution', content: 'When you resolve one unmatched booking, all other unmatched bookings with the same email are automatically resolved to the same member. This significantly speeds up the import process.', pageIcon: 'task_alt' },
+      { title: 'Booking ID Conflict Resolution', content: 'If a Trackman booking ID is already linked to another booking for the same member, the old booking is automatically declined and the new one is linked. If the ID belongs to a different member, a conflict error is shown and manual intervention is required.', pageIcon: 'warning' },
+      { title: 'Day Pass Resolution', content: 'When resolving an unmatched booking for a day pass visitor, provide their day pass purchase ID. The system validates the pass, redeems it, and creates a billing session with zeroed-out fees automatically.', pageIcon: 'confirmation_number' },
+      { title: 'Session Creation', content: 'When a booking is successfully resolved, a billing session is created automatically. The session links the member, booking, resource, and time slot. Fees are computed using computeFeeBreakdown based on the member\'s tier and daily allowance.', pageIcon: 'receipt' },
+      { title: 'Import History', content: 'The import section shows statistics for each import: total bookings, matched, unmatched, and resolved counts. Use this to track import accuracy over time and identify recurring unmatched emails.', pageIcon: 'history' },
+      { title: 'Session Reconciliation', content: 'After bookings are matched, the system creates billing sessions that link the member, booking, resource, and time slot. If a session already exists for the same booking, the system updates rather than duplicates. Use the Data Integrity dashboard to find orphaned sessions or bookings missing sessions.', pageIcon: 'sync' },
+      { title: 'Ghost Session Resolution', content: 'Ghost sessions are billing records that no longer have a matching booking (e.g., the booking was deleted or the member was removed). These are flagged in the Data Integrity dashboard. Admins can review and clean up ghost sessions to ensure accurate billing records.', pageIcon: 'delete_sweep' },
+      { title: 'Email Mapping Management', content: 'The Trackman email mapping system learns from manual resolutions. Each time you resolve an unmatched booking, the email-to-member mapping is saved. Staff can also manage linked emails directly from the member profile Overview tab. Remove incorrect mappings to prevent future mis-matches.', pageIcon: 'link' },
+    ]
+  },
+  {
+    guideId: 'auto-finalize-invoices',
+    icon: 'receipt_long',
+    title: 'Auto-Finalize Invoices',
+    description: 'How draft invoices are automatically finalized after session time',
+    sortOrder: 59,
+    isAdminOnly: false,
+    steps: [
+      { title: 'How It Works', content: 'When a booking is approved and linked to a Trackman session, the system creates a draft Stripe invoice with line items for each participant\'s fees (overage and guest fees). This invoice is sent to the member for prepayment.', pageIcon: 'receipt_long' },
+      { title: 'Prepayment Window', content: 'Members can pay the draft invoice from their dashboard before the session starts. The invoice shows an itemized breakdown of fees so members know exactly what they owe. If fees change due to roster edits, the invoice updates automatically.', pageIcon: 'schedule' },
+      { title: 'Auto-Finalization', content: 'After the booking\'s scheduled start time passes, any unpaid draft invoice is automatically finalized. Finalization converts the draft into a live invoice and charges the member\'s card on file. This ensures members are billed even if staff doesn\'t manually check in the booking.', pageIcon: 'auto_fix_high' },
+      { title: 'Cancellation Voiding', content: 'If a booking is cancelled before the session time, the associated draft invoice is automatically voided. No charge is made to the member. This applies to both member-initiated and staff-initiated cancellations.', pageIcon: 'cancel' },
+      { title: 'Roster Changes', content: 'If the booking roster changes after the invoice is created (participants added or removed), the system recalculates fees and updates the invoice line items. The member sees the updated total without needing a new invoice.', pageIcon: 'group' },
+      { title: 'Guest Pass Impact', content: 'When a guest pass is applied to a booking with an existing invoice, the guest fee line item is removed from the invoice. If a guest pass is later revoked (e.g., booking cancelled within 1 hour), the fee is added back.', pageIcon: 'card_giftcard' },
+      { title: 'Failed Payment Handling', content: 'If the auto-finalized invoice charge fails, the system records the failure and the member is notified to update their payment method. Staff can see failed payments in the Transactions tab under Failed Payments and can retry the charge or collect in person.', pageIcon: 'warning' },
+    ]
+  },
+  {
+    guideId: 'visitor-management',
+    icon: 'person',
+    title: 'Visitor Management',
+    description: 'Track and manage non-member visitors: guests, day pass holders, and leads',
+    sortOrder: 60,
+    isAdminOnly: false,
+    steps: [
+      { title: 'What Are Visitors?', content: 'Visitors are non-members who have interacted with the club. They include guests brought by members, day pass purchasers, ClassPass users, walk-in sim users, private lesson attendees, and leads from tour bookings or inquiries.', pageIcon: 'person' },
+      { title: 'Dynamic Classification', content: 'Visitors are dynamically classified into types based on their activity: "Guest" (brought by a member to a booking), "Day Pass" (purchased a day pass), "Lead" (booked a tour, submitted an inquiry, or came from HubSpot), "ClassPass" (booked through ClassPass), "Sim Walk-In" (walk-in simulator user), or "Private Lesson" (attended a private lesson).', pageIcon: 'tag' },
+      { title: 'Visitor Directory Tab', content: 'Access visitors from Directory > Visitors tab. Filter by type (New Staff Added, ClassPass, Sim Walk-In, Private Lesson, Day Pass, Guest, Lead), by source (App, HubSpot, MindBody, Stripe), or by purchase history (All, Purchasers, Non-Purchasers). Toggle between Active and Archived visitors.', pageIcon: 'filter_list' },
+      { title: 'Visitor Profile', content: 'Tap a visitor to open their profile drawer. Visitors have a simplified profile with Billing, Activity, Comms, and Notes tabs (no Overview tab). The Billing tab shows any purchases or day passes. The Activity tab shows visit history and bookings they participated in.', pageIcon: 'person' },
+      { title: 'Converting to Members', content: 'To convert a promising visitor to a member, use the New User drawer to create their membership. The system detects the existing visitor record and links it rather than creating a duplicate. Their visit history and notes are preserved.', pageIcon: 'person_add' },
+      { title: 'Archiving Visitors', content: 'Archive visitors who are no longer active or relevant. Archived visitors are hidden from the default view but can be found using the Active/Archived toggle. Archiving does not delete any data.', pageIcon: 'archive' },
+      { title: 'Source Tracking', content: 'Each visitor\'s source is recorded (App, HubSpot, MindBody, Stripe) to help track how non-members discover the club. This data is useful for measuring the effectiveness of different acquisition channels.', pageIcon: 'trending_up' },
+      { title: 'HubSpot Sync', content: 'Visitor records sync to HubSpot as contacts. Day pass purchases, tour bookings, and inquiry submissions are tracked in HubSpot for marketing follow-up and lead nurturing.', pageIcon: 'sync' },
+      { title: 'Placeholder Email Detection', content: 'Visitors added without a real email address (e.g., guests added to a booking roster with a placeholder like "guest@placeholder.com") are flagged with a placeholder indicator. These records have limited functionality — they cannot receive emails, be synced to HubSpot, or be converted to members until a real email is provided.', pageIcon: 'warning' },
+      { title: 'Archive vs Delete Workflow', content: 'Archiving hides a visitor from the default active list but preserves all their data (visits, purchases, notes) for historical reference. Archived visitors can be restored at any time. Deletion permanently removes the visitor record and is only available for visitors with no associated billing history or booking participation. Use archive for former guests; use delete only for test records or accidental entries.', pageIcon: 'delete' },
+    ]
+  },
+  {
+    guideId: 'member-notes-comms',
+    icon: 'edit_note',
+    title: 'Member Notes & Communications Log',
+    description: 'Add internal notes and log communications on member profiles',
+    sortOrder: 61,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Accessing Notes', content: 'Open any member or visitor profile from the Directory. Navigate to the Notes tab to view, add, and manage internal staff notes.', pageIcon: 'edit_note' },
+      { title: 'Adding a Note', content: 'Tap "Add Note" and enter your text. Notes can be any length and support basic formatting. Each note records the author (staff member name) and timestamp automatically.', pageIcon: 'add_circle' },
+      { title: 'Pinning Notes', content: 'Pin important notes by tapping the pin icon. Pinned notes float to the top of the list and are highlighted with a yellow ring and pin icon. Multiple notes can be pinned simultaneously. Pinned notes are surfaced during QR check-in and kiosk check-in notifications, ensuring staff are always aware of critical member information.', pageIcon: 'push_pin' },
+      { title: 'Editing & Deleting', content: 'Tap a note to edit its content. Use the delete button to remove notes that are no longer relevant. Both actions are available to all staff with access to the profile.', pageIcon: 'edit' },
+      { title: 'Communications Log', content: 'Navigate to the Comms tab to log interactions with the member. Each entry includes: type (Email, Call, Meeting, Note, or SMS), direction (Inbound or Outbound), subject, and optional body text.', pageIcon: 'chat' },
+      { title: 'Adding a Comm Entry', content: 'Tap "Add Entry" on the Comms tab. Select the communication type and direction, enter a subject, and optionally add a detailed body. The entry is timestamped and attributed to the staff member who created it.', pageIcon: 'add_circle' },
+      { title: 'Communication Timeline', content: 'Comms entries are displayed in reverse chronological order with icons for each type (email envelope, phone, meeting, note, message). This creates a complete interaction timeline for accountability and follow-up tracking.', pageIcon: 'timeline' },
+      { title: 'Use Cases', content: 'Common uses include: noting billing discussions, recording phone call outcomes, tracking follow-up tasks, flagging VIP preferences, documenting complaint resolutions, and noting special accommodations for events.', pageIcon: 'help' },
+    ]
+  },
+  {
+    guideId: 'stripe-terminal-setup',
+    icon: 'point_of_sale',
+    title: 'Stripe Terminal Setup',
+    description: 'Configure and manage physical card readers for in-person payments',
+    sortOrder: 62,
+    isAdminOnly: true,
+    steps: [
+      { title: 'What is Stripe Terminal?', content: 'Stripe Terminal enables in-person card payments using physical readers (WisePOS E or S700). It connects to Stripe for secure processing of tap, chip, and swipe transactions at the front desk, POS register, and check-in.', pageIcon: 'point_of_sale' },
+      { title: 'Accessing Terminal Settings', content: 'Go to Settings from the Admin section, then scroll to the Stripe Terminal section. This is where you discover, register, and manage card readers.', pageIcon: 'settings' },
+      { title: 'Discovering Readers', content: 'Tap "Discover Readers" to scan for available Stripe Terminal readers on your network. The system uses the internet connection method to find registered readers. Available readers appear in a list with their label and serial number.', pageIcon: 'search' },
+      { title: 'Registering a Reader', content: 'Select a discovered reader and tap "Register" to pair it with your Stripe location. Once registered, the reader appears in the active readers list and is available for payment collection throughout the app.', pageIcon: 'add_circle' },
+      { title: 'Simulated Readers', content: 'For testing, tap "Create Simulated Reader" to create a virtual reader. Simulated readers process test transactions without a physical device. This is useful for training staff or testing payment flows in development.', pageIcon: 'developer_mode' },
+      { title: 'Reader Status Monitoring', content: 'The terminal settings page shows the online/offline status of each registered reader. The system monitors connectivity and updates status in real time. If a reader goes offline, staff are alerted to check the device.', pageIcon: 'wifi' },
+      { title: 'Removing a Reader', content: 'To remove a reader, tap the delete button next to it in the readers list. This deregisters the reader from your Stripe location. The reader can be re-registered later if needed.', pageIcon: 'delete' },
+      { title: 'Payment Flow Integration', content: 'Once registered, the card reader option appears automatically in all payment flows: POS checkout, booking check-in billing, new member registration, and day pass sales. Staff select "Card Reader" as the payment method, and the reader activates for the customer to tap, insert, or swipe.', pageIcon: 'credit_card' },
+      { title: 'Troubleshooting', content: 'If the reader is not responding: (1) Check the reader\'s power and internet connection, (2) Verify it appears as "online" in Terminal settings, (3) Try removing and re-registering the reader, (4) For persistent issues, power cycle the reader and refresh the staff portal.', pageIcon: 'build' },
+      { title: '120-Second Payment Timeout', content: 'When staff initiate a card reader payment, the reader waits up to 120 seconds for the customer to tap, insert, or swipe their card. If no card is presented within the timeout window, the payment intent is automatically cancelled and staff see a "Timed Out" message. They can retry by initiating the payment again.', pageIcon: 'timer' },
+      { title: 'Manual Cancellation', content: 'Staff can manually cancel an in-progress card reader payment at any time by tapping "Cancel Payment" on the payment screen. This sends a cancel signal to the reader, which returns to its idle display. The payment intent is voided and no charge is processed. Use this when a customer changes their mind or wants to switch to a different payment method.', pageIcon: 'cancel' },
+    ]
+  },
+  {
+    guideId: 'email-automations',
+    icon: 'forward_to_inbox',
+    title: 'Email Automations',
+    description: 'Understand automated email sequences, category toggles, and delivery controls',
+    sortOrder: 63,
+    isAdminOnly: true,
+    steps: [
+      { title: 'Email Category System', content: 'The app sends automated emails organized into 8 categories: Auth (verification codes — always on), Welcome (registration confirmation), Booking (confirmations, modifications, cancellations, reminders), Passes (day pass delivery and redemption), Payments (receipts, failed payment alerts), Membership (tier changes, renewals, grace period), Onboarding (nudge sequence), and System (alerts, notifications).', pageIcon: 'category' },
+      { title: 'Category Toggles', content: 'Each email category (except Auth) can be toggled on or off from Settings. Turning off a category acts as a master kill-switch for all automated emails in that group. Staff-initiated emails (like sending a checkout invite) bypass these toggles to ensure critical manual communications are delivered.', pageIcon: 'toggle_on' },
+      { title: 'Onboarding Sequence', content: 'New members receive automated onboarding emails at three intervals after signup: 24 hours (profile completion, first booking), 72 hours (feature discovery — QR check-in, Apple Wallet), and 7 days (events and wellness exploration). Members who visit the club before the next email are excluded from further nudges.', pageIcon: 'rocket_launch' },
+      { title: 'Daily Booking Reminders', content: 'At 6 PM Pacific daily, the system sends reminder emails to all members with bookings the next day. The email includes the bay, time, and player count. Push notifications are sent simultaneously if the member has push enabled.', pageIcon: 'alarm' },
+      { title: 'Grace Period Reminders', content: 'When a membership payment fails, the member receives daily reminder emails during their grace period (default 3 days). Each email includes a link to the Stripe Billing Portal where they can update their payment method. The grace period scheduler runs daily at 10 AM Pacific.', pageIcon: 'timer' },
+      { title: 'Morning Closure Notifications', content: 'The morning closure scheduler sends daily emails listing any facility closures for the current day. This keeps staff informed of schedule changes without needing to check the app.', pageIcon: 'domain' },
+      { title: 'Win-Back Emails', content: 'After a member is cancelled or terminated, the system can send win-back emails encouraging reactivation. These are controlled by the Membership email category toggle. The content highlights what the member is missing and provides a reactivation link.', pageIcon: 'campaign' },
+      { title: 'Email Template Preview', content: 'Preview all automated email templates from Admin > Email Templates. Each template shows a rendered HTML preview with sample data so you can verify the layout and content before emails go out. Templates are code-managed and cannot be edited from the admin interface.', pageIcon: 'preview' },
+      { title: 'Delivery via Resend', content: 'All automated emails are sent through Resend, a transactional email service. The system tracks delivery status and handles bounces. If an email fails to deliver, it is retried automatically. Persistent failures are logged for manual review.', pageIcon: 'send' },
+    ]
+  },
+  {
+    guideId: 'member-privacy-controls',
+    icon: 'security',
+    title: 'Member Privacy Controls',
+    description: 'Understand CCPA compliance, data export, and privacy opt-out options',
+    sortOrder: 64,
+    isAdminOnly: false,
+    steps: [
+      { title: 'Privacy Settings Location', content: 'Members access privacy controls from their Profile page under the Privacy section. These settings give members control over their personal data in compliance with CCPA (California Consumer Privacy Act).', pageIcon: 'security' },
+      { title: 'Data Sharing Opt-Out', content: 'Members can opt out of data sharing by toggling the "Do Not Sell or Share My Personal Information" option. When enabled, the system flags the member\'s record to exclude them from third-party data sharing, analytics exports, and non-essential data processing.', pageIcon: 'block' },
+      { title: 'Data Export Request', content: 'Members can request a complete export of their personal data. The export includes profile information, membership details, booking history, payment history, visit records, and communication logs. The system compiles the data and provides it in a downloadable format.', pageIcon: 'download' },
+      { title: 'Staff Visibility', content: 'Staff can see a member\'s privacy opt-out status in their profile. The Privacy Controls section in the member Directory shows whether the member has opted out of data sharing. This information is important for ensuring compliance when handling member data.', pageIcon: 'visibility' },
+      { title: 'What Gets Restricted', content: 'When a member opts out: their data is excluded from aggregated exports, their profile is flagged in HubSpot to respect the opt-out, and their information is not included in any third-party integrations beyond what is necessary for service delivery.', pageIcon: 'lock' },
+      { title: 'Compliance Requirements', content: 'Staff should respect privacy opt-out preferences when handling member data. Do not share opted-out member information in marketing lists, export reports, or with third-party vendors unless required for core service delivery (e.g., billing through Stripe).', pageIcon: 'security' },
     ]
   },
 ];
