@@ -179,6 +179,17 @@ async function autoCompletePastBookings(): Promise<void> {
     if (unlinkedBookings.rows.length > 0) {
       const ids = unlinkedBookings.rows.map(b => b.id);
       logger.warn(`[Booking Auto-Complete] Skipped ${ids.length} booking(s) with no linked member participants — require staff resolution. IDs: [${ids.join(', ')}]`);
+      try {
+        await queryWithRetry(
+          `UPDATE booking_requests
+           SET staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto-complete skipped: session has no linked member participant — requires staff resolution]',
+               updated_at = NOW()
+           WHERE id = ANY($1::int[])`,
+          [ids]
+        );
+      } catch (noteErr) {
+        logger.warn('[Booking Auto-Complete] Failed to add staff notes for skipped bookings', { extra: { error: getErrorMessage(noteErr) } });
+      }
     }
 
     const markedBookings = await queryWithRetry<AutoCompletedBookingResult>(
