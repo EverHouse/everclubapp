@@ -803,6 +803,26 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping active email CHECK: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'chk_participant_owner_member_user_id'
+          ) THEN
+            ALTER TABLE booking_participants ADD CONSTRAINT chk_participant_owner_member_user_id
+              CHECK (
+                participant_type NOT IN ('owner', 'member')
+                OR user_id IS NOT NULL
+              );
+          END IF;
+        END $$;
+      `);
+      logger.info('[DB Init] CHECK: booking_participants owner/member must have user_id constraint created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping participant owner/member user_id CHECK: ${getErrorMessage(err)}`);
+    }
+
     if (process.env.NODE_ENV === 'production') {
       try {
         await db.execute(sql`
