@@ -623,12 +623,15 @@ router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, as
         AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member'))
         AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
         AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
+        AND bs.created_at::date - bs.session_date <= 2
+        AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = bs.id AND bp2.participant_type IN ('owner', 'member') AND bp2.user_id IS NOT NULL)
       ORDER BY bs.session_date DESC
       LIMIT 500
     `);
 
     const sessionIds = (gapSessions.rows as { session_id: number }[]).map(r => r.session_id);
     let succeeded = 0;
+    let skipped = 0;
     let failed = 0;
     const errors: { sessionId: number; error: string }[] = [];
 
@@ -640,7 +643,12 @@ router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, as
       );
       for (let j = 0; j < results.length; j++) {
         if (results[j].status === 'fulfilled') {
-          succeeded++;
+          const val = (results[j] as PromiseFulfilledResult<{ participantsUpdated: number; ledgerUpdated: number }>).value;
+          if (val.participantsUpdated > 0) {
+            succeeded++;
+          } else {
+            skipped++;
+          }
         } else {
           failed++;
           errors.push({ sessionId: batch[j], error: getErrorMessage((results[j] as PromiseRejectedResult).reason) });
@@ -649,14 +657,15 @@ router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, as
     }
 
     logFromRequest(req, 'bulk_recalculate_usage_ledger', 'usage_ledger', undefined,
-      `Bulk recalculated ${succeeded} sessions (${failed} failed) of ${sessionIds.length} total`,
-      { succeeded, failed, total: sessionIds.length, errorSample: errors.slice(0, 5) }
+      `Bulk recalculated ${succeeded} sessions (${skipped} skipped, ${failed} failed) of ${sessionIds.length} total`,
+      { succeeded, skipped, failed, total: sessionIds.length, errorSample: errors.slice(0, 5) }
     );
 
     res.json({
       success: true,
-      message: `Recalculated ${succeeded} of ${sessionIds.length} sessions${failed > 0 ? ` (${failed} failed)` : ''}`,
+      message: `Recalculated ${succeeded} of ${sessionIds.length} sessions${skipped > 0 ? ` (${skipped} skipped — no billable participants)` : ''}${failed > 0 ? ` (${failed} failed)` : ''}`,
       succeeded,
+      skipped,
       failed,
       total: sessionIds.length,
     });
