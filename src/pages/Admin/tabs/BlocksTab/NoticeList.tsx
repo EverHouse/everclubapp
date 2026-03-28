@@ -116,10 +116,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 )}
                                             </div>
                                             <h4 className="font-bold text-primary dark:text-white mb-1 truncate">{closure.title.replace(/^\[[^\]]+\]\s*:?\s*/i, '')}</h4>
-                                            {closure.notes && (
-                                                <p className="text-sm text-gray-600 dark:text-white/70 mb-2 line-clamp-2">{stripHtml(closure.notes)}</p>
-                                            )}
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-2 mb-2">
                                                 <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
                                                     isIncomplete
                                                         ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
@@ -154,17 +151,23 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                         </span>
                                                     </div>
                                                 )}
-                                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                                                    isIncomplete
-                                                        ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                                                        : blocking
-                                                            ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
-                                                            : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                                                }`}>
-                                                    <Icon name="location_on" className="text-[12px]" />
-                                                    <span>{formatAffectedAreas(closure.affectedAreas)}</span>
-                                                </div>
                                             </div>
+                                            {closure.affectedAreas && closure.affectedAreas !== 'none' && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getAffectedAreasList(closure.affectedAreas).map((area, i) => (
+                                                        <div key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                                                            isIncomplete
+                                                                ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400'
+                                                                : blocking
+                                                                    ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
+                                                                    : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                                                        }`}>
+                                                            <Icon name="location_on" className="text-[12px]" />
+                                                            <span>{area}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                             <button
@@ -191,28 +194,17 @@ export const NoticeList: React.FC<NoticeListProps> = ({
 
                                 {isExpanded && (
                                     <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-4 space-y-3">
+                                        {closure.notes && (
+                                            <div>
+                                                <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-2">Notes</p>
+                                                <div className="text-sm text-gray-600 dark:text-white/70 whitespace-pre-wrap">{stripHtml(closure.notes)}</div>
+                                            </div>
+                                        )}
+
                                         {closure.memberNotice && (
                                             <div className="bg-white/60 dark:bg-white/5 rounded-lg p-3 text-sm text-gray-600 dark:text-white/70">
                                                 <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-1">Member Notice</p>
                                                 {closure.memberNotice}
-                                            </div>
-                                        )}
-
-                                        {closure.affectedAreas && closure.affectedAreas !== 'none' && (
-                                            <div>
-                                                <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-2">Affected Resources</p>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {getAffectedAreasList(closure.affectedAreas).map((area, i) => (
-                                                        <div key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                                                            blocking
-                                                                ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'
-                                                                : 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                                                        }`}>
-                                                            <Icon name={area.toLowerCase().includes('conference') ? 'meeting_room' : 'sports_golf'} className="text-[12px]" />
-                                                            <span>{area}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
                                             </div>
                                         )}
 
