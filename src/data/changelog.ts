@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.89",
+    date: "2026-03-28",
+    title: "Webhook, Rate Limiting & Booking Guard Fixes",
+    changes: [
+      "Fixed: Stripe webhook priority ordering now only blocks out-of-order events within the same event family (e.g., invoice vs invoice), preventing unrelated event types from sending each other to the dead letter queue.",
+      "Security: Auth rate limiter now trims whitespace from email inputs, preventing attackers from bypassing rate limits by padding emails with spaces.",
+      "Fixed: Pending booking limit now correctly counts requests with no specific bay selected (resource_id IS NULL), preventing users from flooding the staff dashboard with unlimited 'Any Bay' requests.",
+      "Fixed: Daily booking hour limits are now enforced on all member participants, not just the booking owner — prevents tier limit evasion by being invited as a participant.",
+    ]
+  },
+  {
     version: "8.97.88",
     date: "2026-03-28",
     title: "Ledger, Rate Limiting & Input Validation Fixes",

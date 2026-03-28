@@ -92,7 +92,7 @@ export const authRateLimiterByEmail = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => `auth-email:${String(req.body?.email || 'unknown').toLowerCase()}`,
+  keyGenerator: (req) => `auth-email:${String(req.body?.email || 'unknown').trim().toLowerCase()}`,
   validate: false,
   store: new PgRateLimitStore('auth-email'),
   handler: (req: Request, res: Response) => {

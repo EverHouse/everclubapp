@@ -350,6 +350,18 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           }
         }
         
+        for (const participant of sanitizedParticipants) {
+          if (participant.type === 'member' && participant.email) {
+            const pLimitCheck = await checkDailyBookingLimit(participant.email, request_date, duration_minutes, undefined, resourceType);
+            if (!pLimitCheck.allowed) {
+              throw new BookingValidationError(403, {
+                error: `Participant ${participant.name || participant.email} has exceeded their daily booking limit.`,
+                remainingMinutes: pLimitCheck.remainingMinutes
+              });
+            }
+          }
+        }
+
         const initialStatus: 'pending' | 'confirmed' = 'pending';
         
         const guardianConsentAt = guardian_consent ? new Date() : null;

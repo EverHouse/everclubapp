@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.89] - 2026-03-28
+
+### Webhook, Rate Limiting & Booking Guard Fixes
+- **Fix**: Stripe webhook priority blackhole — `checkResourceEventOrder` compared event priority globally across all event types for a resource. When `invoice.paid` (priority 11) arrived before `invoice.payment_succeeded` (priority 10), the payment event was permanently discarded to the DLQ, silently breaking fulfillment. Now only enforces priority ordering within the same event family (e.g., `invoice.*` vs `invoice.*`, `payment_intent.*` vs `payment_intent.*`).
+- **Security**: Auth rate limiter brute-force bypass via string padding — `authRateLimiterByEmail` did not trim whitespace, so `"admin@ever.co"`, `"admin@ever.co "`, `" admin@ever.co"` each created separate rate limit buckets. An attacker could launch unlimited credential stuffing attempts by varying whitespace. Now trims before generating the cache key.
+- **Fix**: Pending booking limit evasion via null resource — the pending count query used `resource_id IN (SELECT ...)` which silently excluded `NULL` resource IDs ("Any Bay" requests). Users could submit unlimited pending requests by never selecting a specific bay. Added `OR resource_id IS NULL` to the count.
+- **Fix**: Daily booking limit evasion via participants — `checkDailyBookingLimit` was only called for the booking owner. Member participants were checked for time overlap but not for daily hour limits. A member restricted to 2 hours/day could play 4+ hours by being invited as a participant on others' bookings. Now enforces daily limits on all member participants.
+- **Files changed**: `server/core/stripe/webhooks/framework.ts`, `server/middleware/rateLimiting.ts`, `server/core/bookingService/bookingCreationGuard.ts`, `server/routes/bays/booking-create.ts`
+
 ## [8.97.88] - 2026-03-28
 
 ### Ledger, Rate Limiting & Input Validation Fixes

@@ -106,7 +106,10 @@ export async function acquireBookingLocks(
     const pendingCheck = await tx.execute(sql`
       SELECT COUNT(*)::int AS cnt FROM booking_requests
       WHERE LOWER(user_email) = ${normalizedEmail} AND status IN ('pending', 'pending_approval')
-      AND resource_id IN (SELECT id FROM resources WHERE type = ${resourceType})
+      AND (
+        resource_id IN (SELECT id FROM resources WHERE type = ${resourceType})
+        OR resource_id IS NULL
+      )
     `);
     if ((pendingCheck.rows[0] as Record<string, unknown>).cnt as number >= pendingLimit) {
       throw new BookingConflictError(409, {

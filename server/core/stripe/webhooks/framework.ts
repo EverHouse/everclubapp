@@ -71,7 +71,7 @@ export async function checkResourceEventOrder(
     'invoice.payment_action_required': 5,
     'invoice.payment_succeeded': 10,
     'invoice.payment_failed': 10,
-    'invoice.paid': 11,
+    'invoice.paid': 10,
     'invoice.overdue': 15,
     'invoice.voided': 20,
     'invoice.marked_uncollectible': 20,
@@ -107,7 +107,9 @@ export async function checkResourceEventOrder(
   const lastEventType = result.rows[0].event_type;
   const lastPriority = EVENT_PRIORITY[lastEventType] || 5;
 
-  if (lastPriority > currentPriority) {
+  const isSameFamily = lastEventType.split('.')[0] === eventType.split('.')[0];
+
+  if (isSameFamily && lastPriority > currentPriority) {
     if (eventType === 'customer.subscription.created') {
       if (lastEventType === 'customer.subscription.deleted') {
         logger.info(`[Stripe Webhook] Blocking stale subscription.created after subscription.deleted for resource ${resourceId} — preventing ghost reactivation`);
