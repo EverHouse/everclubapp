@@ -183,13 +183,13 @@ export async function tryAutoApproveBooking(
               extra: { bookingId, sessionId: createdSessionId, invoiceId: prepayResult.invoiceId }
             });
           } else {
-            logger.info('[Trackman Webhook] Prepayment skipped (exempt or already invoiced)', {
-              extra: { bookingId, sessionId: createdSessionId }
+            logger.warn('[Trackman Webhook] Prepayment returned null — invoice not created (member may be exempt, unmatched, or already invoiced)', {
+              extra: { bookingId, sessionId: createdSessionId, userEmail: String(pendingBooking.user_email), totalFeeCents: breakdown.totals.totalCents }
             });
           }
         } else {
-          logger.info('[Trackman Webhook] No fees due for auto-approved booking', {
-            extra: { bookingId, sessionId: createdSessionId }
+          logger.warn('[Trackman Webhook] Fee calculation returned $0 — no invoice created for auto-approved booking', {
+            extra: { bookingId, sessionId: createdSessionId, participantCount: breakdown.participants.length }
           });
         }
       } catch (feeErr: unknown) {
@@ -197,6 +197,10 @@ export async function tryAutoApproveBooking(
           extra: { bookingId, sessionId: createdSessionId, error: getErrorMessage(feeErr) }
         });
       }
+    } else {
+      logger.warn('[Trackman Webhook] No session created for auto-approved booking — skipping fee calculation and invoice creation', {
+        extra: { bookingId, trackmanBookingId, hasExistingSession: !!pendingBooking.session_id, hasResourceId: !!pendingBooking.resource_id }
+      });
     }
     
     const resolvedSessionId = createdSessionId as unknown as number | undefined;
