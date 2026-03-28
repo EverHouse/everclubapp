@@ -275,16 +275,17 @@ async function initializeApp() {
   type CorsOriginFunction = (origin: string | undefined, callback: CorsCallback) => void;
 
   const getAllowedOrigins = (): string[] | boolean | CorsOriginFunction => {
-    if (!isProduction) {
-      return true;
-    }
     const origins = process.env.ALLOWED_ORIGINS;
     if (origins && origins.trim()) {
-      return origins.split(',').map(o => o.trim()).filter(Boolean);
-    }
-    const replitDomain = process.env.REPLIT_DEV_DOMAIN;
-    if (replitDomain) {
-      return [`https://${replitDomain}`, `https://${replitDomain.replace('-00-', '-')}`];
+      const allowed = origins.split(',').map(o => o.trim()).filter(Boolean);
+      if (!isProduction) {
+        allowed.push('http://localhost:5000', 'http://localhost:3001', 'http://127.0.0.1:5000', 'http://127.0.0.1:3001');
+        const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+        if (replitDomain) {
+          allowed.push(`https://${replitDomain}`, `https://${replitDomain.replace('-00-', '-')}`);
+        }
+      }
+      return allowed;
     }
     return (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin) {
@@ -292,15 +293,27 @@ async function initializeApp() {
         return;
       }
 
-      if (!isProduction && origin.startsWith('exp://')) {
-        callback(null, true);
-        return;
-      }
-
       try {
         const url = new URL(origin);
         const hostname = url.hostname;
-        if (hostname.endsWith('.replit.app') || hostname.endsWith('.replit.dev') || hostname.endsWith('.repl.co')) {
+
+        if (!isProduction) {
+          if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            callback(null, true);
+            return;
+          }
+          if (origin.startsWith('exp://')) {
+            callback(null, true);
+            return;
+          }
+        }
+
+        const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+        if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) {
+          callback(null, true);
+          return;
+        }
+        if (hostname.endsWith('.replit.app')) {
           callback(null, true);
           return;
         }

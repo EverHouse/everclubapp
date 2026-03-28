@@ -11,7 +11,8 @@ function isAllowedOrigin(origin: string): boolean {
     const hostname = url.hostname;
     if (!isProduction) {
       if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
-      if (hostname.endsWith('.replit.dev') || hostname.endsWith('.repl.co')) return true;
+      const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+      if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) return true;
     }
     const allowedOrigins = process.env.ALLOWED_ORIGINS;
     if (allowedOrigins) {
@@ -47,6 +48,8 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
       return next();
     } else {
       logger.warn('[CSRF] Blocked request with invalid x-internal-request header', { path: req.path, method: req.method });
+      res.status(403).json({ error: 'Internal verification failed.' });
+      return;
     }
   }
 

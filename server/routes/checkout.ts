@@ -125,14 +125,14 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
         },
       });
       
+      if (!tierData.stripeProductId) {
+        return res.status(400).json({ error: 'Corporate membership product is not configured in Stripe yet. An admin needs to run "Sync to Stripe" from Products & Pricing.' });
+      }
       sessionParams.line_items = [
         {
           price_data: {
             currency: 'usd',
-            product_data: {
-              name: `${tierData.name} - Corporate Membership`,
-              description: `${seatCount} employee seats at $${(corporatePricePerSeat / 100).toFixed(2)}/seat/month. Volume discounts applied as employees are added.`,
-            },
+            product: tierData.stripeProductId,
             unit_amount: corporatePricePerSeat,
             recurring: {
               interval: 'month',
@@ -167,11 +167,9 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
       }
 
       if (existingUser?.stripeCustomerId) {
-        sessionParams.customer = existingUser.stripeCustomerId;
-        logger.info('[Checkout] Reusing existing Stripe customer for', { extra: { existingUserStripeCustomerId: existingUser.stripeCustomerId, email } });
-      } else {
-        sessionParams.customer_email = email;
+        return res.status(409).json({ error: 'An account with this email already exists. Please log in to manage your membership.' });
       }
+      sessionParams.customer_email = email;
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
