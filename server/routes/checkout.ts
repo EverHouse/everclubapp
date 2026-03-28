@@ -2,7 +2,7 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import { db } from '../db';
 import { membershipTiers, users } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
 import { getCorporateVolumePrice } from '../core/stripe/groupBilling';
 import { logSystemAction } from '../core/auditLog';
@@ -42,11 +42,17 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
     const [tierData] = await db
       .select()
       .from(membershipTiers)
-      .where(eq(membershipTiers.slug, tierSlug))
+      .where(
+        and(
+          eq(membershipTiers.slug, tierSlug),
+          eq(membershipTiers.isActive, true),
+          eq(membershipTiers.showOnMembershipPage, true)
+        )
+      )
       .limit(1);
 
     if (!tierData) {
-      return res.status(404).json({ error: 'Membership tier not found' });
+      return res.status(404).json({ error: 'Membership tier not found or unavailable' });
     }
 
     const stripe = await getStripeClient();
@@ -235,11 +241,17 @@ router.get('/api/checkout/session/:sessionId', checkoutRateLimiter, async (req, 
       accountReady = !!existingUser && existingUser.membershipStatus !== 'pending';
     }
 
+    const safeMetadata = {
+      tier_slug: metadata.tier_slug || null,
+      tier_type: metadata.tier_type || null,
+      quantity: metadata.quantity || '1',
+    };
+
     res.json({
       status: session.status,
       paymentStatus: session.payment_status,
       customerEmail,
-      metadata,
+      metadata: safeMetadata,
       tierName,
       accountReady,
     });
