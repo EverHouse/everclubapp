@@ -2,6 +2,18 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.83] - 2026-03-28
+
+### Code Audit Bug Fixes
+- **Booking Participant Lookup**: Both email and userId batch lookups now throw on failure instead of silently continuing with incomplete participant data. Returns 422 to staff with descriptive message.
+- **Async Cleanup Guards**: Added `isActive` guards to TrackmanBookingModal, usePOSRegister, and Checkout.tsx effects to prevent state updates on unmounted components.
+- **Trial Date Timezone**: Extracted `getTrialEndDatePacific()` and `getTomorrowPacific()` helpers using `Intl.DateTimeFormat` with `America/Los_Angeles`, replacing raw Date offset math.
+- **Booking Validation Pruner**: Exported `stopBookingValidationPruner()` and wired it into `stopSchedulers()` for proper shutdown cleanup.
+- **Passkey Auth Middleware**: Added `isAuthenticated` to both `/register/options` and `/register/verify` routes.
+- **Availability Email Enumeration**: `user_email` body field now ignored for unauthenticated requests, preventing anonymous booking-pattern enumeration.
+- **Dashboard Error States**: Added `eventsSectionError`, `conferenceRoomSectionError`, `statsSectionError` with per-section error banners in ScheduleSection and Dashboard index.
+- **Files changed**: `server/routes/bays/booking-create.ts`, `src/components/staff-command-center/modals/TrackmanBookingModal.tsx`, `src/components/admin/payments/POSRegister/usePOSRegister.ts`, `src/pages/Checkout.tsx`, `src/components/staff-command-center/drawers/newUser/MemberFormStep.tsx`, `server/core/bookingValidation.ts`, `server/schedulers/index.ts`, `server/routes/auth-passkey.ts`, `server/routes/availability.ts`, `src/pages/Member/Dashboard/useDashboardData.ts`, `src/pages/Member/Dashboard/ScheduleSection.tsx`, `src/pages/Member/Dashboard/index.tsx`
+
 ## [8.97.82] - 2026-03-28
 
 ### Invoice & Fee Estimate Reliability

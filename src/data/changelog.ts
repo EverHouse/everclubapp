@@ -8,6 +8,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.83",
+    date: "2026-03-28",
+    title: "Code Audit Bug Fixes",
+    changes: [
+      "Booking creation now properly reports errors if participant lookups fail, instead of silently continuing with missing data.",
+      "Fixed potential memory leaks in the Trackman booking modal, POS register, and checkout page when navigating away during loading.",
+      "Trial membership end dates now display correctly regardless of the viewer's timezone.",
+      "Background booking validation cleanup now shuts down properly when the server stops.",
+      "Passkey registration endpoints now require authentication, consistent with other secure operations.",
+      "Availability checks no longer accept externally-supplied email addresses from unauthenticated requests.",
+      "Member dashboard now shows clear error messages for each section instead of a blank screen if one section fails to load.",
+    ]
+  },
+  {
     version: "8.97.82",
     date: "2026-03-28",
     title: "Invoice & Fee Estimate Reliability",
