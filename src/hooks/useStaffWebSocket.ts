@@ -140,7 +140,7 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = () => {
+      ws.onopen = async () => {
         if (connectionIdRef.current !== thisConnectionId) {
           // eslint-disable-next-line no-console
           if (import.meta.env.DEV) console.log(`[StaffWebSocket] Stale connection opened (id=${thisConnectionId}, current=${connectionIdRef.current}), closing`);
@@ -156,10 +156,32 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
         activeConnectionUserRef.current = currentEmail || null;
         const wasReconnect = reconnectAttemptRef.current > 0;
         reconnectAttemptRef.current = 0;
+
+        let wsToken: string | undefined;
+        try {
+          const resp = await fetch('/api/auth/ws-token', { method: 'POST', credentials: 'include' });
+          if (resp.ok) {
+            const data = await resp.json();
+            wsToken = data.token;
+          } else if (resp.status === 401) {
+            authRejectedRef.current = true;
+            intentionalDisconnectRef.current = true;
+            ws.close(4010, 'Session expired');
+            return;
+          }
+        } catch {
+          // token fetch failed — send auth without token (cookie-based fallback)
+        }
+
+        if (connectionIdRef.current !== thisConnectionId || ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
         ws.send(JSON.stringify({ 
           type: 'auth', 
           email: currentEmail,
-          isStaff: true 
+          isStaff: true,
+          wsToken
         }));
 
         if (wasReconnect) {
