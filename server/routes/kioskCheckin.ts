@@ -116,13 +116,11 @@ router.post('/api/kiosk/checkin', isStaffOrAdmin, validateBody(kioskCheckinSchem
         upcomingBooking = bookingResult.rows[0] as unknown as UpcomingBookingRow;
       }
     } catch (bookingErr: unknown) {
-      const err = bookingErr instanceof Error ? bookingErr : new Error(getErrorMessage(bookingErr));
       const pgCode = (bookingErr as Record<string, unknown>)?.code;
       const isDbTypeError = pgCode === '22P02' || pgCode === '42804';
       const level = isDbTypeError ? 'error' : 'warn';
       logger[level]('[Kiosk] Failed to fetch upcoming booking for member', {
-        error: err,
-        pgCode,
+        extra: { error: getErrorMessage(bookingErr), pgCode },
       });
     }
 

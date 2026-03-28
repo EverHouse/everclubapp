@@ -59,9 +59,9 @@ async function runHeartbeat(): Promise<void> {
 
       return;
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
+      lastError = err instanceof Error ? err : new Error(getErrorMessage(err));
       if (attempt <= MAX_RETRIES) {
-        logger.warn(`[Supabase Heartbeat] Attempt ${attempt} failed, retrying in ${RETRY_DELAY_MS / 1000}s...`, { extra: { error: lastError.message } });
+        logger.warn(`[Supabase Heartbeat] Attempt ${attempt} failed, retrying in ${RETRY_DELAY_MS / 1000}s...`, { extra: { error: getErrorMessage(lastError) } });
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }

@@ -229,7 +229,7 @@ export function invalidateAllContactsCacheTimestamp() {
 }
 
 export function isRateLimitError(error: unknown): boolean {
-  const errorMsg = error instanceof Error ? getErrorMessage(error) : String(error);
+  const errorMsg = getErrorMessage(error);
   const errObj = error as unknown as HubSpotErrorObject;
   const statusCode = errObj?.response?.statusCode || errObj?.status || errObj?.code;
   
@@ -251,7 +251,7 @@ export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<
           logger.warn('HubSpot Rate Limit hit, retrying...');
           throw error;
         }
-        throw new AbortError(error instanceof Error ? error : String(error));
+        throw new AbortError(error instanceof Error ? error : new Error(getErrorMessage(error)));
       }
     },
     {

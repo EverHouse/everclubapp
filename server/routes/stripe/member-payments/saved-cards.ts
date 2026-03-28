@@ -322,7 +322,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
         endpoint: 'pay-saved-card',
       }
     });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'member saved card payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'member saved card payment');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
     return res.status(statusCode).json({

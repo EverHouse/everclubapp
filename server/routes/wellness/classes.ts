@@ -914,12 +914,12 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
     
     res.status(201).json({ ...result.enrollment, isWaitlisted: result.isWaitlisted, message: result.isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
   } catch (error: unknown) {
-    const err = error as { statusCode?: number; message?: string };
+    const err = error as { statusCode?: number };
     if (err.statusCode === 409) {
       return logAndRespond(req, res, 409, 'Already enrolled in this class');
     }
     if (err.statusCode === 400) {
-      return res.status(400).json({ error: err.message || 'This class is full' });
+      return res.status(400).json({ error: getErrorMessage(error) || 'This class is full' });
     }
     if (err.statusCode === 404) {
       return res.status(404).json({ error: 'Wellness class not found' });

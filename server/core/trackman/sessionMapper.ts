@@ -493,7 +493,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
 
     logger.info('[TrackmanImport] Created session with participants', { extra: { sessionId: session.id, participantCount: participants.length, trackmanBookingId: input.trackmanBookingId } });
     } catch (innerError: unknown) {
-      logger.error('[TrackmanImport] Full session creation failed, falling back to owner-only', { extra: { bookingId: input.bookingId }, error: getErrorMessage(innerError) });
+      logger.error('[TrackmanImport] Full session creation failed, falling back to owner-only', { extra: { bookingId: input.bookingId, error: getErrorMessage(innerError) } });
 
       try {
         const fallbackOwnerUserId = await getUserIdByEmail(input.ownerEmail);
@@ -545,7 +545,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
 
         logger.info('[TrackmanImport] Fallback owner-only session created', { extra: { sessionId: fallbackSession.id, bookingId: input.bookingId } });
       } catch (fallbackError: unknown) {
-        logger.error('[TrackmanImport] CRITICAL: Fallback session creation also failed', { extra: { bookingId: input.bookingId }, error: getErrorMessage(fallbackError) });
+        logger.error('[TrackmanImport] CRITICAL: Fallback session creation also failed', { extra: { bookingId: input.bookingId, error: getErrorMessage(fallbackError) } });
         try {
           const [bookingForCriticalNote] = await db.select({ staffNotes: bookingRequests.staffNotes })
             .from(bookingRequests)

@@ -22,7 +22,7 @@ function ensureTable(): Promise<void> {
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_window ON rate_limit_hits (window_start)
         `);
       } catch (err) {
-        const msg = String(err);
+        const msg = getErrorMessage(err);
         if (!msg.includes('already exists')) {
           logger.error('[PgRateLimitStore] Failed to ensure table', { extra: { error: msg } });
         }
@@ -154,7 +154,7 @@ export class PgRateLimitStore implements Store {
           }
           break;
         } catch (err: unknown) {
-          const errMsg = String(err);
+          const errMsg = getErrorMessage(err);
           const isRetryable = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
             errMsg.includes('connection') || errMsg.includes('ETIMEDOUT');
           if (!isRetryable || attempt === maxAttempts) {

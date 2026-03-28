@@ -233,7 +233,7 @@ export async function calculateFeeEstimate(params: {
         bookingId,
         resourceType,
         isConferenceRoom,
-        cause: error instanceof Error ? error.message : String(error)
+        cause: getErrorMessage(error)
       }
     });
     throw new Error('Unable to calculate fee estimate. Please try again.', { cause: error });

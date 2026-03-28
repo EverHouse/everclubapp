@@ -61,12 +61,11 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
         stripeCode,
         stripeType,
         stripeDeclineCode,
-        message: errMsg,
         bookingId: isNaN(bookingIdForLog) ? req.params.id : bookingIdForLog,
         endpoint: 'pay-fees',
       }
     });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create member payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create member payment intent');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
     logAndRespond(req, res, statusCode, friendlyMessage || 'Payment processing failed. Please try again.', error);
@@ -107,18 +106,17 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, validat
     const bookingIdForLog = parseInt(req.params.id as string, 10);
     if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[Stripe] Error confirming member payment', {
-      error: errMsg,
       extra: {
+        error: errMsg,
         stripeCode,
         stripeType,
         stripeDeclineCode,
-        message: errMsg,
         bookingId: isNaN(bookingIdForLog) ? req.params.id : bookingIdForLog,
         paymentIntentId: req.body?.paymentIntentId,
         endpoint: 'confirm-payment',
       }
     });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm member payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm member payment');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
     logAndRespond(req, res, statusCode, friendlyMessage || 'Payment confirmation failed. Please try again.', error);
@@ -181,7 +179,7 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, v
           }
         }
       } catch (creditErr: unknown) {
-        logger.warn('[Member Payment] Failed to restore credit after payment cancellation', { extra: { bookingId, error: String(creditErr) } });
+        logger.warn('[Member Payment] Failed to restore credit after payment cancellation', { extra: { bookingId, error: getErrorMessage(creditErr) } });
       }
 
       try {
@@ -190,7 +188,7 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, v
         await recreateDraftInvoiceFromBooking(bookingId);
         logger.info('[Member Payment] Voided invoice and re-created draft after abandoned payment', { extra: { bookingId } });
       } catch (invoiceErr: unknown) {
-        logger.warn('[Member Payment] Failed to void/recreate invoice after payment cancellation', { extra: { bookingId, error: String(invoiceErr) } });
+        logger.warn('[Member Payment] Failed to void/recreate invoice after payment cancellation', { extra: { bookingId, error: getErrorMessage(invoiceErr) } });
       }
     }
 

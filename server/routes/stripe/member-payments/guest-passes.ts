@@ -10,6 +10,7 @@ import {
 } from '../../../core/stripe';
 import { alertOnExternalServiceError } from '../../../core/errorAlerts';
 import { logger, logAndRespond } from '../../../core/logger';
+import { getErrorMessage } from '../../../utils/errorUtils';
 import { UserRow } from './shared';
 import { paymentRateLimiter } from '../../../middleware/rateLimiting';
 import { validateBody } from '../../../middleware/validate';
@@ -126,7 +127,7 @@ router.post('/api/member/guest-passes/purchase', isAuthenticated, paymentRateLim
       remainingCents: result.remainingCents
     });
   } catch (error: unknown) {
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create guest pass payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create guest pass payment intent');
     logAndRespond(req, res, 500, 'Payment initialization failed. Please try again.', error);
   }
 });
@@ -195,7 +196,7 @@ router.post('/api/member/guest-passes/confirm', isAuthenticated, paymentRateLimi
 
     res.json({ success: true, passesAdded: quantity });
   } catch (error: unknown) {
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm guest pass purchase');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm guest pass purchase');
     logAndRespond(req, res, 500, 'Payment confirmation failed. Please try again.', error);
   }
 });

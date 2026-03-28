@@ -218,8 +218,9 @@ router.post(
               logger.error('[Self-Serve Checkout] Failed to clean up pending user', { extra: { userId, email, error: getErrorMessage(cleanupErr) } });
             }
           }
-          if ((stripeErr as Error)?.message?.includes('Promo code') || (stripeErr as Error)?.message?.includes('promo code')) {
-            return res.status(400).json({ error: (stripeErr as Error).message });
+          const stripeErrMsg = getErrorMessage(stripeErr);
+          if (stripeErrMsg.includes('Promo code') || stripeErrMsg.includes('promo code')) {
+            return res.status(400).json({ error: stripeErrMsg });
           }
           return res.status(500).json({ error: 'Failed to create checkout session. Please try again.' });
         }

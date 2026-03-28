@@ -82,12 +82,11 @@ router.post('/api/kiosk/bookings/:id/pay-fees', isStaffOrAdmin, paymentRateLimit
         stripeCode,
         stripeType,
         stripeDeclineCode,
-        message: errMsg,
         bookingId: isNaN(bookingIdForLog) ? req.params.id : bookingIdForLog,
         endpoint: 'kiosk-pay-fees',
       }
     });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'create kiosk payment intent');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'create kiosk payment intent');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
     logAndRespond(req, res, statusCode, friendlyMessage || 'Payment processing failed. Please try again.', error);
@@ -133,18 +132,17 @@ router.post('/api/kiosk/bookings/:id/confirm-payment', isStaffOrAdmin, validateB
     const bookingIdForLog = parseInt(req.params.id as string, 10);
     if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[Kiosk Stripe] Error confirming kiosk payment', {
-      error: errMsg,
       extra: {
+        error: errMsg,
         stripeCode,
         stripeType,
         stripeDeclineCode,
-        message: errMsg,
         bookingId: isNaN(bookingIdForLog) ? req.params.id : bookingIdForLog,
         paymentIntentId: req.body?.paymentIntentId,
         endpoint: 'kiosk-confirm-payment',
       }
     });
-    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(String(error)), 'confirm kiosk payment');
+    await alertOnExternalServiceError('Stripe', error instanceof Error ? error : new Error(getErrorMessage(error)), 'confirm kiosk payment');
     const friendlyMessage = getStripeDeclineMessage(error);
     const statusCode = friendlyMessage ? 402 : 500;
     logAndRespond(req, res, statusCode, friendlyMessage || 'Payment confirmation failed. Please try again.', error);
@@ -213,7 +211,7 @@ router.post('/api/kiosk/bookings/:bookingId/cancel-payment', isStaffOrAdmin, val
           }
         }
       } catch (creditErr: unknown) {
-        logger.warn('[Kiosk Payment] Failed to restore credit after payment cancellation', { extra: { bookingId, error: String(creditErr) } });
+        logger.warn('[Kiosk Payment] Failed to restore credit after payment cancellation', { extra: { bookingId, error: getErrorMessage(creditErr) } });
       }
 
       try {
@@ -222,7 +220,7 @@ router.post('/api/kiosk/bookings/:bookingId/cancel-payment', isStaffOrAdmin, val
         await recreateDraftInvoiceFromBooking(bookingId);
         logger.info('[Kiosk Payment] Voided invoice and re-created draft after abandoned payment', { extra: { bookingId } });
       } catch (invoiceErr: unknown) {
-        logger.warn('[Kiosk Payment] Failed to void/recreate invoice after payment cancellation', { extra: { bookingId, error: String(invoiceErr) } });
+        logger.warn('[Kiosk Payment] Failed to void/recreate invoice after payment cancellation', { extra: { bookingId, error: getErrorMessage(invoiceErr) } });
       }
     }
 

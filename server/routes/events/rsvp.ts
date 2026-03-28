@@ -143,9 +143,9 @@ router.post('/api/rsvps', isAuthenticated, bookingRateLimiter, validateBody(rsvp
     
     res.status(201).json(rsvp);
   } catch (error: unknown) {
-    const err = error as { statusCode?: number; message?: string };
+    const err = error as { statusCode?: number };
     if (err.statusCode === 400 || err.statusCode === 404) {
-      return logAndRespond(req, res, err.statusCode, err.message || 'Request failed');
+      return logAndRespond(req, res, err.statusCode, getErrorMessage(error) || 'Request failed');
     }
     logAndRespond(req, res, 500, 'Failed to create RSVP. Staff notification is required.', error);
   }
