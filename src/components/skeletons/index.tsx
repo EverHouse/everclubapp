@@ -314,22 +314,28 @@ export const StaffCommandCenterSkeleton: React.FC<SkeletonCardProps> = ({ isDark
   const bg = isDark ? bgDark : bgAuto;
   return (
     <div className="pb-40 space-y-6">
-      <div className="flex items-start justify-between mb-4">
+      <div className="flex items-start justify-between mb-4 lg:mb-6">
         <div>
-          <div className={`${shimmerClass} ${bg} h-7 w-48 rounded-lg`} />
-          <div className={`${shimmerClass} ${bg} h-4 w-32 rounded mt-2`} />
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <div className={`${shimmerClass} ${bg} h-4 w-24 rounded`} />
-          <div className={`${shimmerClass} ${bg} h-5 w-20 rounded-full`} />
+          <div className={`${shimmerClass} ${bg} h-10 lg:h-12 w-64 rounded-lg`} />
+          <div className={`${shimmerClass} ${bg} h-4 lg:h-5 w-32 rounded mt-1`} />
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="hidden lg:grid grid-cols-3 gap-6">
         <CommandCenterCardSkeleton isDark={isDark} />
         <CommandCenterCardSkeleton isDark={isDark} />
         <CommandCenterCardSkeleton isDark={isDark} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="hidden lg:grid grid-cols-3 gap-6">
+        <CommandCenterCardSkeleton isDark={isDark} />
+        <CommandCenterCardSkeleton isDark={isDark} />
+        <CommandCenterCardSkeleton isDark={isDark} />
+      </div>
+      <div className="hidden lg:grid grid-cols-3 gap-6">
+        <CommandCenterCardSkeleton isDark={isDark} />
+        <CommandCenterCardSkeleton isDark={isDark} />
+        <CommandCenterCardSkeleton isDark={isDark} />
+      </div>
+      <div className="lg:hidden space-y-4">
         <CommandCenterCardSkeleton isDark={isDark} />
         <CommandCenterCardSkeleton isDark={isDark} />
         <CommandCenterCardSkeleton isDark={isDark} />

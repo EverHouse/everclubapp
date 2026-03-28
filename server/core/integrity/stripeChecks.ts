@@ -46,13 +46,18 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
   }
 
   const appMembersResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, tier, membership_status, stripe_customer_id, billing_provider
-    FROM users 
-    WHERE stripe_customer_id IS NOT NULL
-      AND membership_status IS NOT NULL
-      AND role = 'member'
-      AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'family_addon', 'comped'))
-    ORDER BY id
+    SELECT u.id, u.email, u.first_name, u.last_name, u.tier, u.membership_status, u.stripe_customer_id, u.billing_provider
+    FROM users u
+    WHERE u.stripe_customer_id IS NOT NULL
+      AND u.membership_status IS NOT NULL
+      AND u.role = 'member'
+      AND (u.billing_provider IS NULL OR u.billing_provider NOT IN ('mindbody', 'family_addon', 'comped', 'manual'))
+      AND NOT EXISTS (
+        SELECT 1 FROM group_members gm
+        JOIN billing_groups bg ON bg.id = gm.billing_group_id AND bg.is_active = true
+        WHERE LOWER(gm.member_email) = LOWER(u.email)
+      )
+    ORDER BY u.id
   `);
   const appMembers = appMembersResult.rows as unknown as MemberRow[];
 
@@ -497,21 +502,26 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
   const tierList = sql.join(paidTierLower.map(t => sql`${t}`), sql`, `);
 
   const orphanResult = await db.execute(sql`
-    SELECT id, email, first_name, last_name, tier, membership_status,
-           billing_provider, stripe_subscription_id, stripe_customer_id, mindbody_client_id
-    FROM users
-    WHERE role = 'member'
-      AND archived_at IS NULL
-      AND membership_status = 'active'
-      AND LOWER(tier) IN (${tierList})
-      AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
-      AND (billing_provider IS NULL OR billing_provider NOT IN ('mindbody', 'comped', 'manual', 'family_addon'))
+    SELECT u.id, u.email, u.first_name, u.last_name, u.tier, u.membership_status,
+           u.billing_provider, u.stripe_subscription_id, u.stripe_customer_id, u.mindbody_client_id
+    FROM users u
+    WHERE u.role = 'member'
+      AND u.archived_at IS NULL
+      AND u.membership_status = 'active'
+      AND LOWER(u.tier) IN (${tierList})
+      AND (u.stripe_subscription_id IS NULL OR u.stripe_subscription_id = '')
+      AND (u.billing_provider IS NULL OR u.billing_provider NOT IN ('mindbody', 'comped', 'manual', 'family_addon'))
+      AND NOT EXISTS (
+        SELECT 1 FROM group_members gm
+        JOIN billing_groups bg ON bg.id = gm.billing_group_id AND bg.is_active = true
+        WHERE LOWER(gm.member_email) = LOWER(u.email)
+      )
     ORDER BY
-      CASE billing_provider
+      CASE u.billing_provider
         WHEN 'stripe' THEN 0
         ELSE 1
       END,
-      email
+      u.email
     LIMIT 300
   `);
   const orphans = orphanResult.rows as unknown as HybridBillingRow[];

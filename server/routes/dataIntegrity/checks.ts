@@ -32,8 +32,34 @@ router.get('/api/data-integrity/cached', isAdmin, async (req, res) => {
 });
 
 router.get('/api/data-integrity/run', isAdmin, async (req, res) => {
+  const TIMEOUT_MS = 120_000;
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    if (!res.headersSent) {
+      logger.warn('[DataIntegrity] Run timed out after 120s — returning partial/cached results');
+      getCachedIntegrityResults().then(cached => {
+        if (!res.headersSent) {
+          res.status(504).json({
+            success: false,
+            message: 'Integrity checks timed out. Showing cached results if available.',
+            hasCached: !!cached,
+            results: cached?.results || [],
+            meta: cached?.meta || { lastRun: null }
+          });
+        }
+      }).catch(() => {
+        if (!res.headersSent) {
+          res.status(504).json({ success: false, message: 'Integrity checks timed out.' });
+        }
+      });
+    }
+  }, TIMEOUT_MS);
+
   try {
     const results = await runAllIntegrityChecks('manual');
+    clearTimeout(timer);
+    if (timedOut || res.headersSent) return;
     res.json({
       success: true,
       results,
@@ -47,6 +73,8 @@ router.get('/api/data-integrity/run', isAdmin, async (req, res) => {
       }
     });
   } catch (error: unknown) {
+    clearTimeout(timer);
+    if (timedOut || res.headersSent) return;
     logger.error('[DataIntegrity] Run error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error, 'Failed to run integrity checks');
   }

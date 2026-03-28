@@ -66,7 +66,8 @@ function parseSessionId(cookieHeader: string | undefined, sessionSecret: string)
   
   try {
     const cookies = parseCookie(cookieHeader);
-    const signedCookie = cookies['connect.sid'];
+    const cookieName = process.env.SESSION_COOKIE_NAME || 'connect.sid';
+    const signedCookie = cookies[cookieName];
     
     if (!signedCookie) return null;
     
@@ -99,7 +100,7 @@ interface SessionData {
   };
 }
 
-async function verifySessionFromDatabase(sessionId: string, retries = 2): Promise<SessionData | null> {
+async function verifySessionFromDatabase(sessionId: string, retries = 3): Promise<SessionData | null> {
   const sessionPool = getSessionPool();
   if (!sessionPool) return null;
   
@@ -107,7 +108,7 @@ async function verifySessionFromDatabase(sessionId: string, retries = 2): Promis
     let client: import('pg').PoolClient | null = null;
     try {
       client = await sessionPool.connect();
-      await client.query('SET statement_timeout = 8000');
+      await client.query('SET statement_timeout = 10000');
       const result = await client.query(
         'SELECT sess FROM sessions WHERE sid = $1 AND expire > NOW()',
         [sessionId]
@@ -129,13 +130,16 @@ async function verifySessionFromDatabase(sessionId: string, retries = 2): Promis
         client = null;
       }
       const msg = getErrorMessage(err);
-      const isTransient = msg.includes('timeout') || msg.includes('Connection terminated') || msg.includes('ECONNRESET') || msg.includes('statement timeout');
+      const isTransient = msg.includes('timeout') || msg.includes('Connection terminated') || msg.includes('ECONNRESET') || msg.includes('statement timeout') || msg.includes('Cannot use a pool');
       if (isTransient && attempt < retries) {
-        logger.warn(`[WebSocket] Session verify retry ${attempt}/${retries}: ${msg}`);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const baseMs = 500 * Math.pow(2, attempt - 1);
+        const jitter = Math.floor(Math.random() * 200);
+        const backoffMs = baseMs + jitter;
+        logger.warn(`[WebSocket] Session verify retry ${attempt}/${retries} (backoff ${backoffMs}ms): ${msg}`);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
         continue;
       }
-      logger.error('[WebSocket] Error verifying session:', { extra: { error: msg } });
+      logger.error('[WebSocket] Error verifying session:', { extra: { error: msg, attempt } });
       return null;
     }
   }
