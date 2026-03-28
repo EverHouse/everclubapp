@@ -198,7 +198,7 @@ export function logAndRespond(
   error?: Error | unknown,
   code?: string
 ) {
-  const err = error instanceof Error ? error : new Error(String(error));
+  const err = error instanceof Error ? error : error != null ? new Error(String(error)) : undefined;
   const errObj = (error && typeof error === 'object') ? error as Record<string, unknown> : {};
   
   const dbErrorCode = typeof errObj.code === 'string' ? errObj.code : undefined;
@@ -212,8 +212,8 @@ export function logAndRespond(
     path: req.path,
     params: req.params,
     query: req.query as Record<string, unknown>,
-    error: err.message,
-    stack: err.stack,
+    error: err?.message,
+    stack: err?.stack,
     dbErrorCode,
     dbErrorDetail,
     dbErrorTable,
@@ -231,7 +231,7 @@ export function logAndRespond(
     logger.info(`[API Info] ${message}`, logPayload);
   }
   
-  if (statusCode >= 500) {
+  if (statusCode >= 500 && err) {
     import('./errorAlerts').then(({ alertOnServerError }) => {
       alertOnServerError(err, {
         path: req.path,

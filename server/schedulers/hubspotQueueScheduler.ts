@@ -96,7 +96,7 @@ export function startHubSpotQueueScheduler(): void {
     return;
   }
 
-  logger.info('[Startup] HubSpot queue scheduler enabled (runs every 30 seconds)');
+  logger.info('[Startup] HubSpot queue scheduler enabled (runs every 2 minutes)');
   
   setTimeout(async () => {
     try {
