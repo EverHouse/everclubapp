@@ -25,6 +25,13 @@ let consecutiveRateLimits = 0;
 const MIN_REQUEST_SPACING_MS = 120;
 const RATE_LIMIT_COOLDOWN_MS = 10_000;
 let throttleChain: Promise<void> = Promise.resolve();
+let _rateLimitEncountered = false;
+
+export function wasRateLimitEncountered(): boolean {
+  const val = _rateLimitEncountered;
+  _rateLimitEncountered = false;
+  return val;
+}
 
 async function throttle(): Promise<void> {
   const ticket = throttleChain.then(async () => {
@@ -55,6 +62,7 @@ export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<
       } catch (error: unknown) {
         if (isRateLimitError(error)) {
           consecutiveRateLimits++;
+          _rateLimitEncountered = true;
           logger.warn(`HubSpot Rate Limit hit (consecutive: ${consecutiveRateLimits}), backing off...`);
           throw error;
         }

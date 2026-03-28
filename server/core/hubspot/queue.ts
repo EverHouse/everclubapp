@@ -1,7 +1,7 @@
 import { queryWithRetry } from '../db';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
-import { isRateLimitError } from './request';
+import { isRateLimitError, wasRateLimitEncountered } from './request';
 import type { ContactMembershipStatus } from './constants';
 
 export type HubSpotOperation = 
@@ -159,6 +159,10 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         logger.info('[HubSpot Queue] Job completed', { 
           extra: { jobId: job.id, operation: job.operation }
         });
+      }
+      if (!rateLimitHitInBatch && wasRateLimitEncountered()) {
+        rateLimitHitInBatch = true;
+        logger.info('[HubSpot Queue] Rate limit was encountered during retries, increasing inter-job delay');
       }
       
     } catch (error: unknown) {
