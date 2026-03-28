@@ -71,40 +71,40 @@ export async function handleCheckoutSessionCompleted(client: PoolClient, session
       const deferredNewBalance = transaction.ending_balance;
 
       deferredActions.push(async () => {
-        try {
-          await notifyMember({
-            userEmail: deferredMemberEmail,
-            title: 'Funds Added Successfully',
-            message: `$${deferredAmountDollars.toFixed(2)} has been added to your account balance. New balance: $${newBalanceDollars.toFixed(2)}`,
-            type: 'funds_added',
-          }, { sendPush: true });
+        await notifyMember({
+          userEmail: deferredMemberEmail,
+          title: 'Funds Added Successfully',
+          message: `$${deferredAmountDollars.toFixed(2)} has been added to your account balance. New balance: $${newBalanceDollars.toFixed(2)}`,
+          type: 'funds_added',
+        }, { sendPush: true });
+      });
 
-          await notifyAllStaff(
-            'Member Added Funds',
-            `${deferredMemberName} (${deferredMemberEmail}) added $${deferredAmountDollars.toFixed(2)} to their account balance.`,
-            'funds_added',
-            { sendPush: true }
-          );
+      deferredActions.push(async () => {
+        await notifyAllStaff(
+          'Member Added Funds',
+          `${deferredMemberName} (${deferredMemberEmail}) added $${deferredAmountDollars.toFixed(2)} to their account balance.`,
+          'funds_added',
+          { sendPush: true }
+        );
+      });
 
-          await sendPaymentReceiptEmail(deferredMemberEmail, {
-            memberName: deferredMemberName,
-            amount: deferredAmountDollars,
-            description: 'Account Balance Top-Up',
-            date: new Date(),
-            transactionId: deferredSessionId
-          });
+      deferredActions.push(async () => {
+        await sendPaymentReceiptEmail(deferredMemberEmail, {
+          memberName: deferredMemberName,
+          amount: deferredAmountDollars,
+          description: 'Account Balance Top-Up',
+          date: new Date(),
+          transactionId: deferredSessionId
+        });
+      });
 
-          logger.info(`[Stripe Webhook] All notifications sent for add_funds: ${deferredMemberEmail}`);
-
-          broadcastBillingUpdate({
-            action: 'balance_updated',
-            memberEmail: deferredMemberEmail,
-            amountCents: deferredAmountCents,
-            newBalance: deferredNewBalance
-          });
-        } catch (notifyError: unknown) {
-          logger.error(`[Stripe Webhook] Deferred add_funds notifications failed for ${deferredMemberEmail}:`, { extra: { detail: getErrorMessage(notifyError) } });
-        }
+      deferredActions.push(async () => {
+        broadcastBillingUpdate({
+          action: 'balance_updated',
+          memberEmail: deferredMemberEmail,
+          amountCents: deferredAmountCents,
+          newBalance: deferredNewBalance
+        });
       });
 
       return deferredActions;

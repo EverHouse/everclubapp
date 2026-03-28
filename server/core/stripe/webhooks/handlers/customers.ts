@@ -211,6 +211,7 @@ export async function handlePaymentMethodAttached(client: PoolClient, paymentMet
                 if (invoice.status === 'open') {
                   const paidInvoice = await stripe.invoices.pay(invoiceId, {
                     payment_method: paymentMethod.id,
+                    off_session: true,
                   });
                   retrySucceeded = paidInvoice.status === 'paid';
                   logger.info(`[Stripe Webhook] Auto-retried invoice payment ${row.stripe_payment_intent_id} via invoices.pay`, { extra: { invoiceId, result: paidInvoice.status } });
@@ -220,6 +221,7 @@ export async function handlePaymentMethodAttached(client: PoolClient, paymentMet
               } else {
                 const confirmed = await stripe.paymentIntents.confirm(row.stripe_payment_intent_id, {
                   payment_method: paymentMethod.id,
+                  off_session: true,
                 });
                 retrySucceeded = confirmed.status === 'succeeded' || confirmed.status === 'processing';
                 if (!retrySucceeded) {

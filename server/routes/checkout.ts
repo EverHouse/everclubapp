@@ -175,6 +175,7 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
       if (existingUser?.stripeCustomerId) {
         return res.status(409).json({ error: 'An account with this email already exists. Please log in to manage your membership.' });
       }
+
       sessionParams.customer_email = email;
     }
 

@@ -47,6 +47,15 @@ export async function tryClaimEvent(
   return { claimed: true };
 }
 
+function getEventFamily(type: string): string {
+  const parts = type.split('.');
+  if (parts[0] === 'customer' && parts[1] === 'subscription') return 'customer.subscription';
+  if (parts[0] === 'checkout' && parts[1] === 'session') return 'checkout.session';
+  if (parts[0] === 'charge' && parts[1] === 'dispute') return 'charge.dispute';
+  if (parts[0] === 'subscription_schedule') return 'subscription_schedule';
+  return parts[0];
+}
+
 export async function checkResourceEventOrder(
   client: PoolClient,
   resourceId: string,
@@ -107,7 +116,7 @@ export async function checkResourceEventOrder(
   const lastEventType = result.rows[0].event_type;
   const lastPriority = EVENT_PRIORITY[lastEventType] || 5;
 
-  const isSameFamily = lastEventType.split('.')[0] === eventType.split('.')[0];
+  const isSameFamily = getEventFamily(lastEventType) === getEventFamily(eventType);
 
   if (isSameFamily && lastPriority > currentPriority) {
     if (eventType === 'customer.subscription.created') {
