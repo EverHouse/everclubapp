@@ -3,6 +3,8 @@ import { queryWithRetry } from '../core/db';
 import { getTodayPacific, formatTimePacific } from '../utils/dateUtils';
 import { notifyAllStaff } from '../core/notificationService';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
+import { recalculateSessionFees } from '../core/bookingService/usageCalculator';
+import { syncBookingInvoice } from '../core/billing/bookingInvoiceService';
 import { logger } from '../core/logger';
 import { refreshBookingPass } from '../walletPass/bookingPassService';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -238,15 +240,41 @@ async function autoCompletePastBookings(): Promise<void> {
           if (result.error || result.sessionId === 0) {
             sessionErrors++;
             logger.error(`[Booking Auto-Complete] Session creation failed for booking #${booking.id}: ${result.error || 'sessionId=0'}`);
-          } else if (result.created) {
-            sessionsCreated++;
-            logger.info(`[Booking Auto-Complete] Created session ${result.sessionId} for booking #${booking.id}`);
           } else {
-            logger.info(`[Booking Auto-Complete] Linked existing session ${result.sessionId} to booking #${booking.id}`);
+            if (result.created) {
+              sessionsCreated++;
+              logger.info(`[Booking Auto-Complete] Created session ${result.sessionId} for booking #${booking.id}`);
+            } else {
+              logger.info(`[Booking Auto-Complete] Linked existing session ${result.sessionId} to booking #${booking.id}`);
+            }
+            try {
+              await recalculateSessionFees(result.sessionId);
+              syncBookingInvoice(booking.id, result.sessionId).catch((err: unknown) => {
+                logger.warn('[Booking Auto-Complete] Invoice sync failed after fee recalculation', { extra: { bookingId: booking.id, sessionId: result.sessionId, error: getErrorMessage(err) } });
+              });
+            } catch (feeErr: unknown) {
+              logger.error('[Booking Auto-Complete] Fee recalculation failed after session creation', { extra: { bookingId: booking.id, sessionId: result.sessionId, error: getErrorMessage(feeErr) } });
+            }
           }
         } catch (err) {
           sessionErrors++;
           logger.error(`[Booking Auto-Complete] Failed to create session for booking #${booking.id}:`, { error: err as Error });
+        }
+      } else if (booking.sessionId) {
+        try {
+          const ledgerCheck = await queryWithRetry<{ count: number }>(
+            `SELECT COUNT(*)::int as count FROM usage_ledger WHERE session_id = $1`,
+            [booking.sessionId]
+          );
+          if ((ledgerCheck.rows[0]?.count || 0) === 0) {
+            await recalculateSessionFees(booking.sessionId);
+            syncBookingInvoice(booking.id, booking.sessionId).catch((err: unknown) => {
+              logger.warn('[Booking Auto-Complete] Invoice sync failed after ledger backfill', { extra: { bookingId: booking.id, sessionId: booking.sessionId, error: getErrorMessage(err) } });
+            });
+            logger.info(`[Booking Auto-Complete] Backfilled usage ledger for existing session ${booking.sessionId} on booking #${booking.id}`);
+          }
+        } catch (feeErr: unknown) {
+          logger.error('[Booking Auto-Complete] Fee recalculation failed for existing session', { extra: { bookingId: booking.id, sessionId: booking.sessionId, error: getErrorMessage(feeErr) } });
         }
       }
     }
@@ -483,11 +511,36 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
         });
         if (sessionResult.error || sessionResult.sessionId === 0) {
           logger.error(`[Booking Auto-Complete] Manual: session creation failed for booking #${booking.id}: ${sessionResult.error || 'sessionId=0'}`);
-        } else if (sessionResult.created) {
-          sessionsCreated++;
+        } else {
+          if (sessionResult.created) {
+            sessionsCreated++;
+          }
+          try {
+            await recalculateSessionFees(sessionResult.sessionId);
+            syncBookingInvoice(booking.id, sessionResult.sessionId).catch((err: unknown) => {
+              logger.warn('[Booking Auto-Complete] Manual: invoice sync failed', { extra: { bookingId: booking.id, sessionId: sessionResult.sessionId, error: getErrorMessage(err) } });
+            });
+          } catch (feeErr: unknown) {
+            logger.error('[Booking Auto-Complete] Manual: fee recalculation failed', { extra: { bookingId: booking.id, sessionId: sessionResult.sessionId, error: getErrorMessage(feeErr) } });
+          }
         }
       } catch (err) {
         logger.error(`[Booking Auto-Complete] Manual: failed to create session for booking #${booking.id}:`, { error: err as Error });
+      }
+    } else if (booking.sessionId) {
+      try {
+        const ledgerCheck = await queryWithRetry<{ count: number }>(
+          `SELECT COUNT(*)::int as count FROM usage_ledger WHERE session_id = $1`,
+          [booking.sessionId]
+        );
+        if ((ledgerCheck.rows[0]?.count || 0) === 0) {
+          await recalculateSessionFees(booking.sessionId);
+          syncBookingInvoice(booking.id, booking.sessionId).catch((err: unknown) => {
+            logger.warn('[Booking Auto-Complete] Manual: invoice sync failed after ledger backfill', { extra: { bookingId: booking.id, sessionId: booking.sessionId, error: getErrorMessage(err) } });
+          });
+        }
+      } catch (feeErr: unknown) {
+        logger.error('[Booking Auto-Complete] Manual: fee recalculation failed for existing session', { extra: { bookingId: booking.id, sessionId: booking.sessionId, error: getErrorMessage(feeErr) } });
       }
     }
   }
