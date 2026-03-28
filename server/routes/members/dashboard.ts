@@ -21,6 +21,7 @@ import { getTierLimits } from '../../core/tierService';
 import { getConferenceRoomBookingsFromCalendar } from '../../core/calendar/index';
 import { getConferenceRoomId } from '../../core/affectedAreas';
 import { getTodayPacific } from '../../utils/dateUtils';
+import { getLifetimeVisitStats } from '../../core/memberService/lifetimeVisitStats';
 
 const router = Router();
 
@@ -441,55 +442,8 @@ router.get('/api/member/dashboard/stats', isAuthenticated, async (req, res) => {
     };
 
     const fetchLifetimeVisitCount = async (): Promise<number> => {
-      const result = await db.execute(sql`
-        SELECT COUNT(*) as cnt FROM (
-          SELECT br.id
-          FROM booking_requests br
-          WHERE LOWER(br.user_email) = ${userEmail}
-            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-
-          UNION ALL
-
-          SELECT br.id
-          FROM booking_requests br
-          JOIN booking_sessions bs ON br.session_id = bs.id
-          JOIN booking_participants bp ON bp.session_id = bs.id
-          LEFT JOIN users bp_user ON bp.user_id = bp_user.id
-          LEFT JOIN guests bp_guest ON bp.guest_id = bp_guest.id
-          WHERE (LOWER(COALESCE(bp_user.email, bp_guest.email, '')) = ${userEmail})
-            AND bp.participant_type != 'owner'
-            AND LOWER(br.user_email) != ${userEmail}
-            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-
-          UNION ALL
-
-          SELECT we.id
-          FROM wellness_enrollments we
-          JOIN wellness_classes wc ON we.class_id = wc.id
-          WHERE LOWER(we.user_email) = ${userEmail}
-            AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            AND we.status NOT IN ('cancelled')
-
-          UNION ALL
-
-          SELECT er.id
-          FROM event_rsvps er
-          JOIN events e ON er.event_id = e.id
-          WHERE LOWER(er.user_email) = ${userEmail}
-            AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            AND er.status NOT IN ('cancelled')
-
-          UNION ALL
-
-          SELECT wiv.id
-          FROM walk_in_visits wiv
-          WHERE LOWER(wiv.member_email) = ${userEmail}
-        ) visits
-      `);
-      const rows = result.rows as Record<string, unknown>[];
-      return rows.length > 0 ? Number(rows[0].cnt) : 0;
+      const stats = await getLifetimeVisitStats(userEmail);
+      return stats.totalVisits;
     };
 
     const [guestPassesData, lifetimeVisitCount] = await Promise.all([

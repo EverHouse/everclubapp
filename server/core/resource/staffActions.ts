@@ -3,12 +3,14 @@ import { db } from '../../db';
 import { resources, users, bookingRequests } from '../../../shared/schema';
 import { logger } from '../logger';
 import { notifyMember, notifyAllStaff } from '../notificationService';
-import { checkAllConflicts, checkClosureConflict, checkAvailabilityBlockConflict } from '../bookingValidation';
+import { checkAllConflicts } from '../bookingValidation';
 import { bookingEvents } from '../bookingEvents';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { ensureSessionForBooking, createTxQueryClient } from '../bookingService/sessionManager';
-import { acquireBookingLocks, checkResourceOverlap, BookingConflictError } from '../bookingService/bookingCreationGuard';
+import { acquireBookingLocks, BookingConflictError } from '../bookingService/bookingCreationGuard';
+import { computeEndTime, prepareBookingCreation, acquireLocksAndCheckConflicts, sanitizeAndResolveParticipants } from '../bookingService/createBooking';
+import { BookingValidationError } from '../../routes/bays/booking-shared';
 import { createCalendarEventOnCalendar, getCalendarIdByName, CALENDAR_CONFIG } from '../calendar/index';
 import { AppError } from '../errors';
 import { resolveUserByEmail } from '../stripe/customers';
@@ -443,12 +445,7 @@ export async function createManualBooking(params: {
     throw new AppError(404, 'Resource not found');
   }
 
-  const startParts = params.startTime.split(':').map(Number);
-  const startMinutes = startParts[0] * 60 + (startParts[1] || 0);
-  const endMinutes = startMinutes + params.durationMinutes;
-  const endHour = Math.floor(endMinutes / 60);
-  const endMin = endMinutes % 60;
-  const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+  const { endTime } = computeEndTime(params.startTime, params.durationMinutes);
 
   const conflictCheck = await checkAllConflicts(params.resourceId, params.bookingDate, params.startTime, endTime);
   if (conflictCheck.hasConflict) {
@@ -607,17 +604,29 @@ export async function createStaffManualBooking(
 ): Promise<StaffManualBookingResult> {
   const trackman_id = input.trackman_booking_id || input.trackman_external_id;
 
-  let resolvedEmail = (input.user_email || '').toLowerCase();
+  let resolvedEmail: string;
   let resolvedUserId: string | null = null;
-  if (input.user_email) {
-    const resolved = await resolveUserByEmail(resolvedEmail);
-    if (resolved) {
-      if (resolved.matchType !== 'direct') {
-        logger.info('[StaffManualBooking] Resolved linked email to primary', { extra: { originalEmail: resolvedEmail, resolvedEmail: resolved.primaryEmail, matchType: resolved.matchType } });
-        resolvedEmail = resolved.primaryEmail.toLowerCase();
-      }
-      resolvedUserId = resolved.userId;
+  let end_time: string;
+  let resolvedResourceType: string;
+
+  const participantEmails = (input.request_participants || [])
+    .map((p: Record<string, unknown>) => typeof p.email === 'string' ? p.email.trim().toLowerCase() : '')
+    .filter(Boolean);
+
+  try {
+    const prepared = await prepareBookingCreation(
+      { userEmail: input.user_email || '', startTime: input.start_time, requestDate: input.request_date, durationMinutes: input.duration_minutes, resourceId: input.resource_id, participantEmails },
+      { isStaff: true, allowPastDate: true, strictMidnight: true }
+    );
+    resolvedEmail = prepared.resolvedEmail;
+    resolvedUserId = prepared.resolvedUserId;
+    end_time = prepared.endTime;
+    resolvedResourceType = prepared.resourceType;
+  } catch (e: unknown) {
+    if (e instanceof BookingValidationError) {
+      throw new ManualBookingValidationError(e.statusCode, e.errorBody);
     }
+    throw e;
   }
 
   if (trackman_id) {
@@ -675,71 +684,59 @@ export async function createStaffManualBooking(
     }
   }
 
-  const parsedDate = new Date(input.request_date + 'T00:00:00');
-  if (isNaN(parsedDate.getTime())) {
-    throw new ManualBookingValidationError(400, { error: 'Invalid date format' });
-  }
-
-  const [year, month, day] = input.request_date.split('-').map((n: string) => parseInt(n, 10));
-  const validatedDate = new Date(year, month - 1, day);
-  if (validatedDate.getFullYear() !== year ||
-      validatedDate.getMonth() !== month - 1 ||
-      validatedDate.getDate() !== day) {
-    throw new ManualBookingValidationError(400, { error: 'Invalid date - date does not exist (e.g., Feb 30)' });
-  }
-
-  const [hours, mins] = input.start_time.split(':').map(Number);
-  const totalMins = hours * 60 + mins + input.duration_minutes;
-  const endHours = Math.floor(totalMins / 60);
-  const endMins = totalMins % 60;
-  const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
-
-  if (endHours >= 24) {
-    throw new ManualBookingValidationError(400, { error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
-  }
-
-  let sanitizedParticipants: Array<{ email: string; type: string; userId?: string; name?: string }> = [];
-  if (input.request_participants && Array.isArray(input.request_participants)) {
-    sanitizedParticipants = input.request_participants
-      .slice(0, 3)
-      .map((p: Record<string, unknown>) => ({
-        email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
-        type: p.type === 'member' ? 'member' : 'guest',
-        userId: p.userId != null ? String(p.userId) : undefined,
-        name: typeof p.name === 'string' ? p.name.trim() : undefined
-      }))
-      .filter((p: { email: string; userId?: string }) => p.email || p.userId);
-  }
+  const rawParticipants = Array.isArray(input.request_participants)
+    ? input.request_participants.slice(0, 3)
+    : [];
 
   const isDayPassPayment = input.paymentStatus === 'Paid (Day Pass)' && input.dayPassPurchaseId;
-
-  let resolvedResourceType = 'simulator';
-  if (input.resource_id) {
-    const [resource] = await db.select({ type: resources.type }).from(resources).where(eq(resources.id, input.resource_id)).limit(1);
-    if (resource) {
-      resolvedResourceType = resource.type;
-    }
-  }
 
   let row: Record<string, unknown>;
   let dayPassRedeemed = false;
 
   const txResult = await db.transaction(async (tx) => {
+    let sanitizedParticipants: Array<{ email: string; type: 'member' | 'guest'; userId?: string; name?: string }>;
+    try {
+      sanitizedParticipants = await sanitizeAndResolveParticipants(
+        rawParticipants as Array<{ email?: string; type?: string; userId?: string; name?: string }>,
+        resolvedEmail,
+        tx,
+        { isStaff: true, maxGuests: 3 }
+      );
+    } catch (e: unknown) {
+      if (e instanceof BookingValidationError) {
+        throw new ManualBookingValidationError(e.statusCode, e.errorBody);
+      }
+      throw e;
+    }
+
     const staffParticipantEmails = sanitizedParticipants
       .map(p => p.email?.trim().toLowerCase())
       .filter(Boolean) as string[];
 
-    await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
-      resourceId: input.resource_id || null,
-      requestDate: input.request_date,
-      startTime: input.start_time,
-      endTime: end_time,
-      requestEmail: resolvedEmail,
-      isStaffRequest: true,
-      isViewAsMode: false,
-      resourceType: resolvedResourceType,
-      participantEmails: staffParticipantEmails,
-    });
+    const txClient = tx as unknown as { select: typeof db.select; execute: typeof db.execute };
+
+    try {
+      await acquireLocksAndCheckConflicts(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
+        resourceId: input.resource_id || null,
+        requestDate: input.request_date,
+        startTime: input.start_time,
+        endTime: end_time,
+        requestEmail: resolvedEmail,
+        isStaffRequest: true,
+        isViewAsMode: false,
+        resourceType: resolvedResourceType,
+        participantEmails: staffParticipantEmails,
+        txClient,
+      });
+    } catch (err: unknown) {
+      if (err instanceof BookingValidationError) {
+        throw new ManualBookingValidationError(err.statusCode, err.errorBody);
+      }
+      if (err instanceof BookingConflictError) {
+        throw new ManualBookingValidationError(err.statusCode, err.errorBody);
+      }
+      throw err;
+    }
 
     if (isDayPassPayment) {
       const dayPassResult = await tx.execute(sql`
@@ -776,34 +773,6 @@ export async function createStaffManualBooking(
       ORDER BY id ASC
       FOR UPDATE
     `);
-
-    if (input.resource_id) {
-      try {
-        await checkResourceOverlap(tx as unknown as Parameters<typeof checkResourceOverlap>[0], {
-          resourceId: input.resource_id,
-          requestDate: input.request_date,
-          startTime: input.start_time,
-          endTime: end_time,
-        });
-      } catch (err: unknown) {
-        if (err instanceof BookingConflictError) {
-          throw new ManualBookingValidationError(err.statusCode, err.errorBody);
-        }
-        throw err;
-      }
-
-      const txClient = tx as unknown as { select: typeof db.select, execute: typeof db.execute };
-
-      const closureCheck = await checkClosureConflict(input.resource_id, input.request_date, input.start_time, end_time, txClient);
-      if (closureCheck.hasConflict) {
-        throw new ManualBookingValidationError(409, { error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}` });
-      }
-
-      const blockCheck = await checkAvailabilityBlockConflict(input.resource_id, input.request_date, input.start_time, end_time, txClient);
-      if (blockCheck.hasConflict) {
-        throw new ManualBookingValidationError(409, { error: `This time slot is blocked: ${blockCheck.blockNotes || blockCheck.blockType || 'Event Block'}` });
-      }
-    }
 
     const bookingStatus = isDayPassPayment ? 'approved' : 'pending';
 

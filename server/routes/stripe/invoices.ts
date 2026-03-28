@@ -3,6 +3,7 @@ import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
+import { clearStaleStripeCustomerId } from '../../core/stripe/customers';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getSessionUser } from '../../types/session';
@@ -270,7 +271,7 @@ router.get('/api/my-invoices', validateQuery(invoiceEmailQuerySchema), async (re
     if (!result.success) {
       if (result.isCustomerMissing) {
         logger.warn(`[Stripe] Stale customer ${stripeCustomerId} for ${targetEmail} on my-invoices fetch, clearing`);
-        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
+        await clearStaleStripeCustomerId(targetEmail);
         return res.json({ invoices: [], count: 0 });
       }
       return res.status(500).json({ error: result.error || 'Failed to list invoices' });

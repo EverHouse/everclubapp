@@ -26,6 +26,7 @@ import { normalizeEmail } from '../../core/utils/emailNormalization';
 import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
+import { getLifetimeVisitStats } from '../../core/memberService/lifetimeVisitStats';
 
 const router = Router();
 
@@ -115,42 +116,8 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
     
     const user = userResult[0];
     
-    // Run all count queries in parallel for better performance
-    const [pastBookingsResult, pastEventsResult, pastWellnessResult, lastActivityResult, walkInResult] = await Promise.all([
-      db.execute(sql`
-        SELECT COUNT(DISTINCT booking_id) as count FROM (
-          SELECT id as booking_id FROM booking_requests
-          WHERE LOWER(user_email) = ${normalizedEmail}
-            AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            AND status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-          UNION
-          SELECT br.id as booking_id FROM booking_requests br
-          JOIN booking_participants bp ON bp.session_id = br.session_id
-          JOIN users u ON bp.user_id = u.id
-          WHERE LOWER(u.email) = ${normalizedEmail}
-            AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-        ) all_bookings
-      `),
-      db.select({ count: sql<number>`COUNT(*)` })
-        .from(eventRsvps)
-        .innerJoin(events, eq(eventRsvps.eventId, events.id))
-        .where(and(
-          sql`${events.eventDate} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`,
-          sql`${eventRsvps.status} != 'cancelled'`,
-          or(
-            sql`LOWER(${eventRsvps.userEmail}) = ${normalizedEmail}`,
-            eq(eventRsvps.matchedUserId, user.id)
-          )
-        )),
-      db.select({ count: sql<number>`COUNT(*)` })
-        .from(wellnessEnrollments)
-        .innerJoin(wellnessClasses, eq(wellnessEnrollments.classId, wellnessClasses.id))
-        .where(and(
-          sql`LOWER(${wellnessEnrollments.userEmail}) = ${normalizedEmail}`,
-          sql`${wellnessEnrollments.status} != 'cancelled'`,
-          sql`${wellnessClasses.date} < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date`
-        )),
+    const [visitStats, lastActivityResult] = await Promise.all([
+      getLifetimeVisitStats(normalizedEmail),
       db.execute(sql`
         SELECT MAX(last_date) as last_date FROM (
           SELECT MAX(request_date) as last_date FROM booking_requests
@@ -188,16 +155,13 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
             AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
         ) combined
       `),
-      db.execute(
-        sql`SELECT COUNT(*)::int as count FROM walk_in_visits WHERE LOWER(member_email) = ${normalizedEmail}`
-      )
     ]);
     
-    const pastBookingsCount = Number((pastBookingsResult as unknown as { rows?: { count: number }[] }).rows?.[0]?.count || 0);
-    const pastEventsCount = Number(pastEventsResult[0]?.count || 0);
-    const pastWellnessCount = Number(pastWellnessResult[0]?.count || 0);
-    const walkInCount = (walkInResult as unknown as { rows?: { count: number }[] }).rows?.[0]?.count || 0;
-    const totalLifetimeVisits = Number(pastBookingsCount) + pastEventsCount + pastWellnessCount + Number(walkInCount);
+    const pastBookingsCount = visitStats.bookingCount;
+    const pastEventsCount = visitStats.eventCount;
+    const pastWellnessCount = visitStats.wellnessCount;
+    const walkInCount = visitStats.walkInCount;
+    const totalLifetimeVisits = visitStats.totalVisits;
     
     const lastBookingDateRaw = (lastActivityResult as unknown as { rows?: { last_date: string | Date | null }[] }).rows?.[0]?.last_date;
     const lastBookingDate = lastBookingDateRaw 

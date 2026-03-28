@@ -1,7 +1,7 @@
 import { db } from '../../db';
 import { bookingRequests, resources, bookingParticipants, stripePaymentIntents, notifications } from '../../../shared/schema';
 import { eq, and, or, ne, sql, isNull, isNotNull } from 'drizzle-orm';
-import { formatNotificationDateTime } from '../../utils/dateUtils';
+import { formatNotificationDateTime, createPacificDate } from '../../utils/dateUtils';
 import { logger } from '../logger';
 import { notifyAllStaff, notifyMember, isNotifiableEmail } from '../notificationService';
 import { bookingEvents } from '../bookingEvents';
@@ -18,6 +18,7 @@ import { getStripeClient } from '../stripe/client';
 import { cancelPaymentIntent } from '../stripe/payments';
 import { markPaymentRefunded } from '../billing/PaymentStatusService';
 import { failedSideEffects } from '../../../shared/schema';
+import { ensureDateString, ensureTimeString } from '../../utils/dateTimeUtils';
 
 interface CancelResult {
   success: boolean;
@@ -36,6 +37,7 @@ interface CancelResult {
   };
   sideEffectErrors?: string[];
   alreadyCancelled?: boolean;
+  isLateCancel?: boolean;
   error?: string;
   statusCode?: number;
 }
@@ -44,6 +46,7 @@ interface SideEffectsManifest {
   stripeRefunds: Array<{ paymentIntentId: string; type: 'refund' | 'cancel'; idempotencyKey: string; amountCents?: number }>;
   stripeSnapshotRefunds: Array<{ paymentIntentId: string; idempotencyKey: string; amountCents?: number }>;
   balanceRefunds: Array<{ stripeCustomerId: string; amountCents: number; bookingId: number; balanceRecordId: string; description: string }>;
+  guestPassRefunds: Array<{ ownerEmail: string; guestDisplayName?: string }>;
   invoiceVoid: { bookingId: number } | null;
   calendarDeletion: { eventId: string; resourceId: number | null } | null;
   notifications: {
@@ -92,8 +95,9 @@ export class BookingStateService {
     cancelledBy?: string;
     staffNotes?: string;
     staffEmail?: string;
+    enforceLateCancel?: boolean;
   }): Promise<CancelResult> {
-    const { bookingId, source, cancelledBy, staffNotes, staffEmail: _staffEmail } = params;
+    const { bookingId, source, cancelledBy, staffNotes, staffEmail: _staffEmail, enforceLateCancel } = params;
 
     let booking: BookingRecord;
     try {
@@ -168,6 +172,18 @@ export class BookingStateService {
       return this.handlePendingCancellationFlow(bookingId, booking, source, cancelledBy);
     }
 
+    let isLateCancel = false;
+    if (enforceLateCancel && booking.requestDate && booking.startTime) {
+      const dateStr = ensureDateString(booking.requestDate);
+      const timeStr = ensureTimeString(booking.startTime);
+      const bookingStart = createPacificDate(dateStr, timeStr);
+      const hoursUntilStart = (bookingStart.getTime() - Date.now()) / (1000 * 60 * 60);
+      isLateCancel = hoursUntilStart < 1;
+      if (isLateCancel) {
+        logger.info('[BookingStateService] Late cancellation detected — skipping refunds, preserving invoice', { extra: { bookingId, hoursUntilStart } });
+      }
+    }
+
     let resourceType = 'simulator';
     if (booking.resourceId) {
       const [resource] = await db.select({ type: resources.type }).from(resources).where(eq(resources.id, booking.resourceId));
@@ -183,7 +199,8 @@ export class BookingStateService {
         stripeRefunds: [],
         stripeSnapshotRefunds: [],
         balanceRefunds: [],
-        invoiceVoid: { bookingId },
+        guestPassRefunds: [],
+        invoiceVoid: isLateCancel ? null : { bookingId },
         calendarDeletion: booking.calendarEventId ? { eventId: booking.calendarEventId, resourceId: booking.resourceId } : null,
         notifications: {},
         trackmanSlotCleanup: booking.resourceId && booking.requestDate && booking.startTime ? { resourceId: booking.resourceId, slotDate: booking.requestDate, startTime: booking.startTime, durationMinutes: booking.durationMinutes } : null,
@@ -191,134 +208,147 @@ export class BookingStateService {
         bookingEvent: { bookingId, memberEmail: booking.userEmail, status: 'cancelled', actionBy: memberCancelled ? 'member' : 'staff', bookingDate: booking.requestDate, startTime: booking.startTime || '' },
       };
 
-      const allSnapshots = await tx.execute(sql`
-        SELECT id, stripe_payment_intent_id, status as snapshot_status, total_cents
-        FROM booking_fee_snapshots
-        WHERE booking_id = ${bookingId} AND stripe_payment_intent_id IS NOT NULL
-      `);
-
-      for (const snapshot of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
-        sideEffects.stripeSnapshotRefunds.push({
-          paymentIntentId: snapshot.stripe_payment_intent_id,
-          amountCents: snapshot.total_cents,
-          idempotencyKey: `refund_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}_${Math.floor(Date.now() / 300000)}`,
-        });
-      }
-
-      const otherIntents = await tx.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId, amountCents: stripePaymentIntents.amountCents, status: stripePaymentIntents.status })
-        .from(stripePaymentIntents)
-        .where(and(
-          eq(stripePaymentIntents.bookingId, bookingId),
-        ));
-
-      const pendingStatuses = new Set(['pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture']);
-      const snapshotPiIds = new Set((allSnapshots.rows as unknown as FeeSnapshotRow[]).map((s) => s.stripe_payment_intent_id));
-      const piBookingAmounts = new Map<string, number>();
-      for (const row of otherIntents) {
-        piBookingAmounts.set(row.stripePaymentIntentId, row.amountCents || 0);
-        if (!snapshotPiIds.has(row.stripePaymentIntentId)) {
-          const isPending = pendingStatuses.has(row.status || '');
-          sideEffects.stripeRefunds.push({
-            paymentIntentId: row.stripePaymentIntentId,
-            type: isPending ? 'cancel' : 'refund',
-            idempotencyKey: isPending
-              ? `cancel_pending_orphan_${bookingId}_${row.stripePaymentIntentId}`
-              : `refund_cancel_orphan_${bookingId}_${row.stripePaymentIntentId}`,
-          });
-        }
-      }
-
-      if (booking.sessionId) {
-        const paidParticipants = await tx.select({
-          id: bookingParticipants.id,
-          stripePaymentIntentId: bookingParticipants.stripePaymentIntentId,
-          cachedFeeCents: bookingParticipants.cachedFeeCents,
-          displayName: bookingParticipants.displayName,
-        })
-          .from(bookingParticipants)
-          .where(and(
-            eq(bookingParticipants.sessionId, booking.sessionId),
-            eq(bookingParticipants.paymentStatus, 'paid'),
-            isNotNull(bookingParticipants.stripePaymentIntentId),
-            ne(bookingParticipants.stripePaymentIntentId, ''),
-            sql`${bookingParticipants.stripePaymentIntentId} NOT LIKE 'balance-%'`,
-            isNull(bookingParticipants.refundedAt),
-          ));
-
-        for (const participant of paidParticipants) {
-          if (participant.stripePaymentIntentId && !snapshotPiIds.has(participant.stripePaymentIntentId)) {
-            const participantAmount = participant.cachedFeeCents && participant.cachedFeeCents > 0
-              ? participant.cachedFeeCents
-              : piBookingAmounts.get(participant.stripePaymentIntentId) || undefined;
-            sideEffects.stripeRefunds.push({
-              paymentIntentId: participant.stripePaymentIntentId,
-              type: 'refund',
-              amountCents: participantAmount,
-              idempotencyKey: `refund_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`,
-            });
-          }
-        }
-
-        const balancePaymentRecords = await tx.execute(sql`
-          SELECT stripe_payment_intent_id, stripe_customer_id, amount_cents
-          FROM stripe_payment_intents
-          WHERE booking_id = ${bookingId}
-            AND stripe_payment_intent_id LIKE 'balance-%'
-            AND status = 'succeeded'
+      if (isLateCancel) {
+        await tx.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`);
+        logger.info('[BookingStateService] Late cancel — marked pending fee snapshots as cancelled (Stripe PIs preserved for fee collection)', { extra: { bookingId } });
+      } else {
+        const allSnapshots = await tx.execute(sql`
+          SELECT id, stripe_payment_intent_id, status as snapshot_status, total_cents
+          FROM booking_fee_snapshots
+          WHERE booking_id = ${bookingId} AND stripe_payment_intent_id IS NOT NULL
         `);
 
-        for (const rec of balancePaymentRecords.rows as unknown as BalancePaymentRow[]) {
-          if (rec.stripe_customer_id && rec.amount_cents > 0) {
-            sideEffects.balanceRefunds.push({
-              stripeCustomerId: rec.stripe_customer_id,
-              amountCents: rec.amount_cents,
-              bookingId,
-              balanceRecordId: rec.stripe_payment_intent_id,
-              description: `Refund for cancelled booking #${bookingId}`,
-            });
-          }
+        for (const snapshot of allSnapshots.rows as unknown as FeeSnapshotRow[]) {
+          sideEffects.stripeSnapshotRefunds.push({
+            paymentIntentId: snapshot.stripe_payment_intent_id,
+            amountCents: snapshot.total_cents,
+            idempotencyKey: `refund_cancel_snapshot_${bookingId}_${snapshot.stripe_payment_intent_id}_${Math.floor(Date.now() / 300000)}`,
+          });
         }
 
-        const pendingParticipantsWithPI = await tx.select({
-          id: bookingParticipants.id,
-          stripePaymentIntentId: bookingParticipants.stripePaymentIntentId,
-        })
-          .from(bookingParticipants)
+        const otherIntents = await tx.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId, amountCents: stripePaymentIntents.amountCents, status: stripePaymentIntents.status })
+          .from(stripePaymentIntents)
           .where(and(
-            eq(bookingParticipants.sessionId, booking.sessionId),
-            or(
-              eq(bookingParticipants.paymentStatus, 'pending'),
-              isNull(bookingParticipants.paymentStatus),
-            ),
-            isNotNull(bookingParticipants.stripePaymentIntentId),
-            ne(bookingParticipants.stripePaymentIntentId, ''),
+            eq(stripePaymentIntents.bookingId, bookingId),
           ));
 
-        for (const pending of pendingParticipantsWithPI) {
-          if (pending.stripePaymentIntentId) {
+        const pendingStatuses = new Set(['pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture']);
+        const snapshotPiIds = new Set((allSnapshots.rows as unknown as FeeSnapshotRow[]).map((s) => s.stripe_payment_intent_id));
+        const piBookingAmounts = new Map<string, number>();
+        for (const row of otherIntents) {
+          piBookingAmounts.set(row.stripePaymentIntentId, row.amountCents || 0);
+          if (!snapshotPiIds.has(row.stripePaymentIntentId)) {
+            const isPending = pendingStatuses.has(row.status || '');
             sideEffects.stripeRefunds.push({
-              paymentIntentId: pending.stripePaymentIntentId,
-              type: 'cancel',
-              idempotencyKey: `cancel_pending_participant_${bookingId}_${pending.stripePaymentIntentId}`,
+              paymentIntentId: row.stripePaymentIntentId,
+              type: isPending ? 'cancel' : 'refund',
+              idempotencyKey: isPending
+                ? `cancel_pending_orphan_${bookingId}_${row.stripePaymentIntentId}`
+                : `refund_cancel_orphan_${bookingId}_${row.stripePaymentIntentId}`,
             });
           }
         }
 
-        await tx.update(bookingParticipants)
-          .set({ cachedFeeCents: 0, paymentStatus: 'waived' })
-          .where(and(
-            eq(bookingParticipants.sessionId, booking.sessionId),
-            or(
-              eq(bookingParticipants.paymentStatus, 'pending'),
-              isNull(bookingParticipants.paymentStatus),
-            ),
-          ));
+        if (booking.sessionId) {
+          const paidParticipants = await tx.select({
+            id: bookingParticipants.id,
+            stripePaymentIntentId: bookingParticipants.stripePaymentIntentId,
+            cachedFeeCents: bookingParticipants.cachedFeeCents,
+            displayName: bookingParticipants.displayName,
+          })
+            .from(bookingParticipants)
+            .where(and(
+              eq(bookingParticipants.sessionId, booking.sessionId),
+              eq(bookingParticipants.paymentStatus, 'paid'),
+              isNotNull(bookingParticipants.stripePaymentIntentId),
+              ne(bookingParticipants.stripePaymentIntentId, ''),
+              sql`${bookingParticipants.stripePaymentIntentId} NOT LIKE 'balance-%'`,
+              isNull(bookingParticipants.refundedAt),
+            ));
 
-        if (paidParticipants.length > 0) {
-          const paidParticipantIds = paidParticipants.map(p => p.id);
-          await tx.execute(sql`UPDATE booking_participants SET payment_status = 'refund_pending' WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])`);
+          for (const participant of paidParticipants) {
+            if (participant.stripePaymentIntentId && !snapshotPiIds.has(participant.stripePaymentIntentId)) {
+              const participantAmount = participant.cachedFeeCents && participant.cachedFeeCents > 0
+                ? participant.cachedFeeCents
+                : piBookingAmounts.get(participant.stripePaymentIntentId) || undefined;
+              sideEffects.stripeRefunds.push({
+                paymentIntentId: participant.stripePaymentIntentId,
+                type: 'refund',
+                amountCents: participantAmount,
+                idempotencyKey: `refund_cancel_participant_${bookingId}_${participant.stripePaymentIntentId}`,
+              });
+            }
+          }
+
+          const balancePaymentRecords = await tx.execute(sql`
+            SELECT stripe_payment_intent_id, stripe_customer_id, amount_cents
+            FROM stripe_payment_intents
+            WHERE booking_id = ${bookingId}
+              AND stripe_payment_intent_id LIKE 'balance-%'
+              AND status = 'succeeded'
+          `);
+
+          for (const rec of balancePaymentRecords.rows as unknown as BalancePaymentRow[]) {
+            if (rec.stripe_customer_id && rec.amount_cents > 0) {
+              sideEffects.balanceRefunds.push({
+                stripeCustomerId: rec.stripe_customer_id,
+                amountCents: rec.amount_cents,
+                bookingId,
+                balanceRecordId: rec.stripe_payment_intent_id,
+                description: `Refund for cancelled booking #${bookingId}`,
+              });
+            }
+          }
+
+          const pendingParticipantsWithPI = await tx.select({
+            id: bookingParticipants.id,
+            stripePaymentIntentId: bookingParticipants.stripePaymentIntentId,
+          })
+            .from(bookingParticipants)
+            .where(and(
+              eq(bookingParticipants.sessionId, booking.sessionId),
+              or(
+                eq(bookingParticipants.paymentStatus, 'pending'),
+                isNull(bookingParticipants.paymentStatus),
+              ),
+              isNotNull(bookingParticipants.stripePaymentIntentId),
+              ne(bookingParticipants.stripePaymentIntentId, ''),
+            ));
+
+          for (const pending of pendingParticipantsWithPI) {
+            if (pending.stripePaymentIntentId) {
+              sideEffects.stripeRefunds.push({
+                paymentIntentId: pending.stripePaymentIntentId,
+                type: 'cancel',
+                idempotencyKey: `cancel_pending_participant_${bookingId}_${pending.stripePaymentIntentId}`,
+              });
+            }
+          }
+
+          await tx.update(bookingParticipants)
+            .set({ cachedFeeCents: 0, paymentStatus: 'waived' })
+            .where(and(
+              eq(bookingParticipants.sessionId, booking.sessionId),
+              or(
+                eq(bookingParticipants.paymentStatus, 'pending'),
+                isNull(bookingParticipants.paymentStatus),
+              ),
+            ));
+
+          if (paidParticipants.length > 0) {
+            const paidParticipantIds = paidParticipants.map(p => p.id);
+            await tx.execute(sql`UPDATE booking_participants SET payment_status = 'refund_pending' WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])`);
+          }
+
         }
+      }
 
+      if (booking.sessionId && !isLateCancel) {
+        const guestParticipants = await tx.execute(sql`SELECT display_name FROM booking_participants
+           WHERE session_id = ${booking.sessionId} AND participant_type = 'guest' AND used_guest_pass = true`);
+        for (const guest of guestParticipants.rows as Array<Record<string, unknown>>) {
+          sideEffects.guestPassRefunds.push({ ownerEmail: booking.userEmail, guestDisplayName: (guest.display_name as string) || undefined });
+        }
       }
 
       await tx.execute(sql`
@@ -414,6 +444,7 @@ export class BookingStateService {
       bookingId,
       bookingData: this.extractBookingData(booking),
       sideEffectErrors: errors.length > 0 ? errors : undefined,
+      isLateCancel,
     };
   }
 
@@ -516,6 +547,7 @@ export class BookingStateService {
         stripeRefunds: [],
         stripeSnapshotRefunds: [],
         balanceRefunds: [],
+        guestPassRefunds: [],
         invoiceVoid: { bookingId },
         calendarDeletion: existing.calendarEventId ? { eventId: existing.calendarEventId, resourceId: existing.resourceId } : null,
         notifications: {},
@@ -1016,6 +1048,22 @@ export class BookingStateService {
         const msg = `Failed to void invoice for booking ${manifest.invoiceVoid.bookingId}: ${getErrorMessage(err)}`;
         errors.push(msg);
         logger.error('[BookingStateService] Invoice void failed', { extra: { bookingId: manifest.invoiceVoid.bookingId, error: getErrorMessage(err) } });
+      }
+    }
+
+    for (const guestRefund of manifest.guestPassRefunds) {
+      try {
+        const result = await refundGuestPass(guestRefund.ownerEmail, guestRefund.guestDisplayName, false);
+        if (result.success) {
+          logger.info('[BookingStateService] Refunded guest pass', { extra: { ownerEmail: guestRefund.ownerEmail, guestName: guestRefund.guestDisplayName } });
+        } else {
+          errors.push(`Guest pass refund failed for ${guestRefund.guestDisplayName || 'unknown'}: ${result.error}`);
+          logger.error('[BookingStateService] Guest pass refund failed', { extra: { ownerEmail: guestRefund.ownerEmail, guestName: guestRefund.guestDisplayName, error: result.error } });
+        }
+      } catch (err: unknown) {
+        const msg = `Guest pass refund threw for ${guestRefund.guestDisplayName || 'unknown'}: ${getErrorMessage(err)}`;
+        errors.push(msg);
+        logger.error('[BookingStateService] Guest pass refund threw', { extra: { ownerEmail: guestRefund.ownerEmail, error: getErrorMessage(err) } });
       }
     }
 

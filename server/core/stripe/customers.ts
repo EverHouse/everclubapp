@@ -571,6 +571,12 @@ export async function syncAllCustomerMetadata(): Promise<{ synced: number; faile
   return { synced, failed };
 }
 
+export async function clearStaleStripeCustomerId(email: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase();
+  await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${normalizedEmail}`);
+  logger.warn(`[Stripe] Cleared stale Stripe customer ID for ${normalizedEmail}`);
+}
+
 export interface NormalizedPaymentMethod {
   id: string;
   brand: string | undefined;

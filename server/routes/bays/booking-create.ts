@@ -6,6 +6,7 @@ import { BookingValidationError, SanitizedParticipant, BookingInsertRow } from '
 import { checkDailyBookingLimit } from '../../core/tierService';
 import { notifyAllStaff } from '../../core/notificationService';
 import { formatDateDisplayWithDay, formatTime12Hour, getTodayPacific } from '../../utils/dateUtils';
+import { sanitizeAndResolveParticipants, checkParticipantOverlaps, checkParticipantDailyLimits, prepareBookingCreation, acquireLocksAndCheckConflicts } from '../../core/bookingService/createBooking';
 import { logAndRespond, logger } from '../../core/logger';
 import { bookingEvents } from '../../core/bookingEvents';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
@@ -21,8 +22,7 @@ import { resolveUserByEmail } from '../../core/stripe/customers';
 import { bookingRateLimiter } from '../../middleware/rateLimiting';
 import { validateBody } from '../../middleware/validate';
 import { createBookingRequestSchema } from '../../../shared/validators/booking';
-import { checkClosureConflict, checkAvailabilityBlockConflict } from '../../core/bookingValidation';
-import { acquireBookingLocks, checkResourceOverlap, BookingConflictError } from '../../core/bookingService/bookingCreationGuard';
+import { acquireBookingLocks, BookingConflictError } from '../../core/bookingService/bookingCreationGuard';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { GuestPassHoldError } from '../../core/errors';
 
@@ -49,36 +49,18 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       guardian_name, guardian_relationship, guardian_phone, guardian_consent, request_participants
     } = req.body;
     
-    const parsedDate = new Date(request_date + 'T00:00:00');
-    if (isNaN(parsedDate.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
-    
-    const [year, month, day] = request_date.split('-').map((n: string) => parseInt(n, 10));
-    const validatedDate = new Date(year, month - 1, day);
-    if (validatedDate.getFullYear() !== year || 
-        validatedDate.getMonth() !== month - 1 || 
-        validatedDate.getDate() !== day) {
-      return res.status(400).json({ error: 'Invalid date - date does not exist (e.g., Feb 30)' });
-    }
-    
-    const todayPacific = getTodayPacific();
-    if (request_date < todayPacific) {
-      return res.status(400).json({ error: 'Cannot create bookings in the past' });
-    }
+    const earlyParticipantEmails = (Array.isArray(request_participants) ? request_participants : [])
+      .map((p: { email?: string }) => typeof p.email === 'string' ? p.email.trim().toLowerCase() : '')
+      .filter(Boolean);
+
+    const prepared = await prepareBookingCreation(
+      { userEmail: user_email, startTime: start_time, requestDate: request_date, durationMinutes: duration_minutes, resourceId: resource_id, participantEmails: earlyParticipantEmails },
+      { isStaff: false }
+    );
+    let requestEmail = prepared.resolvedEmail;
+    let resolvedUserId = prepared.resolvedUserId;
     
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
-    let requestEmail = user_email.toLowerCase();
-    let resolvedUserId: string | null = null;
-    
-    const resolved = await resolveUserByEmail(requestEmail);
-    if (resolved) {
-      if (resolved.matchType !== 'direct') {
-        logger.info('[Booking] Resolved linked email to primary for booking creation', { extra: { originalEmail: requestEmail, resolvedEmail: resolved.primaryEmail, matchType: resolved.matchType } });
-        requestEmail = resolved.primaryEmail.toLowerCase();
-      }
-      resolvedUserId = resolved.userId;
-    }
     
     const needsNameLookup = !user_name || user_name.includes('@');
     const needsAuthCheck = sessionEmail !== requestEmail;
@@ -112,35 +94,13 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       return res.status(400).json({ error: 'Invalid duration. Must be a whole number between 1 and 480 minutes.' });
     }
     
-    const [hoursStr, minsStr] = start_time.split(':');
-    const hours = Number(hoursStr);
-    const mins = Number(minsStr);
-    if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) {
-      return res.status(400).json({ error: 'Invalid start time format. Use HH:MM in 24-hour format.' });
-    }
-    const totalMins = hours * 60 + mins + duration_minutes;
-    const endHours = Math.floor(totalMins / 60);
-    const endMins = totalMins % 60;
-    const end_time = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
-    
-    if (endHours > 24 || (endHours === 24 && endMins > 0)) {
-      return res.status(400).json({ error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
-    }
+    const end_time = prepared.endTime;
+    let resourceType = prepared.resourceType;
     
     let row: BookingInsertRow;
-    let resourceType = 'simulator';
     try {
       const txResult = await db.transaction(async (tx) => {
-        if (resource_id) {
-          const [resourceRow] = await tx.select({ type: resources.type }).from(resources).where(eq(resources.id, resource_id));
-          resourceType = resourceRow?.type || 'simulator';
-        }
-        
-        const earlyParticipantEmails = (Array.isArray(request_participants) ? request_participants : [])
-          .map((p: { email?: string }) => typeof p.email === 'string' ? p.email.trim().toLowerCase() : '')
-          .filter(Boolean);
-
-        await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
+        await acquireLocksAndCheckConflicts(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
           resourceId: resource_id,
           requestDate: request_date,
           startTime: start_time,
@@ -151,29 +111,6 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           resourceType,
           participantEmails: earlyParticipantEmails,
         });
-
-        await checkResourceOverlap(tx as unknown as Parameters<typeof checkResourceOverlap>[0], {
-          resourceId: resource_id,
-          requestDate: request_date,
-          startTime: start_time,
-          endTime: end_time,
-        });
-        
-        if (resource_id) {
-          const closureCheck = await checkClosureConflict(resource_id, request_date, start_time, end_time);
-          if (closureCheck.hasConflict) {
-            throw new BookingValidationError(409, {
-              error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}. Please choose a different time.`
-            });
-          }
-
-          const blockCheck = await checkAvailabilityBlockConflict(resource_id, request_date, start_time, end_time);
-          if (blockCheck.hasConflict) {
-            throw new BookingValidationError(409, {
-              error: `This time slot is blocked for: ${blockCheck.blockType || 'Event Block'}. Please choose a different time.`
-            });
-          }
-        }
 
         if (!isStaffRequest || isViewAsMode) {
           const memberOverlapCheck = await tx.execute(sql`
@@ -215,162 +152,19 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           });
         }
         
-        let sanitizedParticipants: SanitizedParticipant[] = [];
         logger.info('[Booking] Received request_participants', { extra: { declaredPlayerCount: declared_player_count, participantCount: Array.isArray(request_participants) ? request_participants.length : 0, participantTypes: Array.isArray(request_participants) ? request_participants.map((p: { type?: string; userId?: string }) => ({ type: p.type, hasUserId: !!p.userId })) : [] } });
+        let sanitizedParticipants: SanitizedParticipant[] = [];
         if (request_participants && Array.isArray(request_participants)) {
-          if (request_participants.length > 3) {
-            throw new BookingValidationError(400, { error: 'Maximum of 3 guests allowed per booking' });
-          }
-          sanitizedParticipants = request_participants
-            .map((p: { email?: string; type?: string; userId?: string; name?: string }) => ({
-              email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
-              type: (p.type === 'member' ? 'member' : 'guest') as 'member' | 'guest',
-              userId: typeof p.userId === 'string' ? p.userId : undefined,
-              name: typeof p.name === 'string' ? p.name.trim() : undefined
-            }))
-            .filter((p: SanitizedParticipant) => p.email || p.userId);
+          sanitizedParticipants = await sanitizeAndResolveParticipants(
+            request_participants,
+            requestEmail,
+            tx as unknown as Parameters<typeof sanitizeAndResolveParticipants>[2],
+            { isStaff: isStaffRequest }
+          );
         }
         
-        const emailsToLookup = sanitizedParticipants
-          .filter((p: SanitizedParticipant) => p.email && !p.userId)
-          .map((p: SanitizedParticipant) => p.email.toLowerCase());
-        const userIdsToLookup = sanitizedParticipants
-          .filter((p: SanitizedParticipant) => p.userId && !p.email)
-          .map((p: SanitizedParticipant) => p.userId as string);
-
-        if (emailsToLookup.length > 0) {
-          try {
-            const emailUsers = await tx.select({
-              id: users.id,
-              email: users.email,
-              firstName: users.firstName,
-              lastName: users.lastName
-            }).from(users)
-              .where(inArray(sql`LOWER(${users.email})`, emailsToLookup));
-            const emailMap = new Map(emailUsers.map(u => [u.email?.toLowerCase() || '', u]));
-            for (const participant of sanitizedParticipants) {
-              if (participant.email && !participant.userId) {
-                const found = emailMap.get(participant.email.toLowerCase());
-                if (found) {
-                  participant.userId = found.id;
-                  participant.type = 'member';
-                  if (isStaffRequest && (!participant.name || participant.name.includes('@'))) {
-                    const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
-                    if (fullName) participant.name = fullName;
-                  }
-                }
-              }
-            }
-          } catch (err: unknown) {
-            logger.error('[Booking] Failed to batch lookup users by email', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) });
-            throw new Error('Failed to look up participant emails. Please try again.');
-          }
-        }
-
-        if (userIdsToLookup.length > 0) {
-          try {
-            const idUsers = await tx.select({
-              id: users.id,
-              email: users.email,
-              firstName: users.firstName,
-              lastName: users.lastName
-            }).from(users)
-              .where(inArray(users.id, userIdsToLookup));
-            const idMap = new Map(idUsers.map(u => [u.id, u]));
-            for (const participant of sanitizedParticipants) {
-              if (participant.userId && !participant.email) {
-                const found = idMap.get(participant.userId);
-                if (found) {
-                  participant.email = found.email?.toLowerCase() || '';
-                  participant.type = 'member';
-                  if (isStaffRequest && !participant.name) {
-                    const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
-                    participant.name = fullName || found.email || undefined;
-                  }
-                  logger.info('[Booking] Resolved email for directory-selected participant', { extra: { participantEmail: participant.email } });
-                }
-              }
-            }
-          } catch (err: unknown) {
-            logger.error('[Booking] Failed to batch lookup users by userId', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) });
-            throw new Error('Failed to look up participant user IDs. Please try again.');
-          }
-        }
-
-        const allParticipantUserIds = sanitizedParticipants
-          .filter((p: SanitizedParticipant) => p.userId)
-          .map((p: SanitizedParticipant) => p.userId as string);
-        if (allParticipantUserIds.length > 0) {
-          const statusResults = await tx.select({
-            id: users.id,
-            membershipStatus: users.membershipStatus,
-            email: users.email,
-            name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
-          }).from(users)
-            .where(inArray(users.id, allParticipantUserIds));
-          for (const statusRow of statusResults) {
-            if (statusRow.membershipStatus === 'inactive' || statusRow.membershipStatus === 'cancelled') {
-              throw new BookingValidationError(400, {
-                error: `${statusRow.name || statusRow.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
-              });
-            }
-          }
-        }
-        
-        const seenEmails = new Set<string>();
-        const seenUserIds = new Set<string>();
-        seenEmails.add(requestEmail);
-        sanitizedParticipants = sanitizedParticipants.filter((p: SanitizedParticipant) => {
-          if (p.userId && seenUserIds.has(p.userId)) return false;
-          if (p.email && seenEmails.has(p.email.toLowerCase())) return false;
-          if (p.userId) seenUserIds.add(p.userId);
-          if (p.email) seenEmails.add(p.email.toLowerCase());
-          return true;
-        });
-        
-        for (const participant of sanitizedParticipants) {
-          if (participant.type === 'member' && participant.email) {
-            const pOverlap = await tx.execute(sql`
-              SELECT br.id, COALESCE(r.name, 'Unknown') AS resource_name, br.start_time, br.end_time
-              FROM booking_requests br
-              LEFT JOIN resources r ON r.id = br.resource_id
-              WHERE br.request_date = ${request_date}
-              AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended', 'cancellation_pending')
-              AND br.start_time < ${end_time} AND br.end_time > ${start_time}
-              AND (
-                LOWER(br.user_email) = LOWER(${participant.email})
-                OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${participant.email}))
-                OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${participant.email}))
-                OR br.session_id IN (
-                  SELECT bp.session_id FROM booking_participants bp
-                  JOIN users u ON bp.user_id = u.id
-                  WHERE LOWER(u.email) = LOWER(${participant.email})
-                )
-              )
-              LIMIT 1
-            `);
-            if (pOverlap.rows.length > 0) {
-              const conflict = pOverlap.rows[0] as BookingOverlapRow;
-              const cStart = conflict.start_time?.substring(0, 5);
-              const cEnd = conflict.end_time?.substring(0, 5);
-              throw new BookingValidationError(409, {
-                error: `${participant.name || participant.email} already has a booking at ${conflict.resource_name} from ${formatTime12Hour(cStart)} to ${formatTime12Hour(cEnd)}. They cannot be added to an overlapping time slot.`
-              });
-            }
-          }
-        }
-        
-        for (const participant of sanitizedParticipants) {
-          if (participant.type === 'member' && participant.email) {
-            const pLimitCheck = await checkDailyBookingLimit(participant.email, request_date, duration_minutes, undefined, resourceType);
-            if (!pLimitCheck.allowed) {
-              throw new BookingValidationError(403, {
-                error: `Participant ${participant.name || participant.email} has exceeded their daily booking limit.`,
-                remainingMinutes: pLimitCheck.remainingMinutes
-              });
-            }
-          }
-        }
+        await checkParticipantOverlaps(sanitizedParticipants, request_date, start_time, end_time, tx as unknown as Parameters<typeof checkParticipantOverlaps>[4]);
+        await checkParticipantDailyLimits(sanitizedParticipants, request_date, duration_minutes, resourceType);
 
         const initialStatus: 'pending' | 'confirmed' = 'pending';
         
@@ -735,6 +529,9 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       logger.error('[BookingRequest] Post-commit operations failed', { extra: { error: getErrorMessage(postCommitError) } });
     }
   } catch (error: unknown) {
+    if (error instanceof BookingValidationError) {
+      return res.status(error.statusCode).json(error.errorBody);
+    }
     const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique' || constraint.type === 'exclusion') {

@@ -9,7 +9,7 @@ interface StripeInvoiceExpanded extends Stripe.Invoice {
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
-import { getOrCreateStripeCustomer, listCustomerPaymentMethods } from '../core/stripe/customers';
+import { getOrCreateStripeCustomer, listCustomerPaymentMethods, clearStaleStripeCustomerId } from '../core/stripe/customers';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices } from '../core/stripe/invoices';
@@ -133,7 +133,7 @@ router.get('/api/my/billing', requireAuth, validateQuery(optionalEmailSchema), a
       } catch (stripeError: unknown) {
         if (isStripeResourceMissing(stripeError)) {
           logger.warn(`[MyBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on billing fetch, clearing`);
-          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+          await clearStaleStripeCustomerId(email);
           billingInfo.stripeCustomerId = null;
         } else {
           logger.error('[MyBilling] Stripe error', { extra: { stripeError: getErrorMessage(stripeError) } });
@@ -188,7 +188,7 @@ router.get('/api/my/billing/invoices', requireAuth, validateQuery(optionalEmailS
     if (!invoicesResult.success) {
       if (invoicesResult.isCustomerMissing) {
         logger.warn(`[MyBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on invoices fetch, clearing`);
-        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+        await clearStaleStripeCustomerId(email);
         return res.json({ invoices: [] });
       }
       return res.status(500).json({ error: 'Failed to load invoices' });
@@ -444,7 +444,7 @@ router.get('/api/my/balance', requireAuth, async (req, res) => {
     } catch (stripeErr: unknown) {
       if (isStripeResourceMissing(stripeErr)) {
         logger.warn(`[MyBilling] Stale Stripe customer ${stripeCustomerId} for ${email}, clearing`);
-        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+        await clearStaleStripeCustomerId(email);
         return res.json({ balanceCents: 0, balanceDollars: 0 });
       }
       throw stripeErr;
@@ -566,7 +566,7 @@ router.get('/api/my-billing/account-balance', requireAuth, validateQuery(billing
     } catch (stripeErr: unknown) {
       if (isStripeResourceMissing(stripeErr)) {
         logger.warn(`[MyBilling] Stale Stripe customer ${stripeCustomerId} for ${targetEmail}, clearing`);
-        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
+        await clearStaleStripeCustomerId(targetEmail);
         return res.json({ balanceCents: 0, balanceDollars: 0 });
       }
       throw stripeErr;

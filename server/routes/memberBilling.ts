@@ -6,7 +6,7 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getStripeClient, getStripeEnvironmentInfo } from '../core/stripe/client';
-import { isPlaceholderEmail, listCustomerPaymentMethods } from '../core/stripe/customers';
+import { isPlaceholderEmail, listCustomerPaymentMethods, clearStaleStripeCustomerId } from '../core/stripe/customers';
 import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/invoices';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
@@ -201,7 +201,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       } catch (stripeError: unknown) {
         if (isStripeResourceMissing(stripeError)) {
           logger.warn(`[MemberBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on billing fetch, clearing`);
-          await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+          await clearStaleStripeCustomerId(email);
           billingInfo.stripeCustomerId = null;
         } else {
           logger.error('[MemberBilling] Stripe API error', { extra: { stripeError: getErrorMessage(stripeError) } });
@@ -250,7 +250,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
         } catch (stripeError: unknown) {
           if (isStripeResourceMissing(stripeError)) {
             logger.warn(`[MemberBilling] Stale Stripe customer ${member.stripe_customer_id} for MindBody member ${email}, clearing`);
-            await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+            await clearStaleStripeCustomerId(email);
           } else {
             logger.error('[MemberBilling] Stripe lookup for MindBody member failed', { extra: { email, stripeCustomerId: member.stripe_customer_id, stripeError: getErrorMessage(stripeError) } });
           }
@@ -906,7 +906,7 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
     if (!result.success) {
       if (result.isCustomerMissing) {
         logger.warn(`[MemberBilling] Stale Stripe customer ${member.stripe_customer_id} for ${email} on invoices fetch, clearing`);
-        await db.execute(sql`UPDATE users SET stripe_customer_id = NULL WHERE LOWER(email) = ${email.toLowerCase()}`);
+        await clearStaleStripeCustomerId(email);
         return res.json({ invoices: [] });
       }
       return res.status(500).json({ error: result.error });

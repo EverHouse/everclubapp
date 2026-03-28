@@ -7,17 +7,11 @@ import { isExpandedProduct } from '../../types/stripe-helpers';
 import { getStripeClient } from '../../core/stripe/client';
 import { listCustomerPaymentMethods } from '../../core/stripe/customers';
 import {
-  createPaymentIntent,
-  confirmPaymentSuccess,
   getPaymentIntentStatus,
   cancelPaymentIntent,
   getOrCreateStripeCustomer,
   type BookingFeeLineItem
 } from '../../core/stripe';
-import { computeFeeBreakdown, applyFeeBreakdownToParticipants, getEffectivePlayerCount } from '../../core/billing/unifiedFeeService';
-import {
-  getPaymentByIntentId,
-} from '../../core/stripe/paymentRepository';
 import { logFromRequest } from '../../core/auditLog';
 import { getStaffInfo, SAVED_CARD_APPROVAL_THRESHOLD_CENTS } from './helpers';
 import { broadcastBillingUpdate, broadcastBookingInvoiceUpdate } from '../../core/websocket';
@@ -102,336 +96,25 @@ router.get('/api/stripe/prices/recurring', isStaffOrAdmin, async (req: Request, 
 
 router.post('/api/stripe/create-payment-intent', isStaffOrAdmin, validateBody(createPaymentIntentSchema), async (req: Request, res: Response) => {
   try {
-    const { 
-      userId, 
-      email, 
-      memberName, 
-      amountCents, 
-      purpose, 
-      bookingId, 
-      sessionId, 
+    const { userId, email, memberName, amountCents, purpose, bookingId, sessionId, description, participantFees } = req.body;
+
+    const { processStaffPayFees } = await import('../../core/billing/paymentProcessingService');
+    const result = await processStaffPayFees({
+      userId,
+      email,
+      memberName,
+      amountCents,
+      purpose,
+      bookingId,
+      sessionId,
       description,
-      participantFees
-    } = req.body;
-
-    let finalDescription = description;
-    let trackmanId: unknown = null;
-    if (bookingId) {
-      const trackmanLookup = await db.execute(sql`SELECT trackman_booking_id FROM booking_requests WHERE id = ${bookingId}`);
-      trackmanId = (trackmanLookup.rows[0] as { trackman_booking_id?: string })?.trackman_booking_id;
-      finalDescription = await buildInvoiceDescription(bookingId, (trackmanId as string) || null);
-    }
-    
-    let resolvedUserId = userId || '';
-    if (!resolvedUserId && email) {
-      const { resolveUserByEmail } = await import('../../core/stripe/customers');
-      const resolved = await resolveUserByEmail(email);
-      if (resolved) {
-        resolvedUserId = resolved.userId;
+      participantFees,
+      auditLogFn: (paymentIntentId, meta) => {
+        logFromRequest(req, 'record_charge', 'payment', paymentIntentId, email, meta);
       }
-    }
-
-    let snapshotId: number | null = null;
-    const serverFees: Array<{id: number; amountCents: number}> = [];
-    let serverTotal = Math.round(amountCents);
-    let pendingFees: Array<{ participantId?: number; displayName: string; participantType: string; overageCents: number; guestCents: number; totalCents: number }> = [];
-    const isBookingPayment = bookingId && sessionId && participantFees && Array.isArray(participantFees) && participantFees.length > 0;
-
-    if (isBookingPayment) {
-      const sessionCheck = await db.execute(sql`SELECT bs.id FROM booking_sessions bs
-         JOIN booking_requests br ON br.session_id = bs.id
-         WHERE bs.id = ${sessionId} AND br.id = ${bookingId}`);
-      if (sessionCheck.rows.length === 0) {
-        return res.status(400).json({ error: 'Invalid session/booking combination' });
-      }
-
-      const existingSucceeded = await db.execute(sql`SELECT spi.stripe_payment_intent_id, spi.amount_cents
-         FROM stripe_payment_intents spi
-         WHERE spi.booking_id = ${bookingId} AND spi.session_id = ${sessionId} AND spi.status = 'succeeded'
-         ORDER BY spi.created_at DESC LIMIT 1`);
-      if (existingSucceeded.rows.length > 0) {
-        const succeededPi = existingSucceeded.rows[0] as { stripe_payment_intent_id: string; amount_cents: number };
-        logger.info('[Stripe] Booking already has succeeded payment, preventing double charge', {
-          extra: { bookingId, sessionId, existingPiId: succeededPi.stripe_payment_intent_id }
-        });
-        return res.status(200).json({
-          alreadyPaid: true,
-          message: 'Payment already completed',
-          paymentIntentId: succeededPi.stripe_payment_intent_id
-        });
-      }
-
-      const existingPendingSnapshot = await db.execute(sql`SELECT bfs.id, bfs.stripe_payment_intent_id, spi.status as pi_status
-         FROM booking_fee_snapshots bfs
-         LEFT JOIN stripe_payment_intents spi ON bfs.stripe_payment_intent_id = spi.stripe_payment_intent_id
-         WHERE bfs.booking_id = ${bookingId} AND bfs.status = 'pending'
-         ORDER BY bfs.created_at DESC
-         LIMIT 1`);
-      
-      if (existingPendingSnapshot.rows.length > 0) {
-        const existing = existingPendingSnapshot.rows[0] as { id: number; stripe_payment_intent_id: string | null; pi_status: string | null };
-        if (existing.stripe_payment_intent_id) {
-          try {
-            const stripe = await getStripeClient();
-            const pi = await stripe.paymentIntents.retrieve(existing.stripe_payment_intent_id as string);
-            if (pi.status === 'succeeded') {
-              await confirmPaymentSuccess(existing.stripe_payment_intent_id as string, 'system', 'Auto-sync');
-              return res.status(200).json({ 
-                alreadyPaid: true,
-                message: 'Payment already completed' 
-              });
-            } else if (pi.status === 'requires_payment_method' || pi.status === 'requires_confirmation') {
-              if (pi.amount !== Math.round(amountCents)) {
-                logger.warn('[Stripe] Stale payment intent : PI amount != requested , cancelling and creating new one', { extra: { existingStripe_payment_intent_id: existing.stripe_payment_intent_id, piAmount: pi.amount, MathRound_amountCents: Math.round(amountCents) } });
-                try {
-                  await cancelPaymentIntent(existing.stripe_payment_intent_id as string);
-                } catch (cancelErr: unknown) {
-                  logger.warn('[Stripe] Failed to cancel stale payment intent', { extra: { error: getErrorMessage(cancelErr) } });
-                }
-                await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${existing.id}`);
-              } else {
-                logger.info('[Stripe] Reusing existing payment intent', { extra: { existingStripe_payment_intent_id: existing.stripe_payment_intent_id } });
-                return res.json({ 
-                  clientSecret: pi.client_secret, 
-                  paymentIntentId: pi.id,
-                  reused: true
-                });
-              }
-            }
-          } catch (err: unknown) {
-            logger.warn('[Stripe] Failed to check existing payment intent, creating new one', { error: getErrorMessage(err) });
-          }
-        }
-      }
-
-      const requestedIds: number[] = participantFees.map((pf: { id: number }) => pf.id);
-
-      const participantCountResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${sessionId}`);
-      const actualParticipantCount = parseInt((participantCountResult.rows[0] as { count: string })?.count || '1', 10);
-      const effectivePlayerCount = getEffectivePlayerCount(actualParticipantCount, actualParticipantCount);
-
-      let feeBreakdown;
-      try {
-        feeBreakdown = await computeFeeBreakdown({
-          sessionId,
-          declaredPlayerCount: effectivePlayerCount,
-          source: 'stripe' as const
-        });
-        await applyFeeBreakdownToParticipants(sessionId, feeBreakdown);
-        logger.info('[Stripe] Applied unified fees for session : $', { extra: { sessionId, feeBreakdownTotalsTotalCents_100_ToFixed_2: (feeBreakdown.totals.totalCents/100).toFixed(2) } });
-      } catch (unifiedError: unknown) {
-        return logAndRespond(req, res, 500, 'Failed to calculate fees', unifiedError);
-      }
-
-      pendingFees = feeBreakdown.participants.filter(p => 
-        p.participantId && requestedIds.includes(p.participantId) && p.totalCents > 0
-      );
-      
-      if (pendingFees.length === 0) {
-        return res.status(400).json({ error: 'No valid pending participants with fees to charge' });
-      }
-      
-      for (const fee of pendingFees) {
-        serverFees.push({ id: fee.participantId!, amountCents: fee.totalCents });
-      }
-      
-      logger.info('[Stripe] Calculated authoritative fees using unified service', { extra: { pendingFeesLength: pendingFees.length } });
-
-      serverTotal = serverFees.reduce((sum, f) => sum + f.amountCents, 0);
-      
-      if (serverTotal < 50) {
-        return res.status(400).json({ error: 'Total amount must be at least $0.50' });
-      }
-
-      logger.info('[Stripe] Using authoritative cached fees from DB, total: $', { extra: { serverTotal_100_ToFixed_2: (serverTotal/100).toFixed(2) } });
-      if (Math.abs(serverTotal - amountCents) > 1) {
-        logger.warn('[Stripe] Client total mismatch: client=, server= - using server total', { extra: { amountCents, serverTotal } });
-      }
-
-      const snapshotResult = await db.execute(sql`INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
-           VALUES (${bookingId}, ${sessionId}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'pending') RETURNING id`);
-      snapshotId = (snapshotResult.rows[0] as { id: number }).id;
-      logger.info('[Stripe] Created fee snapshot for booking : $ with participants', { extra: { snapshotId, bookingId, serverTotal_100_ToFixed_2: (serverTotal/100).toFixed(2), serverFeesLength: serverFees.length } });
-    } else {
-      if (serverTotal < 50) {
-        return res.status(400).json({ error: 'Amount must be at least $0.50' });
-      }
-      logger.info('[Stripe] Non-booking payment: $ for', { extra: { serverTotal_100_ToFixed_2: (serverTotal/100).toFixed(2), purpose } });
-    }
-
-    const metadata: Record<string, string> = {};
-    if (snapshotId) {
-      metadata.feeSnapshotId = snapshotId.toString();
-    }
-    if (serverFees.length > 0) {
-      metadata.participantCount = serverFees.length.toString();
-      const participantIds = serverFees.map(f => f.id).join(',');
-      metadata.participantIds = participantIds.length > 490 ? participantIds.substring(0, 490) + '...' : participantIds;
-    }
-    if (trackmanId) {
-      metadata.trackmanBookingId = String(trackmanId);
-    }
-    
-    if (isBookingPayment) {
-      const { customerId: stripeCustomerId } = await getOrCreateStripeCustomer(resolvedUserId, email, memberName || email.split('@')[0]);
-
-      const participantIdsLiteral = toIntArrayLiteral(serverFees.map(f => f.id));
-      const participantDetails = await db.execute(sql`SELECT id, display_name, participant_type FROM booking_participants WHERE id = ANY(${participantIdsLiteral}::int[])`);
-
-      const feeLineItems: BookingFeeLineItem[] = [];
-      for (const rawDetail of participantDetails.rows as Array<{ id: number; display_name: string; participant_type: string }>) {
-        const fee = pendingFees.find(f => f.participantId === rawDetail.id);
-        if (!fee || fee.totalCents <= 0) continue;
-        feeLineItems.push({
-          participantId: rawDetail.id,
-          displayName: rawDetail.display_name || (rawDetail.participant_type === 'guest' ? 'Guest' : 'Member'),
-          participantType: rawDetail.participant_type as 'owner' | 'member' | 'guest',
-          overageCents: fee.overageCents || 0,
-          guestCents: fee.guestCents || 0,
-          totalCents: fee.totalCents,
-        });
-      }
-
-      let invoiceResult;
-      try {
-        const existingInvoiceId = await getBookingInvoiceId(bookingId);
-        if (existingInvoiceId) {
-          invoiceResult = await finalizeAndPayInvoice({ bookingId });
-        } else {
-          await createDraftInvoiceForBooking({
-            customerId: stripeCustomerId,
-            bookingId,
-            sessionId,
-            trackmanBookingId: trackmanId ? String(trackmanId) : null,
-            feeLineItems,
-            metadata,
-            purpose: 'booking_fee',
-          });
-          invoiceResult = await finalizeAndPayInvoice({ bookingId });
-        }
-      } catch (stripeErr: unknown) {
-        if (snapshotId) {
-          await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${snapshotId}`);
-          logger.info('[Stripe] Deleted orphaned snapshot after invoice creation failed', { extra: { snapshotId } });
-        }
-        throw stripeErr;
-      }
-
-      if (invoiceResult.paidInFull) {
-        if (snapshotId) {
-          await db.execute(sql`UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${invoiceResult.paymentIntentId}, status = 'paid', updated_at = NOW() WHERE id = ${snapshotId}`);
-        }
-
-        await db.execute(sql`INSERT INTO stripe_payment_intents 
-           (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-           VALUES (${resolvedUserId || email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverTotal}, ${purpose}, ${bookingId}, ${sessionId}, ${finalDescription}, 'succeeded')
-           ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
-
-        logFromRequest(req, 'record_charge', 'payment', invoiceResult.paymentIntentId, email, {
-          amount: serverTotal,
-          description: description,
-          paidByCredit: true,
-          invoiceId: invoiceResult.invoiceId
-        });
-
-        return res.json({
-          paidInFull: true,
-          balanceApplied: invoiceResult.amountFromBalance || serverTotal,
-          paymentIntentId: invoiceResult.paymentIntentId,
-          invoiceId: invoiceResult.invoiceId,
-          hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
-          invoicePdf: invoiceResult.invoicePdf || null,
-          feeLineItems: feeLineItems.map(li => ({
-            participantId: li.participantId,
-            displayName: li.displayName,
-            participantType: li.participantType,
-            overageCents: li.overageCents,
-            guestCents: li.guestCents,
-            totalCents: li.totalCents,
-          })),
-        });
-      }
-
-      if (snapshotId) {
-        await db.execute(sql`UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${invoiceResult.paymentIntentId}, updated_at = NOW() WHERE id = ${snapshotId}`);
-      }
-
-      await db.execute(sql`INSERT INTO stripe_payment_intents 
-         (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-         VALUES (${resolvedUserId || email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverTotal}, ${purpose}, ${bookingId}, ${sessionId}, ${finalDescription}, 'pending')
-         ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
-
-      logFromRequest(req, 'record_charge', 'payment', invoiceResult.paymentIntentId, email, {
-        amount: serverTotal,
-        description: description,
-        invoiceId: invoiceResult.invoiceId
-      });
-      
-      return res.json({
-        paymentIntentId: invoiceResult.paymentIntentId,
-        clientSecret: invoiceResult.clientSecret,
-        customerId: stripeCustomerId,
-        invoiceId: invoiceResult.invoiceId,
-        paidInFull: false,
-        balanceApplied: 0,
-        remainingCents: serverTotal,
-        hostedInvoiceUrl: invoiceResult.hostedInvoiceUrl || null,
-        invoicePdf: invoiceResult.invoicePdf || null,
-        feeLineItems: feeLineItems.map(li => ({
-          participantId: li.participantId,
-          displayName: li.displayName,
-          participantType: li.participantType,
-          overageCents: li.overageCents,
-          guestCents: li.guestCents,
-          totalCents: li.totalCents,
-        })),
-      });
-    }
-
-    let result;
-    try {
-      result = await createPaymentIntent({
-        userId: resolvedUserId,
-        email,
-        memberName: memberName || email.split('@')[0],
-        amountCents: serverTotal,
-        purpose,
-        bookingId,
-        sessionId,
-        description: finalDescription,
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined
-      });
-    } catch (stripeErr: unknown) {
-      if (snapshotId) {
-        await db.execute(sql`DELETE FROM booking_fee_snapshots WHERE id = ${snapshotId}`);
-        logger.info('[Stripe] Deleted orphaned snapshot after PaymentIntent creation failed', { extra: { snapshotId } });
-      }
-      throw stripeErr;
-    }
-
-    if (snapshotId) {
-      await db.execute(sql`UPDATE booking_fee_snapshots SET stripe_payment_intent_id = ${result.paymentIntentId}, updated_at = NOW() WHERE id = ${snapshotId}`);
-    }
-
-    logFromRequest(req, 'record_charge', 'payment', result.paymentIntentId, email, {
-      amount: serverTotal,
-      description: description
     });
-    
-    if (result.status === 'succeeded') {
-      res.json({
-        paidInFull: true,
-        paymentIntentId: result.paymentIntentId,
-        customerId: result.customerId
-      });
-      return;
-    }
 
-    res.json({
-      paymentIntentId: result.paymentIntentId,
-      clientSecret: result.clientSecret,
-      customerId: result.customerId
-    });
+    res.status(result.status).json(result.body);
   } catch (error: unknown) {
     await alertOnExternalServiceError('Stripe', error as Error, 'create payment intent');
     logAndRespond(req, res, 500, 'Payment processing failed. Please try again.', error);
@@ -443,25 +126,10 @@ router.post('/api/stripe/confirm-payment', isStaffOrAdmin, validateBody(confirmP
     const { paymentIntentId } = req.body;
     const { staffEmail, staffName } = getStaffInfo(req);
 
-    const result = await confirmPaymentSuccess(
-      paymentIntentId,
-      staffEmail,
-      staffName
-    );
+    const { processStaffConfirmPayment } = await import('../../core/billing/paymentProcessingService');
+    const result = await processStaffConfirmPayment(paymentIntentId, staffEmail, staffName);
 
-    if (!result.success) {
-      return res.status(400).json({ error: result.error });
-    }
-
-    const paymentRecord = await getPaymentByIntentId(paymentIntentId);
-    
-    broadcastBillingUpdate({
-      action: 'payment_succeeded',
-      memberEmail: paymentRecord?.memberEmail || paymentRecord?.member_email || undefined,
-      amount: paymentRecord?.amountCents || paymentRecord?.amount_cents
-    });
-
-    res.json({ success: true });
+    res.status(result.status).json(result.body);
   } catch (error: unknown) {
     await alertOnExternalServiceError('Stripe', error as Error, 'confirm payment');
     logAndRespond(req, res, 500, 'Payment confirmation failed. Please try again.', error);
