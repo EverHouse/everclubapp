@@ -1166,8 +1166,7 @@ export async function recalculateSessionFees(
             });
           } catch (cascadeErr: unknown) {
             logger.warn('[UnifiedFeeService] Failed to cascade-recalculate session', {
-              cascadedSessionId: later.id,
-              error: getErrorMessage(cascadeErr)
+              extra: { cascadedSessionId: later.id, error: getErrorMessage(cascadeErr) }
             });
           }
         }

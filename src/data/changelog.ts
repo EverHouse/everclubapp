@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.91",
+    date: "2026-03-28",
+    title: "Logging & Error Handling Improvements",
+    changes: [
+      "Improved: All server error logging now uses a consistent structured format, making it easier for staff to search and filter error reports.",
+      "Fixed: A typo in cancellation event logging that could cause error details to be lost in log aggregation.",
+      "Improved: Error messages throughout the backend are now extracted safely, preventing potential crashes when unexpected error types are encountered.",
+    ]
+  },
+  {
     version: "8.97.90",
     date: "2026-03-28",
     title: "Infrastructure Hardening & Edge Case Fixes",

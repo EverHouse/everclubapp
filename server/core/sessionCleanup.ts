@@ -37,8 +37,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
       return 0;
     }
     logger.error('[SessionCleanup] Failed to cleanup sessions', {
-      error: getErrorMessage(error),
-      extra: { event: 'session.cleanup_failed' }
+      extra: { error: getErrorMessage(error), event: 'session.cleanup_failed' }
     });
     return 0;
   }
@@ -76,8 +75,7 @@ export async function getSessionStats(): Promise<{
       return { total: 0, active: 0, expired: 0, oldestActive: null, newestActive: null };
     }
     logger.error('[SessionCleanup] Failed to get session stats', {
-      error: getErrorMessage(error),
-      extra: { event: 'session.stats_failed' }
+      extra: { error: getErrorMessage(error), event: 'session.stats_failed' }
     });
     return { total: 0, active: 0, expired: 0, oldestActive: null, newestActive: null };
   }
@@ -104,8 +102,7 @@ export async function runSessionCleanup(): Promise<void> {
     });
   } catch (error: unknown) {
     logger.error('[SessionCleanup] Scheduled cleanup failed', {
-      error: getErrorMessage(error),
-      extra: { event: 'session.cleanup_failed' }
+      extra: { error: getErrorMessage(error), event: 'session.cleanup_failed' }
     });
   }
 }

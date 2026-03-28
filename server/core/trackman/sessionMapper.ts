@@ -529,8 +529,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           await recalculateSessionFees(fallbackSession.id, 'trackman_import');
         } catch (feeErr: unknown) {
           logger.error('[TrackmanImport] Failed to recalculate fees for fallback session', {
-            extra: { sessionId: fallbackSession.id, bookingId: input.bookingId },
-            error: getErrorMessage(feeErr)
+            extra: { sessionId: fallbackSession.id, bookingId: input.bookingId, error: getErrorMessage(feeErr) }
           });
         }
 

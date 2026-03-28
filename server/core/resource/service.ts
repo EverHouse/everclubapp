@@ -360,9 +360,7 @@ export async function declineBooking(bookingId: number, reason?: string) {
       }
     } catch (err: unknown) {
       logger.warn('[Staff Decline] Failed to clean up trackman_bay_slots', { 
-        bookingId, 
-        resourceId: result.resourceId,
-        error: getErrorMessage(err) 
+        extra: { bookingId, resourceId: result.resourceId, error: getErrorMessage(err) }
       });
     }
   }

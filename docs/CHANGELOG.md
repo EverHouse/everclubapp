@@ -2,6 +2,17 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.91] - 2026-03-28
+
+### Logging Convention Sweep (server/core/)
+- **Convention**: Comprehensive sweep of all `server/core/` files to enforce Convention 18b: all catch blocks use `getErrorMessage(err)` from `server/utils/errorUtils.ts`, all logger metadata uses `{ extra: { error: getErrorMessage(err) } }` (never top-level `{ error: X }`), banned patterns (`err as Error`, `instanceof Error ? err : new Error(...)`, `String(err)`) eliminated.
+- **Fix**: ~400+ logger calls converted from `{ error: getErrorMessage(...) }` to `{ extra: { error: getErrorMessage(...) } }` across all `server/core/` subdirectories.
+- **Fix**: Typo in `approvalCompletion.ts:657` — `{ extra: { err: ... } }` corrected to `{ extra: { error: ... } }`.
+- **Fix**: Broken brace syntax regressions from bulk sed in `sessionManager.ts`, `trackmanImport.ts`, `jobQueue.ts`, `sessionMapper.ts` — all manually repaired and verified.
+- **Fix**: Double-wrapped `{ extra: { extra: ... } }` patterns in `webhooks/index.ts`, `integrations.ts`, `bookingEvents.ts` corrected to single `{ extra: { ... } }`.
+- **Legitimate exceptions preserved**: `logger.ts:201` (utility itself), `bookingInvoiceService.ts:220,296` (extracting Error property for `alertOnExternalServiceError`).
+- **Files changed**: All files under `server/core/` containing logger calls with error metadata — major files include `sessionManager.ts`, `trackmanImport.ts`, `approvalFlow.ts`, `approvalCompletion.ts`, `approvalCancel.ts`, `bookingStateService.ts`, `jobQueue.ts`, `sessionMapper.ts`, `conference-room.ts`, `payments.ts`, `productSync.ts`, `productCreation.ts`, `supabase/client.ts`, `resource/service.ts`, `trackman/resolution.ts`, `notificationService.ts`, `websocket.ts`, `registrationService.ts`, `walkInCheckinService.ts`, `bookingEvents.ts`, and many more.
+
 ## [8.97.90] - 2026-03-28
 
 ### Infrastructure Hardening & Edge Case Fixes

@@ -57,7 +57,7 @@ export async function loadTierRegistry(): Promise<void> {
     logger.info(`[TierRegistry] Loaded ${membershipTiers.length} tiers from DB: ${names.join(', ')}`);
   } catch (error: unknown) {
     logger.error('[TierRegistry] Failed to load tier data from DB, using defaults', {
-      error: getErrorMessage(error),
+      extra: { error: getErrorMessage(error) }
     });
   }
 }

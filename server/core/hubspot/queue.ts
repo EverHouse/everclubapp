@@ -83,8 +83,7 @@ export async function enqueueHubSpotSync(
     return (result.rows[0] as unknown as QueueIdRow).id;
   } catch (error: unknown) {
     logger.error('[HubSpot Queue] Failed to enqueue job', { 
-      error: getErrorMessage(error),
-      extra: { operation, idempotencyKey }
+      extra: { error: getErrorMessage(error), operation, idempotencyKey }
     });
     return null;
   }
@@ -182,8 +181,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
         }
         
         logger.error('[HubSpot Queue] Job dead (unrecoverable error - skipping retries)', { 
-          error: getErrorMessage(error),
-          extra: { jobId: job.id, operation: job.operation }
+          extra: { error: getErrorMessage(error), jobId: job.id, operation: job.operation }
         });
         
         try {
@@ -252,8 +250,7 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
           });
         } else {
           logger.error('[HubSpot Queue] Job dead (max retries exceeded)', { 
-            error: getErrorMessage(error),
-            extra: { jobId: job.id, operation: job.operation }
+            extra: { error: getErrorMessage(error), jobId: job.id, operation: job.operation }
           });
           
           try {

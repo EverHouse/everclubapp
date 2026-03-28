@@ -167,8 +167,7 @@ export async function createPrepaymentIntent(
     };
   } catch (error: unknown) {
     logger.error('[Prepayment] Failed to create draft invoice', {
-      error: getErrorMessage(error),
-      extra: { sessionId, bookingId, userEmail, totalFeeCents }
+      extra: { error: getErrorMessage(error), sessionId, bookingId, userEmail, totalFeeCents }
     });
     return null;
   }

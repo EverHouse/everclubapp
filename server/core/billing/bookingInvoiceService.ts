@@ -1176,8 +1176,7 @@ export async function voidBookingInvoice(bookingId: number): Promise<{
                      WHERE stripe_payment_intent_id = ${invoicePI}`);
                 } catch (syncErr: unknown) {
                   logger.error('[BookingInvoice] CRITICAL: Failed to set refund_succeeded_sync_failed status', {
-                    error: getErrorMessage(syncErr),
-                    extra: { paymentIntentId: invoicePI }
+                    extra: { error: getErrorMessage(syncErr), paymentIntentId: invoicePI }
                   });
                 }
               }

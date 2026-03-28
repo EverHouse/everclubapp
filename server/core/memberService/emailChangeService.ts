@@ -207,8 +207,7 @@ export async function cascadeEmailChange(
           } catch (stripeErr: unknown) {
             const msg = `Stripe sync failed: ${getErrorMessage(stripeErr)}`;
             logger.error(`[EmailChangeService] ${msg}`, {
-              error: getErrorMessage(stripeErr),
-              extra: { stripeCustomerId: user.stripe_customer_id, oldEmail: normalizedOldEmailForSync, newEmail: normalizedNewEmailForSync },
+              extra: { error: getErrorMessage(stripeErr), stripeCustomerId: user.stripe_customer_id, oldEmail: normalizedOldEmailForSync, newEmail: normalizedNewEmailForSync },
             });
             warnings.push(msg);
           }
@@ -225,8 +224,7 @@ export async function cascadeEmailChange(
           } catch (hubspotErr: unknown) {
             const errMsg = getErrorMessage(hubspotErr);
             logger.warn(`[EmailChangeService] HubSpot immediate sync failed, enqueuing for retry`, {
-              error: getErrorMessage(hubspotErr),
-              extra: { hubspotId: user.hubspot_id, oldEmail: normalizedOldEmailForSync, newEmail: normalizedNewEmailForSync },
+              extra: { error: getErrorMessage(hubspotErr), hubspotId: user.hubspot_id, oldEmail: normalizedOldEmailForSync, newEmail: normalizedNewEmailForSync },
             });
             try {
               const { enqueueHubSpotSync } = await import('../hubspot/queue');

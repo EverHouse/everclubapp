@@ -282,9 +282,7 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
     return result;
   } catch (error: unknown) {
     logger.error(`[Notification] Database insert failed for ${payload.userEmail}`, {
-      userEmail: payload.userEmail,
-      error: getErrorMessage(error),
-      extra: { event: 'notification.database_insert_failed', type: payload.type }
+      extra: { userEmail: payload.userEmail, error: getErrorMessage(error), event: 'notification.database_insert_failed', type: payload.type }
     });
     return null;
   }
@@ -324,9 +322,7 @@ async function deliverViaWebSocket(payload: NotificationPayload): Promise<Delive
     };
   } catch (error: unknown) {
     logger.error(`[Notification] WebSocket delivery failed for ${payload.userEmail}`, {
-      userEmail: payload.userEmail,
-      error: getErrorMessage(error),
-      extra: { event: 'notification.websocket_failed', type: payload.type }
+      extra: { userEmail: payload.userEmail, error: getErrorMessage(error), event: 'notification.websocket_failed', type: payload.type }
     });
     
     return {
@@ -430,9 +426,7 @@ async function deliverViaPush(userEmail: string, payload: PushPayload): Promise<
     };
   } catch (error: unknown) {
     logger.error(`[Notification] Push delivery failed for ${userEmail}`, {
-      userEmail,
-      error: getErrorMessage(error),
-      extra: { event: 'notification.push_failed' }
+      extra: { userEmail, error: getErrorMessage(error), event: 'notification.push_failed' }
     });
     
     return {
@@ -469,9 +463,7 @@ async function deliverViaEmail(to: string, subject: string, html: string): Promi
     };
   } catch (error: unknown) {
     logger.error(`[Notification] Email delivery failed for ${to}`, {
-      userEmail: to,
-      error: getErrorMessage(error),
-      extra: { event: 'notification.email_failed', subject }
+      extra: { userEmail: to, error: getErrorMessage(error), event: 'notification.email_failed', subject }
     });
     
     return {
@@ -808,14 +800,14 @@ async function deliverPushToStaff(payload: PushPayload): Promise<DeliveryResult>
       } catch (err: unknown) {
         failCount++;
         const statusCode = getErrorStatusCode(err);
-        const errMsg = getErrorMessage(err) || String(err);
+        const errMsg = getErrorMessage(err);
         if (statusCode === 410 || statusCode === 404) {
           staleEndpoints.push(sub.endpoint);
         } else {
           logger.warn(`[Notification] Staff push subscription failed`, {
-            userEmail: sub.userEmail,
-            error: errMsg,
             extra: { 
+              userEmail: sub.userEmail,
+              error: errMsg,
               event: 'notification.staff_push_subscription_failed', 
               statusCode,
               endpointPrefix: sub.endpoint.substring(0, 60)
@@ -851,8 +843,7 @@ async function deliverPushToStaff(payload: PushPayload): Promise<DeliveryResult>
     };
   } catch (error: unknown) {
     logger.error(`[Notification] Staff push delivery failed`, {
-      error: getErrorMessage(error),
-      extra: { event: 'notification.staff_push_failed' }
+      extra: { error: getErrorMessage(error), event: 'notification.staff_push_failed' }
     });
     
     return {

@@ -387,8 +387,7 @@ export async function sendErrorAlert(options: AlertOptions): Promise<boolean> {
     return true;
   } catch (error: unknown) {
     logger.error('[ErrorAlert] Failed to send alert email', {
-      error: getErrorMessage(error),
-      extra: { event: 'error_alert.failed', type }
+      extra: { error: getErrorMessage(error), event: 'error_alert.failed', type }
     });
     return false;
   }

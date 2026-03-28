@@ -180,10 +180,7 @@ export async function checkClosureConflict(
         }
       } catch (parseErr) {
         logger.warn('[checkClosureConflict] Malformed closure time data, treating as full-day closure', {
-          closureId: closure.id,
-          startTime: closure.startTime,
-          endTime: closure.endTime,
-          error: getErrorMessage(parseErr)
+          extra: { closureId: closure.id, startTime: closure.startTime, endTime: closure.endTime, error: getErrorMessage(parseErr) }
         });
         effectiveStartMinutes = 0;
         effectiveEndMinutes = 24 * 60;

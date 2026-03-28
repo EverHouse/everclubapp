@@ -301,8 +301,7 @@ export async function reconcileRecentlyActivatedHubSpotSync(): Promise<{
         const errMsg = `${member.email}: ${getErrorMessage(memberErr)}`;
         result.errors.push(errMsg);
         logger.error(`[HubSpot Reconciliation] Failed to enqueue member`, {
-          error: getErrorMessage(memberErr),
-          extra: { memberId: member.id, email: member.email }
+          extra: { error: getErrorMessage(memberErr), memberId: member.id, email: member.email }
         });
       }
     }

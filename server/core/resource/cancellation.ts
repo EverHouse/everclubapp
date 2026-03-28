@@ -251,8 +251,7 @@ export async function handleCancellationCascade(
                  WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
             } catch (syncErr: unknown) {
               logger.error('[cancellation-cascade] CRITICAL: Failed to set refund_succeeded_sync_failed status', {
-                error: getErrorMessage(syncErr),
-                extra: { paymentIntentId: row.stripe_payment_intent_id }
+                extra: { error: getErrorMessage(syncErr), paymentIntentId: row.stripe_payment_intent_id }
               });
             }
           }
@@ -274,8 +273,7 @@ export async function handleCancellationCascade(
              WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id} AND status = 'refunding'`);
         } catch (rollbackErr: unknown) {
           logger.error('[cancellation-cascade] CRITICAL: Failed to rollback payment_intent status after refund queue failure', {
-            error: getErrorMessage(rollbackErr),
-            extra: { paymentIntentId: row.stripe_payment_intent_id }
+            extra: { error: getErrorMessage(rollbackErr), paymentIntentId: row.stripe_payment_intent_id }
           });
         }
         
