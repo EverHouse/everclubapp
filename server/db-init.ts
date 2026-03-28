@@ -804,60 +804,10 @@ export async function ensureDatabaseConstraints() {
     }
 
     try {
-      const constraintExists = await db.execute(sql`
-        SELECT 1 FROM pg_constraint WHERE conname = 'chk_participant_owner_member_user_id'
+      await db.execute(sql`
+        ALTER TABLE booking_participants DROP CONSTRAINT IF EXISTS chk_participant_owner_member_user_id
       `);
-      if (!constraintExists.rows.length) {
-        const relinkOwners = await db.execute(sql`
-          UPDATE booking_participants bp
-          SET user_id = sub.found_user_id
-          FROM (
-            SELECT DISTINCT ON (bp2.id)
-              bp2.id AS participant_id,
-              u.id AS found_user_id
-            FROM booking_participants bp2
-            JOIN booking_requests br ON br.session_id = bp2.session_id
-            JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
-            WHERE bp2.participant_type = 'owner'
-              AND bp2.user_id IS NULL
-              AND bp2.session_id IS NOT NULL
-              AND br.user_email IS NOT NULL
-              AND br.user_email != ''
-            ORDER BY bp2.id, br.created_at DESC
-          ) sub
-          WHERE bp.id = sub.participant_id
-        `);
-        const relinkMembers = await db.execute(sql`
-          UPDATE booking_participants bp
-          SET user_id = u.id
-          FROM users u
-          WHERE bp.participant_type = 'member'
-            AND bp.user_id IS NULL
-            AND bp.display_name IS NOT NULL
-            AND bp.display_name LIKE '%@%'
-            AND LOWER(u.email) = LOWER(bp.display_name)
-        `);
-        const convertRemaining = await db.execute(sql`
-          UPDATE booking_participants
-          SET participant_type = 'guest'
-          WHERE participant_type IN ('owner', 'member')
-            AND user_id IS NULL
-        `);
-        if ((relinkOwners.rowCount || 0) > 0 || (relinkMembers.rowCount || 0) > 0 || (convertRemaining.rowCount || 0) > 0) {
-          logger.info(`[DB Init] Pre-constraint cleanup: ${relinkOwners.rowCount || 0} owners re-linked, ${relinkMembers.rowCount || 0} members re-linked, ${convertRemaining.rowCount || 0} converted to guest`);
-        }
-
-        await db.execute(sql`
-          ALTER TABLE booking_participants ADD CONSTRAINT chk_participant_owner_member_user_id
-            CHECK (
-              participant_type NOT IN ('owner', 'member')
-              OR user_id IS NOT NULL
-            )
-        `);
-      }
-      logger.info('[DB Init] CHECK: booking_participants owner/member must have user_id constraint created/verified');
-    } catch (err: unknown) {
-      logger.warn(`[DB Init] Skipping participant owner/member user_id CHECK: ${getErrorMessage(err)}`);
+    } catch (_err: unknown) {
     }
 
     if (process.env.NODE_ENV === 'production') {
