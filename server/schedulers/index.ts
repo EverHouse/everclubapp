@@ -24,6 +24,7 @@ import { startHubSpotWebhookCleanupScheduler, stopHubSpotWebhookCleanupScheduler
 import { startOnboardingNudgeScheduler, stopOnboardingNudgeScheduler } from './onboardingNudgeScheduler';
 import { startSupabaseHeartbeatScheduler, stopSupabaseHeartbeatScheduler } from './supabaseHeartbeatScheduler';
 import { startNotificationCleanupScheduler, stopNotificationCleanupScheduler } from './notificationCleanupScheduler';
+import { startInvoiceAutoFinalizeScheduler, stopInvoiceAutoFinalizeScheduler } from './invoiceAutoFinalizeScheduler';
 import { stopRealtimeRecovery } from '../core/supabase/client';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
 import { schedulerTracker } from '../core/schedulerTracker';
@@ -82,6 +83,7 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Onboarding Nudge', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Supabase Heartbeat', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Notification Cleanup', 24 * 60 * 60 * 1000);
+  schedulerTracker.registerScheduler('Invoice Auto-Finalize', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Job Queue Processor', 30000);
 
   logger.info(`[Schedulers] Staggering scheduler startup over ~${26 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
@@ -140,6 +142,7 @@ export function initSchedulers(): void {
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Stuck Cancellation', () => startStuckCancellationScheduler());
   slot++;
 
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Invoice Auto-Finalize', () => startInvoiceAutoFinalizeScheduler());
   slot++;
 
   // ── Wave 5: HubSpot & external syncs (+170s → +200s) ──
@@ -222,6 +225,7 @@ export function stopSchedulers(): void {
   stopBackgroundSyncScheduler();
   stopSupabaseHeartbeatScheduler();
   stopNotificationCleanupScheduler();
+  stopInvoiceAutoFinalizeScheduler();
   stopRealtimeRecovery();
   stopJobProcessor();
 }
