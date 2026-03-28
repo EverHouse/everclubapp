@@ -309,7 +309,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     const stripeType = (error as { type?: string })?.type;
     const stripeDeclineCode = (error as { decline_code?: string })?.decline_code;
     const bookingIdForLog = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking IDForLog' });
+    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[MemberPayments] Error processing saved card payment', {
       error: error instanceof Error ? error : new Error(String(error)),
       extra: {

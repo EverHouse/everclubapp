@@ -54,7 +54,7 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     const stripeType = (error as { type?: string })?.type;
     const stripeDeclineCode = (error as { decline_code?: string })?.decline_code;
     const bookingIdForLog = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking IDForLog' });
+    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[Stripe] Error creating member payment intent', { 
       error: errMsg,
       extra: {
@@ -105,7 +105,7 @@ router.post('/api/member/bookings/:id/confirm-payment', isAuthenticated, validat
     const stripeType = (error as { type?: string })?.type;
     const stripeDeclineCode = (error as { decline_code?: string })?.decline_code;
     const bookingIdForLog = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking IDForLog' });
+    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[Stripe] Error confirming member payment', {
       error: errMsg,
       extra: {
