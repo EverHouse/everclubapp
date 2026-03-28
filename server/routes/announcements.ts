@@ -23,6 +23,8 @@ import { systemSettings } from '../../shared/models/system';
 import { getErrorMessage } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
 import { globalRateLimiter } from '../middleware/rateLimiting';
+import { validateBody } from '../middleware/validate';
+import { z } from 'zod';
 
 interface AnnouncementRow {
   id: number;
@@ -44,6 +46,17 @@ const router = Router();
 const BANNER_FIRST = sql`CASE WHEN ${announcements.showAsBanner} = true THEN 0 ELSE 1 END`;
 
 const ANNOUNCEMENTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const announcementSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  linkType: z.string().optional().nullable(),
+  linkTarget: z.string().optional().nullable(),
+  notifyMembers: z.boolean().optional(),
+  showAsBanner: z.boolean().optional(),
+});
 
 // PUBLIC ROUTE
 router.get('/api/announcements', globalRateLimiter, async (req, res) => {
@@ -198,13 +211,9 @@ router.get('/api/announcements/export', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
+router.post('/api/announcements', isStaffOrAdmin, validateBody(announcementSchema), async (req, res) => {
   try {
     const { title, description, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
-    
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
     
     const userEmail = getSessionUser(req)?.email || 'system';
     
@@ -291,16 +300,12 @@ router.post('/api/announcements', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
+router.put('/api/announcements/:id', isStaffOrAdmin, validateBody(announcementSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const announcementId = parseInt(id as string, 10);
     if (isNaN(announcementId)) return res.status(400).json({ error: 'Invalid announcement ID' });
     const { title, description, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
-    
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
     
     const results = await db.transaction(async (tx) => {
       if (showAsBanner) {
