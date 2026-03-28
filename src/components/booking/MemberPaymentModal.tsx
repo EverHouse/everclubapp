@@ -23,6 +23,8 @@ export interface MemberPaymentModalProps {
   ownerName: string;
   onSuccess: () => void;
   onClose: () => void;
+  kioskMode?: boolean;
+  memberId?: string;
 }
 
 interface PayFeesResponse {
@@ -54,7 +56,9 @@ export function MemberPaymentModal({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   ownerName,
   onSuccess,
-  onClose
+  onClose,
+  kioskMode,
+  memberId,
 }: MemberPaymentModalProps) {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
@@ -70,6 +74,8 @@ export function MemberPaymentModal({
 
   const [applyingCredit, setApplyingCredit] = useState(false);
 
+  const apiBase = kioskMode ? '/api/kiosk' : '/api/member';
+
   const initializePayment = useCallback(async (opts?: { useAccountBalance?: boolean }) => {
     try {
       paymentSucceededRef.current = false;
@@ -78,9 +84,10 @@ export function MemberPaymentModal({
 
       const body: Record<string, unknown> = {};
       if (opts?.useAccountBalance) body.useAccountBalance = true;
+      if (kioskMode && memberId) body.memberId = memberId;
 
       const payResult = await apiRequest<PayFeesResponse>(
-        `/api/member/bookings/${bookingId}/pay-fees`,
+        `${apiBase}/bookings/${bookingId}/pay-fees`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -107,7 +114,7 @@ export function MemberPaymentModal({
     } finally {
       setLoading(false);
     }
-  }, [bookingId, onSuccess]);
+  }, [bookingId, onSuccess, apiBase, kioskMode, memberId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -153,16 +160,22 @@ export function MemberPaymentModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  const buildCancelBody = useCallback((piId: string) => {
+    const body: Record<string, unknown> = { paymentIntentId: piId };
+    if (kioskMode && memberId) body.memberId = memberId;
+    return JSON.stringify(body);
+  }, [kioskMode, memberId]);
+
   const handleApplyCredit = async () => {
     setApplyingCredit(true);
     setError(null);
     const previousPiId = paymentIntentId;
     try {
       if (previousPiId) {
-        fireAndForgetRequest(`/api/member/bookings/${bookingId}/cancel-payment`, {
+        fireAndForgetRequest(`${apiBase}/bookings/${bookingId}/cancel-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentIntentId: previousPiId }),
+          body: buildCancelBody(previousPiId),
         });
         setPaymentIntentId(null);
       }
@@ -178,8 +191,8 @@ export function MemberPaymentModal({
     const handlePageHide = () => {
       if (currentPiId && !paymentSucceededRef.current) {
         navigator.sendBeacon(
-          `/api/member/bookings/${bookingId}/cancel-payment`,
-          new Blob([JSON.stringify({ paymentIntentId: currentPiId })], { type: 'application/json' })
+          `${apiBase}/bookings/${bookingId}/cancel-payment`,
+          new Blob([buildCancelBody(currentPiId)], { type: 'application/json' })
         );
       }
     };
@@ -191,14 +204,14 @@ export function MemberPaymentModal({
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
       if (currentPiId && !paymentSucceededRef.current) {
-        fireAndForgetRequest(`/api/member/bookings/${bookingId}/cancel-payment`, {
+        fireAndForgetRequest(`${apiBase}/bookings/${bookingId}/cancel-payment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentIntentId: currentPiId }),
+          body: buildCancelBody(currentPiId),
         });
       }
     };
-  }, [paymentIntentId, bookingId, isOpen]);
+  }, [paymentIntentId, bookingId, isOpen, apiBase, buildCancelBody]);
 
   const handlePaymentSuccess = async () => {
     paymentSucceededRef.current = true;
@@ -209,13 +222,16 @@ export function MemberPaymentModal({
 
     setConfirming(true);
 
+    const confirmBody: Record<string, unknown> = { paymentIntentId };
+    if (kioskMode && memberId) confirmBody.memberId = memberId;
+
     try {
       const { ok, error: confirmError } = await apiRequest(
-        `/api/member/bookings/${bookingId}/confirm-payment`,
+        `${apiBase}/bookings/${bookingId}/confirm-payment`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentIntentId })
+          body: JSON.stringify(confirmBody)
         }
       );
 

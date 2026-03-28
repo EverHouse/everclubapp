@@ -182,6 +182,8 @@ router.post('/api/kiosk/checkin', isStaffOrAdmin, validateBody(kioskCheckinSchem
         return res.json({
           success: true,
           memberName,
+          memberId: String(member.id),
+          memberEmail,
           tier: member.tier,
           lifetimeVisits,
           membershipStatus: member.membership_status,

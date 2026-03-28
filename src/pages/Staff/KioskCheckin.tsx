@@ -34,6 +34,8 @@ interface UpcomingBooking {
 
 interface CheckinResult {
   memberName: string;
+  memberId?: string;
+  memberEmail?: string;
   tier: string | null;
   lifetimeVisits: number;
   upcomingBooking?: UpcomingBooking | null;
@@ -134,6 +136,8 @@ const KioskCheckin: React.FC = () => {
       if (res.ok && data.success) {
         setCheckinResult({
           memberName: data.memberName,
+          memberId: data.memberId || undefined,
+          memberEmail: data.memberEmail || undefined,
           tier: data.tier,
           lifetimeVisits: data.lifetimeVisits,
           upcomingBooking: data.upcomingBooking || null
@@ -486,6 +490,9 @@ const KioskCheckin: React.FC = () => {
 
   const booking = checkinResult?.upcomingBooking;
   const firstName = checkinResult?.memberName?.split(' ')[0] || '';
+  const isBookingOwner = booking && checkinResult?.memberEmail
+    ? booking.ownerEmail.toLowerCase() === checkinResult.memberEmail.toLowerCase()
+    : false;
 
   return (
     <div className="fixed inset-0 flex flex-col select-none" style={{ zIndex: 9999, touchAction: 'none', background: BG_GRADIENT }}>
@@ -787,16 +794,29 @@ const KioskCheckin: React.FC = () => {
                   <Icon name="payment" className="text-xl" style={{ color: OLIVE_ACCENT }} />
                   <div>
                     <p className="text-white font-medium text-sm">Outstanding balance</p>
-                    <p className="text-white/40 text-xs">Settle before your session for seamless entry</p>
+                    <p className="text-white/40 text-xs">
+                      {isBookingOwner
+                        ? 'Settle before your session for seamless entry'
+                        : 'Please see staff for payment assistance'}
+                    </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="tactile-btn px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors duration-200"
-                  style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
-                >
-                  Pay Now
-                </button>
+                {isBookingOwner ? (
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="tactile-btn px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors duration-200"
+                    style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
+                  >
+                    Pay Now
+                  </button>
+                ) : (
+                  <span
+                    className="px-4 py-2 rounded-lg text-xs font-medium"
+                    style={{ background: 'rgba(139, 154, 107, 0.15)', color: OLIVE_TEXT }}
+                  >
+                    See Staff
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -929,13 +949,15 @@ const KioskCheckin: React.FC = () => {
         </div>
       )}
 
-      {showPaymentModal && booking && booking.sessionId && (
+      {showPaymentModal && booking && booking.sessionId && checkinResult?.memberId && (
         <MemberPaymentModal
           isOpen={showPaymentModal}
           bookingId={booking.bookingId}
           sessionId={booking.sessionId}
           ownerEmail={booking.ownerEmail}
           ownerName={booking.ownerName}
+          kioskMode
+          memberId={checkinResult.memberId}
           onSuccess={() => {
             setShowPaymentModal(false);
             resetToIdle();
