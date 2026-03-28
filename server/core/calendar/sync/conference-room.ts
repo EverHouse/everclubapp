@@ -396,6 +396,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
         if (!event.id) continue;
         
         if (event.status === 'cancelled') {
+          let cancelBookingId: number | undefined;
           try {
             const existingBookings = await db
               .select()
@@ -406,14 +407,17 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
             if (existingBookings.length > 0) {
               const booking = existingBookings[0];
+              cancelBookingId = booking.id;
               const bookingDate = typeof booking.requestDate === 'string'
                 ? booking.requestDate
                 : (booking.requestDate as Date).toISOString().split('T')[0];
 
-              if (booking.sessionId) {
-                await db.delete(bookingSessions).where(eq(bookingSessions.id, booking.sessionId));
-              }
-              await db.delete(bookingRequests).where(eq(bookingRequests.id, booking.id));
+              await db.transaction(async (tx) => {
+                if (booking.sessionId) {
+                  await tx.delete(bookingSessions).where(eq(bookingSessions.id, booking.sessionId));
+                }
+                await tx.delete(bookingRequests).where(eq(bookingRequests.id, booking.id));
+              });
 
               broadcastAvailabilityUpdate({
                 resourceId: booking.resourceId || conferenceRoomId,
@@ -425,7 +429,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               logger.info(`[Conference Room Sync] Deleted booking ${booking.id} (calendar event ${event.id} was removed)`);
             }
           } catch (cancelErr: unknown) {
-            logger.error('[Conference Room Sync] Error deleting conference room booking for removed calendar event:', { error: cancelErr, eventId: event.id });
+            logger.warn('[Conference Room Sync] Transaction failed while deleting conference room booking for removed calendar event:', { error: cancelErr, eventId: event.id, bookingId: cancelBookingId });
           }
           continue;
         }
@@ -516,34 +520,36 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
           if (timeChanged && existingBooking.status !== 'cancelled') {
             try {
-              await db
-                .update(bookingRequests)
-                .set({
-                  startTime,
-                  endTime,
-                  requestDate: eventDate,
-                  durationMinutes,
-                  updatedAt: new Date()
-                })
-                .where(eq(bookingRequests.id, existingBooking.id));
-
-              if (existingBooking.sessionId) {
-                await db
-                  .update(bookingSessions)
+              await db.transaction(async (tx) => {
+                await tx
+                  .update(bookingRequests)
                   .set({
-                    startTime: startTime + ':00',
-                    endTime: endTime + ':00',
-                    sessionDate: eventDate,
+                    startTime,
+                    endTime,
+                    requestDate: eventDate,
+                    durationMinutes,
                     updatedAt: new Date()
                   })
-                  .where(eq(bookingSessions.id, existingBooking.sessionId));
-              }
+                  .where(eq(bookingRequests.id, existingBooking.id));
+
+                if (existingBooking.sessionId) {
+                  await tx
+                    .update(bookingSessions)
+                    .set({
+                      startTime: startTime + ':00',
+                      endTime: endTime + ':00',
+                      sessionDate: eventDate,
+                      updatedAt: new Date()
+                    })
+                    .where(eq(bookingSessions.id, existingBooking.sessionId));
+                }
+              });
 
               logger.info(`[Conference Room Sync] Updated booking ${existingBooking.id} time: ${existingDate} ${existingStartTime}-${existingEndTime} → ${eventDate} ${startTime}-${endTime}`);
               updated++;
             } catch (updateErr: unknown) {
               const errMsg = getErrorMessage(updateErr);
-              logger.error('[Conference Room Sync] Error updating booking time:', { error: updateErr, bookingId: existingBooking.id });
+              logger.warn('[Conference Room Sync] Transaction failed while updating booking time:', { error: updateErr, bookingId: existingBooking.id, eventId: googleEventId });
               errors.push(`Update booking ${existingBooking.id}: ${errMsg}`);
               skipped++;
             }
@@ -610,12 +616,12 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
                 createdBy: 'calendar_sync'
               });
               if (sessionResult.error) {
-                logger.error('[Conference Room Sync] Session creation returned error for linked booking', { extra: { bookingId: matchedBooking.id, error: sessionResult.error } });
+                logger.error('[Conference Room Sync] Session creation returned error for linked booking', { extra: { bookingId: matchedBooking.id, eventId: googleEventId, error: sessionResult.error } });
                 errors.push(`Session for linked booking ${matchedBooking.id}: ${sessionResult.error}`);
               }
             } catch (sessionErr: unknown) {
               const errMsg = getErrorMessage(sessionErr);
-              logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { error: errMsg });
+              logger.error('[Conference Room Sync] Failed to ensure session for linked booking:', { error: errMsg, bookingId: matchedBooking.id, eventId: googleEventId });
               errors.push(`Session for linked booking ${matchedBooking.id}: ${errMsg}`);
             }
           }
@@ -650,12 +656,12 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
                 createdBy: 'calendar_sync'
               });
               if (sessionResult.error) {
-                logger.error('[Conference Room Sync] Session creation returned error for new booking', { extra: { bookingId: newBooking.id, error: sessionResult.error } });
+                logger.error('[Conference Room Sync] Session creation returned error for new booking', { extra: { bookingId: newBooking.id, eventId: googleEventId, error: sessionResult.error } });
                 errors.push(`Session for new booking ${newBooking.id}: ${sessionResult.error}`);
               }
             } catch (sessionErr: unknown) {
               const errMsg = getErrorMessage(sessionErr);
-              logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { error: errMsg });
+              logger.error('[Conference Room Sync] Failed to ensure session for new booking:', { error: errMsg, bookingId: newBooking.id, eventId: googleEventId });
               errors.push(`Session for new booking ${newBooking.id}: ${errMsg}`);
             }
           }
