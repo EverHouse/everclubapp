@@ -233,7 +233,21 @@ export async function calculateFeeEstimate(params: {
       unifiedBreakdown: breakdown
     };
   } catch (error: unknown) {
-    logger.error('[FeeEstimate] Unified service error', { error: error instanceof Error ? error : new Error(String(error)) });
+    logger.error('[FeeEstimate] Unified service error', {
+      error: error instanceof Error ? error : new Error(String(error)),
+      extra: {
+        ownerEmail,
+        durationMinutes,
+        playerCount,
+        guestCount,
+        requestDate,
+        sessionId,
+        bookingId,
+        resourceType,
+        isConferenceRoom,
+        cause: error instanceof Error ? error.message : String(error)
+      }
+    });
     throw new Error('Unable to calculate fee estimate. Please try again.', { cause: error });
   }
 }

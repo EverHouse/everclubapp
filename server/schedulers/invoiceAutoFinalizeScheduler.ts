@@ -3,7 +3,7 @@ import { queryWithRetry } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
 import { notifyAllStaff } from '../core/notificationService';
 import { logger } from '../core/logger';
-import { getErrorMessage } from '../utils/errorUtils';
+import { getErrorMessage, isStripeResourceMissing } from '../utils/errorUtils';
 import { getTodayPacific, formatTimePacific } from '../utils/dateUtils';
 
 interface DraftInvoiceBooking {
@@ -53,6 +53,7 @@ async function autoFinalizeDraftInvoices(): Promise<void> {
     let finalizedCount = 0;
     let alreadyFinalizedCount = 0;
     let errorCount = 0;
+    let clearedCount = 0;
     const finalizedBookings: DraftInvoiceBooking[] = [];
     const errors: { bookingId: number; error: string }[] = [];
 
@@ -77,8 +78,35 @@ async function autoFinalizeDraftInvoices(): Promise<void> {
           }
         });
       } catch (err: unknown) {
-        errorCount++;
         const errMsg = getErrorMessage(err);
+
+        if (isStripeResourceMissing(err)) {
+          logger.warn('[Invoice Auto-Finalize] Invoice no longer exists in Stripe — clearing stale reference', {
+            extra: { bookingId: booking.id, invoiceId: booking.stripeInvoiceId }
+          });
+          try {
+            const clearResult = await queryWithRetry(
+              `UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = $1 AND stripe_invoice_id = $2`,
+              [booking.id, booking.stripeInvoiceId]
+            );
+            if (clearResult.rowCount && clearResult.rowCount > 0) {
+              clearedCount++;
+            } else {
+              logger.info('[Invoice Auto-Finalize] Stale invoice reference already updated by another process', {
+                extra: { bookingId: booking.id, invoiceId: booking.stripeInvoiceId }
+              });
+            }
+          } catch (clearErr: unknown) {
+            logger.error('[Invoice Auto-Finalize] Failed to clear stale invoice ID', {
+              extra: { bookingId: booking.id, error: getErrorMessage(clearErr) }
+            });
+            errorCount++;
+            errors.push({ bookingId: booking.id, error: errMsg });
+          }
+          continue;
+        }
+
+        errorCount++;
         errors.push({ bookingId: booking.id, error: errMsg });
 
         logger.error('[Invoice Auto-Finalize] Failed to finalize invoice', {
@@ -91,7 +119,7 @@ async function autoFinalizeDraftInvoices(): Promise<void> {
       }
     }
 
-    logger.info(`[Invoice Auto-Finalize] Complete: ${finalizedCount} finalized, ${alreadyFinalizedCount} already non-draft, ${errorCount} errors`);
+    logger.info(`[Invoice Auto-Finalize] Complete: ${finalizedCount} finalized, ${alreadyFinalizedCount} already non-draft, ${clearedCount} stale cleared, ${errorCount} errors`);
 
     if (finalizedCount > 0) {
       const summary = finalizedBookings

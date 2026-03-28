@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.82",
+    date: "2026-03-28",
+    title: "Invoice & Fee Estimate Reliability",
+    changes: [
+      "Fixed an issue where the invoice auto-finalize system would repeatedly fail on bookings whose Stripe invoices had been deleted — stale references are now automatically cleaned up.",
+      "Improved error reporting for fee calculation issues so problems can be diagnosed and resolved faster.",
+    ]
+  },
+  {
     version: "8.97.81",
     date: "2026-03-28",
     title: "Notification Routing Update",

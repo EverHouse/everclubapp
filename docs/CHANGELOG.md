@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.82] - 2026-03-28
+
+### Invoice & Fee Estimate Reliability
+- **Invoice Auto-Finalize**: When a Stripe invoice no longer exists (deleted/voided externally), the scheduler now clears the stale `stripe_invoice_id` from the booking record instead of repeatedly failing every 30 minutes with "No such invoice" errors. Uses `isStripeResourceMissing()` detection with a race-safe conditional UPDATE (`WHERE id = $1 AND stripe_invoice_id = $2`) to avoid clobbering concurrent updates.
+- **Fee Estimate Diagnostics**: Added full context logging (ownerEmail, duration, playerCount, guestCount, requestDate, sessionId, bookingId, resourceType, isConferenceRoom) to the fee estimate error handler, so transient 500 errors on `GET /api/fee-estimate` can be root-caused from logs.
+- **Files changed**: `server/schedulers/invoiceAutoFinalizeScheduler.ts`, `server/routes/bays/booking-shared.ts`
+
 ## [8.97.81] - 2026-03-28
 
 ### Notification Routing Update
