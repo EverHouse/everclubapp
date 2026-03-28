@@ -341,7 +341,6 @@ export function initWebSocketServer(server: Server) {
     let sessionId: string | undefined;
     let authAttempts = 0;
 
-    let initialCookieAuthFailed = false;
     const verifiedUser = await getVerifiedUserFromRequest(req);
     
     if (verifiedUser) {
@@ -378,7 +377,6 @@ export function initWebSocketServer(server: Server) {
         extra: { event: 'websocket.authenticated', role: verifiedUser.role, isStaff: verifiedUser.isStaff, method: 'session_cookie' }
       });
     } else {
-      initialCookieAuthFailed = true;
       const authTimeout = setTimeout(() => {
         if (!isAuthenticated) {
           logger.debug(`[WebSocket] Connection closed - no valid session within timeout`, {
@@ -410,11 +408,9 @@ export function initWebSocketServer(server: Server) {
             let verifiedUser: { email: string; role: string; isStaff: boolean; sessionId?: string } | null = null;
             let authMethod = 'session_cookie';
 
-            if (!initialCookieAuthFailed) {
-              const fromRequest = await getVerifiedUserFromRequest(req);
-              if (fromRequest) {
-                verifiedUser = fromRequest;
-              }
+            const fromRequest = await getVerifiedUserFromRequest(req);
+            if (fromRequest) {
+              verifiedUser = fromRequest;
             }
 
             if (!verifiedUser && message.wsToken) {

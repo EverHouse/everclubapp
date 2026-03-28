@@ -770,13 +770,35 @@ export async function recalculateSessionFees(
         })
       );
 
-      const validBillings = resolvedBillings.filter(b => b !== null && b.memberId && b.memberId.trim() !== '');
+      const filteredBillings = resolvedBillings.filter(b => b !== null && b.memberId && b.memberId.trim() !== '');
+      const aggregatedMap = new Map<string, { memberId: string; minutesCharged: number; overageFee: number; guestFee: number; tierAtBooking: string }>();
+      for (const b of filteredBillings) {
+        const normalizedId = b.memberId.trim().toLowerCase();
+        const existing = aggregatedMap.get(normalizedId);
+        if (existing) {
+          existing.minutesCharged += b.minutesCharged;
+          existing.overageFee += b.overageFee;
+          existing.guestFee += b.guestFee;
+          if (existing.tierAtBooking === 'unknown' && b.tierAtBooking) {
+            existing.tierAtBooking = b.tierAtBooking;
+          }
+        } else {
+          aggregatedMap.set(normalizedId, {
+            memberId: normalizedId,
+            minutesCharged: b.minutesCharged,
+            overageFee: b.overageFee,
+            guestFee: b.guestFee,
+            tierAtBooking: b.tierAtBooking ?? 'unknown',
+          });
+        }
+      }
+      const validBillings = Array.from(aggregatedMap.values());
       if (validBillings.length > 0) {
         const memberIds = validBillings.map(b => b.memberId);
         const minutesCharged = validBillings.map(b => b.minutesCharged);
         const overageFees = validBillings.map(b => b.overageFee);
         const guestFees = validBillings.map(b => b.guestFee);
-        const tiersAtBooking = validBillings.map(b => b.tierAtBooking ?? 'unknown');
+        const tiersAtBooking = validBillings.map(b => b.tierAtBooking);
 
         await tx.execute(sql`
           INSERT INTO usage_ledger (session_id, member_id, minutes_charged, overage_fee, guest_fee, tier_at_booking, payment_method, source)
