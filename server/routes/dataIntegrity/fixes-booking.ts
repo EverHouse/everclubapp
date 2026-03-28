@@ -624,7 +624,6 @@ router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, as
         AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
         AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
         AND bs.created_at::date - bs.session_date <= 2
-        AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = bs.id AND bp2.participant_type IN ('owner', 'member') AND bp2.user_id IS NOT NULL)
       ORDER BY bs.session_date DESC
       LIMIT 500
     `);

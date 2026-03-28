@@ -158,6 +158,29 @@ async function autoCompletePastBookings(): Promise<void> {
       }
     }
 
+    const unlinkedBookings = await queryWithRetry<{ id: number; userEmail: string }>(
+      `SELECT br.id, br.user_email AS "userEmail"
+       FROM booking_requests br
+       WHERE br.status IN ('approved', 'confirmed')
+         AND br.request_date >= $1::date - INTERVAL '14 days'
+         AND br.session_id IS NOT NULL
+         AND NOT EXISTS (
+           SELECT 1 FROM booking_participants bp
+           WHERE bp.session_id = br.session_id
+             AND bp.participant_type IN ('owner', 'member')
+             AND bp.user_id IS NOT NULL
+         )
+         AND (
+           br.request_date < $1::date - INTERVAL '1 day'
+           OR (br.request_date <= $1::date AND br.end_time IS NOT NULL AND br.end_time <= $2::time)
+         )`,
+      [todayStr, currentTimePacific]
+    );
+    if (unlinkedBookings.rows.length > 0) {
+      const ids = unlinkedBookings.rows.map(b => b.id);
+      logger.warn(`[Booking Auto-Complete] Skipped ${ids.length} booking(s) with no linked member participants — require staff resolution. IDs: [${ids.join(', ')}]`);
+    }
+
     const markedBookings = await queryWithRetry<AutoCompletedBookingResult>(
       `UPDATE booking_requests 
        SET status = 'attended',
@@ -196,6 +219,15 @@ async function autoCompletePastBookings(): Promise<void> {
              WHERE bp.session_id = booking_requests.session_id
                AND bp.cached_fee_cents > 0
                AND bp.payment_status = 'pending'
+           )
+         )
+         AND (
+           session_id IS NULL
+           OR EXISTS (
+             SELECT 1 FROM booking_participants bp2
+             WHERE bp2.session_id = booking_requests.session_id
+               AND bp2.participant_type IN ('owner', 'member')
+               AND bp2.user_id IS NOT NULL
            )
          )
        RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate", 
@@ -481,6 +513,15 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
            WHERE bp.session_id = booking_requests.session_id
              AND bp.cached_fee_cents > 0
              AND bp.payment_status = 'pending'
+         )
+       )
+       AND (
+         session_id IS NULL
+         OR EXISTS (
+           SELECT 1 FROM booking_participants bp2
+           WHERE bp2.session_id = booking_requests.session_id
+             AND bp2.participant_type IN ('owner', 'member')
+             AND bp2.user_id IS NOT NULL
          )
        )
      RETURNING id, user_email AS "userEmail", user_name AS "userName", request_date AS "requestDate",

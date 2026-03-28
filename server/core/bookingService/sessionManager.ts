@@ -334,11 +334,17 @@ export async function ensureSessionForBooking(params: {
     } catch (err) { logger.warn('[Booking] Non-critical slot duration calculation failed:', { extra: { error: getErrorMessage(err) } }); }
 
     if (existingOwner.rows.length === 0) {
-      await lockClient.query(
-        `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
-         VALUES ($1, $2, 'owner', $3, $4, NOW())`,
-        [sessionId, resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration]
-      );
+      if (resolvedUserId) {
+        await lockClient.query(
+          `INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, invited_at)
+           VALUES ($1, $2, 'owner', $3, $4, NOW())`,
+          [sessionId, resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration]
+        );
+      } else {
+        logger.warn('[SessionManager] Skipping owner participant creation — no matching user found', {
+          extra: { sessionId, ownerEmail: params.ownerEmail, bookingId: params.bookingId, source: params.source }
+        });
+      }
     }
 
     await lockClient.query(

@@ -1103,6 +1103,55 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Usage ledger legacy cleanup: ${getErrorMessage(err)}`);
     }
 
+    try {
+      const relinkOwnerResult = await db.execute(sql`
+        UPDATE booking_participants bp
+        SET user_id = sub.found_user_id
+        FROM (
+          SELECT DISTINCT ON (bp2.id)
+            bp2.id AS participant_id,
+            u.id AS found_user_id
+          FROM booking_participants bp2
+          JOIN booking_requests br ON br.session_id = bp2.session_id
+          JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+          WHERE bp2.participant_type = 'owner'
+            AND bp2.user_id IS NULL
+            AND bp2.session_id IS NOT NULL
+            AND br.user_email IS NOT NULL
+            AND br.user_email != ''
+          ORDER BY bp2.id, br.created_at DESC
+        ) sub
+        WHERE bp.id = sub.participant_id
+      `);
+      const relinkedOwners = relinkOwnerResult.rowCount || 0;
+
+      const relinkMemberResult = await db.execute(sql`
+        UPDATE booking_participants bp
+        SET user_id = u.id
+        FROM users u
+        WHERE bp.participant_type = 'member'
+          AND bp.user_id IS NULL
+          AND bp.display_name IS NOT NULL
+          AND bp.display_name LIKE '%@%'
+          AND LOWER(u.email) = LOWER(bp.display_name)
+      `);
+      const relinkedMembers = relinkMemberResult.rowCount || 0;
+
+      const convertResult = await db.execute(sql`
+        UPDATE booking_participants
+        SET participant_type = 'guest'
+        WHERE participant_type IN ('owner', 'member')
+          AND user_id IS NULL
+      `);
+      const converted = convertResult.rowCount || 0;
+
+      if (relinkedOwners > 0 || relinkedMembers > 0 || converted > 0) {
+        logger.info(`[DB Init] Orphaned participants fixed: ${relinkedOwners} owners re-linked, ${relinkedMembers} members re-linked, ${converted} converted to guest`);
+      }
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Orphaned participant cleanup: ${getErrorMessage(err)}`);
+    }
+
 
     try {
       await db.execute(sql`
@@ -2347,8 +2396,9 @@ export async function setupInstantDataTriggers(): Promise<void> {
       AS $$
       DECLARE
         found_user_id TEXT;
+        bypass TEXT;
       BEGIN
-        IF NEW.user_id IS NULL AND NEW.participant_type = 'owner' AND NEW.session_id IS NOT NULL THEN
+        IF NEW.user_id IS NULL AND NEW.participant_type IN ('owner', 'member') AND NEW.session_id IS NOT NULL THEN
           SELECT u.id INTO found_user_id
           FROM public.booking_requests br
           JOIN public.users u ON LOWER(u.email) = LOWER(br.user_email)
@@ -2358,6 +2408,11 @@ export async function setupInstantDataTriggers(): Promise<void> {
 
           IF found_user_id IS NOT NULL THEN
             NEW.user_id := found_user_id;
+          ELSE
+            bypass := current_setting('app.bypass_participant_guard', true);
+            IF bypass IS NULL OR bypass != 'true' THEN
+              RAISE EXCEPTION 'Cannot insert owner/member participant without user_id for session_id=%, participant_type=%', NEW.session_id, NEW.participant_type;
+            END IF;
           END IF;
         END IF;
         RETURN NEW;

@@ -114,6 +114,13 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
     
     const ownerUserId = await getUserIdByEmail(input.ownerEmail);
     const ownerTier = await getMemberTierByEmail(input.ownerEmail) || null;
+
+    if (!ownerUserId) {
+      logger.info('[TrackmanImport] Skipping session creation — owner email does not match any member', {
+        extra: { ownerEmail: input.ownerEmail, ownerName: input.ownerName, bookingId: input.bookingId }
+      });
+      return;
+    }
     
     resolvedOwnerName = input.ownerName;
     if ((!resolvedOwnerName || resolvedOwnerName.includes('@')) && ownerUserId) {
