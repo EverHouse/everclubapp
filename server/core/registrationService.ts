@@ -86,7 +86,7 @@ export async function createEventRsvp(
     staffMessage,
     'event_rsvp',
     { relatedId: eventId, relatedType: 'event', url: '/admin/calendar' }
-  ).catch((err: unknown) => logger.warn('Failed to notify staff of event RSVP', { error: getErrorMessage(err) }));
+  ).catch((err: unknown) => logger.warn('Failed to notify staff of event RSVP', { extra: { error: getErrorMessage(err) } }));
 
   broadcastToStaff({
     type: 'rsvp_event',
@@ -179,7 +179,7 @@ export async function createWellnessEnrollment(
       return { enrollment: enrollmentResult[0], isWaitlisted, memberMessage };
     });
   } catch (txErr: unknown) {
-    if (String(txErr).includes('wellness_enrollments_unique_active')) {
+    if (getErrorMessage(txErr).includes('wellness_enrollments_unique_active')) {
       throw Object.assign(new Error('Already enrolled in this class'), { statusCode: 409 });
     }
     throw txErr;

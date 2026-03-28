@@ -131,7 +131,7 @@ export async function sanitizeAndResolveParticipants(
         }
       }
     } catch (err: unknown) {
-      logger.error('[Booking] Failed to batch lookup users by email', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) });
+      logger.error('[Booking] Failed to batch lookup users by email', { extra: { error: getErrorMessage(err) } });
       throw new Error('Failed to look up participant emails. Please try again.');
     }
   }
@@ -162,7 +162,7 @@ export async function sanitizeAndResolveParticipants(
         }
       }
     } catch (err: unknown) {
-      logger.error('[Booking] Failed to batch lookup users by userId', { error: err instanceof Error ? err : new Error(getErrorMessage(err)) });
+      logger.error('[Booking] Failed to batch lookup users by userId', { extra: { error: getErrorMessage(err) } });
       throw new Error('Failed to look up participant user IDs. Please try again.');
     }
   }

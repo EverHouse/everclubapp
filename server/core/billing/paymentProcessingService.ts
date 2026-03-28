@@ -574,7 +574,7 @@ export async function processConfirmPayment(params: ConfirmPaymentParams): Promi
   let snapshotFees: unknown;
   try {
     snapshotFees = typeof snapshot.participant_fees === 'string' ? JSON.parse(snapshot.participant_fees) : snapshot.participant_fees;
-  } catch {
+  } catch { /* best-effort JSON parse of snapshot fees — fall back to null on malformed data */
     snapshotFees = null;
   }
   const snapshotTotal = Array.isArray(snapshotFees)
@@ -795,7 +795,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
             }
           }
         } catch (err: unknown) {
-          logger.warn('[Stripe] Failed to check existing payment intent, creating new one', { error: getErrorMessage(err) });
+          logger.warn('[Stripe] Failed to check existing payment intent, creating new one', { extra: { error: getErrorMessage(err) } });
         }
       }
     }
@@ -816,6 +816,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
       await applyFeeBreakdownToParticipants(sessionId, feeBreakdown);
       logger.info(`[Stripe] Applied unified fees for session ${sessionId}: $${(feeBreakdown.totals.totalCents / 100).toFixed(2)}`, { extra: { sessionId, totalCents: feeBreakdown.totals.totalCents } });
     } catch (unifiedError: unknown) {
+      logger.error('[Stripe] Failed to calculate fees for booking payment', { extra: { bookingId, sessionId, error: getErrorMessage(unifiedError) } });
       return { status: 500, body: { error: 'Failed to calculate fees' } };
     }
 
@@ -845,7 +846,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
     }
 
     const snapshotResult = await db.execute(sql`INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
-         VALUES (${bookingId}, ${sessionId}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'pending') RETURNING id`);
+         VALUES (${bookingId ?? null}, ${sessionId ?? null}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'pending') RETURNING id`);
     snapshotId = (snapshotResult.rows[0] as { id: number }).id;
     logger.info(`[Stripe] Created fee snapshot for booking ${bookingId}: $${(serverTotal / 100).toFixed(2)} with ${serverFees.length} participants`, { extra: { snapshotId, bookingId, serverTotal, participantCount: serverFees.length } });
   } else {
@@ -920,7 +921,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
 
       await db.execute(sql`INSERT INTO stripe_payment_intents 
          (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-         VALUES (${resolvedUserId || email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverTotal}, ${purpose}, ${bookingId}, ${sessionId}, ${finalDescription}, 'succeeded')
+         VALUES (${resolvedUserId || email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverTotal}, ${purpose}, ${bookingId ?? null}, ${sessionId ?? null}, ${finalDescription}, 'succeeded')
          ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
 
       auditLogFn(invoiceResult.paymentIntentId, {
@@ -954,7 +955,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
 
     await db.execute(sql`INSERT INTO stripe_payment_intents 
        (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, booking_id, session_id, description, status)
-       VALUES (${resolvedUserId || email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverTotal}, ${purpose}, ${bookingId}, ${sessionId}, ${finalDescription}, 'pending')
+       VALUES (${resolvedUserId || email}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverTotal}, ${purpose}, ${bookingId ?? null}, ${sessionId ?? null}, ${finalDescription}, 'pending')
        ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
 
     auditLogFn(invoiceResult.paymentIntentId, {
