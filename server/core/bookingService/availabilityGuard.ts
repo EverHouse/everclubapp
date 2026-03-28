@@ -35,7 +35,8 @@ export async function checkUnifiedAvailability(
   date: string,
   startTime: string,
   endTime: string,
-  excludeSessionId?: number
+  excludeSessionId?: number,
+  excludeBookingId?: number
 ): Promise<AvailabilityResult> {
   try {
     const closureConflict = await checkClosureConflict(resourceId, date, startTime, endTime);
@@ -66,7 +67,7 @@ export async function checkUnifiedAvailability(
       };
     }
     
-    const requestConflict = await import('../bookingValidation').then(m => m.checkBookingConflict(resourceId, date, startTime, endTime));
+    const requestConflict = await import('../bookingValidation').then(m => m.checkBookingConflict(resourceId, date, startTime, endTime, excludeBookingId));
     if (requestConflict.hasConflict) {
       return {
         available: false,

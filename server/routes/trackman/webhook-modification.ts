@@ -146,7 +146,7 @@ export async function handleBookingModification(
   if ((bayChanged || timeChanged || dateChanged) && newResourceId) {
     try {
       const availability = await checkAvailabilityForModification(
-        newResourceId, newDate, newStartTime, newEndTime, sessionId ?? undefined
+        newResourceId, newDate, newStartTime, newEndTime, sessionId ?? undefined, bookingId
       );
       if (!availability.available) {
         conflictWarning = `Conflict at new slot: ${availability.conflictTitle || availability.conflictType || 'schedule conflict'}`;
