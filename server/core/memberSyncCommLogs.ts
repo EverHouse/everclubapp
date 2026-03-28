@@ -5,6 +5,7 @@ import { communicationLogs } from '../../shared/models/membership';
 import { getHubSpotClient } from './integrations';
 import { sql, eq } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './hubspot/request';
+import { isRetryableError } from './retry';
 import pLimit from 'p-limit';
 import { logger } from './logger';
 import {
@@ -13,6 +14,24 @@ import {
   delay,
   isProduction,
 } from './memberSyncHelpers';
+
+async function dbWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      if (!isRetryableError(error) || attempt === maxRetries) {
+        throw error;
+      }
+      const backoff = Math.min(100 * Math.pow(2, attempt - 1), 2000);
+      logger.warn(`[CommLogs] DB retry (attempt ${attempt}/${maxRetries}) after ${backoff}ms`, {
+        extra: { error: getErrorMessage(error) }
+      });
+      await new Promise(resolve => setTimeout(resolve, backoff));
+    }
+  }
+  throw new Error('unreachable');
+}
 
 let commLogsSyncInProgress = false;
 let lastCommLogsSyncTime = 0;
@@ -39,12 +58,14 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
   try {
     const hubspot = await getHubSpotClient();
     
-    const membersResult = await db.select({
-      email: users.email,
-      hubspotId: users.hubspotId
-    })
-    .from(users)
-    .where(sql`${users.hubspotId} IS NOT NULL AND ${users.archivedAt} IS NULL`);
+    const membersResult = await dbWithRetry(() =>
+      db.select({
+        email: users.email,
+        hubspotId: users.hubspotId
+      })
+      .from(users)
+      .where(sql`${users.hubspotId} IS NOT NULL AND ${users.archivedAt} IS NULL`)
+    );
     
     const emailByHubSpotId = new Map<string, string>();
     for (const m of membersResult) {
@@ -104,11 +125,14 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     
     if (!isProduction) logger.info(`[CommLogs] Fetched ${allCalls.length} calls from HubSpot`);
     
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 3;
     const callLimit = pLimit(BATCH_SIZE);
     let hubspotCallAssocFailCount = 0;
     
     for (let i = 0; i < allCalls.length; i += BATCH_SIZE) {
+      if (i > 0) {
+        await delay(200);
+      }
       const batch = allCalls.slice(i, i + BATCH_SIZE);
       
       await Promise.all(
@@ -118,10 +142,12 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               const callId = call.id;
               const props = call.properties || {};
               
-              const existingLog = await db.select({ id: communicationLogs.id })
-                .from(communicationLogs)
-                .where(eq(communicationLogs.hubspotEngagementId, callId))
-                .limit(1);
+              const existingLog = await dbWithRetry(() =>
+                db.select({ id: communicationLogs.id })
+                  .from(communicationLogs)
+                  .where(eq(communicationLogs.hubspotEngagementId, callId))
+                  .limit(1)
+              );
               
               if (existingLog.length > 0) {
                 return;
@@ -187,21 +213,23 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
               if (props.hs_call_status === 'BUSY') status = 'busy';
               if (props.hs_call_status === 'FAILED') status = 'failed';
               
-              await db.insert(communicationLogs).values({
-                memberEmail,
-                type: 'call',
-                direction,
-                subject,
-                body: body || null,
-                status,
-                hubspotEngagementId: callId,
-                hubspotSyncedAt: new Date(),
-                loggedBy: 'system',
-                loggedByName: 'HubSpot Sync',
-                occurredAt,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              });
+              await dbWithRetry(() =>
+                db.insert(communicationLogs).values({
+                  memberEmail,
+                  type: 'call',
+                  direction,
+                  subject,
+                  body: body || null,
+                  status,
+                  hubspotEngagementId: callId,
+                  hubspotSyncedAt: new Date(),
+                  loggedBy: 'system',
+                  loggedByName: 'HubSpot Sync',
+                  occurredAt,
+                  createdAt: new Date(),
+                  updatedAt: new Date()
+                })
+              );
               
               synced++;
             } catch (err: unknown) {
@@ -279,10 +307,12 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           const commId = comm.id;
           const props = comm.properties || {};
           
-          const existingSms = await db.select({ id: communicationLogs.id })
-            .from(communicationLogs)
-            .where(eq(communicationLogs.hubspotEngagementId, `sms_${commId}`))
-            .limit(1);
+          const existingSms = await dbWithRetry(() =>
+            db.select({ id: communicationLogs.id })
+              .from(communicationLogs)
+              .where(eq(communicationLogs.hubspotEngagementId, `sms_${commId}`))
+              .limit(1)
+          );
           
           if (existingSms.length > 0) continue;
           
@@ -323,21 +353,23 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
           const occurredAt = props.hs_timestamp ? new Date(props.hs_timestamp as string) : new Date();
           const channelType = props.hs_communication_channel_type === 'WHATS_APP' ? 'whatsapp' : 'sms';
           
-          await db.insert(communicationLogs).values({
-            memberEmail,
-            type: channelType,
-            direction: 'outbound',
-            subject: `${channelType.toUpperCase()} Message`,
-            body: (props.hs_communication_body as string) || null,
-            status: 'sent',
-            hubspotEngagementId: `sms_${commId}`,
-            hubspotSyncedAt: new Date(),
-            loggedBy: 'system',
-            loggedByName: 'HubSpot Sync',
-            occurredAt,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
+          await dbWithRetry(() =>
+            db.insert(communicationLogs).values({
+              memberEmail,
+              type: channelType,
+              direction: 'outbound',
+              subject: `${channelType.toUpperCase()} Message`,
+              body: (props.hs_communication_body as string) || null,
+              status: 'sent',
+              hubspotEngagementId: `sms_${commId}`,
+              hubspotSyncedAt: new Date(),
+              loggedBy: 'system',
+              loggedByName: 'HubSpot Sync',
+              occurredAt,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            })
+          );
           
           synced++;
         } catch (err: unknown) {

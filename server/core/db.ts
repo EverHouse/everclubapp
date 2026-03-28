@@ -78,7 +78,7 @@ function appendSearchPath(connString: string | undefined): string | undefined {
 
 const mainConnString = appendSearchPath(usingPooler ? poolerUrl : directUrl);
 
-const defaultPoolMax = isProduction ? 40 : 25;
+const defaultPoolMax = isProduction ? 25 : 25;
 const poolMax = parseInt(process.env.DB_POOL_MAX || String(defaultPoolMax), 10);
 
 const basePool = new Pool({

@@ -318,6 +318,31 @@ export async function runStartupTasks(): Promise<void> {
     async () => {
       try {
         await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS "merch_items" (
+            "id" serial PRIMARY KEY NOT NULL,
+            "name" varchar NOT NULL,
+            "price" numeric DEFAULT '0' NOT NULL,
+            "description" text,
+            "type" varchar DEFAULT 'Apparel' NOT NULL,
+            "icon" varchar,
+            "image_url" text,
+            "is_active" boolean DEFAULT true,
+            "sort_order" integer DEFAULT 0,
+            "stock_quantity" integer,
+            "stripe_product_id" varchar,
+            "stripe_price_id" varchar,
+            "created_at" timestamp DEFAULT now()
+          )
+        `);
+        logger.info('[DB Init] merch_items table verified/created');
+      } catch (err: unknown) {
+        logger.error('[Startup] Failed to ensure merch_items table', { extra: { error: getErrorMessage(err) } });
+        startupHealth.warnings.push(`merch_items table: ${getErrorMessage(err)}`);
+      }
+    },
+    async () => {
+      try {
+        await db.execute(sql`
           CREATE TABLE IF NOT EXISTS fee_products (
             id SERIAL PRIMARY KEY,
             name VARCHAR NOT NULL UNIQUE,

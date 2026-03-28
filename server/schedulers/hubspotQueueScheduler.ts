@@ -31,7 +31,7 @@ async function processQueue(): Promise<void> {
   try {
     await recoverStuckProcessingJobs();
     
-    const stats = await processHubSpotQueue(50);
+    const stats = await processHubSpotQueue(25);
     
     if (stats.processed > 0) {
       logger.info('[HubSpot Queue] Batch processed', {

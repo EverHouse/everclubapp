@@ -128,8 +128,11 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
     extra: { count: result.rows.length }
   });
   
-  for (const _job of result.rows) {
-    const job = _job as unknown as QueueJobRow;
+  for (let _idx = 0; _idx < result.rows.length; _idx++) {
+    if (_idx > 0) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    const job = result.rows[_idx] as unknown as QueueJobRow;
     stats.processed++;
     
     try {
