@@ -13,6 +13,7 @@ export const changelog: ChangelogEntry[] = [
     title: "Notification Routing Update",
     changes: [
       "Facility notice and closure notifications are now sent to staff only — members will no longer receive push or in-app notifications for closures, private events, or notices.",
+      "Notices without affected resources (e.g. informational notices) are now included in staff notifications — previously these were silently skipped.",
     ]
   },
   {

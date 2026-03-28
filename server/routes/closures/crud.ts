@@ -794,15 +794,14 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
     
     clearClosureCache();
     
-    // If this was a draft (needsReview = true) being published AND it starts today, notify members
+    // If this was a draft (needsReview = true) being published AND it starts today, notify staff
     // For future closures, the morning job will handle notifications on the start day
     const wasPublished = existing.needsReview === true;
-    const hasAffectedResources = newAffectedAreas && newAffectedAreas !== 'none';
     const finalStartDate = start_date || existing.startDate;
     const todayStr = getTodayPacific();
     const startsToday = finalStartDate === todayStr;
     
-    if (wasPublished && hasAffectedResources && startsToday) {
+    if (wasPublished && startsToday) {
       try {
         const finalTitle = title || existing.title;
         const finalReason = reason !== undefined ? reason : existing.reason;
@@ -823,8 +822,8 @@ router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
       } catch (notifyError: unknown) {
         logger.error('[Closures] Failed to send publish notifications', { extra: { error: getErrorMessage(notifyError) } });
       }
-    } else if (wasPublished && hasAffectedResources && !startsToday) {
-      logger.info('[Closures] Draft published for future date (), morning job will notify on start day', { extra: { finalStartDate } });
+    } else if (wasPublished && !startsToday) {
+      logger.info('[Closures] Draft published for future date, morning job will notify on start day', { extra: { finalStartDate } });
     }
     
     broadcastClosureUpdate('updated', closureId);

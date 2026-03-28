@@ -405,8 +405,7 @@ export async function sendMorningClosureNotifications() {
       .where(and(
         sql`DATE(${facilityClosures.startDate}) = ${todayStr}`,
         eq(facilityClosures.isActive, true),
-        eq(facilityClosures.needsReview, false),
-        sql`${facilityClosures.affectedAreas} IS NOT NULL AND ${facilityClosures.affectedAreas} != 'none'`
+        eq(facilityClosures.needsReview, false)
       ));
     
     if (todayClosures.length === 0) {
