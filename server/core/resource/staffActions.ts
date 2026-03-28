@@ -100,6 +100,17 @@ export async function assignWithPlayers(
   const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
   const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
 
+  const memberEmails = [owner.email.trim().toLowerCase()];
+  for (const p of additionalPlayers) {
+    if (p.type !== 'guest_placeholder' && p.email) {
+      const normalizedEmail = p.email.trim().toLowerCase();
+      if (memberEmails.includes(normalizedEmail)) {
+        throw new AppError(400, `Duplicate player: ${p.name || p.email} is already assigned to another slot in this booking`);
+      }
+      memberEmails.push(normalizedEmail);
+    }
+  }
+
   let resolvedOwnerId = owner.member_id || null;
   if (!resolvedOwnerId && owner.email) {
     const [userRow] = await db.select({ id: users.id })

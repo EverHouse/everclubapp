@@ -178,6 +178,17 @@ export async function linkTrackmanToMember(
   guestCount: number,
   staffEmail: string
 ) {
+  const memberEmails = [ownerEmail.trim().toLowerCase()];
+  for (const p of additionalPlayers) {
+    if (p.type !== 'guest_placeholder' && p.email) {
+      const normalizedEmail = p.email.trim().toLowerCase();
+      if (memberEmails.includes(normalizedEmail)) {
+        throw new AppError(400, `Duplicate player: ${p.name || p.email} is already assigned to another slot in this booking`);
+      }
+      memberEmails.push(normalizedEmail);
+    }
+  }
+
   let resolvedOwnerId = ownerId ? String(ownerId) : null;
   if (!resolvedOwnerId && ownerEmail) {
     const [userRow] = await db.select({ id: users.id })

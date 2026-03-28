@@ -413,7 +413,20 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     }
     
     const memberFullName = `${member.first_name} ${member.last_name}`.trim();
-    
+
+    if (Array.isArray(additional_players) && additional_players.length > 0) {
+      const assignedEmails = [resolveEmail.trim().toLowerCase()];
+      for (const p of additional_players) {
+        if (p.type !== 'guest_placeholder' && p.email) {
+          const normalizedEmail = p.email.trim().toLowerCase();
+          if (assignedEmails.includes(normalizedEmail)) {
+            return res.status(400).json({ error: `Duplicate player: ${p.name || p.email} is already assigned to another slot in this booking` });
+          }
+          assignedEmails.push(normalizedEmail);
+        }
+      }
+    }
+
     if (Array.isArray(additional_players) && additional_players.length > 0) {
       const rpEntries = additional_players.map((p: { type: string; email?: string; name?: string; userId?: string; guest_name?: string }) => {
         if (p.type === 'guest_placeholder') {

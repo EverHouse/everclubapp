@@ -697,6 +697,14 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   }, []);
 
   const handleMemberSelect = (member: SelectedMember, slotIndex: number) => {
+    const duplicateSlot = slots.findIndex((s, i) =>
+      i !== slotIndex && (s.type === 'member' || s.type === 'visitor') && s.member?.email?.trim().toLowerCase() === member.email?.trim().toLowerCase()
+    );
+    if (duplicateSlot !== -1) {
+      showToast(`${member.name || member.email} is already assigned to Slot ${duplicateSlot + 1}`, 'error');
+      return;
+    }
+
     updateSlot(slotIndex, {
       type: 'member',
       member: {
@@ -738,6 +746,15 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const handleSelectExistingVisitor = (visitor: VisitorSearchResult) => {
     if (activeSlotIndex === null) return;
     const slotIdx = activeSlotIndex;
+
+    const duplicateSlot = slots.findIndex((s, i) =>
+      i !== slotIdx && (s.type === 'member' || s.type === 'visitor') && s.member?.email?.trim().toLowerCase() === visitor.email?.trim().toLowerCase()
+    );
+    if (duplicateSlot !== -1) {
+      showToast(`${visitor.name || visitor.email} is already assigned to Slot ${duplicateSlot + 1}`, 'error');
+      return;
+    }
+
     updateSlot(slotIdx, {
       type: 'visitor',
       member: {
