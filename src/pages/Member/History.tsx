@@ -43,6 +43,7 @@ interface UnifiedPurchase {
   stripeInvoiceId?: string;
   stripePaymentIntentId?: string | null;
   bookingId?: number | null;
+  isOwner?: boolean;
 }
 
 const History: React.FC = () => {
@@ -403,9 +404,25 @@ const History: React.FC = () => {
                                       {formatCurrency(purchase.amountCents)}
                                     </p>
                                     {purchase.status === 'pending' && (
-                                      <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                                        Unpaid
-                                      </span>
+                                      <>
+                                        <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                                          Unpaid
+                                        </span>
+                                        {purchase.bookingId && purchase.isOwner !== false && (
+                                          <button
+                                            onClick={() => setPayingInvoice(purchase)}
+                                            className="tactile-btn bg-primary text-white text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors flex items-center gap-1.5 mt-2 ml-auto"
+                                          >
+                                            <Icon name="credit_card" className="text-sm" />
+                                            Pay Now
+                                          </button>
+                                        )}
+                                        {purchase.isOwner === false && (
+                                          <span className={`text-[10px] mt-1 block ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
+                                            Billed to host
+                                          </span>
+                                        )}
+                                      </>
                                     )}
                                     {purchase.itemCategory === 'invoice' && (purchase.status === 'open' || purchase.status === 'draft') && (
                                       <button

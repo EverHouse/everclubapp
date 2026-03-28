@@ -1016,6 +1016,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
       stripeInvoiceId?: string;
       hostedInvoiceUrl?: string | null;
       bookingId?: number | null;
+      isOwner?: boolean;
     }> = [];
 
     for (const row of stripeResult.rows as Array<Record<string, unknown>>) {
@@ -1038,6 +1039,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
     const stripeCustomerId = (userResult.rows as Array<Record<string, unknown>>)[0]?.stripe_customer_id as string | undefined;
 
     const invoiceBookingIds = new Set<string>();
+    const activeInvoiceBookingIds = new Set<string>();
 
     if (stripeCustomerId) {
       try {
@@ -1082,6 +1084,9 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
             if (seenInvoiceBookingIds.has(bookingId)) continue;
             seenInvoiceBookingIds.add(bookingId);
             invoiceBookingIds.add(bookingId);
+            if (inv.status === 'open' || inv.status === 'draft') {
+              activeInvoiceBookingIds.add(bookingId);
+            }
           }
 
           const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id;
@@ -1115,6 +1120,9 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
     }
 
     try {
+      const userIdResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = ${userEmail} LIMIT 1`);
+      const currentUserId = (userIdResult.rows as Array<Record<string, unknown>>)[0]?.id as string | undefined;
+
       const overdueResult = await db.execute(sql`
         SELECT
           br.id as booking_id,
@@ -1123,6 +1131,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
           br.start_time,
           br.end_time,
           r.name as resource_name,
+          br.user_email as booking_owner_email,
           COALESCE(SUM(
             CASE
               WHEN bp.payment_status = 'pending'
@@ -1130,20 +1139,22 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
               ELSE 0
             END
           ), 0)::integer as total_outstanding_cents
-        FROM booking_requests br
+        FROM booking_participants bp
+        JOIN booking_sessions bs ON bs.id = bp.session_id
+        JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON br.resource_id = r.id
-        LEFT JOIN booking_participants bp ON bp.session_id = br.session_id
-        WHERE LOWER(br.user_email) = ${userEmail}
+        LEFT JOIN users u ON bp.user_id = u.id
+        WHERE (
+          LOWER(u.email) = ${userEmail}
+          OR (bp.participant_type = 'owner' AND LOWER(br.user_email) = ${userEmail})
+          ${currentUserId ? sql`OR bp.user_id = ${currentUserId}` : sql``}
+        )
           AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
           AND br.request_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date - INTERVAL '30 days'
           AND br.session_id IS NOT NULL
           AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
           AND br.is_unmatched IS NOT TRUE
-          AND NOT EXISTS (
-            SELECT 1 FROM booking_fee_snapshots bfs
-            WHERE bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')
-          )
-        GROUP BY br.id, br.session_id, br.request_date, br.start_time, br.end_time, r.name
+        GROUP BY br.id, br.session_id, br.request_date, br.start_time, br.end_time, r.name, br.user_email
         HAVING SUM(
           CASE WHEN bp.payment_status = 'pending'
                AND COALESCE(bp.cached_fee_cents, 0) > 0
@@ -1154,7 +1165,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
 
       for (const row of overdueResult.rows as Array<Record<string, unknown>>) {
         const bookingId = row.booking_id as number;
-        if (existingBookingIds.has(String(bookingId)) || invoiceBookingIds.has(String(bookingId))) {
+        if (activeInvoiceBookingIds.has(String(bookingId))) {
           continue;
         }
 
@@ -1163,6 +1174,8 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
           : String(row.booking_date || '');
         const resourceName = (row.resource_name || 'Simulator') as string;
         const startTime = row.start_time as string || '';
+        const ownerEmail = (row.booking_owner_email as string || '').toLowerCase();
+        const isOwner = ownerEmail === userEmail;
 
         purchases.push({
           id: `overdue-${bookingId}`,
@@ -1175,6 +1188,7 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
           source: 'Stripe',
           stripePaymentIntentId: null,
           bookingId,
+          isOwner,
         });
       }
     } catch (overdueErr: unknown) {
