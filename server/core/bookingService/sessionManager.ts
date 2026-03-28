@@ -341,9 +341,17 @@ export async function ensureSessionForBooking(params: {
           [sessionId, resolvedUserId, ownerDisplayName || params.ownerEmail, slotDuration]
         );
       } else {
-        logger.warn('[SessionManager] Skipping owner participant creation — no matching user found', {
-          extra: { sessionId, ownerEmail: params.ownerEmail, bookingId: params.bookingId, source: params.source }
-        });
+        const trackmanSources: string[] = ['trackman_import', 'trackman_webhook'];
+        if (trackmanSources.includes(params.source)) {
+          logger.warn('[SessionManager] Skipping owner participant — unresolved Trackman email', {
+            extra: { sessionId, ownerEmail: params.ownerEmail, bookingId: params.bookingId, source: params.source }
+          });
+        } else {
+          logger.error('[SessionManager] Cannot create owner participant — no matching user found for non-Trackman booking', {
+            extra: { sessionId, ownerEmail: params.ownerEmail, bookingId: params.bookingId, source: params.source }
+          });
+          throw new Error(`Owner email "${params.ownerEmail}" does not match any registered user`);
+        }
       }
     }
 

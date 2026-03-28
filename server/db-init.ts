@@ -2398,6 +2398,9 @@ export async function setupInstantDataTriggers(): Promise<void> {
         found_user_id TEXT;
         bypass TEXT;
       BEGIN
+        IF TG_OP = 'UPDATE' AND OLD.participant_type NOT IN ('owner', 'member') AND NEW.participant_type NOT IN ('owner', 'member') THEN
+          RETURN NEW;
+        END IF;
         IF NEW.user_id IS NULL AND NEW.participant_type IN ('owner', 'member') AND NEW.session_id IS NOT NULL THEN
           SELECT u.id INTO found_user_id
           FROM public.booking_requests br
@@ -2421,7 +2424,7 @@ export async function setupInstantDataTriggers(): Promise<void> {
 
       DROP TRIGGER IF EXISTS trg_link_participant_user_id ON booking_participants;
       CREATE TRIGGER trg_link_participant_user_id
-      BEFORE INSERT ON booking_participants
+      BEFORE INSERT OR UPDATE ON booking_participants
       FOR EACH ROW
       EXECUTE FUNCTION auto_link_participant_user_id();
     `), 'auto_link_participant_user_id');
