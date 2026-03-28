@@ -14,7 +14,6 @@ import TimeSlotsSection from './TimeSlotsSection';
 import ExistingBookings from './ExistingBookings';
 import BookingModals from './BookingModals';
 import BookingFooter from './BookingFooter';
-import ClosureAlerts from './ClosureAlerts';
 import Icon from '../../../components/icons/Icon';
 
 const BookGolf: React.FC = () => {
@@ -36,7 +35,7 @@ const BookGolf: React.FC = () => {
     dates, resources, guestPassInfo, walletPassAvailable,
     estimatedFees, isLoading, error, isBooking, isDark,
     memberBayBookingsForDay, usedMinutesForDay, isAtDailyLimit,
-    slotsByHour, activeClosures, canBook,
+    slotsByHour, canBook,
     handleCancelRequest, handleConfirm, handleGuardianConsentSubmit, submitBooking, getAvailableResourcesForSlot,
     guestFeeDollars, overageRatePerBlockDollars, cancelBookingMutation,
     resourcesRef, errorRef, playerSlotRef, feeRef, timeSlotsAnimRef,
@@ -158,8 +157,6 @@ const BookGolf: React.FC = () => {
                 </div>
               )}
             </div>
-
-            <ClosureAlerts closures={activeClosures} isDark={isDark} />
 
             {activeTab === 'simulator' && (
               <ExistingBookings

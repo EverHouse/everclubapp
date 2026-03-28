@@ -14,6 +14,7 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Facility notice and closure notifications are now sent to staff only — members will no longer receive push or in-app notifications for closures, private events, or notices.",
       "Notices without affected resources (e.g. informational notices) are now included in staff notifications — previously these were silently skipped.",
+      "Removed the closure/notice warning banners from the member booking page — members just see available time slots without extra warnings about private events.",
     ]
   },
   {

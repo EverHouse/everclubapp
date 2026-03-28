@@ -8,6 +8,7 @@ All notable changes to the Ever Club Members App are documented here.
 - **Closures/Notices → Staff Only**: All three closure notification paths (morning scheduler, closure creation, same-day publish) now send to staff via `notifyAllStaff` instead of members. Members no longer receive push or in-app notifications for facility closures, private events, or notices.
 - **No-Resource Notices Included**: Removed the `affectedAreas != 'none'` filter from the morning scheduler and the `hasAffectedResources` gate from same-day publish, so informational notices without affected resources also generate staff notifications.
 - **Files changed**: `server/routes/push.ts`, `server/routes/closures/crud.ts`
+- **Booking Page**: Removed `ClosureAlerts` component from the member booking page — members no longer see warning banners about private events or closures. Unavailable slots are simply hidden.
 - Cleaned up unused `sendPushNotificationToAllMembers`, `notifyMember`, `users`, `or`, `isNull` imports from closures/crud.ts.
 
 ## [8.97.80] - 2026-03-28
