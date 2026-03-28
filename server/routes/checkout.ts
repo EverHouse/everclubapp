@@ -2,7 +2,7 @@ import { logger } from '../core/logger';
 import { Router } from 'express';
 import { db } from '../db';
 import { membershipTiers, users } from '../../shared/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { getStripeClient } from '../core/stripe/client';
 import { getCorporateVolumePrice } from '../core/stripe/groupBilling';
 import { logSystemAction } from '../core/auditLog';
@@ -176,7 +176,25 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
         return res.status(409).json({ error: 'An account with this email already exists. Please log in to manage your membership.' });
       }
 
-      sessionParams.customer_email = email;
+      if (existingUser) {
+        const memberName = `${firstName || ''} ${lastName || ''}`.trim() || undefined;
+        const newCustomer = await stripe.customers.create({
+          email: email.toLowerCase(),
+          name: memberName,
+          metadata: { source: 'public_checkout', tier_slug: tierSlug },
+        });
+        await db.update(users)
+          .set({ stripeCustomerId: newCustomer.id })
+          .where(
+            and(
+              eq(users.id, existingUser.id),
+              isNull(users.stripeCustomerId)
+            )
+          );
+        sessionParams.customer = newCustomer.id;
+      } else {
+        sessionParams.customer_email = email;
+      }
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
