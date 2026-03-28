@@ -5,7 +5,7 @@ All notable changes to the Ever Club Members App are documented here.
 ## [8.97.86] - 2026-03-28
 
 ### Bug Fixes & Stability Improvements
-- **Fix**: Added missing `expand_less` icon to `iconPaths.ts` — used in 5 components (SyncToolsPanel, StaffSection, SettingsSection, BillingSection, PassSearchResults) but never registered, causing `[Icon] Unknown icon name` console warnings.
+- **Fix**: Added missing `expand_less` and `folder` icons to `iconPaths.ts` — `expand_less` used in 5 components, `folder` used as fallback in EmailTemplatesTab. Both caused `[Icon] Unknown icon name` console warnings.
 - **Fix**: Null React key warnings in staff command center. Multiple list components used `item.id` as key without null fallback, producing "Encountered two children with the same key, null" errors when IDs were temporarily null. Added `?? index` fallbacks in BookingQueuesSection, TrackmanWebhookEventsSection, TodayScheduleSection, and ResourcesSection.
 - **Fix**: Created missing `merch_items` database table — the schema was defined in `shared/models/content.ts` and routes in `server/routes/merch.ts` but the table was never pushed to the database, causing 500 errors on `/api/merch`.
 - **Files changed**: `src/components/icons/iconPaths.ts`, `src/components/staff-command-center/sections/BookingQueuesSection.tsx`, `src/components/staff-command-center/sections/TrackmanWebhookEventsSection.tsx`, `src/components/staff-command-center/sections/TodayScheduleSection.tsx`, `src/components/staff-command-center/sections/ResourcesSection.tsx`

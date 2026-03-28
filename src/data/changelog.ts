@@ -12,7 +12,7 @@ export const changelog: ChangelogEntry[] = [
     date: "2026-03-28",
     title: "Bug Fixes & Stability Improvements",
     changes: [
-      "Fixed: Missing expand/collapse icon on several settings and admin panels — the icon now displays correctly instead of showing an error.",
+      "Fixed: Missing expand/collapse and folder icons on several settings and admin panels — icons now display correctly instead of showing errors.",
       "Fixed: Duplicate item warnings in staff command center lists (bookings, schedule, resources) that could cause items to appear or disappear unexpectedly.",
       "Fixed: Merch items page was broken due to missing database table — the table has been created and the page now loads properly.",
     ]
