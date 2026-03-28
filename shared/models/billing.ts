@@ -27,6 +27,8 @@ export interface FeeLineItem {
   guestCents: number;
   totalCents: number;
   guestPassUsed: boolean;
+  dayPassCovered: boolean;
+  dayPassMinutes?: number;
   tierName?: string;
   dailyAllowance?: number;
   usedMinutesToday?: number;
@@ -69,6 +71,7 @@ export interface FeeComputeParams {
     email?: string;
     displayName: string;
     participantType: 'owner' | 'member' | 'guest';
+    dayPassPurchaseId?: string;
   }>;
   source: 'preview' | 'approval' | 'checkin' | 'stripe' | 'roster_update' | 'trackman_webhook' | 'sync_cleanup' | 'staff_action' | 'staff_add_member' | 'staff_add_guest' | 'reschedule' | 'staff_booking' | 'booking_creation' | 'trackman_modification' | 'trackman_auto_match' | 'staff_auto_match' | 'trackman_import';
   excludeSessionFromUsage?: boolean;
@@ -159,6 +162,7 @@ export const passRedemptionLogs = pgTable(
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }).defaultNow(),
     location: varchar("location").default("front_desk"),
     notes: varchar("notes"),
+    bookingId: integer("booking_id"),
   },
   (table) => [
     index("idx_pass_redemption_logs_purchase_id").on(table.purchaseId),

@@ -308,6 +308,11 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
           handleSelectExistingVisitor={logic.handleSelectExistingVisitor}
           handleCreateVisitorAndAssign={logic.handleCreateVisitorAndAssign}
           renderTierBadge={logic.renderTierBadge}
+          dayPassSelections={logic.dayPassSelections}
+          dayPassesBySlot={logic.dayPassesBySlot}
+          isLoadingDayPasses={logic.isLoadingDayPasses}
+          sessionDurationMinutes={logic.fetchedContext?.durationMinutes}
+          toggleDayPassForSlot={logic.toggleDayPassForSlot}
         />
 
         {logic.shouldShowRememberEmail() && (

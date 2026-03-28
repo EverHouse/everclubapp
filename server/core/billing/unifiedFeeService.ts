@@ -96,6 +96,7 @@ interface SessionData {
     email?: string;
     displayName: string;
     participantType: 'owner' | 'member' | 'guest';
+    dayPassPurchaseId?: string;
   }>;
 }
 
@@ -249,7 +250,8 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
           u.email,
           bp.display_name,
           bp.participant_type,
-          bp.used_guest_pass
+          bp.used_guest_pass,
+          bp.day_pass_purchase_id
          FROM booking_participants bp
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE bp.session_id = ${session.session_id}
@@ -262,7 +264,8 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         email: String(row.email ?? ''),
         displayName: String(row.display_name ?? ''),
         participantType: row.participant_type as 'owner' | 'member' | 'guest',
-        usedGuestPass: row.used_guest_pass != null ? Boolean(row.used_guest_pass) : undefined
+        usedGuestPass: row.used_guest_pass != null ? Boolean(row.used_guest_pass) : undefined,
+        dayPassPurchaseId: row.day_pass_purchase_id ? String(row.day_pass_purchase_id) : undefined
       }));
     }
     
@@ -276,7 +279,8 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
           u.email,
           bp.display_name,
           bp.participant_type,
-          bp.used_guest_pass
+          bp.used_guest_pass,
+          bp.day_pass_purchase_id
          FROM booking_participants bp
          JOIN booking_requests br ON br.session_id = bp.session_id
          LEFT JOIN users u ON bp.user_id = u.id
@@ -290,7 +294,8 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         email: String(row.email ?? ''),
         displayName: String(row.display_name ?? ''),
         participantType: row.participant_type as 'owner' | 'member' | 'guest',
-        usedGuestPass: row.used_guest_pass != null ? Boolean(row.used_guest_pass) : undefined
+        usedGuestPass: row.used_guest_pass != null ? Boolean(row.used_guest_pass) : undefined,
+        dayPassPurchaseId: row.day_pass_purchase_id ? String(row.day_pass_purchase_id) : undefined
       }));
     }
     
@@ -321,6 +326,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
         email: p.email || undefined,
         displayName: p.displayName,
         participantType: p.participantType,
+        dayPassPurchaseId: (p as { dayPassPurchaseId?: string }).dayPassPurchaseId,
       }))
     };
   } catch (error: unknown) {
@@ -344,6 +350,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     displayName: string;
     participantType: 'owner' | 'member' | 'guest';
     usedGuestPass?: boolean;
+    dayPassPurchaseId?: string;
   }>;
   let sessionId: number | undefined;
   let currentBookingId: number | undefined;
@@ -683,7 +690,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       overageCents: 0,
       guestCents: 0,
       totalCents: 0,
-      guestPassUsed: false
+      guestPassUsed: false,
+      dayPassCovered: false
     };
     
     if (participant.participantType === 'guest') {
@@ -803,7 +811,25 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         }
       });
       
-      if (!unlimitedAccess && dailyAllowance < 999) {
+      if (participant.dayPassPurchaseId && !isConferenceRoom) {
+        const dayPassMinutes = 60;
+        lineItem.dayPassCovered = true;
+        lineItem.dayPassMinutes = dayPassMinutes;
+        const minutesAdded = minutesPerParticipant + remainderMinutes;
+        if (!unlimitedAccess) {
+          const normalOverage = calculateIncrementalOverage(usedMinutesToday, minutesAdded, dailyAllowance);
+          const overageAfterPass = calculateIncrementalOverage(usedMinutesToday, Math.max(0, minutesAdded - dayPassMinutes), dailyAllowance);
+          lineItem.overageCents = overageAfterPass.overageFeeCents;
+          totalOverageCents += lineItem.overageCents;
+          logger.info('[FeeBreakdown] Owner has day pass — session coverage applied', {
+            extra: { ownerEmail, dayPassId: participant.dayPassPurchaseId, minutesAdded, dayPassMinutes, normalOverageCents: normalOverage.overageFeeCents, afterPassOverageCents: overageAfterPass.overageFeeCents }
+          });
+        } else {
+          logger.info('[FeeBreakdown] Owner has day pass — unlimited access, no overage', {
+            extra: { ownerEmail, dayPassId: participant.dayPassPurchaseId }
+          });
+        }
+      } else if (!unlimitedAccess && dailyAllowance < 999) {
         const minutesAdded = minutesPerParticipant + remainderMinutes;
         const incremental = calculateIncrementalOverage(usedMinutesToday, minutesAdded, dailyAllowance);
         
@@ -883,7 +909,19 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       lineItem.dailyAllowance = dailyAllowance;
       lineItem.usedMinutesToday = usedMinutesToday;
       
-      if (!unlimitedAccess && dailyAllowance < 999) {
+      if (participant.dayPassPurchaseId && !isConferenceRoom) {
+        const dayPassMinutes = 60;
+        lineItem.dayPassCovered = true;
+        lineItem.dayPassMinutes = dayPassMinutes;
+        if (!unlimitedAccess) {
+          const overageAfterPass = calculateIncrementalOverage(usedMinutesToday, Math.max(0, minutesPerParticipant - dayPassMinutes), dailyAllowance);
+          lineItem.overageCents = overageAfterPass.overageFeeCents;
+          totalOverageCents += lineItem.overageCents;
+        }
+        logger.info('[FeeBreakdown] Member has day pass — session coverage applied', {
+          extra: { memberEmail, dayPassId: participant.dayPassPurchaseId, minutesPerParticipant }
+        });
+      } else if (!unlimitedAccess && dailyAllowance < 999) {
         const incremental = calculateIncrementalOverage(usedMinutesToday, minutesPerParticipant, dailyAllowance);
         
         lineItem.overageCents = incremental.overageFeeCents;
@@ -920,7 +958,11 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const unlimitedAccess = ownerTierLimits?.unlimited_access ?? false;
 
       if (!unlimitedAccess && dailyAllowance < 999) {
-        const incremental = calculateIncrementalOverage(usedMinutesToday, ownerLineItem.minutesAllocated, dailyAllowance);
+        let effectiveMinutes = ownerLineItem.minutesAllocated;
+        if (ownerLineItem.dayPassCovered && ownerLineItem.dayPassMinutes) {
+          effectiveMinutes = Math.max(0, effectiveMinutes - ownerLineItem.dayPassMinutes);
+        }
+        const incremental = calculateIncrementalOverage(usedMinutesToday, effectiveMinutes, dailyAllowance);
 
         totalOverageCents -= ownerLineItem.overageCents;
         ownerLineItem.overageCents = incremental.overageFeeCents;
@@ -935,6 +977,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
             guestSlotMinutes,
             totalNonMemberMinutes: nonMemberMinutes,
             newMinutesAllocated: ownerLineItem.minutesAllocated,
+            effectiveMinutesAfterDayPass: effectiveMinutes,
+            dayPassCovered: ownerLineItem.dayPassCovered,
             totalAfterSession: usedMinutesToday + ownerLineItem.minutesAllocated,
             newOverageCents: ownerLineItem.overageCents
           }
@@ -955,7 +999,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         overageCents: 0,
         guestCents: emptyGuestFee,
         totalCents: emptyGuestFee,
-        guestPassUsed: false
+        guestPassUsed: false,
+        dayPassCovered: false
       };
 
       totalGuestCents += emptyGuestFee;

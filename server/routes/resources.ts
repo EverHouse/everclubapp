@@ -6,6 +6,8 @@ import { logAndRespond, logger } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
+import { processBookingDayPassRedemptions } from '../core/billing/dayPassRedemption';
+import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { memberCancelSchema } from '../../shared/validators/roster';
 import {
   assignMemberSchema,
@@ -243,7 +245,7 @@ router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, validateBody(assi
 
 router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBody(linkTrackmanSchema), async (req, res) => {
   try {
-    const { trackman_booking_id, owner, additional_players, member_email, member_name, member_id, rememberEmail, originalEmail } = req.body;
+    const { trackman_booking_id, owner, additional_players, member_email, member_name, member_id, rememberEmail, originalEmail, dayPassRedemptions } = req.body;
     
     const ownerEmail = owner?.email || member_email;
     const ownerName = owner?.name || member_name;
@@ -262,6 +264,27 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
       trackman_booking_id, ownerEmail, ownerName, ownerId,
       additionalPlayers, totalPlayerCount, guestCount, staffEmail
     );
+
+    let dayPassResult: { redeemed: number; errors: string[] } | undefined;
+    const finalSessionId = result.sessionId || result.booking.sessionId;
+    if (dayPassRedemptions?.length > 0 && finalSessionId) {
+      dayPassResult = await processBookingDayPassRedemptions(
+        dayPassRedemptions, finalSessionId, result.booking.id, staffEmail
+      );
+      if (dayPassResult.redeemed > 0) {
+        try {
+          await recalculateSessionFees(finalSessionId, 'staff_action');
+          logger.info('[link-trackman] Recalculated fees after day pass redemption', {
+            extra: { bookingId: result.booking.id, sessionId: finalSessionId, redeemed: dayPassResult.redeemed }
+          });
+        } catch (feeErr: unknown) {
+          logger.error('[link-trackman] Fee recalculation after day pass failed', {
+            error: feeErr instanceof Error ? feeErr : new Error(String(feeErr)),
+            extra: { bookingId: result.booking.id, sessionId: finalSessionId }
+          });
+        }
+      }
+    }
     
     let emailLinked = false;
     if (rememberEmail && originalEmail && originalEmail.toLowerCase() !== ownerEmail.toLowerCase()) {
@@ -276,7 +299,8 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
       guest_count: guestCount,
       was_created: result.created,
       fees_recalculated: !!result.sessionId,
-      email_linked: emailLinked ? originalEmail : null
+      email_linked: emailLinked ? originalEmail : null,
+      day_passes_redeemed: dayPassResult?.redeemed || 0
     });
     
     res.json({ 
@@ -286,7 +310,8 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
       totalPlayers: totalPlayerCount,
       guestCount,
       feesRecalculated: !!result.sessionId,
-      emailLinked
+      emailLinked,
+      dayPassRedemptions: dayPassResult
     });
   } catch (error: unknown) {
     const errStatus = getErrorStatusCode(error);
@@ -321,7 +346,7 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
 router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody(assignWithPlayersSchema), async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id as string, 10);
-    const { owner, additional_players, rememberEmail, originalEmail } = req.body;
+    const { owner, additional_players, rememberEmail, originalEmail, dayPassRedemptions } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
@@ -331,6 +356,26 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
     const staffEmail = getSessionUser(req)?.email || 'staff';
     
     const result = await assignWithPlayers(bookingId, owner, additionalPlayers, staffEmail);
+
+    let dayPassResult: { redeemed: number; errors: string[] } | undefined;
+    if (dayPassRedemptions?.length > 0 && result.sessionId) {
+      dayPassResult = await processBookingDayPassRedemptions(
+        dayPassRedemptions, result.sessionId, bookingId, staffEmail
+      );
+      if (dayPassResult.redeemed > 0) {
+        try {
+          await recalculateSessionFees(result.sessionId, 'staff_action');
+          logger.info('[assign-with-players] Recalculated fees after day pass redemption', {
+            extra: { bookingId, sessionId: result.sessionId, redeemed: dayPassResult.redeemed }
+          });
+        } catch (feeErr: unknown) {
+          logger.error('[assign-with-players] Fee recalculation after day pass failed', {
+            error: feeErr instanceof Error ? feeErr : new Error(String(feeErr)),
+            extra: { bookingId, sessionId: result.sessionId }
+          });
+        }
+      }
+    }
     
     let emailLinked = false;
     if (rememberEmail && originalEmail && originalEmail.toLowerCase() !== owner.email.toLowerCase()) {
@@ -343,7 +388,8 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
       total_players: result.totalPlayerCount,
       guest_count: result.guestCount,
       fees_recalculated: !!result.sessionId,
-      email_linked: emailLinked ? originalEmail : null
+      email_linked: emailLinked ? originalEmail : null,
+      day_passes_redeemed: dayPassResult?.redeemed || 0
     });
     
     res.json({ 
@@ -352,7 +398,8 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
       totalPlayers: result.totalPlayerCount,
       guestCount: result.guestCount,
       feesRecalculated: !!result.sessionId,
-      emailLinked
+      emailLinked,
+      dayPassRedemptions: dayPassResult
     });
   } catch (error: unknown) {
     const errStatus = getErrorStatusCode(error);

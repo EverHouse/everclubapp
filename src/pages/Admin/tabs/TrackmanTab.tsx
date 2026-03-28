@@ -153,7 +153,7 @@ const TrackmanTab: React.FC = () => {
   const [unmatchedDateRange, setUnmatchedDateRange] = useState<'30' | '90' | '180' | '365' | 'all'>('all');
   const [needsPlayersPage, setNeedsPlayersPage] = useState(1);
   const [needsPlayersSearchQuery, setNeedsPlayersSearchQuery] = useState('');
-  const [fuzzyMatchModal, setFuzzyMatchModal] = useState<{ booking: TrackmanBooking; selectedEmail: string; rememberEmail: boolean } | null>(null);
+  const [fuzzyMatchModal, setFuzzyMatchModal] = useState<{ booking: TrackmanBooking; selectedEmail: string; rememberEmail: boolean; dayPasses?: Array<{ id: string; remainingUses: number; purchaserFirstName: string; purchaserLastName: string; purchasedAt?: string }>; selectedDayPassId?: string | null } | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [assignPlayersModal, setAssignPlayersModal] = useState<{ booking: TrackmanBooking; isOpen: boolean } | null>(null);
   const [bookingSheet, setBookingSheet] = useState<{ 
@@ -294,8 +294,8 @@ const TrackmanTab: React.FC = () => {
   });
 
   const resolveMutation = useMutation({
-    mutationFn: async ({ bookingId, memberEmail }: { bookingId: number; memberEmail: string }) => {
-      return putWithCredentials<{ resolved: number; autoResolved: number; message: string }>(`/api/admin/trackman/unmatched/${bookingId}/resolve`, { memberEmail });
+    mutationFn: async ({ bookingId, memberEmail, dayPassRedemptions }: { bookingId: number; memberEmail: string; dayPassRedemptions?: Array<{ participantEmail: string; dayPassId: string }> }) => {
+      return putWithCredentials<{ resolved: number; autoResolved: number; message: string; availableDayPasses?: Array<{ id: string; remainingUses: number }>; sessionId?: number; bookingId?: number }>(`/api/admin/trackman/unmatched/${bookingId}/resolve`, { memberEmail, dayPassRedemptions });
     },
     onMutate: async ({ bookingId, memberEmail }) => {
       await queryClient.cancelQueries({ queryKey: ['trackman'] });
@@ -375,9 +375,13 @@ const TrackmanTab: React.FC = () => {
 
   const handleResolveFuzzyMatch = () => {
     if (!fuzzyMatchModal || !fuzzyMatchModal.selectedEmail) return;
+    const dayPassRedemptions = fuzzyMatchModal.selectedDayPassId
+      ? [{ participantEmail: fuzzyMatchModal.selectedEmail, dayPassId: fuzzyMatchModal.selectedDayPassId }]
+      : undefined;
     resolveMutation.mutate({
       bookingId: fuzzyMatchModal.booking.id,
-      memberEmail: fuzzyMatchModal.selectedEmail
+      memberEmail: fuzzyMatchModal.selectedEmail,
+      dayPassRedemptions
     });
   };
 
@@ -1063,7 +1067,17 @@ const TrackmanTab: React.FC = () => {
               {fuzzyFilteredMembers.slice(0, 15).map((member: TrackmanMember, idx: number) => (
                 <button
                   key={member.email || `member-${idx}`}
-                  onClick={() => setFuzzyMatchModal(prev => prev ? { ...prev, selectedEmail: member.email } : null)}
+                  onClick={async () => {
+                    setFuzzyMatchModal(prev => prev ? { ...prev, selectedEmail: member.email, dayPasses: undefined, selectedDayPassId: null } : null);
+                    try {
+                      const data = await fetchWithCredentials<{ passes: Array<{ id: string; remainingUses: number; purchaserFirstName: string; purchaserLastName: string; purchasedAt?: string }> }>(
+                        `/api/staff/passes/golf-sim/by-email?email=${encodeURIComponent(member.email)}`
+                      );
+                      setFuzzyMatchModal(prev => prev?.selectedEmail === member.email ? { ...prev, dayPasses: data.passes || [] } : prev);
+                    } catch {
+                      setFuzzyMatchModal(prev => prev?.selectedEmail === member.email ? { ...prev, dayPasses: [] } : prev);
+                    }
+                  }}
                   className={`w-full p-3 text-left rounded-xl transition-colors duration-fast ${
                     fuzzyMatchModal?.selectedEmail === member.email
                       ? 'bg-amber-100 dark:bg-amber-500/20 border-2 border-amber-500 shadow-md'
@@ -1111,6 +1125,44 @@ const TrackmanTab: React.FC = () => {
                   </p>
                 </div>
               </label>
+            </div>
+          )}
+          
+          {fuzzyMatchModal?.selectedEmail && fuzzyMatchModal.dayPasses && fuzzyMatchModal.dayPasses.length > 0 && (
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-500/30 mb-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!!fuzzyMatchModal.selectedDayPassId}
+                  onChange={(e) => {
+                    const passId = e.target.checked ? fuzzyMatchModal.dayPasses![0].id : null;
+                    setFuzzyMatchModal(prev => prev ? { ...prev, selectedDayPassId: passId } : null);
+                  }}
+                  className="mt-0.5 w-4 h-4 rounded border-green-400 text-green-500 focus:ring-green-500/50 focus:ring-offset-0"
+                />
+                <div className="flex flex-col">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-300">Redeem Day Pass (60 min covered)</p>
+                  <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-0.5">
+                    {fuzzyMatchModal.dayPasses[0].purchaserFirstName} {fuzzyMatchModal.dayPasses[0].purchaserLastName}
+                    {fuzzyMatchModal.dayPasses[0].purchasedAt ? ` · Purchased ${new Date(fuzzyMatchModal.dayPasses[0].purchasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+                    {' · '}{fuzzyMatchModal.dayPasses[0].remainingUses} use{fuzzyMatchModal.dayPasses[0].remainingUses !== 1 ? 's' : ''} left
+                  </p>
+                </div>
+              </label>
+              {fuzzyMatchModal.dayPasses.length > 1 && !!fuzzyMatchModal.selectedDayPassId && (
+                <select
+                  className="mt-2 text-xs w-full border border-green-200 dark:border-green-700 rounded px-2 py-1 bg-white dark:bg-gray-800 text-green-700 dark:text-green-400"
+                  value={fuzzyMatchModal.selectedDayPassId}
+                  onChange={(e) => setFuzzyMatchModal(prev => prev ? { ...prev, selectedDayPassId: e.target.value } : null)}
+                >
+                  {fuzzyMatchModal.dayPasses.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.purchaserFirstName} {p.purchaserLastName} — {p.remainingUses} use{p.remainingUses !== 1 ? 's' : ''} left
+                      {p.purchasedAt ? ` (${new Date(p.purchasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
           

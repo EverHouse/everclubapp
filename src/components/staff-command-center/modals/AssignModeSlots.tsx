@@ -4,6 +4,15 @@ import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetT
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
 
+interface DayPassInfo {
+  id: string;
+  remainingUses: number;
+  purchaserEmail: string;
+  purchaserFirstName: string;
+  purchaserLastName: string;
+  purchasedAt?: string;
+}
+
 interface AssignModeSlotsProps {
   slots: SlotsArray;
   activeSlotIndex: number | null;
@@ -31,6 +40,11 @@ interface AssignModeSlotsProps {
   handleSelectExistingVisitor: (visitor: VisitorSearchResult) => void;
   handleCreateVisitorAndAssign: () => Promise<void>;
   renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
+  dayPassSelections?: Record<number, string | null>;
+  dayPassesBySlot?: Record<number, DayPassInfo[]>;
+  isLoadingDayPasses?: boolean;
+  toggleDayPassForSlot?: (slotIndex: number, dayPassId: string | null) => void;
+  sessionDurationMinutes?: number;
 }
 
 export function AssignModeSlots({
@@ -66,6 +80,12 @@ export function AssignModeSlots({
   handleCreateVisitorAndAssign,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   renderTierBadge,
+  dayPassSelections,
+  dayPassesBySlot,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  isLoadingDayPasses,
+  toggleDayPassForSlot,
+  sessionDurationMinutes,
 }: AssignModeSlotsProps) {
   const renderSlot = (slotIndex: number, isOwnerSlot: boolean) => {
     const slot = slots[slotIndex];
@@ -103,6 +123,70 @@ export function AssignModeSlots({
               <Icon name="close" className="text-sm" />
             </button>
           </div>
+          {!isConferenceRoom && toggleDayPassForSlot && slot.type !== 'guest_placeholder' && (() => {
+            const slotPasses = dayPassesBySlot?.[slotIndex];
+            if (!slotPasses || slotPasses.length === 0) return null;
+            const selectedPassId = dayPassSelections?.[slotIndex];
+            const isSelected = !!selectedPassId;
+            const activePass = isSelected ? slotPasses.find(p => p.id === selectedPassId) || slotPasses[0] : slotPasses[0];
+            const totalRemaining = slotPasses.reduce((sum, p) => sum + p.remainingUses, 0);
+            const otherSelectedFromSamePass = Object.entries(dayPassSelections || {})
+              .filter(([idx, passId]) => passId && Number(idx) !== slotIndex && slotPasses.some(p => p.id === passId))
+              .length;
+            const canSelect = isSelected || (totalRemaining - otherSelectedFromSamePass) > 0;
+            const purchaseDate = activePass.purchasedAt ? new Date(activePass.purchasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+            const playerCount = slots.filter(s => s.type !== 'empty').length || 1;
+            const perPlayerMinutes = sessionDurationMinutes ? Math.floor(sessionDurationMinutes / playerCount) : 60;
+            const isShortSession = perPlayerMinutes < 60;
+            return (
+              <div className="mt-2 pt-2 border-t border-green-200/50 dark:border-green-700/50">
+                <label className={`flex items-center gap-2 ${canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={!canSelect && !isSelected}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        toggleDayPassForSlot(slotIndex, activePass.id);
+                      } else {
+                        toggleDayPassForSlot(slotIndex, null);
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-green-300 text-green-600 focus:ring-green-500"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-xs text-green-700 dark:text-green-400 font-medium">
+                      Redeem Day Pass (60 min covered)
+                    </span>
+                    <span className="text-[10px] text-green-600/70 dark:text-green-400/70">
+                      {activePass.purchaserFirstName} {activePass.purchaserLastName}
+                      {purchaseDate ? ` · Purchased ${purchaseDate}` : ''}
+                      {' · '}{totalRemaining - otherSelectedFromSamePass} of {totalRemaining} use{totalRemaining !== 1 ? 's' : ''} left
+                    </span>
+                    {isShortSession && isSelected && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                        This slot is only {perPlayerMinutes} min — pass covers 60 min ({60 - perPlayerMinutes} min unused)
+                      </span>
+                    )}
+                  </div>
+                </label>
+                {slotPasses.length > 1 && (
+                  <select
+                    className="mt-1 text-[10px] w-full border border-green-200 dark:border-green-700 rounded px-1 py-0.5 bg-white dark:bg-gray-800 text-green-700 dark:text-green-400"
+                    value={selectedPassId || activePass.id}
+                    onChange={(e) => toggleDayPassForSlot(slotIndex, e.target.value)}
+                  >
+                    {slotPasses.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.purchaserFirstName} {p.purchaserLastName} — {p.remainingUses} use{p.remainingUses !== 1 ? 's' : ''} left
+                        {p.purchasedAt ? ` (${new Date(p.purchasedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            );
+          })()}
         </div>
       );
     }

@@ -69,6 +69,8 @@ export async function calculateFeeEstimate(params: {
   guestsWithInfo?: number;
   memberEmails?: string[];
   memberEmailToUserId?: Map<string, string>;
+  dayPassSlotIndices?: number[];
+  dayPassEmails?: string[];
 }) {
   const { ownerEmail, durationMinutes, guestCount, requestDate, playerCount, sessionId, bookingId, resourceType } = params;
   
@@ -90,6 +92,7 @@ export async function calculateFeeEstimate(params: {
     email?: string;
     displayName: string;
     participantType: 'owner' | 'member' | 'guest';
+    dayPassPurchaseId?: string;
   }> = [
     { email: ownerEmail, displayName: 'Owner', participantType: 'owner' }
   ];
@@ -117,6 +120,23 @@ export async function calculateFeeEstimate(params: {
     }
   }
   
+  const dayPassEmailsSet = new Set((params.dayPassEmails || []).map(e => e.toLowerCase()));
+  if (dayPassEmailsSet.size > 0 && !isConferenceRoom) {
+    for (const p of participants) {
+      if (p.email && dayPassEmailsSet.has(p.email.toLowerCase()) && p.participantType !== 'guest') {
+        p.dayPassPurchaseId = `preview-day-pass-${p.email}`;
+      }
+    }
+  }
+  const dayPassIndicesSet = new Set(params.dayPassSlotIndices || []);
+  if (dayPassIndicesSet.size > 0 && dayPassEmailsSet.size === 0 && !isConferenceRoom) {
+    for (const idx of dayPassIndicesSet) {
+      if (idx >= 0 && idx < participants.length && participants[idx].participantType !== 'guest') {
+        participants[idx].dayPassPurchaseId = `preview-day-pass-${idx}`;
+      }
+    }
+  }
+
   try {
     logger.info('[FeeEstimate] Calculating for', { extra: { ownerEmail_ownerTier_durationMinutes_playerCount_perPersonMins_dailyAllowance_usedMinutesToday_isConferenceRoom_isUnlimitedTier_guestCount_requestDate: {
       ownerEmail,

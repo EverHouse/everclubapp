@@ -317,6 +317,7 @@ export const bookingParticipants = pgTable("booking_participants", {
   cachedFeeCents: integer("cached_fee_cents"),
   amountPaidCents: integer("amount_paid_cents"),
   refundedAt: timestamp("refunded_at", { withTimezone: true }),
+  dayPassPurchaseId: varchar("day_pass_purchase_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("booking_participants_session_idx").on(table.sessionId),

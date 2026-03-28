@@ -7,6 +7,11 @@ export const assignMemberSchema = z.object({
 });
 export type AssignMemberInput = z.infer<typeof assignMemberSchema>;
 
+export const dayPassRedemptionSchema = z.object({
+  participantEmail: z.string().min(1),
+  dayPassId: z.string().min(1),
+}).strict();
+
 export const linkTrackmanSchema = z.object({
   trackman_booking_id: z.union([z.string(), z.number()]),
   owner: z.object({
@@ -20,6 +25,7 @@ export const linkTrackmanSchema = z.object({
   additional_players: z.array(z.any()).optional(),
   rememberEmail: z.boolean().optional(),
   originalEmail: z.string().optional(),
+  dayPassRedemptions: z.array(dayPassRedemptionSchema).optional(),
 });
 export type LinkTrackmanInput = z.infer<typeof linkTrackmanSchema>;
 
@@ -32,6 +38,7 @@ export const assignWithPlayersSchema = z.object({
   additional_players: z.array(z.any()).optional(),
   rememberEmail: z.boolean().optional(),
   originalEmail: z.string().optional(),
+  dayPassRedemptions: z.array(dayPassRedemptionSchema).optional(),
 });
 export type AssignWithPlayersInput = z.infer<typeof assignWithPlayersSchema>;
 

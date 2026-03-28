@@ -119,6 +119,9 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const [waiverReason, setWaiverReason] = useState('');
   const [showWaiverInput, setShowWaiverInput] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [dayPassSelections, setDayPassSelections] = useState<Record<number, string | null>>({});
+  const [dayPassesBySlot, setDayPassesBySlot] = useState<Record<number, Array<{ id: string; remainingUses: number; purchaserEmail: string; purchaserFirstName: string; purchaserLastName: string; purchasedAt?: string }>>>({});
+  const [isLoadingDayPasses, setIsLoadingDayPasses] = useState(false);
   const [reassignSearchOpen, setReassignSearchOpen] = useState(false);
   const [isReassigningOwner, setIsReassigningOwner] = useState(false);
   const [isQuickAddingGuest, setIsQuickAddingGuest] = useState(false);
@@ -601,6 +604,16 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       
       setIsCalculatingFees(true);
       try {
+        const dayPassEmailsList = Object.entries(dayPassSelections)
+          .filter(([, passId]) => passId)
+          .map(([idx]) => {
+            const slotIdx = Number(idx);
+            return slots[slotIdx]?.member?.email || '';
+          })
+          .filter(Boolean);
+        const assignedMemberEmails = slots.slice(1)
+          .filter(s => (s.type === 'member' || s.type === 'visitor') && s.member?.email)
+          .map(s => s.member!.email);
         const params = new URLSearchParams({
           email: ownerSlot.member?.email || '',
           durationMinutes: String(durationMinutes),
@@ -609,6 +622,12 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         });
         if (bookingDate) {
           params.set('date', bookingDate);
+        }
+        if (assignedMemberEmails.length > 0) {
+          params.set('memberEmails', assignedMemberEmails.join(','));
+        }
+        if (dayPassEmailsList.length > 0) {
+          params.set('dayPassEmails', dayPassEmailsList.join(','));
         }
         const data = await fetchWithCredentials<{ totalCents?: number; overageCents?: number; guestCents?: number }>(`/api/fee-estimate?${params}`, {
           signal: controller.signal
@@ -634,7 +653,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       isCurrent = false;
       controller.abort();
     };
-  }, [slots, timeSlot, bookingDate, isManageMode]);
+  }, [slots, timeSlot, bookingDate, isManageMode, dayPassSelections]);
 
   const updateSlot = (index: number, slotState: SlotState) => {
     setSlots(prev => {
@@ -646,7 +665,36 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
   const clearSlot = (index: number) => {
     updateSlot(index, { type: 'empty' });
+    setDayPassSelections(prev => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
+    setDayPassesBySlot(prev => {
+      const next = { ...prev };
+      delete next[index];
+      return next;
+    });
   };
+
+  const fetchDayPassesForSlot = useCallback(async (slotIndex: number, email: string) => {
+    if (!email || isConferenceRoom || isLessonOrStaffBlock) return;
+    setIsLoadingDayPasses(true);
+    try {
+      const data = await fetchWithCredentials<{ passes: Array<{ id: string; remainingUses: number; purchaserEmail: string; purchaserFirstName: string; purchaserLastName: string; purchasedAt?: string }> }>(
+        `/api/staff/passes/golf-sim/by-email?email=${encodeURIComponent(email)}`
+      );
+      setDayPassesBySlot(prev => ({ ...prev, [slotIndex]: data.passes || [] }));
+    } catch {
+      setDayPassesBySlot(prev => ({ ...prev, [slotIndex]: [] }));
+    } finally {
+      setIsLoadingDayPasses(false);
+    }
+  }, [isConferenceRoom, isLessonOrStaffBlock]);
+
+  const toggleDayPassForSlot = useCallback((slotIndex: number, dayPassId: string | null) => {
+    setDayPassSelections(prev => ({ ...prev, [slotIndex]: dayPassId }));
+  }, []);
 
   const handleMemberSelect = (member: SelectedMember, slotIndex: number) => {
     updateSlot(slotIndex, {
@@ -658,7 +706,15 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         tier: member.tier
       }
     });
+    setDayPassSelections(prev => {
+      const next = { ...prev };
+      delete next[slotIndex];
+      return next;
+    });
     setActiveSlotIndex(null);
+    if (member.email) {
+      fetchDayPassesForSlot(slotIndex, member.email);
+    }
   };
 
   const handleAddGuestPlaceholder = (slotIndex: number) => {
@@ -666,12 +722,23 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       type: 'guest_placeholder',
       guestName: 'Guest (info pending)'
     });
+    setDayPassSelections(prev => {
+      const next = { ...prev };
+      delete next[slotIndex];
+      return next;
+    });
+    setDayPassesBySlot(prev => {
+      const next = { ...prev };
+      delete next[slotIndex];
+      return next;
+    });
     setActiveSlotIndex(null);
   };
 
   const handleSelectExistingVisitor = (visitor: VisitorSearchResult) => {
     if (activeSlotIndex === null) return;
-    updateSlot(activeSlotIndex, {
+    const slotIdx = activeSlotIndex;
+    updateSlot(slotIdx, {
       type: 'visitor',
       member: {
         id: visitor.id,
@@ -679,10 +746,18 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         name: visitor.name || `${visitor.firstName} ${visitor.lastName}`.trim()
       }
     });
+    setDayPassSelections(prev => {
+      const next = { ...prev };
+      delete next[slotIdx];
+      return next;
+    });
     setShowAddVisitor(false);
     setVisitorSearch('');
     setVisitorSearchResults([]);
     setActiveSlotIndex(null);
+    if (visitor.email) {
+      fetchDayPassesForSlot(slotIdx, visitor.email);
+    }
   };
 
   const handleCreateVisitorAndAssign = async () => {
@@ -722,7 +797,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         showToast(`Created visitor but Stripe setup failed - can add later`, 'warning');
       }
       
-      updateSlot(activeSlotIndex, {
+      const slotIdx = activeSlotIndex;
+      updateSlot(slotIdx, {
         type: 'visitor',
         member: {
           id: visitor.id,
@@ -730,10 +806,18 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           name: `${visitor.firstName} ${visitor.lastName}`
         }
       });
+      setDayPassSelections(prev => {
+        const next = { ...prev };
+        delete next[slotIdx];
+        return next;
+      });
       
       setShowAddVisitor(false);
       setVisitorData({ firstName: '', lastName: '', email: '', visitorType: 'guest' });
       setActiveSlotIndex(null);
+      if (visitor.email) {
+        fetchDayPassesForSlot(slotIdx, visitor.email);
+      }
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to create visitor', 'error');
     } finally {
@@ -991,10 +1075,19 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         }
       });
 
+      const dayPassRedemptionsPayload = Object.entries(dayPassSelections)
+        .filter(([, passId]) => passId)
+        .map(([idx, passId]) => {
+          const slotIdx = Number(idx);
+          const slot = slots[slotIdx];
+          return { participantEmail: slot?.member?.email || '', dayPassId: passId! };
+        })
+        .filter(r => r.participantEmail);
+
       let feesRecalculated = false;
       let resultBookingId = matchedBookingId;
       if (matchedBookingId) {
-        const data = await putWithCredentials<{ feesRecalculated?: boolean }>(`/api/bookings/${matchedBookingId}/assign-with-players`, {
+        const data = await putWithCredentials<{ feesRecalculated?: boolean; dayPassRedemptions?: { redeemed: number; errors: string[] } }>(`/api/bookings/${matchedBookingId}/assign-with-players`, {
           owner: {
             email: owner.email,
             name: owner.name,
@@ -1002,11 +1095,15 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           },
           additional_players: additionalPlayers,
           rememberEmail: shouldShowRememberEmail() ? rememberEmail : false,
-          originalEmail: originalEmail
+          originalEmail: originalEmail,
+          dayPassRedemptions: dayPassRedemptionsPayload.length > 0 ? dayPassRedemptionsPayload : undefined
         });
         feesRecalculated = data.feesRecalculated === true;
+        if (data.dayPassRedemptions?.errors?.length) {
+          showToast(`Day pass warning: ${data.dayPassRedemptions.errors[0]}`, 'warning');
+        }
       } else if (trackmanBookingId) {
-        const data = await postWithCredentials<{ feesRecalculated?: boolean; bookingId?: number }>('/api/bookings/link-trackman-to-member', {
+        const data = await postWithCredentials<{ feesRecalculated?: boolean; bookingId?: number; dayPassRedemptions?: { redeemed: number; errors: string[] } }>('/api/bookings/link-trackman-to-member', {
           trackman_booking_id: trackmanBookingId,
           owner: {
             email: owner.email,
@@ -1015,11 +1112,15 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           },
           additional_players: additionalPlayers,
           rememberEmail: shouldShowRememberEmail() ? rememberEmail : false,
-          originalEmail: originalEmail
+          originalEmail: originalEmail,
+          dayPassRedemptions: dayPassRedemptionsPayload.length > 0 ? dayPassRedemptionsPayload : undefined
         });
         feesRecalculated = data.feesRecalculated === true;
         if (data.bookingId) {
           resultBookingId = data.bookingId;
+        }
+        if (data.dayPassRedemptions?.errors?.length) {
+          showToast(`Day pass warning: ${data.dayPassRedemptions.errors[0]}`, 'warning');
         }
       } else if (sessionId) {
         await postWithCredentials('/api/data-integrity/fix/assign-session-owner', {
@@ -1197,5 +1298,10 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     handleReassignOwner,
     isQuickAddingGuest,
     handleManageModeQuickAddGuest,
+    dayPassSelections,
+    dayPassesBySlot,
+    isLoadingDayPasses,
+    toggleDayPassForSlot,
+    fetchDayPassesForSlot,
   };
 }

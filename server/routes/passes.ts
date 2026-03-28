@@ -269,6 +269,44 @@ router.post('/api/staff/passes/:id/redeem', isStaffOrAdmin, async (req: Request,
   }
 });
 
+router.get('/api/staff/passes/golf-sim/by-email', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { email: rawEmail } = req.query;
+    if (!rawEmail || typeof rawEmail !== 'string') {
+      return res.status(400).json({ error: 'Email query parameter is required' });
+    }
+    const email = rawEmail.trim().toLowerCase();
+
+    const passes = await db
+      .select({
+        id: dayPassPurchases.id,
+        productType: dayPassPurchases.productType,
+        quantity: dayPassPurchases.quantity,
+        remainingUses: dayPassPurchases.remainingUses,
+        purchaserEmail: dayPassPurchases.purchaserEmail,
+        purchaserFirstName: dayPassPurchases.purchaserFirstName,
+        purchaserLastName: dayPassPurchases.purchaserLastName,
+        purchasedAt: dayPassPurchases.purchasedAt,
+      })
+      .from(dayPassPurchases)
+      .where(
+        and(
+          ilike(dayPassPurchases.purchaserEmail, email),
+          eq(dayPassPurchases.productType, 'day-pass-golf-sim'),
+          gt(dayPassPurchases.remainingUses, 0),
+          eq(dayPassPurchases.status, 'active')
+        )
+      )
+      .orderBy(dayPassPurchases.purchasedAt)
+      .limit(10);
+
+    res.json({ passes });
+  } catch (error: unknown) {
+    logger.error('[Passes] Error searching golf sim passes by email', { error: error instanceof Error ? error : new Error(String(error)) });
+    res.status(500).json({ error: 'Failed to search golf sim passes' });
+  }
+});
+
 router.get('/api/staff/passes/:passId/history', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { passId } = req.params;

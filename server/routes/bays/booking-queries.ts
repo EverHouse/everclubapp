@@ -181,6 +181,10 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
     const requestDate = normalizeToISODate(vq.date as string);
     const resourceType = vq.resourceType || 'simulator';
     const guestsWithInfo = parseInt(vq.guestsWithInfo || '', 10) || 0;
+    const dayPassSlotIndicesParam = (req.query.dayPassSlotIndices as string) || '';
+    const dayPassSlotIndices = dayPassSlotIndicesParam ? dayPassSlotIndicesParam.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n)) : [];
+    const dayPassEmailsParam = (req.query.dayPassEmails as string) || '';
+    const dayPassEmails = dayPassEmailsParam ? dayPassEmailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean) : [];
     const memberEmailsParam = vq.memberEmails;
     const memberEmails = memberEmailsParam ? memberEmailsParam.split(',').map(e => e.trim().toLowerCase()).filter(Boolean) : [];
     
@@ -222,7 +226,9 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
       resourceType,
       memberEmails,
       memberEmailToUserId,
-      guestsWithInfo
+      guestsWithInfo,
+      dayPassSlotIndices: dayPassSlotIndices.length > 0 ? dayPassSlotIndices : undefined,
+      dayPassEmails: dayPassEmails.length > 0 ? dayPassEmails : undefined
     });
     
     res.json({ ...estimate, _ts: Date.now() });

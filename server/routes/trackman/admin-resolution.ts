@@ -15,6 +15,7 @@ import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/
 import { updateVisitorTypeByUserId } from '../../core/visitors';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
+import { processBookingDayPassRedemptions } from '../../core/billing/dayPassRedemption';
 
 function pacificNow(): string {
   return new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
@@ -319,7 +320,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     const { id } = req.params;
     const numericId = parseInt(id as string, 10);
     if (isNaN(numericId)) return res.status(400).json({ error: 'Invalid booking ID' });
-    const { email: rawEmail, memberEmail: rawMemberEmail, rememberEmail, additional_players } = req.body;
+    const { email: rawEmail, memberEmail: rawMemberEmail, rememberEmail, additional_players, dayPassRedemptions: rawDayPassRedemptions } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const resolveEmail = memberEmail || email;
@@ -848,6 +849,60 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       }
     }
 
+    let dayPassMessage = '';
+    const resolvedSessionResult = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${booking.id}`);
+    const resolvedSessionId = (resolvedSessionResult.rows[0] as DbRow)?.session_id as number | null;
+    
+    if (Array.isArray(rawDayPassRedemptions) && rawDayPassRedemptions.length > 0 && resolvedSessionId) {
+      const validRedemptions = rawDayPassRedemptions
+        .filter((r: { participantEmail?: string; dayPassId?: string }) => typeof r.participantEmail === 'string' && r.participantEmail.length > 0 && typeof r.dayPassId === 'string' && r.dayPassId.length > 0)
+        .map((r: { participantEmail: string; dayPassId: string }) => ({ participantEmail: r.participantEmail, dayPassId: r.dayPassId }));
+      if (validRedemptions.length > 0) {
+        try {
+          const result = await processBookingDayPassRedemptions(validRedemptions, resolvedSessionId, booking.id as number, staffEmail);
+          if (result.redeemed > 0) {
+            dayPassMessage = ` ${result.redeemed} day pass(es) redeemed.`;
+            await recalculateSessionFees(resolvedSessionId, 'checkin');
+          }
+          if (result.errors.length > 0) {
+            dayPassMessage += ` Day pass warnings: ${result.errors.join('; ')}`;
+          }
+        } catch (dpErr: unknown) {
+          logger.error('[Trackman Resolve] Day pass redemption error', { extra: { error: getErrorMessage(dpErr) } });
+          dayPassMessage = ' Day pass redemption failed — manual follow-up needed.';
+        }
+      }
+    }
+
+    let availableDayPasses: Array<{ id: string; remainingUses: number; purchaserEmail: string; purchaserFirstName: string; purchaserLastName: string; purchasedAt: string }> = [];
+    if (!isVisitor) {
+      try {
+        const passesResult = await db.execute(sql`
+          SELECT dpp.id, dpp.remaining_uses, dpp.purchaser_email,
+                 COALESCE(u.first_name, '') as purchaser_first_name,
+                 COALESCE(u.last_name, '') as purchaser_last_name,
+                 dpp.created_at as purchased_at
+          FROM day_pass_purchases dpp
+          LEFT JOIN users u ON LOWER(u.email) = LOWER(dpp.purchaser_email)
+          WHERE dpp.product_type = 'day-pass-golf-sim'
+            AND dpp.status = 'active'
+            AND dpp.remaining_uses > 0
+            AND (LOWER(dpp.purchaser_email) = LOWER(${String(member.email)})
+                 OR dpp.user_id = ${member.id})
+        `);
+        availableDayPasses = (passesResult.rows as Array<{ id: string; remaining_uses: number; purchaser_email: string; purchaser_first_name: string; purchaser_last_name: string; purchased_at: string }>).map(r => ({
+          id: String(r.id),
+          remainingUses: Number(r.remaining_uses),
+          purchaserEmail: String(r.purchaser_email),
+          purchaserFirstName: String(r.purchaser_first_name),
+          purchaserLastName: String(r.purchaser_last_name),
+          purchasedAt: String(r.purchased_at)
+        }));
+      } catch {
+        // non-critical
+      }
+    }
+
     await logFromRequest(req, {
       action: 'link_trackman_to_member',
       resourceType: 'booking',
@@ -858,14 +913,18 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         memberName: `${member.first_name} ${member.last_name}`,
         trackmanId: booking.trackman_booking_id,
         isVisitor,
-        billingApplied: billingMessage.length > 0
+        billingApplied: billingMessage.length > 0,
+        dayPassRedeemed: dayPassMessage.length > 0
       }
     });
     
     res.json({ 
       success: true, 
-      message: `Booking linked to ${member.first_name} ${member.last_name}${billingMessage}${emailLearningMessage}`,
-      emailLearned: emailLearningMessage.length > 0 ? originalEmailForLearning : null
+      message: `Booking linked to ${member.first_name} ${member.last_name}${billingMessage}${dayPassMessage}${emailLearningMessage}`,
+      emailLearned: emailLearningMessage.length > 0 ? originalEmailForLearning : null,
+      availableDayPasses: availableDayPasses.length > 0 ? availableDayPasses : undefined,
+      sessionId: resolvedSessionId || undefined,
+      bookingId: booking.id
     });
   } catch (error: unknown) {
     logger.error('Error resolving unmatched booking', { error: error instanceof Error ? error : new Error(String(error)) });
