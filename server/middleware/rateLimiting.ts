@@ -135,7 +135,7 @@ export const checkoutRateLimiter = rateLimit({
       return `checkout:${String(email).toLowerCase()}:${String(req.ip || 'unknown')}`;
     }
     if (sessionId) {
-      return `checkout:session:${String(sessionId)}`;
+      return `checkout:session:${String(sessionId)}:${String(req.ip || 'unknown').toLowerCase()}`;
     }
     return `checkout:${String(req.ip || 'unknown')}`;
   },

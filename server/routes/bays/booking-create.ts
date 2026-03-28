@@ -369,7 +369,21 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
 
         const initialStatus: 'pending' | 'confirmed' = 'pending';
         
-        const guardianConsentAt = guardian_consent ? new Date() : null;
+        if (guardian_consent) {
+          const gName = typeof guardian_name === 'string' ? guardian_name.trim() : '';
+          const gRelationship = typeof guardian_relationship === 'string' ? guardian_relationship.trim() : '';
+          const gPhone = typeof guardian_phone === 'string' ? guardian_phone.trim() : '';
+          if (!gName || gName.length < 2) {
+            throw new BookingValidationError(400, { error: 'Guardian full name is required for minor consent.' });
+          }
+          if (!gRelationship) {
+            throw new BookingValidationError(400, { error: 'Guardian relationship is required for minor consent.' });
+          }
+          if (!gPhone || gPhone.length < 7) {
+            throw new BookingValidationError(400, { error: 'A valid guardian phone number is required for minor consent.' });
+          }
+        }
+        const guardianConsentAt = (guardian_consent && guardian_name && guardian_relationship) ? new Date() : null;
         const insertResult = await tx.execute(sql`
           INSERT INTO booking_requests (
             user_email, user_name, user_id, resource_id, resource_preference, 
@@ -387,7 +401,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             ${start_time},
             ${duration_minutes},
             ${end_time},
-            ${notes || null},
+            ${notes ? String(notes).slice(0, 1000) : null},
             ${(declared_player_count && declared_player_count >= 1 && declared_player_count <= 4 ? declared_player_count : null) ?? null},
             ${(member_notes ? String(member_notes).slice(0, 280) : null) ?? null},
             ${(guardian_consent && guardian_name ? String(guardian_name).slice(0, 100) : null) ?? null},

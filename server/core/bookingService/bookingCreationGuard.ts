@@ -3,6 +3,7 @@ import { logger } from '../logger';
 import { formatTime12Hour } from '../../utils/dateUtils';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { ACTIVE_BOOKING_STATUSES } from '../../../shared/constants/statuses';
+import { isProduction } from '../db';
 
 function isUndefinedTableError(err: unknown): boolean {
   return getErrorCode(err) === '42P01';
@@ -29,7 +30,7 @@ async function queryWithSavepoint(
       });
       throw new BookingConflictError(503, { error: 'Unable to verify slot availability. Please try again.' });
     }
-    if (isUndefinedTableError(err) && process.env.NODE_ENV !== 'production') {
+    if (isUndefinedTableError(err) && !isProduction) {
       logger.warn(`[BookingGuard] ${logLabel}: table does not exist (42P01) — returning empty result (dev only)`);
       return { rows: [] };
     }
