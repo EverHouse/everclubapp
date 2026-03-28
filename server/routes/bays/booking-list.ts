@@ -8,6 +8,7 @@ import { isStaffOrAdminCheck } from './helpers';
 import { isAuthenticated } from '../../core/middleware';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
+import { buildUserEmailConditions } from '../../core/bookingService/bookingQueryBuilder';
 
 const router = Router();
 
@@ -60,15 +61,7 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     );
     
     if (user_email && !include_all) {
-      const userEmailLower = (user_email as string).toLowerCase();
-      conditions.push(
-        or(
-          sql`LOWER(${bookingRequests.userEmail}) = ${userEmailLower}`,
-          sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = ${userEmailLower})`,
-          sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${userEmailLower})`,
-          sql`${bookingRequests.sessionId} IN (SELECT bp.session_id FROM booking_participants bp JOIN users u ON bp.user_id = u.id WHERE LOWER(u.email) = ${userEmailLower})`
-        )
-      );
+      conditions.push(buildUserEmailConditions((user_email as string).toLowerCase()));
     }
     
     if (status) {

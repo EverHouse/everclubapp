@@ -15,12 +15,12 @@ import { CALENDAR_CONFIG } from '../../core/calendar/config';
 import { broadcastAvailabilityUpdate } from '../../core/websocket';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { notifyMember, isSyntheticEmail } from '../../core/notificationService';
-import { getSettingValue } from '../../core/settingsHelper';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { syncBookingInvoice, finalizeAndPayInvoice, getBookingInvoiceId } from '../../core/billing/bookingInvoiceService';
 import { resolveUserByEmail } from '../../core/stripe/customers';
 import { checkClosureConflict, checkAvailabilityBlockConflict, checkBookingConflict } from '../../core/bookingValidation';
+import { generateSlotsForResource, getBusinessHoursFromSettings } from '../../core/availabilityService';
 
 const router = Router();
 
@@ -70,79 +70,35 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
       logger.error('Failed to fetch Google Calendar busy times', { error: calError as Error });
     }
 
-    const allBusySlots = [
-      ...bookingsResult.rows.map(r => ({ start_time: r.start_time, end_time: r.end_time })),
-      ...blocksResult.rows.map(r => ({ start_time: r.start_time, end_time: r.end_time })),
-      ...calendarBusySlots
-    ];
-
-    const d = new Date(date + 'T12:00:00');
-    const dayOfWeek = d.getDay();
-    let settingKey: string;
-    let fallback: string;
-    switch (dayOfWeek) {
-      case 0: settingKey = 'hours.sunday'; fallback = '8:30 AM – 6:00 PM'; break;
-      case 1: settingKey = 'hours.monday'; fallback = 'Closed'; break;
-      case 5: case 6: settingKey = 'hours.friday_saturday'; fallback = '8:30 AM – 10:00 PM'; break;
-      default: settingKey = 'hours.tuesday_thursday'; fallback = '8:30 AM – 8:00 PM'; break;
-    }
-    const displayStr = await getSettingValue(settingKey, fallback);
-    const hours = (() => {
-      if (!displayStr || displayStr.toLowerCase() === 'closed') return null;
-      const parts = displayStr.split(/\s*[–-]\s*/);
-      if (parts.length !== 2) return null;
-      const parseT = (s: string): number | null => {
-        const m = s.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-        if (!m) return null;
-        let h = parseInt(m[1], 10);
-        const min = parseInt(m[2], 10);
-        if (m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
-        if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
-        return h * 60 + min;
-      };
-      const open = parseT(parts[0]);
-      const close = parseT(parts[1]);
-      if (open === null || close === null) return null;
-      return { open, close };
-    })();
-    if (!hours) {
-      return res.json([]);
-    }
-
     const todayStr = getTodayPacific();
     const isToday = date === todayStr;
     const pacificParts = getPacificDateParts();
     const currentMinutes = isToday ? pacificParts.hour * 60 + pacificParts.minute : 0;
 
-    const parseTime = (timeStr: string): number => {
-      const parts = timeStr.split(':').map(Number);
-      return parts[0] * 60 + parts[1];
-    };
-
-    const isSlotAvailable = (slotStart: number, slotEnd: number): boolean => {
-      for (const busy of allBusySlots) {
-        const busyStart = parseTime(busy.start_time as string);
-        const busyEnd = parseTime(busy.end_time as string);
-        if (slotStart < busyEnd && slotEnd > busyStart) {
-          return false;
-        }
-      }
-      return true;
-    };
-
-    const availableSlots: string[] = [];
-    for (let time = hours.open; time + durationMinutes <= hours.close; time += 30) {
-      if (isToday && time < currentMinutes + 30) continue;
-
-      const slotEnd = time + durationMinutes;
-      if (isSlotAvailable(time, slotEnd)) {
-        const slotHours = Math.floor(time / 60);
-        const slotMins = time % 60;
-        availableSlots.push(
-          `${String(slotHours).padStart(2, '0')}:${String(slotMins).padStart(2, '0')}`
-        );
-      }
+    const hours = await getBusinessHoursFromSettings(date);
+    if (!hours) {
+      return res.json([]);
     }
+
+    const allBookedSlots = bookingsResult.rows.map(r => ({ start_time: r.start_time as string, end_time: r.end_time as string }));
+    const allBlockedSlots = blocksResult.rows.map(r => ({ start_time: r.start_time as string, end_time: r.end_time as string }));
+
+    const slots = generateSlotsForResource({
+      durationMinutes,
+      hours,
+      currentMinutes,
+      isToday,
+      bookedSlots: allBookedSlots,
+      blockedSlots: allBlockedSlots,
+      unmatchedSlots: [],
+      calendarSlots: calendarBusySlots,
+      slotIncrement: 30,
+      skipPastBuffer: 30,
+    });
+
+    const availableSlots = slots
+      .filter(s => s.available)
+      .map(s => s.start_time.slice(0, 5));
 
     res.json(availableSlots);
   } catch (error: unknown) {

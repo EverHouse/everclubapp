@@ -22,6 +22,7 @@ import { getConferenceRoomBookingsFromCalendar } from '../../core/calendar/index
 import { getConferenceRoomId } from '../../core/affectedAreas';
 import { getTodayPacific } from '../../utils/dateUtils';
 import { getLifetimeVisitStats } from '../../core/memberService/lifetimeVisitStats';
+import { buildUserEmailConditionsExtended } from '../../core/bookingService/bookingQueryBuilder';
 
 const router = Router();
 
@@ -78,19 +79,7 @@ router.get('/api/member/dashboard/bookings', isAuthenticated, async (req, res) =
         eq(bookingRequests.status, 'pending'),
         eq(bookingRequests.status, 'attended')
       ),
-      or(
-        eq(bookingRequests.userEmail, userEmail),
-        sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = ${userEmail})`,
-        sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${userEmail})`,
-        sql`${bookingRequests.sessionId} IN (SELECT bp.session_id FROM booking_participants bp JOIN users u ON bp.user_id = u.id WHERE LOWER(u.email) = ${userEmail})`,
-        sql`${bookingRequests.id} IN (
-          SELECT br2.id FROM booking_requests br2
-          JOIN booking_sessions bs ON bs.id = br2.session_id
-          JOIN booking_participants bp ON bp.session_id = bs.id
-          JOIN users u ON u.id = bp.user_id
-          WHERE LOWER(u.email) = ${userEmail}
-        )`
-      )
+      buildUserEmailConditionsExtended(userEmail)
     ];
     
     const bookings = await withRetry(() =>

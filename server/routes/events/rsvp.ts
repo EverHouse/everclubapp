@@ -14,6 +14,7 @@ import { getMemberDisplayName } from './shared';
 import { validateBody } from '../../middleware/validate';
 import { z } from 'zod';
 import { bookingRateLimiter } from '../../middleware/rateLimiting';
+import { createEventRsvp } from '../../core/registrationService';
 
 const rsvpCreateSchema = z.object({
   event_id: z.number().int().positive('event_id is required'),
@@ -132,79 +133,19 @@ router.post('/api/rsvps', isAuthenticated, bookingRateLimiter, validateBody(rsvp
       return res.status(403).json({ error: 'You can only perform this action for yourself' });
     }
     
-    const eventData = await db.select({
-      title: events.title,
-      eventDate: events.eventDate,
-      startTime: events.startTime,
-      location: events.location,
-      maxAttendees: events.maxAttendees
-    }).from(events).where(eq(events.id, event_id));
-    
-    if (eventData.length === 0) {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-    
-    const evt = eventData[0];
-    const formattedDate = formatDateDisplayWithDay(evt.eventDate);
-    const formattedTime = evt.startTime ? formatTime12Hour(evt.startTime) : '';
-    const memberMessage = `You're confirmed for ${evt.title} on ${formattedDate}${formattedTime ? ` at ${formattedTime}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;
     const memberName = await getMemberDisplayName(user_email);
-    const staffMessage = `${memberName} RSVP'd for ${evt.title} on ${formattedDate}`;
     
-    const result = await db.transaction(async (tx) => {
-      if (evt.maxAttendees && evt.maxAttendees > 0) {
-        await tx.execute(sql`SELECT id FROM events WHERE id = ${event_id} FOR UPDATE`);
-        const rsvpCountResult = await tx.select({ count: sql<number>`count(*)::int` })
-          .from(eventRsvps)
-          .where(and(eq(eventRsvps.eventId, event_id), eq(eventRsvps.status, 'confirmed')));
-        
-        const rsvpCount = rsvpCountResult[0]?.count || 0;
-        
-        if (rsvpCount >= evt.maxAttendees) {
-          throw new Error('Event is at capacity');
-        }
-      }
-      
-      const rsvpResult = await tx.insert(eventRsvps).values({
-        eventId: event_id,
-        userEmail: user_email,
-        checkedIn: true,
-      }).onConflictDoUpdate({
-        target: [eventRsvps.eventId, eventRsvps.userEmail],
-        set: { status: 'confirmed', checkedIn: true },
-      }).returning();
-      
-      return rsvpResult[0];
-    });
-    
-    notifyMember({
+    const { rsvp } = await createEventRsvp(event_id, {
       userEmail: user_email,
-      title: 'Event RSVP Confirmed',
-      message: memberMessage,
-      type: 'event_rsvp',
-      relatedId: event_id,
-      relatedType: 'event',
-      url: '/events'
-    }).catch(err => logger.warn('Failed to send RSVP notification', { extra: { error: getErrorMessage(err) } }));
+      sessionEmail,
+      isStaffOverride: !isOwnAction && isAdminOrStaff,
+    }, memberName);
     
-    notifyAllStaff(
-      'New Event RSVP',
-      staffMessage,
-      'event_rsvp',
-      { relatedId: event_id, relatedType: 'event', url: '/admin/calendar' }
-    ).catch((err: unknown) => logger.warn('Failed to notify staff of event RSVP', { error: getErrorMessage(err) }));
-    
-    broadcastToStaff({
-      type: 'rsvp_event',
-      action: 'rsvp_created',
-      eventId: event_id,
-      memberEmail: user_email
-    });
-    
-    res.status(201).json(result);
+    res.status(201).json(rsvp);
   } catch (error: unknown) {
-    if (getErrorMessage(error) === 'Event is at capacity') {
-      return logAndRespond(req, res, 400, 'Event is at capacity');
+    const err = error as { statusCode?: number; message?: string };
+    if (err.statusCode === 400 || err.statusCode === 404) {
+      return logAndRespond(req, res, err.statusCode, err.message || 'Request failed');
     }
     logAndRespond(req, res, 500, 'Failed to create RSVP. Staff notification is required.', error);
   }

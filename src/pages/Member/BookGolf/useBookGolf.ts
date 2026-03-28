@@ -14,6 +14,7 @@ import { useTierPermissions } from '../../../hooks/useTierPermissions';
 import { canAccessResource } from '../../../services/tierService';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { buildFeeEstimateParams } from '../../../utils/bookingUtils';
 import {
   type APIResource,
   type APISlot,
@@ -225,16 +226,18 @@ export function useBookGolf() {
 
   const feeEstimateParams = useMemo(() => {
     if (!duration || !selectedDateObj?.date) return '';
-    const params = new URLSearchParams({
-      durationMinutes: duration.toString(), guestCount: guestCount.toString(),
-      playerCount: effectivePlayerCount.toString(), date: selectedDateObj.date,
+    return buildFeeEstimateParams({
+      ownerEmail: effectiveUser?.email || '',
+      durationMinutes: duration,
+      playerCount: effectivePlayerCount,
+      guestCount,
+      date: selectedDateObj.date,
       resourceType: activeTab === 'conference' ? 'conference_room' : 'simulator',
-      guestsWithInfo: guestsWithInfo.toString()
-    });
-    if (memberUserIds.length > 0) params.set('memberUserIds', memberUserIds.join(','));
-    if (memberEmails.length > 0) params.set('memberEmails', memberEmails.join(','));
-    if (effectiveUser?.email && isAdminViewingAs) params.set('email', effectiveUser.email);
-    return params.toString();
+      guestsWithInfo,
+      memberUserIds,
+      memberEmails,
+      viewAsEmail: isAdminViewingAs ? effectiveUser?.email : undefined,
+    }).toString();
   }, [duration, guestCount, guestsWithInfo, effectivePlayerCount, selectedDateObj?.date, activeTab, effectiveUser?.email, isAdminViewingAs, memberUserIds, memberEmails]);
 
   const { data: feeEstimateData, isLoading: feeEstimateLoading } = useQuery({

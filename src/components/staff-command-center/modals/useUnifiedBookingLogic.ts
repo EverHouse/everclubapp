@@ -10,6 +10,7 @@ import { isPlaceholderEmail } from './bookingSheetTypes';
 import { useBookingActions } from '../../../hooks/useBookingActions';
 import { isStaffTier } from '../../../utils/tierUtils';
 import React from 'react';
+import { parseDurationFromTimeSlot, buildFeeEstimateParams } from '../../../utils/bookingUtils';
 
 export type { VisitorSearchResult, SlotState, SlotsArray } from './bookingSheetTypes';
 
@@ -580,23 +581,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         return;
       }
       
-      let durationMinutes = 60;
-      if (timeSlot) {
-        const match = timeSlot.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?)\s*-\s*(\d{1,2}:\d{2}\s*(?:AM|PM)?)/i);
-        if (match) {
-          const parseTime = (t: string) => {
-            const [time, period] = t.trim().split(/\s+/);
-            // eslint-disable-next-line prefer-const
-            let [h, m] = time.split(':').map(Number);
-            if (period?.toUpperCase() === 'PM' && h !== 12) h += 12;
-            if (period?.toUpperCase() === 'AM' && h === 12) h = 0;
-            return h * 60 + m;
-          };
-          const startMins = parseTime(match[1]);
-          const endMins = parseTime(match[2]);
-          durationMinutes = endMins > startMins ? endMins - startMins : 1440 - startMins + endMins;
-        }
-      }
+      const durationMinutes = timeSlot ? parseDurationFromTimeSlot(timeSlot) : 60;
       
       const guestCount = slots.filter(s => s.type === 'guest_placeholder').length;
       const memberCount = slots.slice(1).filter(s => s.type === 'member' || s.type === 'visitor').length;
@@ -614,21 +599,16 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         const assignedMemberEmails = slots.slice(1)
           .filter(s => (s.type === 'member' || s.type === 'visitor') && s.member?.email)
           .map(s => s.member!.email);
-        const params = new URLSearchParams({
-          email: ownerSlot.member?.email || '',
-          durationMinutes: String(durationMinutes),
-          playerCount: String(totalPlayers),
-          guestCount: String(guestCount)
+        const params = buildFeeEstimateParams({
+          ownerEmail: ownerSlot.member?.email || '',
+          durationMinutes,
+          playerCount: totalPlayers,
+          guestCount,
+          date: bookingDate,
+          memberEmails: assignedMemberEmails,
+          dayPassEmails: dayPassEmailsList,
+          includeOwnerEmail: true,
         });
-        if (bookingDate) {
-          params.set('date', bookingDate);
-        }
-        if (assignedMemberEmails.length > 0) {
-          params.set('memberEmails', assignedMemberEmails.join(','));
-        }
-        if (dayPassEmailsList.length > 0) {
-          params.set('dayPassEmails', dayPassEmailsList.join(','));
-        }
         const data = await fetchWithCredentials<{ totalCents?: number; overageCents?: number; guestCents?: number }>(`/api/fee-estimate?${params}`, {
           signal: controller.signal
         });

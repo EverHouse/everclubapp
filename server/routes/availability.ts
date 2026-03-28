@@ -9,17 +9,13 @@ import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { toIntArrayLiteral, toTextArrayLiteral } from '../utils/sqlArrayLiteral';
 import { getSessionUser } from '../types/session';
-import { getSettingValue } from '../core/settingsHelper';
+import {
+  type APISlot,
+  generateSlotsForResource,
+  getBusinessHoursFromSettings,
+} from '../core/availabilityService';
 
 const router = Router();
-
-
-interface APISlot {
-  start_time: string;
-  end_time: string;
-  available: boolean;
-  requested?: boolean;
-}
 
 interface BatchAvailabilityRequest {
   resource_ids: number[];
@@ -28,111 +24,6 @@ interface BatchAvailabilityRequest {
   ignore_booking_id?: number;
   user_email?: string;
 }
-
-function parseTimeToMinutes(timeStr: string): number | null {
-  const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
-  return hours * 60 + minutes;
-}
-
-function parseDisplayHoursToMinutes(displayStr: string): { open: number; close: number } | null {
-  if (!displayStr || displayStr.toLowerCase() === 'closed') return null;
-  const parts = displayStr.split(/\s*[–-]\s*/);
-  if (parts.length !== 2) return null;
-  const open = parseTimeToMinutes(parts[0]);
-  const close = parseTimeToMinutes(parts[1]);
-  if (open === null || close === null) return null;
-  return { open, close };
-}
-
-async function getBusinessHoursFromSettings(date: string): Promise<{ open: number; close: number } | null> {
-  const d = new Date(date + 'T12:00:00');
-  const dayOfWeek = d.getDay();
-  let settingKey: string;
-  let fallback: string;
-  switch (dayOfWeek) {
-    case 0: settingKey = 'hours.sunday'; fallback = '8:30 AM – 6:00 PM'; break;
-    case 1: settingKey = 'hours.monday'; fallback = 'Closed'; break;
-    case 5:
-    case 6: settingKey = 'hours.friday_saturday'; fallback = '8:30 AM – 10:00 PM'; break;
-    default: settingKey = 'hours.tuesday_thursday'; fallback = '8:30 AM – 8:00 PM'; break;
-  }
-  const displayStr = await getSettingValue(settingKey, fallback);
-  return parseDisplayHoursToMinutes(displayStr);
-}
-
-// Generate slots for a resource given its conflicts
-const generateSlotsForResource = (
-  durationMinutes: number,
-  hours: { open: number; close: number },
-  currentMinutes: number,
-  isToday: boolean,
-  bookedSlots: { start_time: string; end_time: string }[],
-  blockedSlots: { start_time: string; end_time: string }[],
-  unmatchedSlots: { start_time: string; end_time: string }[],
-  calendarSlots: { start_time: string; end_time: string }[],
-  pendingSlots: { start_time: string; end_time: string }[] = []
-): APISlot[] => {
-  const slots: APISlot[] = [];
-  const slotIncrement = 15;
-  const { open: openMinutes, close: closeMinutes } = hours;
-
-  for (let startMins = openMinutes; startMins + durationMinutes <= closeMinutes; startMins += slotIncrement) {
-    if (isToday && startMins <= currentMinutes) {
-      continue;
-    }
-    
-    const startHour = Math.floor(startMins / 60);
-    const startMin = startMins % 60;
-    const endMins = startMins + durationMinutes;
-    const endHour = Math.floor(endMins / 60);
-    const endMin = endMins % 60;
-    
-    const startTime = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}:00`;
-    const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:00`;
-    
-    const hasBookingConflict = bookedSlots.some((booking) => 
-      startTime < booking.end_time && endTime > booking.start_time
-    );
-    
-    const hasBlockConflict = blockedSlots.some((block) => 
-      startTime < block.end_time && endTime > block.start_time
-    );
-    
-    const hasUnmatchedConflict = unmatchedSlots.some((unmatched) => 
-      startTime < unmatched.end_time && endTime > unmatched.start_time
-    );
-    
-    const hasCalendarConflict = calendarSlots.some((busy) => 
-      startTime < busy.end_time && endTime > busy.start_time
-    );
-    
-    const hasPendingConflict = pendingSlots.some((pending) =>
-      startTime < pending.end_time && endTime > pending.start_time
-    );
-    
-    const isUnavailable = hasBookingConflict || hasBlockConflict || hasUnmatchedConflict || hasCalendarConflict || hasPendingConflict;
-    
-    const slot: APISlot = {
-      start_time: startTime,
-      end_time: endTime,
-      available: !isUnavailable
-    };
-    
-    if (hasPendingConflict && !hasBookingConflict && !hasBlockConflict && !hasUnmatchedConflict && !hasCalendarConflict) {
-      slot.requested = true;
-    }
-    
-    slots.push(slot);
-  }
-  
-  return slots;
-};
 
 // Batch availability endpoint - fetch multiple resources in a single request
 // PUBLIC ROUTE
@@ -282,17 +173,18 @@ router.post('/api/availability/batch', async (req, res) => {
         ...(webhookCacheByResource.get(resourceId) || [])
       ];
       
-      const slots = generateSlotsForResource(
+      const slots = generateSlotsForResource({
         durationMinutes,
         hours,
         currentMinutes,
         isToday,
-        bookedByResource.get(resourceId) || [],
-        blockedByResource.get(resourceId) || [],
-        combinedUnmatchedSlots,
-        calendarByResource.get(resourceId) || [],
-        pendingByResource.get(resourceId) || []
-      );
+        bookedSlots: bookedByResource.get(resourceId) || [],
+        blockedSlots: blockedByResource.get(resourceId) || [],
+        unmatchedSlots: combinedUnmatchedSlots,
+        calendarSlots: calendarByResource.get(resourceId) || [],
+        pendingSlots: pendingByResource.get(resourceId) || [],
+        skipPastBuffer: 1,
+      });
       result[resourceId] = { slots };
     }
     
@@ -313,8 +205,6 @@ router.get('/api/availability', async (req, res) => {
     }
     
     const durationMinutes = parseInt(duration as string, 10) || 60;
-    // 15-minute increment for cleaner time slots (:00, :15, :30, :45)
-    const slotIncrement = 15;
     
     // Get resource type to determine business hours
     const resourceResult = await db.execute(sql`SELECT type FROM resources WHERE id = ${resource_id}`);
@@ -406,8 +296,6 @@ router.get('/api/availability', async (req, res) => {
       }
     }
     
-    const slots = [];
-    
     // Use Pacific timezone utilities for accurate time calculations
     const todayStr = getTodayPacific();
     const isToday = date === todayStr;
@@ -421,68 +309,23 @@ router.get('/api/availability', async (req, res) => {
       return res.json([]);
     }
     
-    const openMinutes = hours.open;
-    const closeMinutes = hours.close;
+    const combinedUnmatched = [
+      ...(unmatchedTrackmanSlots.rows as Array<{ start_time: string; end_time: string }>),
+      ...(trackmanBaySlots.rows as Array<{ start_time: string; end_time: string }>),
+    ];
     
-    for (let startMins = openMinutes; startMins + durationMinutes <= closeMinutes; startMins += slotIncrement) {
-      // Skip past time slots for today
-      if (isToday && startMins <= currentMinutes) {
-        continue;
-      }
-      const startHour = Math.floor(startMins / 60);
-      const startMin = startMins % 60;
-      const endMins = startMins + durationMinutes;
-      const endHour = Math.floor(endMins / 60);
-      const endMin = endMins % 60;
-      
-      const startTime = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}:00`;
-      const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:00`;
-      
-      const hasBookingConflict = bookedSlots.rows.some((booking: Record<string, unknown>) => {
-        const bookStart = booking.start_time as string;
-        const bookEnd = booking.end_time as string;
-        return (startTime < bookEnd && endTime > bookStart);
-      });
-      
-      const hasBlockConflict = blockedSlots.rows.some((block: Record<string, unknown>) => {
-        const blockStart = block.start_time as string;
-        const blockEnd = block.end_time as string;
-        return (startTime < blockEnd && endTime > blockStart);
-      });
-      
-      // Check unmatched Trackman bookings and Trackman bay slot cache
-      const hasUnmatchedConflict = unmatchedTrackmanSlots.rows.some((unmatched: Record<string, unknown>) => {
-        const unmatchedStart = unmatched.start_time as string;
-        const unmatchedEnd = unmatched.end_time as string;
-        return (startTime < unmatchedEnd && endTime > unmatchedStart);
-      }) || trackmanBaySlots.rows.some((tbs: Record<string, unknown>) => {
-        return (startTime < (tbs.end_time as string) && endTime > (tbs.start_time as string));
-      });
-      
-      // Check Google Calendar busy times (for Mindbody conference room bookings)
-      const hasCalendarConflict = calendarBusySlots.some((busy) => {
-        return (startTime < busy.end_time && endTime > busy.start_time);
-      });
-      
-      // Check pending bookings from other members (soft lock)
-      const hasPendingConflict = pendingSlots.rows.some((pending: Record<string, unknown>) => {
-        return (startTime < (pending.end_time as string) && endTime > (pending.start_time as string));
-      });
-      
-      const isUnavailable = hasBookingConflict || hasBlockConflict || hasUnmatchedConflict || hasCalendarConflict || hasPendingConflict;
-      
-      const slot: APISlot = {
-        start_time: startTime,
-        end_time: endTime,
-        available: !isUnavailable
-      };
-      
-      if (hasPendingConflict && !hasBookingConflict && !hasBlockConflict && !hasUnmatchedConflict && !hasCalendarConflict) {
-        slot.requested = true;
-      }
-      
-      slots.push(slot);
-    }
+    const slots = generateSlotsForResource({
+      durationMinutes,
+      hours,
+      currentMinutes,
+      isToday,
+      bookedSlots: bookedSlots.rows as Array<{ start_time: string; end_time: string }>,
+      blockedSlots: blockedSlots.rows as Array<{ start_time: string; end_time: string }>,
+      unmatchedSlots: combinedUnmatched,
+      calendarSlots: calendarBusySlots,
+      pendingSlots: pendingSlots.rows as Array<{ start_time: string; end_time: string }>,
+      skipPastBuffer: 1,
+    });
     
     res.json(slots);
   } catch (error: unknown) {

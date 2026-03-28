@@ -22,6 +22,7 @@ import {
   removeWellnessAvailabilityBlocks,
   updateWellnessAvailabilityBlocks,
 } from './helpers';
+import { createWellnessEnrollment } from '../../core/registrationService';
 
 const router = Router();
 
@@ -903,113 +904,26 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
       return res.status(403).json({ error: 'You can only perform this action for yourself' });
     }
     
-    const existing = await db.select({ id: wellnessEnrollments.id })
-      .from(wellnessEnrollments)
-      .where(and(
-        eq(wellnessEnrollments.classId, class_id),
-        eq(wellnessEnrollments.userEmail, user_email),
-        eq(wellnessEnrollments.status, 'confirmed')
-      ));
-    
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Already enrolled in this class' });
-    }
-    
-    const classDataResult = await db.execute(sql`SELECT wc.*, 
-        COALESCE((SELECT COUNT(*) FROM wellness_enrollments WHERE class_id = wc.id AND status = 'confirmed' AND is_waitlisted = false), 0)::integer as enrolled_count
-      FROM wellness_classes wc WHERE wc.id = ${class_id}`);
-    
-    if (classDataResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Wellness class not found' });
-    }
-    
-    const cls = classDataResult.rows[0] as unknown as WellnessClassRow;
-    const dateStr = cls.date instanceof Date 
-      ? cls.date.toISOString().split('T')[0] 
-      : (typeof cls.date === 'string' ? cls.date.split('T')[0] : String(cls.date));
-    const formattedDate = formatDateDisplayWithDay(dateStr);
     const memberName = await getMemberDisplayName(user_email);
     
-    const waitlistEnabled = cls.waitlist_enabled;
+    const result = await createWellnessEnrollment(class_id, {
+      userEmail: user_email,
+      sessionEmail,
+      isStaffOverride: !isOwnAction && isAdminOrStaff,
+    }, memberName);
     
-    let result;
-    try {
-      result = await db.transaction(async (tx) => {
-        const lockedClassResult = await tx.execute(sql`SELECT capacity,
-            COALESCE((SELECT COUNT(*) FROM wellness_enrollments WHERE class_id = ${class_id} AND status = 'confirmed' AND is_waitlisted = false), 0)::integer as enrolled_count
-          FROM wellness_classes WHERE id = ${class_id} FOR UPDATE`);
-        
-        const lockedCls = lockedClassResult.rows[0] as { capacity: number | null; enrolled_count: number };
-        const capacity = lockedCls.capacity;
-        const enrolledCount = lockedCls.enrolled_count;
-        const isAtCapacity = capacity !== null && capacity !== undefined && enrolledCount >= capacity;
-        
-        if (isAtCapacity && !waitlistEnabled) {
-          return { full: true as const };
-        }
-        
-        const isWaitlisted = isAtCapacity && waitlistEnabled;
-        
-        const memberMessage = isWaitlisted 
-          ? `You've been added to the waitlist for ${cls.title} with ${cls.instructor} on ${formattedDate} at ${formatTime12Hour(cls.time)}. We'll notify you if a spot opens up.`
-          : `You're enrolled in ${cls.title} with ${cls.instructor} on ${formattedDate} at ${formatTime12Hour(cls.time)}.`;
-        
-        const enrollmentResult = await tx.insert(wellnessEnrollments)
-          .values({
-            classId: class_id,
-            userEmail: user_email as string,
-            status: 'confirmed',
-            isWaitlisted: isWaitlisted as boolean
-          })
-          .returning();
-        
-        return { full: false as const, enrollment: enrollmentResult[0], isWaitlisted, memberMessage };
-      });
-    } catch (txErr: unknown) {
-      if (String(txErr).includes('wellness_enrollments_unique_active')) {
-        logger.info('[Wellness] Duplicate enrollment caught by unique constraint', { extra: { classId: class_id, userEmail: user_email } });
-        return logAndRespond(req, res, 409, 'Already enrolled in this class');
-      }
-      throw txErr;
-    }
-    
-    if (result.full) {
-      return res.status(400).json({ error: 'This class is full' });
-    }
-    
-    const { isWaitlisted, memberMessage } = result;
-    
-    notifyMember({
-      userEmail: user_email as string,
-      title: isWaitlisted ? 'Added to Waitlist' : 'Wellness Class Confirmed',
-      message: memberMessage,
-      type: 'wellness_booking',
-      relatedId: class_id,
-      relatedType: 'wellness_class',
-      url: '/wellness'
-    }).catch(err => logger.warn('Failed to send wellness enrollment notification', { extra: { error: getErrorMessage(err) } }));
-    const staffMessage = isWaitlisted
-      ? `${memberName} joined the waitlist for ${cls.title} on ${formattedDate}`
-      : `${memberName} enrolled in ${cls.title} on ${formattedDate}`;
-    
-    notifyAllStaff(
-      isWaitlisted ? 'New Waitlist Entry' : 'New Wellness Enrollment',
-      staffMessage,
-      'wellness_enrollment',
-      { relatedId: class_id, relatedType: 'wellness_class', url: '/admin/calendar' }
-    ).catch(err => logger.warn('Failed to notify staff of wellness enrollment', { extra: { error: getErrorMessage(err) } }));
-    
-    broadcastToStaff({
-      type: 'wellness_event',
-      action: isWaitlisted ? 'waitlist_joined' : 'enrollment_created',
-      classId: class_id,
-      memberEmail: user_email
-    });
-    
-    broadcastWaitlistUpdate({ classId: class_id, action: 'enrolled' });
-    
-    res.status(201).json({ ...result.enrollment, isWaitlisted, message: isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
+    res.status(201).json({ ...result.enrollment, isWaitlisted: result.isWaitlisted, message: result.isWaitlisted ? 'Added to waitlist' : 'Enrolled' });
   } catch (error: unknown) {
+    const err = error as { statusCode?: number; message?: string };
+    if (err.statusCode === 409) {
+      return logAndRespond(req, res, 409, 'Already enrolled in this class');
+    }
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message || 'This class is full' });
+    }
+    if (err.statusCode === 404) {
+      return res.status(404).json({ error: 'Wellness class not found' });
+    }
     logger.error('Wellness enrollment error', { error: error instanceof Error ? error : new Error(String(error)) });
     res.status(500).json({ error: 'Failed to enroll in class. Staff notification is required.' });
   }
