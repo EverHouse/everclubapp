@@ -87,7 +87,7 @@ interface Props {
   onToggle: () => void;
 }
 
-const BACKGROUND_TOOLS = new Set(['backfill-calendar-properties']);
+const BACKGROUND_TOOLS = new Set(['backfill-calendar-properties', 'sync-stripe-metadata']);
 
 const MaintenanceToolsPanel: React.FC<Props> = ({ isOpen, onToggle }) => {
   const [confirmingKey, setConfirmingKey] = useState<string | null>(null);

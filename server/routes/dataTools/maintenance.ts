@@ -1187,17 +1187,24 @@ router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, 
     const ghostTotal = ghostResult.rows.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.cached_fee_cents) || 0), 0);
     const pastTotal = pastPendingResult.rows.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.cached_fee_cents) || 0), 0);
 
+    const ghostAction = dryRun ? 'would waive' : 'waived';
+    const pastAction = dryRun ? 'would mark paid' : 'marked paid';
+
     res.json({
+      success: true,
+      message: dryRun
+        ? `Dry run: Would waive ${ghostResult.rows.length} ghost fees ($${(ghostTotal / 100).toFixed(2)}), would mark ${pastPendingResult.rows.length} past fees as paid ($${(pastTotal / 100).toFixed(2)})`
+        : `Waived ${ghostResult.rows.length} ghost fees ($${(ghostTotal / 100).toFixed(2)}), marked ${pastPendingResult.rows.length} past fees as paid ($${(pastTotal / 100).toFixed(2)})`,
       dryRun,
       ghostFees: {
         count: ghostResult.rows.length,
         totalDollars: ghostTotal / 100,
-        action: dryRun ? 'would waive' : 'waived',
+        action: ghostAction,
       },
       pastMemberFees: {
         count: pastPendingResult.rows.length,
         totalDollars: pastTotal / 100,
-        action: dryRun ? 'would mark paid' : 'marked paid',
+        action: pastAction,
       },
     });
   } catch (error: unknown) {

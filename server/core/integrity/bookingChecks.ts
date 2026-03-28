@@ -766,7 +766,7 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
         AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
         AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')
       ORDER BY bs.session_date DESC
-      LIMIT 50
+      LIMIT 1000
     `);
 
     const totalCount = await db.execute(sql`

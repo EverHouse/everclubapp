@@ -71,24 +71,46 @@ router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullS
   }
 });
 
+let stripeSyncStatus: { running: boolean; startedAt?: Date; result?: { synced: number; failed: number }; error?: string } = { running: false };
+
 router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res) => {
-  try {
-    logger.info('[DataIntegrity] Starting Stripe customer metadata sync...');
-    const result = await syncAllCustomerMetadata();
-    
-    res.json({ 
-      success: true, 
-      message: `Synced ${result.synced} customers to Stripe. ${result.failed} failed.`,
-      synced: result.synced,
-      failed: result.failed
-    });
-  } catch (error: unknown) {
-    const parsed = parseConstraintError(error);
-    if (parsed.isConstraintError) {
-      return logAndRespond(req, res, 409, parsed.message, error);
-    }
-    logAndRespond(req, res, 500, 'Failed to sync Stripe metadata', error);
+  if (stripeSyncStatus.running) {
+    return res.status(409).json({ success: false, error: 'Stripe metadata sync is already running', startedAt: stripeSyncStatus.startedAt });
   }
+
+  stripeSyncStatus = { running: true, startedAt: new Date() };
+  res.json({ success: true, message: 'Stripe metadata sync started in background.' });
+
+  try {
+    logger.info('[DataIntegrity] Starting Stripe customer metadata sync (background)...');
+    const result = await syncAllCustomerMetadata();
+    stripeSyncStatus = { running: false, startedAt: stripeSyncStatus.startedAt, result };
+    logger.info(`[DataIntegrity] Stripe metadata sync complete: ${result.synced} synced, ${result.failed} failed`);
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error);
+    stripeSyncStatus = { running: false, startedAt: stripeSyncStatus.startedAt, error: msg };
+    logger.error('[DataIntegrity] Stripe metadata sync error', { extra: { detail: msg } });
+  }
+});
+
+router.get('/api/data-integrity/sync-stripe-metadata/status', isAdmin, (_req, res) => {
+  if (stripeSyncStatus.running) {
+    return res.json({ status: 'running', startedAt: stripeSyncStatus.startedAt });
+  }
+  if (stripeSyncStatus.result) {
+    const r = stripeSyncStatus.result;
+    return res.json({
+      status: 'complete',
+      startedAt: stripeSyncStatus.startedAt,
+      message: `Synced ${r.synced} customers to Stripe. ${r.failed} failed.`,
+      synced: r.synced,
+      failed: r.failed,
+    });
+  }
+  if (stripeSyncStatus.error) {
+    return res.json({ status: 'error', startedAt: stripeSyncStatus.startedAt, error: stripeSyncStatus.error });
+  }
+  res.json({ status: 'idle' });
 });
 
 router.post('/api/data-integrity/cleanup', isAdmin, async (req, res) => {

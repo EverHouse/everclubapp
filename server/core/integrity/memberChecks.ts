@@ -636,7 +636,7 @@ export async function checkActiveMembersWithoutWaivers(): Promise<IntegrityCheck
   const missingWaivers = await db.execute(sql`
     SELECT id, email, first_name, last_name, tier, created_at::text
     FROM users
-    WHERE membership_status = ${MEMBERSHIP_STATUS.ACTIVE}
+    WHERE membership_status IN (${MEMBERSHIP_STATUS.ACTIVE}, ${MEMBERSHIP_STATUS.TRIALING}, ${MEMBERSHIP_STATUS.PAST_DUE})
       AND role = 'member'
       AND (waiver_signed_at IS NULL AND waiver_version IS NULL)
       AND created_at < NOW() - INTERVAL '7 days'
@@ -651,7 +651,7 @@ export async function checkActiveMembersWithoutWaivers(): Promise<IntegrityCheck
       severity: 'warning',
       table: 'users',
       recordId: row.id,
-      description: `Active member "${name}" <${row.email}> (${row.tier || 'no tier'}) has no signed waiver on file`,
+      description: `Member "${name}" <${row.email}> (${row.tier || 'no tier'}) has no signed waiver on file`,
       suggestion: 'Request waiver signature from this member at their next visit',
       context: {
         memberEmail: row.email,
