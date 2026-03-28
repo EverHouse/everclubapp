@@ -11,6 +11,7 @@ import { voidBookingInvoice } from '../billing/bookingInvoiceService';
 import { useGuestPass } from '../../routes/guestPasses';
 import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
 import { alertOnTrackmanImportIssues } from '../dataAlerts';
+import { logSystemAction } from '../auditLog';
 import { logger } from '../logger';
 import { isSyntheticEmail, notifyMember } from '../notificationService';
 import { refreshBookingPass, voidBookingPass } from '../../walletPass/bookingPassService';
@@ -2026,11 +2027,30 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         AND COALESCE(bp.cached_fee_cents, 0) > 0
         AND bp.user_id IS NULL
         AND bp.display_name LIKE '%Unknown%'
+      RETURNING bp.session_id
     `);
     const pastPaidCount = pastPaidResult.rowCount || 0;
     const ghostWaivedCount = ghostWaivedResult.rowCount || 0;
     if (pastPaidCount > 0 || ghostWaivedCount > 0) {
       logger.info(`[Trackman Import] Post-import fee cleanup: marked ${pastPaidCount} past participants as paid, waived ${ghostWaivedCount} ghost participants`);
+    }
+
+    if (ghostWaivedCount > 0) {
+      const waivedSessionIds = [...new Set(
+        (ghostWaivedResult.rows as Array<{ session_id: number }>).map(r => r.session_id)
+      )];
+      await logSystemAction({
+        action: 'import_trackman',
+        resourceType: 'booking_participants',
+        resourceName: 'Ghost participant auto-waiver',
+        details: {
+          ghostWaivedCount,
+          pastPaidCount,
+          sessionIds: waivedSessionIds,
+          sessionCount: waivedSessionIds.length,
+          source: 'trackman_import_cleanup',
+        },
+      });
     }
   } catch (feeCleanupErr: unknown) {
     logger.error(`[Trackman Import] Post-import fee cleanup error: ${getErrorMessage(feeCleanupErr)}`);

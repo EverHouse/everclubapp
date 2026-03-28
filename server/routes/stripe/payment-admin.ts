@@ -56,22 +56,56 @@ router.post('/api/stripe/cleanup-stale-intents', isStaffOrAdmin, async (req: Req
     
     const results: { id: string; success: boolean; error?: string }[] = [];
     
+    const { staffEmail, staffName } = getStaffInfo(req);
+
     for (const row of staleIntents.rows as Array<{ stripe_payment_intent_id: string; local_id: number; booking_status: string }>) {
       try {
         await cancelPaymentIntent(row.stripe_payment_intent_id as string);
         results.push({ id: row.stripe_payment_intent_id as string, success: true });
         logger.info('[Cleanup] Cancelled stale payment intent', { extra: { rowStripe_payment_intent_id: row.stripe_payment_intent_id } });
+
+        try {
+          await logBillingAudit({
+            memberEmail: 'system',
+            actionType: 'cancel_stale_intent',
+            actionDetails: {
+              stripePaymentIntentId: row.stripe_payment_intent_id,
+              localId: row.local_id,
+              bookingStatus: row.booking_status,
+            },
+            previousValue: 'stale',
+            newValue: 'cancelled',
+            performedBy: staffEmail,
+            performedByName: staffName,
+          });
+        } catch (auditErr: unknown) {
+          logger.warn('[Cleanup] Failed to write audit log for cancelled intent', { extra: { stripe_payment_intent_id: row.stripe_payment_intent_id, error: getErrorMessage(auditErr) } });
+        }
       } catch (err: unknown) {
         results.push({ id: row.stripe_payment_intent_id as string, success: false, error: getErrorMessage(err) });
         logger.error('[Cleanup] Failed to cancel', { extra: { stripe_payment_intent_id: row.stripe_payment_intent_id, error: getErrorMessage(err) } });
       }
     }
+
+    const cancelledCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
+
+    try {
+      await logFromRequest(req, 'cancel_orphaned_pi', 'payment_intent', undefined, undefined, {
+        processed: results.length,
+        cancelled: cancelledCount,
+        failed: failedCount,
+        intentIds: results.filter(r => r.success).map(r => r.id),
+      });
+    } catch (auditErr: unknown) {
+      logger.warn('[Cleanup] Failed to write summary audit log', { extra: { error: getErrorMessage(auditErr) } });
+    }
     
     res.json({ 
       success: true, 
       processed: results.length,
-      cancelled: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      cancelled: cancelledCount,
+      failed: failedCount,
       details: results 
     });
   } catch (error: unknown) {

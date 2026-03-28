@@ -284,6 +284,13 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
         safeRelease(client);
       }
       
+      await logFromRequest(req, 'pause_subscription', 'member', member.id, member.email, {
+        reason: _reason || null,
+        billingProvider: 'mindbody',
+        startDate,
+        durationDays: parseInt(durationDays, 10),
+      });
+
       return res.json({ 
         success: true, 
         warning: 'Member marked suspended in App/HubSpot. PLEASE PAUSE BILLING IN MINDBODY MANUALLY.',
@@ -332,6 +339,14 @@ router.post('/api/members/:id/suspend', isStaffOrAdmin, async (req, res) => {
         logger.warn('[Members] Wallet pass push failed after suspend', { extra: { email: member.email, error: getErrorMessage(err) } });
       });
       
+      await logFromRequest(req, 'pause_subscription', 'member', member.id, member.email, {
+        reason: _reason || null,
+        billingProvider: 'stripe',
+        startDate,
+        durationDays: parseInt(durationDays, 10),
+        resumeDate: result.resumeDate,
+      });
+
       invalidateCache('members_directory');
       return res.json({ 
         success: true, 
