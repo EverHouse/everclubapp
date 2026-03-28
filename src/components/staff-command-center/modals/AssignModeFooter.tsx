@@ -1,4 +1,3 @@
-import React from 'react';
 import Icon from '../../icons/Icon';
 
 interface AssignModeFooterProps {
@@ -9,18 +8,6 @@ interface AssignModeFooterProps {
   isConferenceRoom: boolean;
   onClose: () => void;
   handleFinalizeBooking: () => Promise<void>;
-}
-
-export interface AssignModeSecondaryActionsProps {
-  showStaffList: boolean;
-  setShowStaffList: (show: boolean) => void;
-  staffList: Array<{id: string; email: string; first_name: string; last_name: string; role: string; user_id: string | null}>;
-  isLoadingStaff: boolean;
-  assigningToStaff: boolean;
-  handleAssignToStaff: (staff: { id: string | number; name: string; email: string }) => Promise<void>;
-  getRoleBadge: (role: string) => React.ReactNode;
-  onDeleteBooking?: () => Promise<void>;
-  deleting?: boolean;
 }
 
 export function AssignModeFooter({
@@ -87,92 +74,6 @@ export function AssignModeFooter({
           )}
         </button>
       </div>
-    </div>
-  );
-}
-
-export function AssignModeSecondaryActions({
-  showStaffList,
-  setShowStaffList,
-  staffList,
-  isLoadingStaff,
-  assigningToStaff,
-  handleAssignToStaff,
-  getRoleBadge,
-  onDeleteBooking,
-  deleting,
-}: AssignModeSecondaryActionsProps) {
-  return (
-    <div className="space-y-2 pt-2 border-t border-primary/10 dark:border-white/10">
-      <button
-        onClick={() => setShowStaffList(!showStaffList)}
-        disabled={assigningToStaff}
-        className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-teal-500 text-teal-600 dark:text-teal-400 font-medium hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors flex items-center justify-center gap-2"
-      >
-        <Icon name="badge" className="text-sm" />
-        Assign to Staff
-        <Icon name="expand_more" className={`text-sm transition-transform ${showStaffList ? 'rotate-180' : ''}`} />
-      </button>
-
-      {showStaffList && (
-        <div className="border border-teal-200 dark:border-teal-500/30 rounded-lg overflow-hidden">
-          {isLoadingStaff ? (
-            <div className="p-4 text-center">
-              <Icon name="progress_activity" className="animate-spin text-teal-500" />
-              <p className="text-sm text-primary/60 dark:text-white/60 mt-1">Loading staff...</p>
-            </div>
-          ) : staffList.length === 0 ? (
-            <div className="p-4 text-center">
-              <p className="text-sm text-primary/60 dark:text-white/60">No active staff found</p>
-            </div>
-          ) : (
-            <div className="max-h-48 overflow-y-auto">
-              {staffList.map((staff) => (
-                <button
-                  key={staff.id}
-                  onClick={() => handleAssignToStaff({ id: staff.id, name: `${staff.first_name} ${staff.last_name}`, email: staff.email })}
-                  disabled={assigningToStaff}
-                  className="tactile-btn w-full p-3 text-left hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-colors border-b border-teal-100 dark:border-teal-500/20 last:border-b-0 disabled:opacity-50"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm text-primary dark:text-white">
-                        {staff.first_name} {staff.last_name}
-                      </p>
-                      <p className="text-xs text-primary/60 dark:text-white/60">{staff.email}</p>
-                    </div>
-                    {getRoleBadge(staff.role)}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {onDeleteBooking && (
-        <button
-          onClick={onDeleteBooking}
-          disabled={deleting}
-          className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-red-400 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
-        >
-          {deleting ? (
-            <>
-              <Icon name="progress_activity" className="animate-spin text-sm" />
-              Deleting...
-            </>
-          ) : (
-            <>
-              <Icon name="delete" className="text-sm" />
-              Delete Booking
-            </>
-          )}
-        </button>
-      )}
-
-      <p className="text-xs text-center text-primary/50 dark:text-white/50">
-        Use for event blocks that don't require member assignment
-      </p>
     </div>
   );
 }

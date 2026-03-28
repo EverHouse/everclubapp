@@ -20,12 +20,9 @@ export type { CancellationCascadeResult } from './resource/cancellation';
 
 export {
   resolveOwnerEmail,
-  checkIsInstructor,
   getBookingDataForTrackman,
-  convertToInstructorBlock,
   linkTrackmanToMember,
   linkEmailToMember,
-  markBookingAsEvent,
 } from './resource/trackman';
 
 export {

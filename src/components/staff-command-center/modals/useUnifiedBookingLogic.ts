@@ -84,10 +84,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const [rememberEmail, setRememberEmail] = useState(true);
   const [potentialDuplicates, setPotentialDuplicates] = useState<Array<{id: string; email: string; name: string}>>([]);
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
-  const [showStaffList, setShowStaffList] = useState(false);
-  const [staffList, setStaffList] = useState<Array<{id: string; email: string; first_name: string; last_name: string; role: string; user_id: string | null}>>([]);
-  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
-  const [assigningToStaff, setAssigningToStaff] = useState(false);
   const { showToast } = useToast();
   const [feeEstimate, setFeeEstimate] = useState<{ totalCents: number; overageCents: number; guestCents: number } | null>(null);
   const [isCalculatingFees, setIsCalculatingFees] = useState(false);
@@ -274,8 +270,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setVisitorSearchResults([]);
       setRememberEmail(true);
       setPotentialDuplicates([]);
-      setShowStaffList(false);
-      setStaffList([]);
       setFeeEstimate(null);
       setIsCalculatingFees(false);
       setRosterData(null);
@@ -512,26 +506,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       checkSavedCard(email);
     }
   }, [isOpen, isManageMode, ownerEmail, fetchedContext?.ownerEmail, checkSavedCard]);
-
-  useEffect(() => {
-    let isCurrent = true;
-    const fetchStaffList = async () => {
-      if (!showStaffList || staffList.length > 0) return;
-      setIsLoadingStaff(true);
-      try {
-        const data = await fetchWithCredentials<Array<{ id: string; email: string; first_name: string; last_name: string; role: string; user_id: string | null }>>('/api/staff/list');
-        if (isCurrent) {
-          setStaffList(data);
-        }
-      } catch (err: unknown) {
-        if (isCurrent) console.error('Failed to fetch staff list:', err);
-      } finally {
-        if (isCurrent) setIsLoadingStaff(false);
-      }
-    };
-    fetchStaffList();
-    return () => { isCurrent = false; };
-  }, [showStaffList, staffList.length]);
 
   useEffect(() => {
     if (isManageMode) return;
@@ -1032,7 +1006,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         });
         feesRecalculated = data.feesRecalculated === true;
       } else if (trackmanBookingId) {
-        const data = await postWithCredentials<{ convertedToAvailabilityBlock?: boolean; instructorName?: string; feesRecalculated?: boolean; bookingId?: number }>('/api/bookings/link-trackman-to-member', {
+        const data = await postWithCredentials<{ feesRecalculated?: boolean; bookingId?: number }>('/api/bookings/link-trackman-to-member', {
           trackman_booking_id: trackmanBookingId,
           owner: {
             email: owner.email,
@@ -1043,12 +1017,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
           rememberEmail: shouldShowRememberEmail() ? rememberEmail : false,
           originalEmail: originalEmail
         });
-        if (data.convertedToAvailabilityBlock) {
-          showToast(`${data.instructorName || 'Instructor'} lesson converted to availability block`, 'success');
-          onSuccess?.({ memberEmail: owner.email, memberName: owner.name });
-          onClose();
-          return;
-        }
         feesRecalculated = data.feesRecalculated === true;
         if (data.bookingId) {
           resultBookingId = data.bookingId;
@@ -1081,46 +1049,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to assign booking', 'error');
     } finally {
       setLinking(false);
-    }
-  };
-
-  const handleAssignToStaff = async (staff: {id: string; email: string; first_name: string; last_name: string; role: string; user_id: string | null}) => {
-    if (assigningToStaff) return;
-    
-    setAssigningToStaff(true);
-    try {
-      const staffName = `${staff.first_name} ${staff.last_name}`;
-      
-      if (matchedBookingId) {
-        await putWithCredentials(`/api/bookings/${matchedBookingId}/assign-with-players`, {
-          owner: {
-            email: staff.email,
-            name: staffName,
-            member_id: staff.user_id
-          },
-          additional_players: [],
-          rememberEmail: false
-        });
-      } else if (trackmanBookingId) {
-        await postWithCredentials('/api/bookings/link-trackman-to-member', {
-          trackman_booking_id: trackmanBookingId,
-          owner: {
-            email: staff.email,
-            name: staffName,
-            member_id: staff.user_id
-          },
-          additional_players: [],
-          rememberEmail: false
-        });
-      }
-      
-      showToast(`Booking assigned to ${staffName}`, 'success');
-      onSuccess?.({ memberEmail: staff.email, memberName: staffName });
-      onClose();
-    } catch (err: unknown) {
-      showToast((err instanceof Error ? err.message : String(err)) || 'Failed to assign to staff', 'error');
-    } finally {
-      setAssigningToStaff(false);
     }
   };
 
@@ -1179,23 +1107,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     }
   }, [bookingId, showToast, fetchRosterData, refetchBookingContext, onRosterUpdated]);
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'golf_instructor':
-        return (
-          React.createElement('span', { className: 'px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 rounded' }, 'Instructor')
-        );
-      case 'admin':
-        return (
-          React.createElement('span', { className: 'px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded' }, 'Admin')
-        );
-      default:
-        return (
-          React.createElement('span', { className: 'px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded' }, 'Staff')
-        );
-    }
-  };
-
   return {
     resolvedBookingType,
     isConferenceRoom,
@@ -1220,11 +1131,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     setRememberEmail,
     potentialDuplicates,
     isCheckingDuplicates,
-    showStaffList,
-    setShowStaffList,
-    staffList,
-    isLoadingStaff,
-    assigningToStaff,
     feeEstimate,
     isCalculatingFees,
     fetchedContext,
@@ -1264,7 +1170,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     guestCount,
     renderTierBadge,
     shouldShowRememberEmail,
-    getRoleBadge,
     fetchRosterData,
     updateSlot,
     clearSlot,
@@ -1284,7 +1189,6 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     handleManageModeMemberMatchResolve,
     handleManageModeSave,
     handleFinalizeBooking,
-    handleAssignToStaff,
     deleting,
     handleDeleteBooking,
     reassignSearchOpen,

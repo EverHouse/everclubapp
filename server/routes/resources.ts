@@ -10,7 +10,6 @@ import { memberCancelSchema } from '../../shared/validators/roster';
 import {
   assignMemberSchema,
   linkTrackmanSchema,
-  markAsEventSchema,
   assignWithPlayersSchema,
   changeOwnerSchema,
   createBookingSchema,
@@ -26,14 +25,9 @@ import {
   approveBooking,
   declineBooking,
   assignMemberToBooking,
-  resolveOwnerEmail,
-  checkIsInstructor,
-  getBookingDataForTrackman,
-  convertToInstructorBlock,
   linkTrackmanToMember,
   linkEmailToMember,
   fetchOverlappingNotices,
-  markBookingAsEvent,
   assignWithPlayers,
   changeBookingOwner,
   createBookingRequest,
@@ -263,44 +257,6 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
     const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
     const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
     
-    const resolvedOwnerEmail = await resolveOwnerEmail(ownerEmail);
-    const isInstructor = await checkIsInstructor(resolvedOwnerEmail);
-    
-    if (isInstructor) {
-      logger.info('[link-trackman-to-member] Detected golf instructor, converting to availability block', {
-        extra: { trackman_booking_id, ownerEmail, ownerName }
-      });
-      
-      const { bookingData, existingBooking } = await getBookingDataForTrackman(trackman_booking_id);
-      
-      if (!bookingData || !bookingData.resourceId || !bookingData.requestDate || !bookingData.startTime) {
-        return res.status(400).json({ error: 'Cannot find booking data to create availability block' });
-      }
-      
-      const staffEmail = getSessionUser(req)?.email || 'staff_link';
-      const block = await convertToInstructorBlock(
-        trackman_booking_id, ownerName, ownerEmail, bookingData, existingBooking, staffEmail
-      );
-      
-      logFromRequest(req, 'create_block', 'availability_block', block!.id.toString(), ownerName, {
-        trackman_booking_id,
-        instructor_email: ownerEmail,
-        instructor_name: ownerName,
-        resource_id: bookingData.resourceId,
-        date: bookingData.requestDate,
-        start_time: bookingData.startTime,
-        end_time: bookingData.endTime
-      });
-      
-      return res.json({
-        success: true,
-        convertedToAvailabilityBlock: true,
-        blockId: block!.id,
-        instructorName: ownerName,
-        message: `Converted to lesson block for instructor ${ownerName}`
-      });
-    }
-    
     const staffEmail = getSessionUser(req)?.email || 'staff';
     const result = await linkTrackmanToMember(
       trackman_booking_id, ownerEmail, ownerName, ownerId,
@@ -359,48 +315,6 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
     res.json(result);
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to fetch overlapping notices', error, 'OVERLAPPING_NOTICES_ERROR');
-  }
-});
-
-router.post('/api/bookings/mark-as-event', isStaffOrAdmin, validateBody(markAsEventSchema), async (req, res) => {
-  try {
-    const { booking_id, trackman_booking_id, existingClosureId, eventTitle } = req.body;
-    
-    const staffEmail = req.session?.user?.email || 'staff';
-    
-    const result = await markBookingAsEvent({
-      bookingId: booking_id,
-      trackmanBookingId: trackman_booking_id,
-      existingClosureId,
-      staffEmail,
-      eventTitle,
-    });
-    
-    logFromRequest(req, 'update_booking', 'booking', result.primaryBooking.id.toString(), `Private Event: ${result.eventTitle}`, {
-      booking_id: result.primaryBooking.id,
-      trackman_booking_id,
-      grouped_booking_count: result.convertedBookingIds.length,
-      resource_ids: result.resourceIds,
-      closure_id: result.closureId,
-      linked_to_existing: result.linkedToExisting,
-      new_blocks_created: result.newBlocksCreated
-    });
-    
-    res.json({ 
-      success: true, 
-      message: result.message,
-      closureId: result.closureId,
-      convertedBookingIds: result.convertedBookingIds,
-      resourceIds: result.resourceIds,
-      linkedToExisting: result.linkedToExisting,
-      newBlocksCreated: result.newBlocksCreated
-    });
-  } catch (error: unknown) {
-    const errStatus = getErrorStatusCode(error);
-    if (errStatus) {
-      return res.status(errStatus).json({ error: (error as ServiceError).error });
-    }
-    logAndRespond(req, res, 500, 'Failed to mark booking as event', error, 'MARK_EVENT_ERROR');
   }
 });
 

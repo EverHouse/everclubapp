@@ -3,7 +3,7 @@ import { SheetHeader } from './SheetHeader';
 import { PaymentSummaryBody, PaymentActionFooter, InlinePaymentBody } from './PaymentSection';
 import { AssignModeSlots } from './AssignModeSlots';
 import { ManageModeRoster } from './ManageModeRoster';
-import { AssignModeFooter, AssignModeSecondaryActions } from './AssignModeFooter';
+import { AssignModeFooter } from './AssignModeFooter';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import { useUnifiedBookingLogic } from './useUnifiedBookingLogic';
 import { isPlaceholderEmail } from './bookingSheetTypes';
@@ -329,17 +329,27 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
           </div>
         )}
 
-        <AssignModeSecondaryActions
-          showStaffList={logic.showStaffList}
-          setShowStaffList={logic.setShowStaffList}
-          staffList={logic.staffList}
-          isLoadingStaff={logic.isLoadingStaff}
-          assigningToStaff={logic.assigningToStaff}
-          handleAssignToStaff={(staff) => logic.handleAssignToStaff({ id: String(staff.id), email: staff.email, first_name: staff.name.split(' ')[0] || '', last_name: staff.name.split(' ').slice(1).join(' ') || '', role: '', user_id: null })}
-          getRoleBadge={logic.getRoleBadge}
-          onDeleteBooking={logic.handleDeleteBooking}
-          deleting={logic.deleting}
-        />
+        {logic.handleDeleteBooking && (
+          <div className="pt-2 border-t border-primary/10 dark:border-white/10">
+            <button
+              onClick={logic.handleDeleteBooking}
+              disabled={logic.deleting}
+              className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-red-400 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
+            >
+              {logic.deleting ? (
+                <>
+                  <Icon name="progress_activity" className="animate-spin text-sm" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Icon name="delete" className="text-sm" />
+                  Delete Booking
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </SlideUpDrawer>
   );
