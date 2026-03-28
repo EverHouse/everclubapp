@@ -11,6 +11,27 @@ interface TerminalReader {
   deviceType: string;
 }
 
+export interface SubscriptionGuardParams {
+  isSubscriptionFlow: boolean;
+  subscriptionId?: string | null;
+  existingPaymentIntentId?: string;
+  isSaveCard: boolean;
+  cartItems?: Array<{ productId: string; name: string; priceCents: number; quantity: number }>;
+}
+
+export function shouldBlockForPendingSubscription(params: SubscriptionGuardParams): boolean {
+  const { isSubscriptionFlow, subscriptionId, existingPaymentIntentId, isSaveCard, cartItems } = params;
+  return isSubscriptionFlow && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length;
+}
+
+export function isCancelAlreadySucceeded(err: unknown): boolean {
+  if (err instanceof Error && 'errorData' in err) {
+    const apiErr = err as Error & { errorData?: { alreadySucceeded?: boolean } };
+    return !!apiErr.errorData?.alreadySucceeded;
+  }
+  return false;
+}
+
 interface TerminalPaymentProps {
   amount: number;
   subscriptionId?: string | null;
@@ -243,7 +264,7 @@ export function TerminalPayment({
       return;
     }
 
-    if (isSubscriptionFlow && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
+    if (shouldBlockForPendingSubscription({ isSubscriptionFlow, subscriptionId, existingPaymentIntentId, isSaveCard, cartItems })) {
       onError('Subscription is still being created. Please wait a moment and try again.');
       return;
     }
@@ -352,18 +373,15 @@ export function TerminalPayment({
         }
       } catch (err: unknown) {
         const currentPiId = paymentIntentIdRef.current;
-        if (err instanceof Error && 'errorData' in err) {
-          const apiErr = err as Error & { errorData?: { alreadySucceeded?: boolean } };
-          if (apiErr.errorData?.alreadySucceeded && currentPiId) {
-            setStatus('success');
-            setStatusMessage('Payment already processed successfully!');
-            setCanceling(false);
-            if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
-            successTimeoutRef.current = setTimeout(() => {
-              onSuccess(currentPiId);
-            }, 1500);
-            return;
-          }
+        if (isCancelAlreadySucceeded(err) && currentPiId) {
+          setStatus('success');
+          setStatusMessage('Payment already processed successfully!');
+          setCanceling(false);
+          if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+          successTimeoutRef.current = setTimeout(() => {
+            onSuccess(currentPiId);
+          }, 1500);
+          return;
         }
         console.error('Error canceling payment:', err);
       }

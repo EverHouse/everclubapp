@@ -1,137 +1,99 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import {
+  shouldBlockForPendingSubscription,
+  isCancelAlreadySucceeded,
+} from '../src/components/staff-command-center/TerminalPayment';
 
-describe('TerminalPayment guard logic', () => {
-  let onError: ReturnType<typeof vi.fn>;
-  let onSuccess: ReturnType<typeof vi.fn>;
-
-  interface GuardCheckParams {
-    amount: number;
-    isSubscriptionFlow: boolean;
-    subscriptionId: string | null | undefined;
-    existingPaymentIntentId?: string;
-    isSaveCard: boolean;
-    cartItems?: Array<{ productId: string; name: string; priceCents: number; quantity: number }>;
-  }
-
-  function runGuardCheck(params: GuardCheckParams): boolean {
-    const { isSubscriptionFlow, subscriptionId, existingPaymentIntentId, isSaveCard, cartItems } = params;
-
-    if (isSubscriptionFlow && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
-      onError('Subscription is still being created. Please wait a moment and try again.');
-      return false;
-    }
-    return true;
-  }
-
-  beforeEach(() => {
-    onError = vi.fn();
-    onSuccess = vi.fn();
-  });
-
-  describe('booking fee pass-through', () => {
+describe('shouldBlockForPendingSubscription', () => {
+  describe('booking fee pass-through (isSubscriptionFlow=false)', () => {
     it('allows booking fee payment with positive amount and null subscriptionId', () => {
-      const passed = runGuardCheck({
-        amount: 5000,
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: false,
         subscriptionId: null,
         isSaveCard: false,
-      });
-
-      expect(passed).toBe(true);
-      expect(onError).not.toHaveBeenCalled();
+      })).toBe(false);
     });
 
-    it('allows booking fee payment with zero amount and isSubscriptionFlow=false', () => {
-      const passed = runGuardCheck({
-        amount: 0,
+    it('allows booking fee payment with undefined subscriptionId', () => {
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: false,
-        subscriptionId: null,
+        subscriptionId: undefined,
         isSaveCard: false,
-      });
-
-      expect(passed).toBe(true);
-      expect(onError).not.toHaveBeenCalled();
+      })).toBe(false);
     });
 
     it('allows POS payment with cartItems and no subscriptionId', () => {
-      const passed = runGuardCheck({
-        amount: 2500,
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: false,
         subscriptionId: undefined,
         isSaveCard: false,
         cartItems: [{ productId: 'p1', name: 'Item', priceCents: 2500, quantity: 1 }],
-      });
-
-      expect(passed).toBe(true);
-      expect(onError).not.toHaveBeenCalled();
+      })).toBe(false);
     });
 
     it('allows save-card flow with no subscriptionId', () => {
-      const passed = runGuardCheck({
-        amount: 0,
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: false,
         subscriptionId: null,
         isSaveCard: true,
-      });
-
-      expect(passed).toBe(true);
-      expect(onError).not.toHaveBeenCalled();
+      })).toBe(false);
     });
   });
 
-  describe('subscription flow blocking', () => {
-    it('blocks subscription flow when subscriptionId is null', () => {
-      const passed = runGuardCheck({
-        amount: 9900,
+  describe('subscription flow blocking (isSubscriptionFlow=true)', () => {
+    it('blocks when subscriptionId is null', () => {
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: true,
         subscriptionId: null,
         isSaveCard: false,
-      });
-
-      expect(passed).toBe(false);
-      expect(onError).toHaveBeenCalledWith('Subscription is still being created. Please wait a moment and try again.');
+      })).toBe(true);
     });
 
-    it('blocks subscription flow when subscriptionId is undefined', () => {
-      const passed = runGuardCheck({
-        amount: 9900,
+    it('blocks when subscriptionId is undefined', () => {
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: true,
         subscriptionId: undefined,
         isSaveCard: false,
-      });
-
-      expect(passed).toBe(false);
-      expect(onError).toHaveBeenCalledWith('Subscription is still being created. Please wait a moment and try again.');
+      })).toBe(true);
     });
 
-    it('allows subscription flow when subscriptionId is present', () => {
-      const passed = runGuardCheck({
-        amount: 9900,
+    it('allows when subscriptionId is present', () => {
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: true,
         subscriptionId: 'sub_123abc',
         isSaveCard: false,
-      });
-
-      expect(passed).toBe(true);
-      expect(onError).not.toHaveBeenCalled();
+      })).toBe(false);
     });
 
-    it('allows subscription flow with existingPaymentIntentId even without subscriptionId', () => {
-      const passed = runGuardCheck({
-        amount: 9900,
+    it('allows with existingPaymentIntentId even without subscriptionId', () => {
+      expect(shouldBlockForPendingSubscription({
         isSubscriptionFlow: true,
         subscriptionId: null,
         existingPaymentIntentId: 'pi_existing123',
         isSaveCard: false,
-      });
+      })).toBe(false);
+    });
 
-      expect(passed).toBe(true);
-      expect(onError).not.toHaveBeenCalled();
+    it('allows with isSaveCard=true even without subscriptionId', () => {
+      expect(shouldBlockForPendingSubscription({
+        isSubscriptionFlow: true,
+        subscriptionId: null,
+        isSaveCard: true,
+      })).toBe(false);
+    });
+
+    it('allows with cartItems even without subscriptionId', () => {
+      expect(shouldBlockForPendingSubscription({
+        isSubscriptionFlow: true,
+        subscriptionId: null,
+        isSaveCard: false,
+        cartItems: [{ productId: 'p1', name: 'Item', priceCents: 1000, quantity: 1 }],
+      })).toBe(false);
     });
   });
 });
 
-describe('cancel-payment 409 recovery', () => {
+describe('isCancelAlreadySucceeded', () => {
   class ApiError extends Error {
     status: number;
     errorData: Record<string, unknown>;
@@ -143,61 +105,30 @@ describe('cancel-payment 409 recovery', () => {
     }
   }
 
-  interface RecoveryResult {
-    recovered: boolean;
-    successPiId?: string;
-  }
-
-  function simulateCancelCatch(err: unknown, currentPiId: string | null): RecoveryResult {
-    if (err instanceof Error && 'errorData' in err) {
-      const apiErr = err as Error & { errorData?: { alreadySucceeded?: boolean } };
-      if (apiErr.errorData?.alreadySucceeded && currentPiId) {
-        return { recovered: true, successPiId: currentPiId };
-      }
-    }
-    return { recovered: false };
-  }
-
-  it('recovers from 409 with alreadySucceeded=true in errorData', () => {
+  it('returns true for ApiError with alreadySucceeded=true', () => {
     const err = new ApiError('Payment cannot be cancelled', 409, { alreadySucceeded: true });
-    const result = simulateCancelCatch(err, 'pi_test123');
-
-    expect(result.recovered).toBe(true);
-    expect(result.successPiId).toBe('pi_test123');
+    expect(isCancelAlreadySucceeded(err)).toBe(true);
   });
 
-  it('does not recover from 409 without alreadySucceeded flag', () => {
+  it('returns false for ApiError without alreadySucceeded flag', () => {
     const err = new ApiError('Conflict', 409, { someOtherData: true });
-    const result = simulateCancelCatch(err, 'pi_test123');
-
-    expect(result.recovered).toBe(false);
+    expect(isCancelAlreadySucceeded(err)).toBe(false);
   });
 
-  it('does not recover when alreadySucceeded is true but currentPiId is null', () => {
-    const err = new ApiError('Payment cannot be cancelled', 409, { alreadySucceeded: true });
-    const result = simulateCancelCatch(err, null);
-
-    expect(result.recovered).toBe(false);
+  it('returns false for ApiError with alreadySucceeded=false', () => {
+    const err = new ApiError('Conflict', 409, { alreadySucceeded: false });
+    expect(isCancelAlreadySucceeded(err)).toBe(false);
   });
 
-  it('does not recover from 500 error', () => {
-    const err = new ApiError('Internal Server Error', 500, {});
-    const result = simulateCancelCatch(err, 'pi_test123');
-
-    expect(result.recovered).toBe(false);
-  });
-
-  it('does not recover from non-ApiError', () => {
+  it('returns false for plain Error without errorData', () => {
     const err = new Error('Network failure');
-    const result = simulateCancelCatch(err, 'pi_test123');
-
-    expect(result.recovered).toBe(false);
+    expect(isCancelAlreadySucceeded(err)).toBe(false);
   });
 
-  it('does not recover from non-Error thrown values', () => {
-    const err = 'string error';
-    const result = simulateCancelCatch(err, 'pi_test123');
-
-    expect(result.recovered).toBe(false);
+  it('returns false for non-Error values', () => {
+    expect(isCancelAlreadySucceeded('string error')).toBe(false);
+    expect(isCancelAlreadySucceeded(null)).toBe(false);
+    expect(isCancelAlreadySucceeded(undefined)).toBe(false);
+    expect(isCancelAlreadySucceeded(42)).toBe(false);
   });
 });
