@@ -11,6 +11,14 @@ import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger, logAndRespond } from '../../core/logger';
 import { getMemberDisplayName } from './shared';
+import { validateBody } from '../../middleware/validate';
+import { z } from 'zod';
+import { bookingRateLimiter } from '../../middleware/rateLimiting';
+
+const rsvpCreateSchema = z.object({
+  event_id: z.number().int().positive('event_id is required'),
+  user_email: z.string().email('Valid email is required'),
+});
 
 const router = Router();
 
@@ -108,14 +116,10 @@ router.get('/api/rsvps', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/api/rsvps', isAuthenticated, async (req, res) => {
+router.post('/api/rsvps', isAuthenticated, bookingRateLimiter, validateBody(rsvpCreateSchema), async (req, res) => {
   try {
     const { event_id, user_email: raw_user_email } = req.body;
     const user_email = raw_user_email?.trim()?.toLowerCase();
-    
-    if (!event_id || !user_email) {
-      return res.status(400).json({ error: 'Missing event_id or user_email' });
-    }
     
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {

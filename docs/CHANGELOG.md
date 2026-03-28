@@ -2,6 +2,30 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.79] - 2026-03-28
+
+### Edge Case & Unhappy Path Hardening
+- **Security**: Added `sensitiveActionRateLimiter` to account deletion (`POST /api/account/delete-request`), SMS preferences (`PUT /api/members/:email/sms-preferences`), notice dismiss (`POST /api/notices/dismiss`, `POST /api/notices/dismiss-all`), and billing portal (`POST /api/my/billing/portal`) endpoints.
+- **Security**: Added `paymentRateLimiter` to guest pass purchase/confirm (`POST /api/member/guest-passes/purchase`, `POST /api/member/guest-passes/confirm`) and add-funds (`POST /api/my/add-funds`) endpoints.
+- **Security**: Added `bookingRateLimiter` to RSVP creation (`POST /api/rsvps`) endpoint.
+- **Validation**: Replaced manual `if` checks with Zod `validateBody` middleware on guest pass purchase (quantity), guest pass confirm (paymentIntentId + quantity), add-funds (amountCents), billing portal (email), and RSVP creation (event_id + user_email).
+- **Reliability**: Check-in side-effects (HubSpot visit count sync, wallet pass refresh/void, member notification) now use `await` with try/catch and persist failures to the `failed_side_effects` table, matching the cancellation flow pattern. Previously these used fire-and-forget `.catch()` which silently swallowed errors.
+- **Alerting**: When `ensureSessionForBooking` exhausts both creation attempts and the retry, it now sends a `notifyAllStaff` system alert in addition to writing a staff note on the booking record.
+- **Integrity**: Added `checkApprovedBookingsForInactiveMembers` check to `runAllIntegrityChecks`. Detects approved/confirmed bookings for members whose status is inactive, suspended, cancelled, terminated, or archived.
+- **Data quality**: `createOrFindGuest` now merges fragmented guest records — when a guest is created/found with an email, any existing name-only records with the same name are merged by re-pointing their `booking_participants` to the email-bearing record and deleting the orphans.
+- **Files changed**: `server/routes/account.ts`, `server/routes/notices.ts`, `server/routes/members/profile.ts`, `server/routes/stripe/member-payments/guest-passes.ts`, `server/routes/myBilling.ts`, `server/routes/events/rsvp.ts`, `server/core/bookingService/approvalCheckin.ts`, `server/core/bookingService/sessionManager.ts`, `server/core/integrity/bookingChecks.ts`, `server/core/integrity/core.ts`
+
+## [8.97.78] - 2026-03-28
+
+### Fix WebSocket Reconnection Loop on Expired Sessions
+- **Fix**: When a user's session expired, the WebSocket client would endlessly reconnect because the ws-token endpoint returned 401 but the client silently ignored it and sent an auth message without a token. The server rejected it (attempt 1/3), the socket eventually closed, and the client reconnected — creating a noisy loop of WARN logs. Now the client detects a 401 from `/api/auth/ws-token` and immediately stops reconnection by setting `authRejectedRef` and closing the socket with code 4010.
+- **Regression guard**: Added `prevEmailRef` tracking so that if the user re-authenticates without a full page reload (email identity changes), the `authRejectedRef` is cleared and WebSocket reconnects automatically.
+- **Files changed**: `src/hooks/useWebSocket.ts`
+
+### Reduce HubSpot Sync Concurrency to Avoid Rate Limits
+- **Fix**: The HubSpot inbound member sync was making too many concurrent API calls (5 parallel with 300ms between batches of 25), causing bursts of 429 rate limit errors. Reduced concurrency from 5 to 3 and increased the inter-batch delay from 300ms to 500ms. The retry logic handles 429s but this reduces unnecessary retries and speeds up overall sync time.
+- **Files changed**: `server/core/memberSyncOperations.ts`
+
 ## [8.97.77] - 2026-03-27
 
 ### Fix Migration Sync Script Preventing New Tables in Production

@@ -739,3 +739,84 @@ export async function checkStalePendingBookings(): Promise<IntegrityCheckResult>
     };
   }
 }
+
+interface InactiveMemberBookingRow {
+  id: number;
+  user_email: string;
+  user_name: string;
+  status: string;
+  request_date: string;
+  start_time: string;
+  membership_status: string;
+}
+
+export async function checkApprovedBookingsForInactiveMembers(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const today = getTodayPacific();
+    const staleBookings = await db.execute(sql`
+      SELECT br.id, br.user_email, br.user_name, br.status, br.request_date, br.start_time, u.membership_status
+      FROM booking_requests br
+      JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+      WHERE br.status IN ('approved', 'confirmed')
+        AND br.request_date >= ${today}
+        AND u.membership_status IN ('inactive', 'suspended', 'cancelled', 'terminated', 'archived')
+      ORDER BY br.request_date ASC
+      LIMIT 100
+    `);
+
+    const totalCount = await db.execute(sql`
+      SELECT COUNT(*)::int as count
+      FROM booking_requests br
+      JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+      WHERE br.status IN ('approved', 'confirmed')
+        AND br.request_date >= ${today}
+        AND u.membership_status IN ('inactive', 'suspended', 'cancelled', 'terminated', 'archived')
+    `);
+    const total = (totalCount.rows[0] as unknown as CountRow)?.count || 0;
+
+    for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
+      issues.push({
+        category: 'booking_issue',
+        severity: 'warning',
+        table: 'booking_requests',
+        recordId: row.id,
+        description: `Booking #${row.id} for "${row.user_name || row.user_email}" is ${row.status} but member status is "${row.membership_status}"`,
+        suggestion: 'Review and cancel this booking or reactivate the membership',
+        context: {
+          bookingId: row.id,
+          userEmail: row.user_email,
+          bookingStatus: row.status,
+          membershipStatus: row.membership_status,
+          requestDate: row.request_date,
+          startTime: row.start_time,
+        }
+      });
+    }
+
+    return {
+      checkName: 'Approved Bookings for Inactive Members',
+      status: Number(total) === 0 ? 'pass' : 'warning',
+      issueCount: Number(total),
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking approved bookings for inactive members:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Approved Bookings for Inactive Members',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_requests',
+        recordId: 'check_error',
+        description: `Failed to check approved bookings for inactive members: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+}

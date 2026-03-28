@@ -409,6 +409,18 @@ export async function ensureSessionForBooking(params: {
         logger.error('[ensureSessionForBooking] Failed to write staff note on booking', { error: getErrorMessage(noteError) });
       }
 
+      try {
+        const { notifyAllStaff } = await import('../notificationService');
+        await notifyAllStaff(
+          'Session Creation Failed',
+          `Automatic session creation failed for booking #${params.bookingId} after retry. Manual session creation required. Error: ${errorMsg.substring(0, 120)}`,
+          'system_alert',
+          { relatedId: params.bookingId, relatedType: 'booking', url: '/admin/bookings' }
+        );
+      } catch (alertError: unknown) {
+        logger.error('[ensureSessionForBooking] Failed to send staff alert for session creation failure', { error: getErrorMessage(alertError) });
+      }
+
       return { sessionId: 0, created: false, error: errorMsg };
     }
   }
@@ -606,6 +618,43 @@ export async function createOrFindGuest(
           set: { lastVisitDate: today }
         })
         .returning();
+
+      try {
+        const normalizedName = name.trim().toLowerCase();
+        if (normalizedName && createdByMemberId) {
+          const duplicates = await db.execute(sql`
+            SELECT g.id FROM guests g
+            WHERE LOWER(TRIM(g.name)) = ${normalizedName}
+              AND g.email IS NULL
+              AND g.id != ${upserted.id}
+              AND g.created_by_member_id = ${createdByMemberId}
+            LIMIT 5
+          `);
+
+          if (duplicates.rows.length > 0 && duplicates.rows.length <= 3) {
+            const dupIds = (duplicates.rows as Array<{ id: number }>).map(r => r.id);
+            await db.transaction(async (tx) => {
+              await tx.execute(sql`
+                UPDATE booking_participants
+                SET guest_id = ${upserted.id}
+                WHERE guest_id IN (${sql.join(dupIds.map(id => sql`${id}`), sql`, `)})
+              `);
+              await tx.execute(sql`
+                DELETE FROM guests
+                WHERE id IN (${sql.join(dupIds.map(id => sql`${id}`), sql`, `)})
+                  AND email IS NULL
+              `);
+            });
+            logger.info('[createOrFindGuest] Merged fragmented guest records (same creator)', {
+              extra: { mergedIds: dupIds, survivorId: upserted.id, name, email: normalizedEmail, createdByMemberId }
+            });
+          }
+        }
+      } catch (mergeErr: unknown) {
+        logger.warn('[createOrFindGuest] Guest record merge failed (non-blocking)', {
+          extra: { error: getErrorMessage(mergeErr), name, email }
+        });
+      }
 
       return upserted.id;
     }

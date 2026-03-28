@@ -5,6 +5,7 @@ import { userDismissedNotices } from '../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { logAndRespond } from '../core/logger';
 import { getSessionUser } from '../types/session';
+import { sensitiveActionRateLimiter } from '../middleware/rateLimiting';
 
 const router = Router();
 
@@ -29,7 +30,7 @@ router.get('/api/notices/dismissed', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/api/notices/dismiss', isAuthenticated, async (req, res) => {
+router.post('/api/notices/dismiss', isAuthenticated, sensitiveActionRateLimiter, async (req, res) => {
   try {
     const userEmail = getSessionUser(req)?.email?.toLowerCase();
     if (!userEmail) {
@@ -66,7 +67,7 @@ router.post('/api/notices/dismiss', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/api/notices/dismiss-all', isAuthenticated, async (req, res) => {
+router.post('/api/notices/dismiss-all', isAuthenticated, sensitiveActionRateLimiter, async (req, res) => {
   try {
     const userEmail = getSessionUser(req)?.email?.toLowerCase();
     if (!userEmail) {

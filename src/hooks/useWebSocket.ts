@@ -89,6 +89,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           if (resp.ok) {
             const data = await resp.json();
             wsToken = data.token;
+          } else if (resp.status === 401) {
+            authRejectedRef.current = true;
+            intentionalCloseRef.current = true;
+            ws.close(4010, 'Session expired');
+            return;
           }
         } catch {
           // token fetch failed — send auth without token (cookie-based fallback on upgrade)
@@ -262,7 +267,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     }
   }, [emailToUse, fetchNotificationsForEmail]);
 
+  const prevEmailRef = useRef<string | undefined>(undefined);
   useEffect(() => {
+    if (emailToUse && emailToUse !== prevEmailRef.current && authRejectedRef.current) {
+      authRejectedRef.current = false;
+      intentionalCloseRef.current = false;
+      reconnectAttemptRef.current = 0;
+    }
+    prevEmailRef.current = emailToUse;
+
     if (emailToUse) {
       connect();
     }

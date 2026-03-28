@@ -19,7 +19,7 @@ import { syncSmsPreferencesToHubSpot, syncProfileDetailsToHubSpot } from '../../
 import { getSessionUser } from '../../types/session';
 import { logSystemAction, logFromRequest } from '../../core/auditLog';
 import { logger } from '../../core/logger';
-import { memberLookupRateLimiter } from '../../middleware/rateLimiting';
+import { memberLookupRateLimiter, sensitiveActionRateLimiter } from '../../middleware/rateLimiting';
 import { z } from 'zod';
 import { invalidateCache } from '../../core/queryCache';
 import { normalizeEmail } from '../../core/utils/emailNormalization';
@@ -242,7 +242,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
   }
 });
 
-router.put('/api/members/:email/sms-preferences', isAuthenticated, async (req, res) => {
+router.put('/api/members/:email/sms-preferences', isAuthenticated, sensitiveActionRateLimiter, async (req, res) => {
   try {
     const { email } = req.params;
     

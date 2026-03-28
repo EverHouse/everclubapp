@@ -7,10 +7,11 @@ import {logAndRespond, logger } from '../core/logger';
 import { isAuthenticated } from '../core/middleware';
 import { getAccountDeletionHtml } from '../emails/memberInviteEmail';
 import { getErrorMessage } from '../utils/errorUtils';
+import { sensitiveActionRateLimiter } from '../middleware/rateLimiting';
 
 const router = Router();
 
-router.post('/api/account/delete-request', isAuthenticated, async (req: Request, res: Response) => {
+router.post('/api/account/delete-request', isAuthenticated, sensitiveActionRateLimiter, async (req: Request, res: Response) => {
   const userEmail = req.session?.user?.email;
 
   try {

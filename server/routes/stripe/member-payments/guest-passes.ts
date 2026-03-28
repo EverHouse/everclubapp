@@ -11,10 +11,22 @@ import {
 import { alertOnExternalServiceError } from '../../../core/errorAlerts';
 import { logger, logAndRespond } from '../../../core/logger';
 import { UserRow } from './shared';
+import { paymentRateLimiter } from '../../../middleware/rateLimiting';
+import { validateBody } from '../../../middleware/validate';
+import { z } from 'zod';
+
+const guestPassPurchaseSchema = z.object({
+  quantity: z.number().int().refine(v => [1, 3, 5].includes(v), { message: 'Quantity must be 1, 3, or 5' }),
+});
+
+const guestPassConfirmSchema = z.object({
+  paymentIntentId: z.string().min(1, 'paymentIntentId is required'),
+  quantity: z.number().int().refine(v => [1, 3, 5].includes(v), { message: 'Quantity must be 1, 3, or 5' }),
+});
 
 const router = Router();
 
-router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Request, res: Response) => {
+router.post('/api/member/guest-passes/purchase', isAuthenticated, paymentRateLimiter, validateBody(guestPassPurchaseSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -23,10 +35,6 @@ router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Re
     }
 
     const { quantity } = req.body;
-
-    if (!quantity || ![1, 3, 5].includes(quantity)) {
-      return res.status(400).json({ error: 'Invalid quantity. Must be 1, 3, or 5.' });
-    }
 
     const passProduct = await db.query.feeProducts.findFirst({
       where: eq(feeProducts.slug, 'guest-pass')
@@ -123,7 +131,7 @@ router.post('/api/member/guest-passes/purchase', isAuthenticated, async (req: Re
   }
 });
 
-router.post('/api/member/guest-passes/confirm', isAuthenticated, async (req: Request, res: Response) => {
+router.post('/api/member/guest-passes/confirm', isAuthenticated, paymentRateLimiter, validateBody(guestPassConfirmSchema), async (req: Request, res: Response) => {
   try {
     const sessionUser = getSessionUser(req);
     const sessionEmail = sessionUser?.email;
@@ -132,14 +140,6 @@ router.post('/api/member/guest-passes/confirm', isAuthenticated, async (req: Req
     }
 
     const { paymentIntentId, quantity } = req.body;
-
-    if (!paymentIntentId || !quantity) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    if (![1, 3, 5].includes(quantity)) {
-      return res.status(400).json({ error: 'Invalid quantity' });
-    }
 
     const { getStripeClient } = await import('../../../core/stripe/client');
     const stripe = await getStripeClient();

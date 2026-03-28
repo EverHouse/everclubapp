@@ -18,8 +18,9 @@ import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
 import { isStaffOrAdmin } from '../replit_integrations/auth';
-import { validateQuery } from '../middleware/validate';
+import { validateQuery, validateBody } from '../middleware/validate';
 import { z } from 'zod';
+import { paymentRateLimiter, sensitiveActionRateLimiter } from '../middleware/rateLimiting';
 
 const router = Router();
 
@@ -245,7 +246,11 @@ router.post('/api/my/billing/update-payment-method', requireAuth, async (req, re
   }
 });
 
-router.post('/api/my/billing/portal', requireAuth, async (req, res) => {
+const billingPortalSchema = z.object({
+  email: z.string().email().optional(),
+}).passthrough();
+
+router.post('/api/my/billing/portal', requireAuth, sensitiveActionRateLimiter, validateBody(billingPortalSchema), async (req, res) => {
   try {
     const sessionUser = req.session.user!;
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
@@ -461,14 +466,14 @@ router.get('/api/my/balance', requireAuth, async (req, res) => {
   }
 });
 
-router.post('/api/my/add-funds', requireAuth, async (req, res) => {
+const addFundsSchema = z.object({
+  amountCents: z.number().int().min(500, 'Amount must be at least $5').max(50000, 'Amount cannot exceed $500'),
+});
+
+router.post('/api/my/add-funds', requireAuth, paymentRateLimiter, validateBody(addFundsSchema), async (req, res) => {
   try {
     const email = req.session.user!.email;
     const { amountCents } = req.body;
-    
-    if (!amountCents || amountCents < 500 || amountCents > 50000) {
-      return res.status(400).json({ error: 'Amount must be between $5 and $500' });
-    }
     
     if (await isDbVerifiedStaff(email)) {
       return res.status(400).json({ error: 'Staff accounts do not use account balance' });

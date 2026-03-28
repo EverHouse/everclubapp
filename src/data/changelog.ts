@@ -8,6 +8,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.79",
+    date: "2026-03-28",
+    title: "Edge Case & Unhappy Path Hardening",
+    changes: [
+      "Security: Added rate limiters to account deletion, SMS preferences, notice dismiss, guest pass purchase/confirm, add-funds, billing portal, and RSVP creation endpoints.",
+      "Validation: Added Zod schema validation to guest pass purchase/confirm, add-funds, billing portal, and RSVP creation endpoints, replacing manual checks.",
+      "Reliability: Check-in side-effects (HubSpot sync, wallet pass refresh, member notification) now persist failures to the failed_side_effects table for retry instead of silently logging.",
+      "Alerting: Session creation exhaustion now sends a staff notification alert in addition to writing a staff note on the booking.",
+      "Integrity: New integrity check detects approved/confirmed bookings whose owner membership has become inactive, suspended, cancelled, or archived.",
+      "Data quality: Guest records are now automatically merged when a guest is created with an email that matches an existing name-only record, preventing fragmented guest histories.",
+    ]
+  },
+  {
+    version: "8.97.78",
+    date: "2026-03-28",
+    title: "Stability Improvements",
+    changes: [
+      "Fix: Resolved an issue where the real-time connection would repeatedly fail and retry when your session had expired, instead of cleanly stopping.",
+      "Improvement: Reduced the speed of background data sync with HubSpot to avoid hitting rate limits, resulting in more reliable sync cycles.",
+    ]
+  },
+  {
     version: "8.97.77",
     date: "2026-03-27",
     title: "Fix Missing Database Tables in Production",

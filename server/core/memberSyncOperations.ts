@@ -144,11 +144,11 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
     const skipStatuses = ['non-member', 'archived', 'cancelled', 'expired', 'terminated'];
     
     const SYNC_BATCH_SIZE = 25;
-    const syncLimit = pLimit(5);
+    const syncLimit = pLimit(3);
     
     for (let i = 0; i < allContacts.length; i += SYNC_BATCH_SIZE) {
       if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
       const batch = allContacts.slice(i, i + SYNC_BATCH_SIZE);
       
