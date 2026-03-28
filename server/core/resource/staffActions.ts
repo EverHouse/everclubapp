@@ -725,6 +725,10 @@ export async function createStaffManualBooking(
   let dayPassRedeemed = false;
 
   const txResult = await db.transaction(async (tx) => {
+    const staffParticipantEmails = sanitizedParticipants
+      .map(p => p.email?.trim().toLowerCase())
+      .filter(Boolean) as string[];
+
     await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
       resourceId: input.resource_id || null,
       requestDate: input.request_date,
@@ -733,7 +737,8 @@ export async function createStaffManualBooking(
       requestEmail: resolvedEmail,
       isStaffRequest: true,
       isViewAsMode: false,
-      resourceType: resolvedResourceType
+      resourceType: resolvedResourceType,
+      participantEmails: staffParticipantEmails,
     });
 
     if (isDayPassPayment) {

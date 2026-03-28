@@ -77,6 +77,7 @@ interface BookingCreationGuardParams {
   isStaffRequest: boolean;
   isViewAsMode: boolean;
   resourceType: string;
+  participantEmails?: string[];
 }
 
 const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
@@ -87,19 +88,24 @@ export async function acquireBookingLocks(
   tx: { execute: (query: unknown) => Promise<{ rows: Record<string, unknown>[] }> },
   params: BookingCreationGuardParams
 ): Promise<void> {
-  const { resourceId, requestDate, requestEmail, isStaffRequest, isViewAsMode, resourceType } = params;
+  const { resourceId, requestEmail, isStaffRequest, isViewAsMode, resourceType, participantEmails } = params;
 
   const normalizedEmail = requestEmail.trim().toLowerCase();
   const needsUserLock = !isStaffRequest || isViewAsMode;
 
   if (resourceId) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(2, hashtext(${String(resourceId)} || '|' || ${requestDate}))`);
-    logger.debug('[BookingGuard] Acquired resource lock', { extra: { resourceId, requestDate } });
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(2, hashtext(${String(resourceId)}))`);
+    logger.debug('[BookingGuard] Acquired global resource lock', { extra: { resourceId } });
   }
 
-  if (needsUserLock) {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(1, hashtext(${normalizedEmail}))`);
-    logger.debug('[BookingGuard] Acquired user lock', { extra: { email: normalizedEmail } });
+  const emailsToLock = [normalizedEmail, ...(participantEmails || [])]
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  const uniqueSortedEmails = [...new Set(emailsToLock)].sort();
+
+  for (const email of uniqueSortedEmails) {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(1, hashtext(${email}))`);
+    logger.debug('[BookingGuard] Acquired user lock', { extra: { email } });
   }
 
   const pendingLimit = resourceType === 'conference_room' ? 5 : 1;

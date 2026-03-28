@@ -119,8 +119,9 @@ export async function checkResourceEventOrder(
       return true;
     }
     logger.warn(`[Stripe Webhook] Out-of-order event: ${eventType} (priority ${currentPriority}) after ${lastEventType} (priority ${lastPriority}) for resource ${resourceId} — buffering to dead letter queue`);
-    const dlqClient = await pool.connect();
+    let dlqClient: PoolClient | null = null;
     try {
+      dlqClient = await pool.connect();
       await dlqClient.query(
         `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
          VALUES ($1, $2, $3, $4, $5)
@@ -136,7 +137,9 @@ export async function checkResourceEventOrder(
     } catch (dlqErr: unknown) {
       logger.error('[Stripe Webhook] Failed to write to dead letter queue:', { error: getErrorMessage(dlqErr) });
     } finally {
-      safeRelease(dlqClient);
+      if (dlqClient) {
+        safeRelease(dlqClient);
+      }
     }
     return false;
   }

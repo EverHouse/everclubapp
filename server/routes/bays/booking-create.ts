@@ -136,6 +136,10 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           resourceType = resourceRow?.type || 'simulator';
         }
         
+        const earlyParticipantEmails = (Array.isArray(request_participants) ? request_participants : [])
+          .map((p: { email?: string }) => typeof p.email === 'string' ? p.email.trim().toLowerCase() : '')
+          .filter(Boolean);
+
         await acquireBookingLocks(tx as unknown as Parameters<typeof acquireBookingLocks>[0], {
           resourceId: resource_id,
           requestDate: request_date,
@@ -145,6 +149,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           isStaffRequest,
           isViewAsMode,
           resourceType,
+          participantEmails: earlyParticipantEmails,
         });
 
         await checkResourceOverlap(tx as unknown as Parameters<typeof checkResourceOverlap>[0], {
