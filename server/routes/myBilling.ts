@@ -1043,6 +1043,9 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
         ]);
 
         const paidInvoiceUrlByBookingId = new Map<string, string>();
+        const existingPaymentIntentIds = new Set(
+          purchases.map(p => p.stripePaymentIntentId).filter(Boolean)
+        );
         for (const inv of paidInvoices.data) {
           const bookingId = inv.metadata?.bookingId || inv.metadata?.booking_id;
           if (bookingId && inv.hosted_invoice_url) {
@@ -1060,33 +1063,41 @@ router.get('/api/my-billing/payment-history', requireAuth, async (req, res) => {
           }
         }
 
-        const invoices = { data: [...openInvoices.data, ...draftInvoices.data] };
+        const allInvoices = [...openInvoices.data, ...draftInvoices.data, ...paidInvoices.data];
         const seenInvoiceBookingIds = new Set<string>();
-        const sortedInvoices = [...invoices.data].sort((a, b) => b.created - a.created);
+        const seenInvoiceIds = new Set<string>();
+        const sortedInvoices = allInvoices.sort((a, b) => b.created - a.created);
         for (const inv of sortedInvoices) {
-          if (inv.amount_due > 0) {
-            const bookingId = inv.metadata?.bookingId || inv.metadata?.booking_id;
-            if (bookingId) {
-              if (seenInvoiceBookingIds.has(bookingId)) continue;
-              seenInvoiceBookingIds.add(bookingId);
-              invoiceBookingIds.add(bookingId);
-            }
-            const invBookingId = bookingId ? parseInt(bookingId, 10) : null;
-            purchases.push({
-              id: `inv-${inv.id}`,
-              type: 'stripe',
-              itemName: inv.description || `Invoice ${inv.number || inv.id}`,
-              itemCategory: 'invoice',
-              amountCents: inv.amount_due,
-              date: new Date(inv.created * 1000).toISOString(),
-              status: inv.status || 'open',
-              source: 'Stripe',
-              stripePaymentIntentId: null,
-              stripeInvoiceId: inv.id,
-              hostedInvoiceUrl: inv.hosted_invoice_url,
-              bookingId: isNaN(invBookingId as number) ? null : invBookingId,
-            });
+          if (inv.amount_due <= 0) continue;
+          if (seenInvoiceIds.has(inv.id)) continue;
+          seenInvoiceIds.add(inv.id);
+
+          const bookingId = inv.metadata?.bookingId || inv.metadata?.booking_id;
+          if (bookingId) {
+            if (seenInvoiceBookingIds.has(bookingId)) continue;
+            seenInvoiceBookingIds.add(bookingId);
+            invoiceBookingIds.add(bookingId);
           }
+
+          const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id;
+          if (piId && existingPaymentIntentIds.has(piId)) continue;
+
+          const invBookingId = bookingId ? parseInt(bookingId, 10) : null;
+          const lineDescription = inv.lines?.data?.[0]?.description;
+          purchases.push({
+            id: `inv-${inv.id}`,
+            type: 'stripe',
+            itemName: inv.description || lineDescription || `Invoice ${inv.number || inv.id}`,
+            itemCategory: inv.subscription ? 'membership' : 'invoice',
+            amountCents: inv.status === 'paid' ? (inv.amount_paid ?? inv.amount_due) : inv.amount_due,
+            date: new Date(inv.created * 1000).toISOString(),
+            status: inv.status || 'open',
+            source: 'Stripe',
+            stripePaymentIntentId: null,
+            stripeInvoiceId: inv.id,
+            hostedInvoiceUrl: inv.hosted_invoice_url,
+            bookingId: isNaN(invBookingId as number) ? null : invBookingId,
+          });
         }
       } catch (invoiceErr: unknown) {
         logger.warn('[MyBilling] Failed to fetch invoices for payment history', { error: getErrorMessage(invoiceErr) });
