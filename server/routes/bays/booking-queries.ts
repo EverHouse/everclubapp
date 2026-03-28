@@ -168,7 +168,7 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
              SET cached_fee_cents = 0 
              WHERE session_id = ${request.sessionId} AND payment_status = 'pending' AND cached_fee_cents > 0`);
         } catch (syncErr: unknown) {
-          logger.error('[Fee Estimate] Failed to sync cached fee cents', { extra: { syncErr, bookingId } });
+          logger.error('[Fee Estimate] Failed to sync cached fee cents', { extra: { error: getErrorMessage(syncErr), bookingId } });
         }
       }
       

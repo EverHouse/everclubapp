@@ -431,7 +431,7 @@ export async function alertOnExternalServiceError(
 ): Promise<void> {
   if (isTransientError(error.message)) {
     logger.info('[ErrorAlert] Skipping transient external service error', {
-      extra: { event: 'error_alert.transient_ext_skip', service, operation, error: error.message.substring(0, 100) }
+      extra: { event: 'error_alert.transient_ext_skip', service, operation, error: getErrorMessage(error).substring(0, 100) }
     });
     return;
   }

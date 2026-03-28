@@ -143,8 +143,7 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
       } catch (processError: unknown) {
         message = `Reprocessing failed: ${getErrorMessage(processError)}`;
         logger.error('[Trackman Webhook] Retry processing error', {
-          error: processError instanceof Error ? processError : new Error(String(processError)),
-          extra: { eventId }
+          extra: { error: getErrorMessage(processError), eventId }
         });
       }
     } else {

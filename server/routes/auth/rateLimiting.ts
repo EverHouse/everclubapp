@@ -96,7 +96,7 @@ export const checkOtpVerifyAttempts = async (email: string, ip?: string): Promis
       }
       
       if (locked_until && new Date(locked_until) <= now) {
-        db.delete(rateLimits).where(eq(rateLimits.key, perIpKey)).catch((err) => logger.warn('[RateLimit] Non-critical expired lock cleanup failed', { key: perIpKey, error: err }));
+        db.delete(rateLimits).where(eq(rateLimits.key, perIpKey)).catch((err) => logger.warn('[RateLimit] Non-critical expired lock cleanup failed', { extra: { key: perIpKey, error: getErrorMessage(err) } }));
       }
     }
 
@@ -113,7 +113,7 @@ export const checkOtpVerifyAttempts = async (email: string, ip?: string): Promis
         return { allowed: false, retryAfter: Math.max(0, retryAfter) };
       }
       if (ipLocked && new Date(ipLocked) <= now) {
-        db.delete(rateLimits).where(eq(rateLimits.key, ipKey)).catch((err) => logger.warn('[RateLimit] Non-critical expired lock cleanup failed', { key: ipKey, error: err }));
+        db.delete(rateLimits).where(eq(rateLimits.key, ipKey)).catch((err) => logger.warn('[RateLimit] Non-critical expired lock cleanup failed', { extra: { key: ipKey, error: getErrorMessage(err) } }));
       }
     }
 
@@ -130,7 +130,7 @@ export const checkOtpVerifyAttempts = async (email: string, ip?: string): Promis
         return { allowed: false, retryAfter: Math.max(0, retryAfter) };
       }
       if (emailLocked && new Date(emailLocked) <= now) {
-        db.delete(rateLimits).where(eq(rateLimits.key, emailKey)).catch((err) => logger.warn('[RateLimit] Non-critical expired lock cleanup failed', { key: emailKey, error: err }));
+        db.delete(rateLimits).where(eq(rateLimits.key, emailKey)).catch((err) => logger.warn('[RateLimit] Non-critical expired lock cleanup failed', { extra: { key: emailKey, error: getErrorMessage(err) } }));
       }
     }
     

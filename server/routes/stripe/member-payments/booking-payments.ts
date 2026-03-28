@@ -56,8 +56,8 @@ router.post('/api/member/bookings/:id/pay-fees', isAuthenticated, paymentRateLim
     const bookingIdForLog = parseInt(req.params.id as string, 10);
     if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[Stripe] Error creating member payment intent', { 
-      error: errMsg,
       extra: {
+        error: errMsg,
         stripeCode,
         stripeType,
         stripeDeclineCode,

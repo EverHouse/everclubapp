@@ -222,8 +222,8 @@ export async function calculateFeeEstimate(params: {
     };
   } catch (error: unknown) {
     logger.error('[FeeEstimate] Unified service error', {
-      error: error instanceof Error ? error : new Error(String(error)),
       extra: {
+        error: getErrorMessage(error),
         ownerEmail,
         durationMinutes,
         playerCount,

@@ -135,10 +135,11 @@ const directPoolInstance = usingPooler
 export const directPool = directPoolInstance;
 
 pool.on('error', (err) => {
-  const isConnectionError = RETRYABLE_ERRORS.some(e => err.message.includes(e));
+  const errMsg = getErrorMessage(err);
+  const isConnectionError = RETRYABLE_ERRORS.some(e => errMsg.includes(e));
   logger.error('[Database] Pool error:', {
     extra: {
-      detail: err.message,
+      error: errMsg,
       isConnectionError,
       poolTotal: pool.totalCount,
       poolIdle: pool.idleCount,
@@ -147,7 +148,7 @@ pool.on('error', (err) => {
   });
   if (isConnectionError) {
     logger.warn('[Database] Stale connection evicted from pool', {
-      extra: { detail: err.message },
+      extra: { error: errMsg },
     });
   }
 });
@@ -162,10 +163,11 @@ pool.on('connect', () => {
 
 if (usingPooler && directPool !== pool) {
   directPool.on('error', (err) => {
-    const isConnError = RETRYABLE_ERRORS.some(e => err.message.includes(e));
+    const errMsg = getErrorMessage(err);
+    const isConnError = RETRYABLE_ERRORS.some(e => errMsg.includes(e));
     logger.error('[Database] Direct pool error:', {
       extra: {
-        detail: err.message,
+        error: errMsg,
         isConnectionError: isConnError,
         poolTotal: directPool.totalCount,
         poolIdle: directPool.idleCount,
@@ -174,7 +176,7 @@ if (usingPooler && directPool !== pool) {
     });
     if (isConnError) {
       logger.warn('[Database] Stale connection evicted from direct pool', {
-        extra: { detail: err.message },
+        extra: { error: errMsg },
       });
     }
   });

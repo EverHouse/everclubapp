@@ -279,8 +279,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
           });
         } catch (feeErr: unknown) {
           logger.error('[link-trackman] Fee recalculation after day pass failed', {
-            error: feeErr instanceof Error ? feeErr : new Error(String(feeErr)),
-            extra: { bookingId: result.booking.id, sessionId: finalSessionId }
+            extra: { error: getErrorMessage(feeErr), bookingId: result.booking.id, sessionId: finalSessionId }
           });
         }
       }
@@ -370,8 +369,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
           });
         } catch (feeErr: unknown) {
           logger.error('[assign-with-players] Fee recalculation after day pass failed', {
-            error: feeErr instanceof Error ? feeErr : new Error(String(feeErr)),
-            extra: { bookingId, sessionId: result.sessionId }
+            extra: { error: getErrorMessage(feeErr), bookingId, sessionId: result.sessionId }
           });
         }
       }
@@ -410,11 +408,10 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
       extra: {
         bookingId: req.params.id,
         owner: req.body.owner,
-        errorMessage: getErrorMessage(error),
+        error: getErrorMessage(error),
         errorCode: getErrorCode(error),
         errorDetail: (error as ServiceError).detail,
-        errorConstraint: (error as ServiceError).constraint,
-        errorStack: (error instanceof Error ? error.stack : '')?.split('\n').slice(0, 5).join('\n')
+        errorConstraint: (error as ServiceError).constraint
       }
     });
     logAndRespond(req, res, 500, 'Failed to assign players to booking', error, 'ASSIGN_PLAYERS_ERROR');

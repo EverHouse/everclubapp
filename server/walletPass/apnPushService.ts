@@ -147,8 +147,7 @@ export async function sendPassUpdatePush(serialNumber: string): Promise<{ sent: 
     logger.info(`[WalletPass APN] Push complete for ${serialNumber}: sent=${result.sent}, failed=${result.failed}`);
   } catch (err) {
     logger.error('[WalletPass APN] Error sending pass update push', {
-      error: getErrorMessage(err),
-      extra: { serialNumber }
+      extra: { error: getErrorMessage(err), serialNumber }
     });
   }
 
@@ -175,8 +174,7 @@ export async function sendPassUpdateForMemberByEmail(email: string): Promise<voi
     await sendPassUpdateForMember(memberId);
   } catch (err) {
     logger.error('[WalletPass APN] Error looking up member for push', {
-      error: getErrorMessage(err),
-      extra: { email }
+      extra: { error: getErrorMessage(err), email }
     });
   }
 }
@@ -211,7 +209,7 @@ export async function sendPassUpdateToAllRegistrations(): Promise<{ sent: number
     logger.info(`[WalletPass APN] Bulk push complete: sent=${result.sent}, failed=${result.failed}`);
   } catch (err) {
     logger.error('[WalletPass APN] Error sending bulk pass update push', {
-      error: getErrorMessage(err),
+      extra: { error: getErrorMessage(err) },
     });
   }
 

@@ -173,8 +173,7 @@ export async function generateBookingPass(bookingId: number, requestingMemberId?
     return await generateBookingPkPass(passData, walletConfig);
   } catch (err) {
     logger.error('[BookingWalletPass] Failed to generate booking pass', {
-      error: new Error(getErrorMessage(err)),
-      extra: { bookingId }
+      extra: { error: getErrorMessage(err), bookingId }
     });
     return null;
   }
@@ -208,8 +207,7 @@ export async function voidBookingPass(bookingId: number): Promise<void> {
     }
   } catch (err) {
     logger.error('[BookingWalletPass] Failed to void booking pass', {
-      error: new Error(getErrorMessage(err)),
-      extra: { bookingId }
+      extra: { error: getErrorMessage(err), bookingId }
     });
   }
 }
@@ -238,8 +236,7 @@ export async function refreshBookingPass(bookingId: number): Promise<void> {
     }
   } catch (err) {
     logger.error('[BookingWalletPass] Failed to refresh booking pass', {
-      error: new Error(getErrorMessage(err)),
-      extra: { bookingId }
+      extra: { error: getErrorMessage(err), bookingId }
     });
   }
 }
@@ -259,8 +256,7 @@ export async function generateBookingPassForWebService(serialNumber: string): Pr
     return await generateBookingPass(passRecord.bookingId);
   } catch (err) {
     logger.error('[BookingWalletPass] Failed to generate pass for web service', {
-      error: new Error(getErrorMessage(err)),
-      extra: { serialNumber }
+      extra: { error: getErrorMessage(err), serialNumber }
     });
     return null;
   }

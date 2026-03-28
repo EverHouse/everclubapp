@@ -448,8 +448,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         }
       } catch (confError) {
         logger.error('[ConferenceRoom] Conference room auto-confirm processing failed', {
-          error: new Error(getErrorMessage(confError)),
-          extra: { bookingId: row.id }
+          extra: { error: getErrorMessage(confError), bookingId: row.id }
         });
         try {
           await ensureSessionForBooking({

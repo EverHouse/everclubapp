@@ -71,8 +71,8 @@ async function processQueue(): Promise<void> {
   } catch (error: unknown) {
     const rootError = extractRootError(error);
     logger.error('[HubSpot Queue] Scheduler error', { 
-      error: rootError,
       extra: { 
+        error: getErrorMessage(rootError),
         drizzleMessage: getErrorMessage(error),
         cause: error instanceof Error && error.cause ? getErrorMessage(error.cause) : undefined
       }

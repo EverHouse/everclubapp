@@ -405,20 +405,16 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       try {
         await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
       } catch (blockErr: unknown) {
-        const cause = blockErr instanceof Error && blockErr.cause instanceof Error ? blockErr.cause : blockErr;
         logger.error(`[Events] Failed to create availability blocks for event #${eventId}`, { 
-          error: cause instanceof Error ? cause : new Error(String(cause)),
-          extra: { eventId, blockSimulators: newBlockSimulators, blockConferenceRoom: newBlockConferenceRoom }
+          extra: { error: getErrorMessage(blockErr), eventId, blockSimulators: newBlockSimulators, blockConferenceRoom: newBlockConferenceRoom }
         });
       }
     } else if (hasAnyBlocking) {
       try {
         await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
       } catch (blockErr: unknown) {
-        const cause = blockErr instanceof Error && blockErr.cause instanceof Error ? blockErr.cause : blockErr;
         logger.error(`[Events] Failed to update availability blocks for event #${eventId}`, { 
-          error: cause instanceof Error ? cause : new Error(String(cause)),
-          extra: { eventId, blockSimulators: newBlockSimulators, blockConferenceRoom: newBlockConferenceRoom }
+          extra: { error: getErrorMessage(blockErr), eventId, blockSimulators: newBlockSimulators, blockConferenceRoom: newBlockConferenceRoom }
         });
       }
     }

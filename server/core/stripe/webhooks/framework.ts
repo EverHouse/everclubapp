@@ -157,8 +157,7 @@ export async function executeDeferredActions(actions: DeferredAction[], eventCon
       failedCount++;
       failedIndices.push(i);
       logger.error(`[Stripe Webhook] Deferred action ${i + 1}/${actions.length} failed (non-critical):`, { 
-        error: getErrorMessage(err),
-        extra: eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : undefined
+        extra: { error: getErrorMessage(err), ...(eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : {}) }
       });
     }
   }

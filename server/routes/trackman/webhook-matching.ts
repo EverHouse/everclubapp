@@ -403,8 +403,7 @@ export async function createUnmatchedBookingRequest(
           const isOverlapAfterDeadlock = retryCause?.code === '23P01' || retryMsg.includes('booking_requests_no_overlap') || retryMsg.includes('23P01');
           if (!isOverlapAfterDeadlock) {
             logger.error('[Trackman Webhook] Insert failed even after deadlock retry', {
-              error: retryError instanceof Error ? retryError : new Error(String(retryError)),
-              extra: { trackmanBookingId, date: slotDate, time: startTime }
+              extra: { error: getErrorMessage(retryError), trackmanBookingId, date: slotDate, time: startTime }
             });
             return { created: false };
           }
@@ -481,8 +480,7 @@ export async function createUnmatchedBookingRequest(
           result = txResultWithConflicts.insertResult;
         } catch (retryError: unknown) {
           logger.error('[Trackman Webhook] Failed to create booking even after cancelling conflicts', {
-            error: retryError instanceof Error ? retryError : new Error(String(retryError)),
-            extra: { trackmanBookingId, date: slotDate, time: startTime }
+            extra: { error: getErrorMessage(retryError), trackmanBookingId, date: slotDate, time: startTime }
           });
           return { created: false };
         }

@@ -135,8 +135,7 @@ export async function generatePassForMember(memberId: string): Promise<Buffer | 
     return await generatePkPass(passData, walletConfig, dbColors);
   } catch (err) {
     logger.error('[WalletPass] Failed to generate pass for member', {
-      error: new Error(getErrorMessage(err)),
-      extra: { memberId }
+      extra: { error: getErrorMessage(err), memberId }
     });
     return null;
   }

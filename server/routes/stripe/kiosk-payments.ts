@@ -77,8 +77,8 @@ router.post('/api/kiosk/bookings/:id/pay-fees', isStaffOrAdmin, paymentRateLimit
     const bookingIdForLog = parseInt(req.params.id as string, 10);
     if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
     logger.error('[Kiosk Stripe] Error creating kiosk payment intent', { 
-      error: errMsg,
       extra: {
+        error: errMsg,
         stripeCode,
         stripeType,
         stripeDeclineCode,

@@ -599,8 +599,7 @@ router.post('/api/admin/trackman-webhooks/backfill', isAdmin, async (req, res) =
           reason: getErrorMessage(eventError) 
         });
         logger.error('[Trackman Backfill] Error processing event', { 
-          error: eventError instanceof Error ? eventError : new Error(String(eventError)), 
-          trackmanBookingId: event.trackman_booking_id 
+          extra: { error: getErrorMessage(eventError), trackmanBookingId: event.trackman_booking_id }
         });
       }
     }

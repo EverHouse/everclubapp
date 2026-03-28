@@ -100,7 +100,7 @@ export async function withRetry<T>(
           context,
           attempt: err.attemptNumber,
           retriesLeft: err.retriesLeft,
-          error: err.message
+          error: getErrorMessage(err)
         }
       });
       
