@@ -1305,7 +1305,12 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
   }
 }
 
-export async function syncBookingInvoice(bookingId: number, sessionId: number, _retryDepth = 0): Promise<void> {
+export interface SyncBookingInvoiceResult {
+  success: boolean;
+  error?: string;
+}
+
+export async function syncBookingInvoice(bookingId: number, sessionId: number, _retryDepth = 0): Promise<SyncBookingInvoiceResult> {
   try {
     const invoiceResult = await db.execute(sql`SELECT br.stripe_invoice_id, br.user_email, br.trackman_booking_id, br.status, br.resource_id,
               COALESCE(r.type, ${RESOURCE_TYPE.SIMULATOR}) as resource_type,
@@ -1314,11 +1319,11 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
        LEFT JOIN resources r ON br.resource_id = r.id
        WHERE br.id = ${bookingId} LIMIT 1`);
     const booking = (invoiceResult.rows as unknown as InvoiceSyncRow[])[0];
-    if (!booking) return;
+    if (!booking) return { success: true };
     const stripeInvoiceId = booking.stripe_invoice_id;
 
     if (!stripeInvoiceId) {
-      if (booking.status !== BOOKING_STATUS.APPROVED && booking.status !== BOOKING_STATUS.CONFIRMED && booking.status !== BOOKING_STATUS.ATTENDED) return;
+      if (booking.status !== BOOKING_STATUS.APPROVED && booking.status !== BOOKING_STATUS.CONFIRMED && booking.status !== BOOKING_STATUS.ATTENDED) return { success: true };
 
       const participantResult = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
          FROM booking_participants
@@ -1357,13 +1362,13 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
       }
 
       const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
-      if (totalFees <= 0) return;
+      if (totalFees <= 0) return { success: true };
 
       const userResult = await db.execute(sql`SELECT stripe_customer_id FROM users WHERE LOWER(email) = LOWER(${booking.user_email}) LIMIT 1`);
       const stripeCustomerId = (userResult.rows as unknown as StripeCustomerIdRow[])[0]?.stripe_customer_id;
       if (!stripeCustomerId) {
         logger.warn('[BookingInvoice] syncBookingInvoice: no stripe_customer_id for user, cannot create draft invoice', { extra: { bookingId, email: booking.user_email } });
-        return;
+        return { success: false, error: 'No stripe_customer_id for user' };
       }
 
       const draftResult = await createDraftInvoiceForBooking({
@@ -1380,7 +1385,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
       });
 
       safeBroadcast({ bookingId, sessionId, action: 'invoice_created', invoiceId: draftResult.invoiceId });
-      return;
+      return { success: true };
     }
 
     const stripe = await getStripeClient();
@@ -1398,7 +1403,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
           logger.error('[BookingInvoice] syncBookingInvoice: stale invoice retry exhausted — giving up', {
             extra: { bookingId, invoiceId: stripeInvoiceId }
           });
-          return;
+          return { success: false, error: 'Stale invoice retry exhausted' };
         }
         return syncBookingInvoice(bookingId, sessionId, _retryDepth + 1);
       }
@@ -1467,9 +1472,9 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
             }
           }
         }
-        return;
+        return { success: true };
       }
-      return;
+      return { success: true };
     }
 
     const participantResult = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
@@ -1522,10 +1527,13 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
 
       safeBroadcast({ bookingId, sessionId, action: 'invoice_deleted', invoiceId: stripeInvoiceId });
     }
+    return { success: true };
   } catch (err: unknown) {
+    const errorMsg = getErrorMessage(err);
     logger.warn('[BookingInvoice] Non-blocking: syncBookingInvoice failed', {
-      extra: { error: getErrorMessage(err), bookingId, sessionId }
+      extra: { error: errorMsg, bookingId, sessionId }
     });
+    return { success: false, error: errorMsg };
   }
 }
 

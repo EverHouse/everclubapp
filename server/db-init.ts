@@ -1161,6 +1161,8 @@ export async function ensureDatabaseConstraints() {
         logger.warn(`[DB Init] Booking_requests FK validation deferred: ${getErrorMessage(err)}`);
       }
 
+      try { await db.execute(sql`ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS billing_sync_pending BOOLEAN DEFAULT FALSE`); } catch { logger.debug('[DB Init] billing_sync_pending column already exists or failed'); }
+
       try {
         await db.execute(sql`
           DO $$

@@ -5,6 +5,7 @@ import { getErrorMessage, getErrorCode, isStripeError, isStripeResourceMissing }
 import { logger } from '../logger';
 import { isProduction } from '../db';
 import { getStripeClient } from '../stripe/client';
+import { notifyAllStaff } from '../notificationService';
 import type {
   IntegrityCheckResult,
   IntegrityIssue,
@@ -867,6 +868,116 @@ export async function checkOrphanedStripeSubscriptions(): Promise<IntegrityCheck
   return {
     checkName: 'Orphaned Stripe Subscriptions',
     status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+interface OrphanedBookingInvoiceRow {
+  id: number;
+  user_email: string;
+  request_date: string;
+  start_time: string;
+  status: string;
+  billing_sync_pending: boolean | null;
+  resource_name: string | null;
+}
+
+export async function checkOrphanedBookingInvoices(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const orphanedResult = await db.execute(sql`
+      SELECT br.id, br.user_email, br.request_date, br.start_time, br.status,
+             br.billing_sync_pending, r.name AS resource_name
+      FROM booking_requests br
+      LEFT JOIN resources r ON r.id = br.resource_id
+      WHERE br.status = 'confirmed'
+        AND br.stripe_invoice_id IS NULL
+        AND br.session_id IS NOT NULL
+        AND COALESCE(br.reviewed_at, br.created_at) > NOW() - INTERVAL '24 hours'
+        AND br.user_email NOT LIKE '%@trackman.local'
+        AND br.user_email NOT LIKE 'private-event@%'
+        AND br.is_event IS NOT TRUE
+        AND br.is_unmatched IS NOT TRUE
+      ORDER BY br.created_at DESC
+      LIMIT 50
+    `);
+
+    const orphanedRows = orphanedResult.rows as unknown as OrphanedBookingInvoiceRow[];
+
+    for (const row of orphanedRows) {
+      const hasFees = await db.execute(sql`
+        SELECT 1 FROM booking_participants bp
+        JOIN booking_sessions bs ON bs.id = bp.session_id
+        JOIN booking_requests br2 ON br2.session_id = bs.id
+        WHERE br2.id = ${row.id}
+          AND COALESCE(bp.cached_fee_cents, 0) > 0
+        LIMIT 1
+      `);
+
+      if (hasFees.rows.length === 0) continue;
+
+      const alreadyFlagged = row.billing_sync_pending === true;
+      const severity: 'error' | 'warning' = alreadyFlagged ? 'warning' : 'error';
+
+      issues.push({
+        category: 'billing_issue',
+        severity,
+        table: 'booking_requests',
+        recordId: row.id,
+        description: `Booking #${row.id} for ${row.user_email} on ${row.request_date} at ${row.start_time} (${row.resource_name || 'Unknown'}) is ${row.status} with fees due but no Stripe invoice.${alreadyFlagged ? ' (already flagged for review)' : ''}`,
+        suggestion: 'Create a Stripe invoice for this booking or review why invoice creation failed.',
+        context: {
+          memberEmail: row.user_email,
+          bookingDate: row.request_date,
+          status: row.status,
+          billingSyncPending: String(alreadyFlagged)
+        }
+      });
+
+      if (!alreadyFlagged) {
+        try {
+          await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, updated_at = NOW() WHERE id = ${row.id}`);
+        } catch (flagErr: unknown) {
+          logger.warn('[DataIntegrity] Failed to flag orphaned booking as billing_sync_pending', {
+            extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
+          });
+        }
+      }
+    }
+
+    const newlyFlaggedCount = issues.filter(i => i.context?.billingSyncPending === 'false').length;
+    if (newlyFlaggedCount > 0) {
+      notifyAllStaff(
+        'Orphaned booking invoices detected',
+        `${newlyFlaggedCount} confirmed booking(s) from the last 24 hours have fees due but no Stripe invoice. Review needed in admin bookings.`,
+        'payment',
+        { relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+      ).catch((notifErr: unknown) => logger.warn('[DataIntegrity] Failed to notify staff about orphaned booking invoices', { extra: { error: getErrorMessage(notifErr) } }));
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking orphaned booking invoices:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Orphaned Booking Invoices',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_requests',
+        recordId: 'check_error',
+        description: `Failed to check orphaned booking invoices: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  return {
+    checkName: 'Orphaned Booking Invoices',
+    status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
     lastRun: new Date()

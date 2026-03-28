@@ -769,7 +769,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth } = await import('./externalSystemChecks');
-  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions } = await import('./stripeChecks');
+  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
   const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
@@ -782,6 +782,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
     safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
     safeCheck(checkBillingOrphans, 'Billing Orphans'),
+    safeCheck(checkOrphanedBookingInvoices, 'Orphaned Booking Invoices'),
     safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
     safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
     safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
