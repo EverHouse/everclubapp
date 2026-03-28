@@ -241,9 +241,7 @@ export function TerminalPayment({
       return;
     }
 
-    const hasPaymentMetadata = paymentMetadata && Object.keys(paymentMetadata).length > 0;
-    const isRegularPayment = amount > 0 && hasPaymentMetadata;
-    if (!isRegularPayment && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
+    if (amount <= 0 && subscriptionId == null && !existingPaymentIntentId && !isSaveCard && !cartItems?.length) {
       onError('Subscription is still being created. Please wait a moment and try again.');
       return;
     }

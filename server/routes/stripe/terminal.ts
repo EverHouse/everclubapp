@@ -209,46 +209,33 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
             const firstName = nameParts[0] || '';
             const lastName = nameParts.slice(1).join(' ') || '';
 
-            const resolvedTerminal = await resolveUserByEmail(metadata.ownerEmail);
-            if (resolvedTerminal) {
-              if (!resolvedTerminal.stripeCustomerId) {
-                const terminalUserCheck = await db.execute(sql`SELECT archived_at FROM users WHERE id = ${resolvedTerminal.userId}`);
-                await db.execute(sql`UPDATE users SET stripe_customer_id = ${customerId}, archived_at = NULL, archived_by = NULL, updated_at = NOW() WHERE id = ${resolvedTerminal.userId}`);
-                if ((terminalUserCheck.rows as Array<{ archived_at: string | null }>)[0]?.archived_at) {
-                  logger.info('[Auto-Unarchive] User unarchived after receiving Stripe customer ID', { extra: { resolvedTerminalPrimaryEmail: resolvedTerminal.primaryEmail } });
-                }
-              }
-              logger.info('[Terminal] Linked Stripe customer to existing user via', { extra: { resolvedTerminalPrimaryEmail: resolvedTerminal.primaryEmail, resolvedTerminalMatchType: resolvedTerminal.matchType } });
+            const termExclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${metadata.ownerEmail.toLowerCase()}`);
+            if (termExclusionCheck.rows.length > 0) {
+              logger.info('[Terminal] Skipping visitor creation for permanently deleted member', { extra: { email: metadata.ownerEmail } });
             } else {
-              const termExclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${metadata.ownerEmail.toLowerCase()}`);
-              if (termExclusionCheck.rows.length > 0) {
-                logger.info('[Terminal] Skipping visitor creation for permanently deleted member', { extra: { email: metadata.ownerEmail } });
-              } else {
-                const crypto = await import('crypto');
-                const visitorId = crypto.randomUUID();
-                await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, created_at, updated_at)
-                   VALUES (${visitorId}, ${metadata.ownerEmail}, ${firstName}, ${lastName}, 'visitor', ${customerId}, 'APP', 'day_pass', 'visitor', NOW(), NOW())
-                   ON CONFLICT (email) DO UPDATE SET
-                     stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
-                     first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
-                     last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
-                     archived_at = NULL,
-                     archived_by = NULL,
-                     updated_at = NOW()`);
-                logger.info('[Terminal] Created/updated visitor record for POS customer', { extra: { metadataOwnerEmail: metadata.ownerEmail } });
-                
-                // Background sync visitor to HubSpot for CRM tracking
-                findOrCreateHubSpotContact(
-                  metadata.ownerEmail,
-                  firstName || '',
-                  lastName || '',
-                  undefined,
-                  undefined,
-                  { role: 'visitor' }
-                ).catch((err) => {
-                  logger.error('[Terminal] Background HubSpot sync for day-pass visitor failed', { extra: { error: getErrorMessage(err) } });
-                });
-              }
+              const crypto = await import('crypto');
+              const visitorId = crypto.randomUUID();
+              await db.execute(sql`INSERT INTO users (id, email, first_name, last_name, membership_status, stripe_customer_id, data_source, visitor_type, role, created_at, updated_at)
+                 VALUES (${visitorId}, ${metadata.ownerEmail}, ${firstName}, ${lastName}, 'visitor', ${customerId}, 'APP', 'day_pass', 'visitor', NOW(), NOW())
+                 ON CONFLICT (email) DO UPDATE SET
+                   stripe_customer_id = COALESCE(users.stripe_customer_id, EXCLUDED.stripe_customer_id),
+                   first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
+                   last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
+                   archived_at = NULL,
+                   archived_by = NULL,
+                   updated_at = NOW()`);
+              logger.info('[Terminal] Created/updated visitor record for POS customer', { extra: { metadataOwnerEmail: metadata.ownerEmail } });
+              
+              findOrCreateHubSpotContact(
+                metadata.ownerEmail,
+                firstName || '',
+                lastName || '',
+                undefined,
+                undefined,
+                { role: 'visitor' }
+              ).catch((err) => {
+                logger.error('[Terminal] Background HubSpot sync for day-pass visitor failed', { extra: { error: getErrorMessage(err) } });
+              });
             }
           } catch (visitorErr: unknown) {
             logger.warn('[Terminal] Could not create visitor record for new POS customer (non-blocking)', { extra: { visitorErr: getErrorMessage(visitorErr) } });
