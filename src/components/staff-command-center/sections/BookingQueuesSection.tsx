@@ -245,7 +245,7 @@ const UpcomingBookingsCard = memo<UpcomingBookingsCardProps>(({
             <EmptyState icon="calendar_today" title="No bookings today" variant="compact" />
           </div>
         ) : (
-          mergedUpcomingBookings.map((booking, _index) => {
+          mergedUpcomingBookings.map((booking, index) => {
             const isUnmatched = booking.is_unmatched;
             const cardClass = isUnmatched 
               ? 'bg-amber-50/80 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30' 
