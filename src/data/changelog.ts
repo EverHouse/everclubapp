@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.90",
+    date: "2026-03-28",
+    title: "Infrastructure Hardening & Edge Case Fixes",
+    changes: [
+      "Security: Rate limiters now extract the real client IP from X-Forwarded-For headers as a fallback, preventing global lockouts when all traffic shares a single proxy IP.",
+      "Fixed: Booking time parser now validates that hours and minutes are valid integers, returning a clean 400 error instead of crashing with NaN values on malformed time inputs.",
+      "Fixed: Conflict detection now checks linked email aliases, preventing members from double-booking by using different email addresses tied to the same account.",
+      "Fixed: Stripe webhook deduplication window extended from 7 to 30 days, preventing accidental re-processing of manually replayed old events.",
+    ]
+  },
+  {
     version: "8.97.89",
     date: "2026-03-28",
     title: "Webhook, Rate Limiting & Booking Guard Fixes",

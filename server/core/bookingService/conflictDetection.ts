@@ -157,7 +157,11 @@ export async function findConflictingBookings(
           br.user_email as owner_email
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
-        WHERE LOWER(br.user_email) = LOWER(${normalizedEmail})
+        WHERE (
+            LOWER(br.user_email) = LOWER(${normalizedEmail})
+            OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${normalizedEmail}))
+            OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${normalizedEmail}))
+          )
           AND br.request_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND br.status = ANY(${OCCUPIED_STATUSES})
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}

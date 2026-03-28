@@ -112,7 +112,12 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       return res.status(400).json({ error: 'Invalid duration. Must be a whole number between 1 and 480 minutes.' });
     }
     
-    const [hours, mins] = start_time.split(':').map(Number);
+    const [hoursStr, minsStr] = start_time.split(':');
+    const hours = Number(hoursStr);
+    const mins = Number(minsStr);
+    if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) {
+      return res.status(400).json({ error: 'Invalid start time format. Use HH:MM in 24-hour format.' });
+    }
     const totalMins = hours * 60 + mins + duration_minutes;
     const endHours = Math.floor(totalMins / 60);
     const endMins = totalMins % 60;

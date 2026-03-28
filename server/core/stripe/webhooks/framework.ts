@@ -8,7 +8,7 @@ import type { PoolClient } from 'pg';
 import { pool, safeRelease } from '../../db';
 import type { DeferredAction, StripeEventObject, CacheTransactionParams } from './types';
 
-const EVENT_DEDUP_WINDOW_DAYS = 7;
+const EVENT_DEDUP_WINDOW_DAYS = 30;
 
 export function extractResourceId(event: Stripe.Event): string | null {
   const obj = event.data?.object as unknown as StripeEventObject | undefined;
@@ -220,7 +220,7 @@ export async function upsertTransactionCache(params: CacheTransactionParams): Pr
 export async function cleanupOldProcessedEvents(): Promise<void> {
   try {
     const result = await db.delete(webhookProcessedEvents)
-      .where(lt(webhookProcessedEvents.processedAt, sql`NOW() - INTERVAL '7 days'`))
+      .where(lt(webhookProcessedEvents.processedAt, sql`NOW() - INTERVAL '30 days'`))
       .returning({ id: webhookProcessedEvents.id });
     if (result.length > 0) {
       logger.info(`[Stripe Webhook] Cleaned up ${result.length} old processed events (>${EVENT_DEDUP_WINDOW_DAYS} days)`);

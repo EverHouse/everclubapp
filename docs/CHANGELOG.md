@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.90] - 2026-03-28
+
+### Infrastructure Hardening & Edge Case Fixes
+- **Security**: Global IP lockout via proxy unawareness — all rate limiters (`getClientKey`, `authRateLimiterByIp`) used `req.ip` which, if `trust proxy` is misconfigured or Express fails to parse the header, returns the proxy's internal IP. All internet traffic collapses into one bucket, causing global 429 lockout after ~20 requests. Now explicitly parses `X-Forwarded-For` as a fallback to extract the real client IP. Note: `app.set('trust proxy', 1)` is already configured in `server/index.ts`.
+- **Fix**: Time parser coercion bypass — `start_time.split(':').map(Number)` on malformed inputs like `"09:00 AM"` produced `NaN`, bypassing the `endHours > 24` safety check (since `NaN > 24` is `false`) and attempting to insert `"NaN:NaN:00"` into PostgreSQL. Now validates parsed hours (0-23) and minutes (0-59) are valid integers before proceeding, returning a clean 400 error.
+- **Fix**: Linked-email evasion in conflict detection — `findConflictingBookings` only checked `LOWER(br.user_email) = LOWER(email)`, ignoring linked aliases in `user_linked_emails`. A member with `primary@co.com` and `alias@co.com` could double-book by using different emails. Now includes linked email subqueries matching the pattern already used in `booking-create.ts`.
+- **Fix**: Webhook dedup amnesia — `cleanupOldProcessedEvents` deleted records older than 7 days, but Stripe allows manual event replay up to 30 days. An admin replaying an 8-day-old `customer.subscription.deleted` would re-process it as new, potentially canceling a reactivated subscription. Extended window to 30 days.
+- **Files changed**: `server/middleware/rateLimiting.ts`, `server/routes/bays/booking-create.ts`, `server/core/bookingService/conflictDetection.ts`, `server/core/stripe/webhooks/framework.ts`
+
 ## [8.97.89] - 2026-03-28
 
 ### Webhook, Rate Limiting & Booking Guard Fixes
