@@ -5,7 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SwipeablePage from '../../components/SwipeablePage';
 import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
-import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific, addDaysToPacificDate } from '../../utils/dateUtils';
+import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 import { useNotificationStore } from '../../stores/notificationStore';
 import { useToast } from '../../components/Toast';
@@ -14,7 +14,6 @@ import { fetchWithCredentials, putWithCredentials } from '../../hooks/queries/us
 import Icon from '../../components/icons/Icon';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 
-const NOTICE_PREVIEW_DAYS = 7; // Show notices this many days before they start
 
 interface Closure {
   id: number;
@@ -177,8 +176,7 @@ const MemberUpdates: React.FC = () => {
         .filter((c: Closure) => {
           if (isStaffOrAdmin && !isViewingAsMember) return true;
           if (c.needsReview) return false;
-          const previewCutoffDate = addDaysToPacificDate(todayStr, NOTICE_PREVIEW_DAYS);
-          if (c.startDate > previewCutoffDate) return false;
+          if (c.startDate > todayStr) return false;
           const hasAffectedResources = c.affectedAreas && c.affectedAreas !== 'none';
           return hasAffectedResources || c.notifyMembers === true;
         })
@@ -465,18 +463,18 @@ const MemberUpdates: React.FC = () => {
 
   const renderNoticesTab = () => {
     const todayStr = getTodayPacific();
-    // Separate active (happening now) from upcoming
     const activeNotices = closures.filter(c => c.startDate <= todayStr);
     const upcomingNotices = closures.filter(c => c.startDate > todayStr);
+    const isStaffView = isStaffOrAdmin && !isViewingAsMember;
     
     return (
     <div className="relative z-10 pb-32">
       {closuresLoading ? (
         <PageLoadingSpinner />
-      ) : closures.length === 0 ? (
+      ) : (isStaffView ? closures.length === 0 : activeNotices.length === 0) ? (
         <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
           <Icon name="event_available" className="text-6xl mb-4 block mx-auto opacity-30" />
-          <p className="text-lg font-medium">No upcoming notices</p>
+          <p className="text-lg font-medium">No active notices</p>
           <p className="text-sm mt-1 opacity-70">The club is open as usual.</p>
         </div>
       ) : (
@@ -496,8 +494,8 @@ const MemberUpdates: React.FC = () => {
             </div>
           )}
           
-          {/* Upcoming Section */}
-          {upcomingNotices.length > 0 && (
+          {/* Upcoming Section — staff only */}
+          {isStaffView && upcomingNotices.length > 0 && (
             <div>
               <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 flex items-center gap-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`} style={{ fontFamily: 'var(--font-label)' }}>
                 <Icon name="schedule" className="text-sm" />
