@@ -1,6 +1,7 @@
 import { queryWithRetry } from '../db';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
+import { isRateLimitError } from './request';
 import type { ContactMembershipStatus } from './constants';
 
 export type HubSpotOperation = 
@@ -128,9 +129,11 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
     extra: { count: result.rows.length }
   });
   
+  let rateLimitHitInBatch = false;
   for (let _idx = 0; _idx < result.rows.length; _idx++) {
     if (_idx > 0) {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      const delay = rateLimitHitInBatch ? 3000 : 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
     const job = result.rows[_idx] as unknown as QueueJobRow;
     stats.processed++;
@@ -160,6 +163,9 @@ export async function processHubSpotQueue(batchSize: number = 10): Promise<{
       
     } catch (error: unknown) {
       const errorMsg = getErrorMessage(error);
+      if (isRateLimitError(error)) {
+        rateLimitHitInBatch = true;
+      }
       const isUnrecoverable = 
         errorMsg.includes('MISSING_SCOPES') || 
         errorMsg.includes('403') || 

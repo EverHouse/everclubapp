@@ -20,22 +20,50 @@ export function isRateLimitError(error: unknown): boolean {
   );
 }
 
+let lastRequestTime = 0;
+let consecutiveRateLimits = 0;
+const MIN_REQUEST_SPACING_MS = 120;
+const RATE_LIMIT_COOLDOWN_MS = 10_000;
+let throttleChain: Promise<void> = Promise.resolve();
+
+async function throttle(): Promise<void> {
+  const ticket = throttleChain.then(async () => {
+    const now = Date.now();
+    const spacing = consecutiveRateLimits > 0
+      ? Math.min(MIN_REQUEST_SPACING_MS * Math.pow(2, consecutiveRateLimits), RATE_LIMIT_COOLDOWN_MS)
+      : MIN_REQUEST_SPACING_MS;
+    const elapsed = now - lastRequestTime;
+    if (elapsed < spacing) {
+      await new Promise(resolve => setTimeout(resolve, spacing - elapsed));
+    }
+    lastRequestTime = Date.now();
+  });
+  throttleChain = ticket.catch(() => {});
+  return ticket;
+}
+
 export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<T> {
   return pRetry(
     async () => {
+      await throttle();
       try {
-        return await fn();
+        const result = await fn();
+        if (consecutiveRateLimits > 0) {
+          consecutiveRateLimits = Math.max(0, consecutiveRateLimits - 1);
+        }
+        return result;
       } catch (error: unknown) {
         if (isRateLimitError(error)) {
-          logger.warn('HubSpot Rate Limit hit, retrying...');
+          consecutiveRateLimits++;
+          logger.warn(`HubSpot Rate Limit hit (consecutive: ${consecutiveRateLimits}), backing off...`);
           throw error;
         }
         throw new AbortError(getErrorMessage(error));
       }
     },
     {
-      retries: 5,
-      minTimeout: 1000,
+      retries: 3,
+      minTimeout: 5000,
       maxTimeout: 30000,
       factor: 2
     }

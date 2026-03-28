@@ -122,7 +122,7 @@ export async function syncMemberToHubSpot(
             value: email.toLowerCase()
           }]
         }],
-        properties: ['email', 'membership_status', 'billing_provider', 'membership_tier', 'membership_billing_type', 'membership_start_date'],
+        properties: ['email', 'membership_status', 'billing_provider', 'membership_tier', 'membership_billing_type', 'membership_start_date', 'lifecyclestage'],
         limit: 1
       })
     );
@@ -262,7 +262,13 @@ export async function syncMemberToHubSpot(
     }
     
     let lifecycleCleared = false;
-    if (targetLifecycleStage) {
+    const currentLifecycle = searchResponse.results?.[0]?.properties?.lifecyclestage?.toLowerCase() || undefined;
+    const needsLifecycleClear = targetLifecycleStage != null && currentLifecycle != null && currentLifecycle !== targetLifecycleStage;
+    if (targetLifecycleStage && currentLifecycle === targetLifecycleStage) {
+      delete properties.lifecyclestage;
+      logger.info(`[HubSpot Sync] Lifecycle already '${targetLifecycleStage}' for ${email}, skipping lifecycle update`);
+    }
+    if (needsLifecycleClear) {
       try {
         await retryableHubSpotRequest(() =>
           hubspot.crm.contacts.basicApi.update(contactId, { properties: { lifecyclestage: '' } })
@@ -271,6 +277,10 @@ export async function syncMemberToHubSpot(
       } catch (clearError: unknown) {
         logger.warn(`[HubSpot Sync] Could not clear lifecyclestage for ${email} before setting to '${targetLifecycleStage}':`, { extra: { error: getErrorMessage(clearError) } });
       }
+    }
+    if (Object.keys(properties).length === 0) {
+      logger.info(`[HubSpot Sync] No properties need updating for ${email} (all current)`);
+      return { success: true, contactId, updated };
     }
 
     try {
