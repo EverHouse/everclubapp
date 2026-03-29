@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.96] - 2026-03-29
+
+### Fix: Apple Wallet Pass Authentication
+- **Fix**: Rewrote the Apple Wallet "Get serial numbers" endpoint (`GET /v1/devices/:deviceLibraryId/registrations/:passTypeId`) authentication to fix persistent 401 errors affecting multiple member devices. The previous implementation had ~200 lines of cascading fallback auth logic that still failed when a device's auth token got out of sync with the database. The new approach: (1) tries direct token validation first (fast path), (2) if that fails, looks up serial owners and checks if the token belongs to the same member (member-match fallback with token repair), (3) for single-member devices, accepts legitimate hex tokens (>=32 chars, matching system-generated format) and repairs the mapping. Multi-member devices without a member-match are rejected. Token repair only happens with a confirmed member ID. Added diagnostic logging for missing `Authorization` headers (previously returned 401 silently with no log).
+- **Root cause**: Devices had valid registrations and auth tokens in their passes, but the tokens in the `wallet_pass_auth_tokens` DB table had drifted (different token stored). All fallback paths queried by token first, so when the token wasn't in the DB at all, every fallback failed. The new single-member-device fallback doesn't require the token to exist in the DB.
+- **Files changed**: `server/routes/walletPassWebService.ts`
+
 ## [8.97.95] - 2026-03-29
 
 ### Bug Fixes: Payment Safety, Event Sync, and Input Validation

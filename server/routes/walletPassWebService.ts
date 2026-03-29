@@ -137,6 +137,9 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
 
     const authToken = extractAuthToken(req.headers.authorization);
     if (!authToken) {
+      logger.warn('[WalletPass WebService] Get serials rejected: missing ApplePass auth header', {
+        extra: { deviceLibraryId, passTypeId, registeredSerials }
+      });
       return res.status(401).send('Unauthorized');
     }
 
@@ -148,182 +151,66 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
         break;
       }
     }
-    if (!authValid) {
-      const tokenOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
-        .from(walletPassAuthTokens)
-        .where(eq(walletPassAuthTokens.authToken, authToken))
-        .limit(1);
-
-      if (tokenOwner.length > 0) {
-        const tokenMemberId = tokenOwner[0].memberId;
-        const serialOwners = await db.select({ serialNumber: walletPassAuthTokens.serialNumber, memberId: walletPassAuthTokens.memberId })
-          .from(walletPassAuthTokens)
-          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
-
-        const belongsToSameMember = serialOwners.some(s => s.memberId === tokenMemberId);
-        if (belongsToSameMember) {
-          authValid = true;
-          for (const serial of serialOwners.filter(s => s.memberId === tokenMemberId)) {
-            await db.update(walletPassAuthTokens)
-              .set({ authToken, updatedAt: new Date() })
-              .where(and(
-                eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
-                eq(walletPassAuthTokens.memberId, tokenMemberId),
-              ))
-              .catch((repairErr: unknown) => {
-                logger.warn('[WalletPass WebService] Failed to repair auth token for serial', {
-                  extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
-                });
-              });
-          }
-          logger.info('[WalletPass WebService] Auth validated via member fallback + repaired token mappings', {
-            extra: { deviceLibraryId, passTypeId, registeredSerials, memberId: tokenMemberId }
-          });
-        }
-      }
-
-      if (!authValid) {
-        const memberIdsForDevice = await db.select({ memberId: walletPassAuthTokens.memberId })
-          .from(walletPassAuthTokens)
-          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
-
-        if (memberIdsForDevice.length > 0) {
-          const memberIds = [...new Set(memberIdsForDevice.map(r => r.memberId))];
-          const fallbackResult = await db.select({ id: walletPassAuthTokens.id })
-            .from(walletPassAuthTokens)
-            .where(and(
-              eq(walletPassAuthTokens.authToken, authToken),
-              inArray(walletPassAuthTokens.memberId, memberIds),
-            ))
-            .limit(1);
-
-          if (fallbackResult.length > 0) {
-            authValid = true;
-            logger.info('[WalletPass WebService] Auth validated via reverse member fallback', {
-              extra: { deviceLibraryId, passTypeId, registeredSerials }
-            });
-          }
-        }
-      }
-    }
-    if (!authValid) {
-      const tokenMemberRows = await db.select({ memberId: walletPassAuthTokens.memberId })
-        .from(walletPassAuthTokens)
-        .where(eq(walletPassAuthTokens.authToken, authToken))
-        .limit(1);
-
-      if (tokenMemberRows.length > 0) {
-        const tokenMemberId = tokenMemberRows[0].memberId;
-        const deviceSerialOwners = await db.select({ memberId: walletPassAuthTokens.memberId })
-          .from(walletPassAuthTokens)
-          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
-
-        const deviceMemberIds = [...new Set(deviceSerialOwners.map(r => r.memberId))];
-        if (deviceMemberIds.includes(tokenMemberId)) {
-          authValid = true;
-          for (const serial of deviceSerialOwners.filter(s => s.memberId === tokenMemberId)) {
-            await db.update(walletPassAuthTokens)
-              .set({ authToken, updatedAt: new Date() })
-              .where(and(
-                eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
-                eq(walletPassAuthTokens.memberId, tokenMemberId),
-              ))
-              .catch((repairErr: unknown) => {
-                logger.warn('[WalletPass WebService] Failed to repair auth token in deep fallback', {
-                  extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
-                });
-              });
-          }
-          logger.info('[WalletPass WebService] Auth validated via deep member-device fallback + repaired tokens', {
-            extra: { deviceLibraryId, passTypeId, registeredSerials, memberId: tokenMemberId }
-          });
-        }
-      }
-    }
 
     if (!authValid) {
-      const tokenExists = await db.select({ id: walletPassAuthTokens.id, memberId: walletPassAuthTokens.memberId })
-        .from(walletPassAuthTokens)
-        .where(eq(walletPassAuthTokens.authToken, authToken))
-        .limit(1);
-
-      if (tokenExists.length === 0) {
-        const serialOwners = await db.select({
-          serialNumber: walletPassAuthTokens.serialNumber,
-          memberId: walletPassAuthTokens.memberId,
-        })
-          .from(walletPassAuthTokens)
-          .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
-
-        if (serialOwners.length > 0) {
-          const ownerMemberIds = [...new Set(serialOwners.map(s => s.memberId))];
-          if (ownerMemberIds.length === 1) {
-            const memberId = ownerMemberIds[0];
-            const memberPasses = await db.select({ serialNumber: walletPassAuthTokens.serialNumber, authToken: walletPassAuthTokens.authToken })
-              .from(walletPassAuthTokens)
-              .where(eq(walletPassAuthTokens.memberId, memberId));
-
-            const knownTokens = memberPasses.map(p => p.authToken);
-            const tokenLooksLegitimate = authToken.length >= 20 && /^[a-zA-Z0-9_-]+$/.test(authToken);
-            const memberHasOtherTokens = knownTokens.length > 0;
-
-            if (tokenLooksLegitimate && memberHasOtherTokens) {
-              authValid = true;
-              for (const serial of serialOwners) {
-                await db.update(walletPassAuthTokens)
-                  .set({ authToken, updatedAt: new Date() })
-                  .where(and(
-                    eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
-                    eq(walletPassAuthTokens.memberId, memberId),
-                  ))
-                  .catch((repairErr: unknown) => {
-                    logger.warn('[WalletPass WebService] Failed to repair auth token in serial-owner fallback', {
-                      extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
-                    });
-                  });
-              }
-              logger.info('[WalletPass WebService] Auth validated via serial-owner fallback + repaired tokens', {
-                extra: { deviceLibraryId, passTypeId, registeredSerials, memberId }
-              });
-            }
-          }
-        }
-      }
-    }
-
-    if (!authValid) {
-      const allSerialOwners = await db.select({
+      const serialOwners = await db.select({
         serialNumber: walletPassAuthTokens.serialNumber,
         memberId: walletPassAuthTokens.memberId,
       })
         .from(walletPassAuthTokens)
         .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
 
-      const uniqueMembers = [...new Set(allSerialOwners.map(s => s.memberId))];
-      if (uniqueMembers.length === 1) {
-        authValid = true;
-        const memberId = uniqueMembers[0];
-        for (const serial of allSerialOwners) {
-          await db.update(walletPassAuthTokens)
-            .set({ authToken, updatedAt: new Date() })
-            .where(and(
-              eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
-              eq(walletPassAuthTokens.memberId, memberId),
-            ))
-            .catch((repairErr: unknown) => {
-              logger.warn('[WalletPass WebService] Failed to repair auth token in single-member fallback', {
-                extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
-              });
+      if (serialOwners.length > 0) {
+        const tokenOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
+          .from(walletPassAuthTokens)
+          .where(eq(walletPassAuthTokens.authToken, authToken))
+          .limit(1);
+
+        const tokenMemberId = tokenOwner.length > 0 ? tokenOwner[0].memberId : null;
+        const ownerMemberIds = [...new Set(serialOwners.filter(s => s.memberId != null).map(s => s.memberId))];
+
+        let repairMemberId: string | null = null;
+
+        if (tokenMemberId && ownerMemberIds.includes(tokenMemberId)) {
+          authValid = true;
+          repairMemberId = tokenMemberId;
+          logger.info('[WalletPass WebService] Auth validated via member-match fallback', {
+            extra: { deviceLibraryId, passTypeId, registeredSerials, memberId: tokenMemberId }
+          });
+        } else if (ownerMemberIds.length === 1) {
+          const tokenLooksLegitimate = authToken.length >= 32 && /^[a-f0-9]+$/i.test(authToken);
+          if (tokenLooksLegitimate) {
+            authValid = true;
+            repairMemberId = ownerMemberIds[0];
+            logger.info('[WalletPass WebService] Auth validated via single-member device fallback (legitimate token)', {
+              extra: { deviceLibraryId, passTypeId, registeredSerials, memberId: ownerMemberIds[0] }
             });
+          }
         }
-        logger.info('[WalletPass WebService] Auth validated via single-member device fallback (token rotation) + repaired tokens', {
-          extra: { deviceLibraryId, passTypeId, registeredSerials, memberId }
-        });
+
+        if (authValid && repairMemberId) {
+          for (const serial of serialOwners.filter(s => s.memberId === repairMemberId)) {
+            await db.update(walletPassAuthTokens)
+              .set({ authToken, updatedAt: new Date() })
+              .where(and(
+                eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
+                eq(walletPassAuthTokens.memberId, repairMemberId),
+              ))
+              .catch((repairErr: unknown) => {
+                logger.warn('[WalletPass WebService] Failed to repair auth token', {
+                  extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
+                });
+              });
+          }
+          logger.info('[WalletPass WebService] Repaired auth token mappings for device', {
+            extra: { deviceLibraryId, memberId: repairMemberId, serialCount: serialOwners.filter(s => s.memberId === repairMemberId).length }
+          });
+        }
       }
     }
 
     if (!authValid) {
-      logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
+      logger.warn('[WalletPass WebService] Auth failed for device after all fallbacks', {
         extra: { deviceLibraryId, passTypeId, registeredSerials }
       });
       return res.status(401).send('Unauthorized');
