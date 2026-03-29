@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.93] - 2026-03-29
+
+### Add to Calendar Fix for iOS
+- **Fix**: `downloadICalFile()` in `src/utils/icalUtils.ts` used `URL.createObjectURL()` + programmatic `link.click()` which iOS Safari silently blocks. On iOS/Safari, now uses `data:text/calendar` URI with `window.open('_blank')` which triggers Safari's native .ics handler and opens the Calendar app. Desktop browsers still use the Blob download approach.
+- **Files changed**: `src/utils/icalUtils.ts`
+- **Consumers**: `src/pages/Member/Events.tsx` (Add to Cal button), `src/pages/Member/Dashboard/ScheduleSection.tsx` (booking/wellness calendar add)
+
 ## [8.97.92] - 2026-03-29
 
 ### Bug Fixes & Reliability

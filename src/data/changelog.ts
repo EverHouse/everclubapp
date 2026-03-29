@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.93",
+    date: "2026-03-29",
+    title: "Add to Calendar Fix for iPhone",
+    changes: [
+      "Fixed: \"Add to Cal\" button on Events and Dashboard now works on iPhones and Safari. Previously, tapping the button did nothing on iOS devices.",
+    ]
+  },
+  {
     version: "8.97.92",
     date: "2026-03-29",
     title: "Stability & Reliability Improvements",

@@ -102,12 +102,22 @@ export function downloadICalFile(event: {
   ].filter(Boolean).join('\r\n');
 
   const filename = customFilename || `${event.title.replace(/[^a-z0-9]/gi, '_')}.ics`;
-  const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(link.href);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if (isIOS || isSafari) {
+    const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icalContent);
+    window.open(dataUri, '_blank');
+  } else {
+    const blob = new Blob([icalContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  }
 }
