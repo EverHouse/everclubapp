@@ -88,15 +88,78 @@ const ProgressBar: React.FC<{ duration: number; isExiting: boolean; color: strin
   );
 };
 
-const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: boolean }> = ({ toast, onDismiss, isDark }) => {
+const SWIPE_THRESHOLD = 80;
+type SwipeState = 'idle' | 'dragging' | 'snapping-back' | 'swiping-out';
+
+const ToastItem: React.FC<{
+  toast: ToastMessage;
+  onDismiss: () => void;
+  onSwipeDismiss: () => void;
+  isDark: boolean;
+}> = ({ toast, onDismiss, onSwipeDismiss, isDark }) => {
   const duration = toast.duration || 3000;
   const borderColor = getBorderColor(toast.type);
 
+  const [swipeX, setSwipeX] = useState(0);
+  const [swipeState, setSwipeState] = useState<SwipeState>('idle');
+
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isHorizontalSwipe = useRef(false);
+  const currentSwipeX = useRef(0);
+  const onSwipeDismissRef = useRef(onSwipeDismiss);
+  onSwipeDismissRef.current = onSwipeDismiss;
+
   useEffect(() => {
     if (toast.isExiting) return;
+    if (swipeState === 'dragging' || swipeState === 'swiping-out') return;
     const timer = setTimeout(onDismiss, duration);
     return () => clearTimeout(timer);
-  }, [duration, toast.isExiting, onDismiss]);
+  }, [duration, toast.isExiting, onDismiss, swipeState]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isHorizontalSwipe.current = false;
+    currentSwipeX.current = 0;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+
+    if (!isHorizontalSwipe.current) {
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      if (absX < 8 && absY < 8) return;
+      if (absY >= absX) return;
+      isHorizontalSwipe.current = true;
+    }
+
+    e.preventDefault();
+    currentSwipeX.current = deltaX;
+    setSwipeX(deltaX);
+    setSwipeState('dragging');
+  };
+
+  const handleTouchEnd = () => {
+    if (!isHorizontalSwipe.current) return;
+    isHorizontalSwipe.current = false;
+
+    const finalX = currentSwipeX.current;
+
+    if (Math.abs(finalX) >= SWIPE_THRESHOLD) {
+      const dir = finalX > 0 ? 1 : -1;
+      setSwipeX(dir * 420);
+      setSwipeState('swiping-out');
+      setTimeout(() => onSwipeDismissRef.current(), 220);
+    } else {
+      setSwipeX(0);
+      currentSwipeX.current = 0;
+      setSwipeState('snapping-back');
+      setTimeout(() => setSwipeState('idle'), 350);
+    }
+  };
 
   const handleActionClick = () => {
     if (toast.action) {
@@ -105,56 +168,79 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void; isDark: 
     }
   };
 
+  const isDragging = swipeState === 'dragging';
+  const isSwipingOut = swipeState === 'swiping-out';
+
+  const swipeOpacity = isDragging || isSwipingOut
+    ? Math.max(0, 1 - Math.abs(swipeX) / 180)
+    : 1;
+
+  const swipeTransition = isDragging
+    ? 'none'
+    : isSwipingOut
+      ? 'transform 0.2s ease-out, opacity 0.2s ease-out'
+      : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease';
+
   return (
     <div
-      className={`relative overflow-hidden rounded-xl pointer-events-auto
-        ${toast.isExiting ? 'toast-slide-out' : 'toast-slide-in'}
-        ${isDark ? 'bg-white/[0.08] border border-white/[0.12]' : 'bg-white/80 border border-black/[0.06]'}
-      `}
-      style={{
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderLeft: `3px solid ${borderColor}`,
-        boxShadow: isDark
-          ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)'
-          : '0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-        minWidth: '280px',
-        maxWidth: '420px',
-      }}
-      role={toast.type === 'error' ? 'alert' : 'status'}
-      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      className={`pointer-events-auto ${toast.isExiting ? 'toast-slide-out' : 'toast-slide-in'}`}
     >
-      <div className="flex items-start gap-3 pl-4 pr-2 py-3">
-        <Icon name={getIconForType(toast.type)} className={`text-xl mt-0.5 flex-shrink-0 ${getIconColor(toast.type)}`} />
-        <div className="flex-1 min-w-0">
-          <p className={`text-xs font-bold tracking-wide uppercase ${isDark ? 'text-white/90' : 'text-gray-900'}`}>
-            {getTitleForType(toast.type)}
-          </p>
-          <p className={`text-sm mt-0.5 leading-snug ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-            {toast.message}
-          </p>
-        </div>
-        {toast.action && (
+      <div
+        className={`relative overflow-hidden rounded-xl
+          ${isDark ? 'bg-white/[0.08] border border-white/[0.12]' : 'bg-white/80 border border-black/[0.06]'}
+        `}
+        style={{
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderLeft: `3px solid ${borderColor}`,
+          boxShadow: isDark
+            ? '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)'
+            : '0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+          minWidth: '280px',
+          maxWidth: '420px',
+          transform: `translateX(${swipeX}px)`,
+          opacity: swipeOpacity,
+          transition: swipeTransition,
+          touchAction: 'pan-y',
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        role={toast.type === 'error' ? 'alert' : 'status'}
+        aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      >
+        <div className="flex items-start gap-3 pl-4 pr-2 py-3">
+          <Icon name={getIconForType(toast.type)} className={`text-xl mt-0.5 flex-shrink-0 ${getIconColor(toast.type)}`} />
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs font-bold tracking-wide uppercase ${isDark ? 'text-white/90' : 'text-gray-900'}`}>
+              {getTitleForType(toast.type)}
+            </p>
+            <p className={`text-sm mt-0.5 leading-snug ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+              {toast.message}
+            </p>
+          </div>
+          {toast.action && (
+            <button
+              onClick={handleActionClick}
+              className={`tactile-btn px-3 py-1 rounded-lg text-xs font-semibold transition-colors flex-shrink-0 ${
+                isDark ? 'text-white/90 hover:bg-white/15 bg-white/10' : 'text-gray-800 hover:bg-black/10 bg-black/5'
+              }`}
+            >
+              {toast.action.label}
+            </button>
+          )}
           <button
-            onClick={handleActionClick}
-            className={`tactile-btn px-3 py-1 rounded-lg text-xs font-semibold transition-colors flex-shrink-0 ${
-              isDark ? 'text-white/90 hover:bg-white/15 bg-white/10' : 'text-gray-800 hover:bg-black/10 bg-black/5'
+            onClick={onDismiss}
+            className={`tactile-btn p-1.5 rounded-lg transition-colors flex-shrink-0 ${
+              isDark ? 'hover:bg-white/10 text-white/40 hover:text-white/70' : 'hover:bg-black/5 text-gray-400 hover:text-gray-600'
             }`}
+            aria-label="Dismiss notification"
           >
-            {toast.action.label}
+            <Icon name="close" className="text-[16px]" />
           </button>
-        )}
-        <button
-          onClick={onDismiss}
-          className={`tactile-btn p-1.5 rounded-lg transition-colors flex-shrink-0 ${
-            isDark ? 'hover:bg-white/10 text-white/40 hover:text-white/70' : 'hover:bg-black/5 text-gray-400 hover:text-gray-600'
-          }`}
-          aria-label="Dismiss notification"
-        >
-          <Icon name="close" className="text-[16px]" />
-        </button>
+        </div>
+        <ProgressBar duration={duration} isExiting={toast.isExiting || false} color={borderColor} />
       </div>
-      <ProgressBar duration={duration} isExiting={toast.isExiting || false} color={borderColor} />
     </div>
   );
 };
@@ -163,7 +249,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const { effectiveTheme } = useTheme();
   const isDarkTheme = effectiveTheme === 'dark';
-  
+
   const recentToastsRef = useRef<Array<{ message: string; type: ToastType; timestamp: number }>>([]);
 
   const showToast = useCallback((message: string, type: ToastType = 'success', duration: number = 3000, key?: string, action?: ToastAction) => {
@@ -179,7 +265,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAt: Date.now(),
           action,
         };
-        
+
         if (existingIndex !== -1) {
           const updated = [...prev];
           updated[existingIndex] = newToast;
@@ -207,10 +293,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const hideToast = useCallback((id: string) => {
     setToasts(prev => prev.map(t => t.id === id ? { ...t, isExiting: true } : t));
-    
+
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 300);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
   return (
@@ -221,10 +311,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         style={{ zIndex: 'var(--z-toast)', maxWidth: '420px' }}
       >
         {toasts.map(toast => (
-          <ToastItem 
-            key={toast.id} 
-            toast={toast} 
-            onDismiss={() => hideToast(toast.id)} 
+          <ToastItem
+            key={toast.id}
+            toast={toast}
+            onDismiss={() => hideToast(toast.id)}
+            onSwipeDismiss={() => removeToast(toast.id)}
             isDark={isDarkTheme}
           />
         ))}
