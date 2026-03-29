@@ -89,14 +89,13 @@ const ProgressBar: React.FC<{ duration: number; isExiting: boolean; color: strin
 };
 
 const SWIPE_THRESHOLD = 80;
-type SwipeState = 'idle' | 'dragging' | 'snapping-back' | 'swiping-out';
+type SwipeState = 'idle' | 'dragging' | 'snapping-back';
 
 const ToastItem: React.FC<{
   toast: ToastMessage;
   onDismiss: () => void;
-  onSwipeDismiss: () => void;
   isDark: boolean;
-}> = ({ toast, onDismiss, onSwipeDismiss, isDark }) => {
+}> = ({ toast, onDismiss, isDark }) => {
   const duration = toast.duration || 3000;
   const borderColor = getBorderColor(toast.type);
 
@@ -107,15 +106,47 @@ const ToastItem: React.FC<{
   const touchStartY = useRef(0);
   const isHorizontalSwipe = useRef(false);
   const currentSwipeX = useRef(0);
-  const onSwipeDismissRef = useRef(onSwipeDismiss);
-  onSwipeDismissRef.current = onSwipeDismiss;
+
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timerStartRef = useRef<number>(Date.now());
+  const remainingRef = useRef<number>(duration);
+
+  const startTimer = useCallback((ms: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerStartRef.current = Date.now();
+    timerRef.current = setTimeout(() => onDismissRef.current(), ms);
+  }, []);
+
+  const pauseTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+      const elapsed = Date.now() - timerStartRef.current;
+      remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+    }
+  }, []);
+
+  const resumeTimer = useCallback(() => {
+    if (!toast.isExiting && remainingRef.current > 0) {
+      startTimer(remainingRef.current);
+    }
+  }, [toast.isExiting, startTimer]);
 
   useEffect(() => {
-    if (toast.isExiting) return;
-    if (swipeState === 'dragging' || swipeState === 'swiping-out') return;
-    const timer = setTimeout(onDismiss, duration);
-    return () => clearTimeout(timer);
-  }, [duration, toast.isExiting, onDismiss, swipeState]);
+    if (toast.isExiting) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
+    remainingRef.current = duration;
+    startTimer(duration);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration, toast.isExiting]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -134,12 +165,13 @@ const ToastItem: React.FC<{
       if (absX < 8 && absY < 8) return;
       if (absY >= absX) return;
       isHorizontalSwipe.current = true;
+      pauseTimer();
+      setSwipeState('dragging');
     }
 
     e.preventDefault();
     currentSwipeX.current = deltaX;
     setSwipeX(deltaX);
-    setSwipeState('dragging');
   };
 
   const handleTouchEnd = () => {
@@ -149,16 +181,24 @@ const ToastItem: React.FC<{
     const finalX = currentSwipeX.current;
 
     if (Math.abs(finalX) >= SWIPE_THRESHOLD) {
-      const dir = finalX > 0 ? 1 : -1;
-      setSwipeX(dir * 420);
-      setSwipeState('swiping-out');
-      setTimeout(() => onSwipeDismissRef.current(), 220);
+      onDismissRef.current();
     } else {
       setSwipeX(0);
       currentSwipeX.current = 0;
       setSwipeState('snapping-back');
       setTimeout(() => setSwipeState('idle'), 350);
+      resumeTimer();
     }
+  };
+
+  const handleTouchCancel = () => {
+    if (!isHorizontalSwipe.current) return;
+    isHorizontalSwipe.current = false;
+    setSwipeX(0);
+    currentSwipeX.current = 0;
+    setSwipeState('snapping-back');
+    setTimeout(() => setSwipeState('idle'), 350);
+    resumeTimer();
   };
 
   const handleActionClick = () => {
@@ -169,17 +209,14 @@ const ToastItem: React.FC<{
   };
 
   const isDragging = swipeState === 'dragging';
-  const isSwipingOut = swipeState === 'swiping-out';
 
-  const swipeOpacity = isDragging || isSwipingOut
+  const swipeOpacity = isDragging
     ? Math.max(0, 1 - Math.abs(swipeX) / 180)
     : 1;
 
   const swipeTransition = isDragging
     ? 'none'
-    : isSwipingOut
-      ? 'transform 0.2s ease-out, opacity 0.2s ease-out'
-      : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease';
+    : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease';
 
   return (
     <div
@@ -206,6 +243,7 @@ const ToastItem: React.FC<{
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         role={toast.type === 'error' ? 'alert' : 'status'}
         aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
       >
@@ -299,10 +337,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 300);
   }, []);
 
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
-
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
       {children}
@@ -315,7 +349,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             key={toast.id}
             toast={toast}
             onDismiss={() => hideToast(toast.id)}
-            onSwipeDismiss={() => removeToast(toast.id)}
             isDark={isDarkTheme}
           />
         ))}
