@@ -1035,6 +1035,28 @@ export async function applyFeeBreakdownToParticipants(
   try {
     await db.transaction(async (tx) => {
       const participantsWithIds = breakdown.participants.filter(p => p.participantId);
+      const orphanItems = breakdown.participants
+        .filter(p => !p.participantId && p.totalCents > 0 && !(p as { _foldedIntoOwner?: boolean })._foldedIntoOwner);
+      const orphanFees = orphanItems.reduce((sum, p) => sum + p.totalCents, 0);
+
+      if (orphanFees > 0) {
+        const ownerLineItem = participantsWithIds.find(p => p.participantType === 'owner') ||
+                              participantsWithIds.find(p => p.participantType === 'member');
+        if (ownerLineItem) {
+          ownerLineItem.totalCents += orphanFees;
+          for (const item of orphanItems) {
+            (item as { _foldedIntoOwner?: boolean })._foldedIntoOwner = true;
+          }
+          logger.info('[UnifiedFeeService] Folded orphan fees (empty slots) into owner cached_fee_cents', {
+            extra: { sessionId, orphanFees, ownerId: ownerLineItem.participantId, newTotal: ownerLineItem.totalCents }
+          });
+        } else {
+          logger.warn('[UnifiedFeeService] Orphan fees exist but no owner/member participant to absorb them', {
+            extra: { sessionId, orphanFees }
+          });
+        }
+      }
+
       const idsToUpdate = participantsWithIds.map(p => p.participantId!);
       const feesToUpdate = participantsWithIds.map(p => p.totalCents);
       const passesToUpdate = participantsWithIds.map(p => p.guestPassUsed || false);
