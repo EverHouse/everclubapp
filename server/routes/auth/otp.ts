@@ -284,36 +284,41 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       });
     }
     
-    const isStaffOrAdmin = await isStaffOrAdminEmail(normalizedEmail);
+    const resendClientPromise = getResendClient().catch((err: unknown) => {
+      logger.error('[Auth] Failed to pre-warm Resend client', { extra: { error: getErrorMessage(err) } });
+      return null;
+    });
     
-    const dbUser = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1);
-    const hasDbUser = dbUser.length > 0;
-    const isStripeBilled = hasDbUser && (dbUser[0].stripeSubscriptionId || dbUser[0].stripeCustomerId);
+    const [staffOrAdminFlag, dbUserResult] = await Promise.all([
+      isStaffOrAdminEmail(normalizedEmail),
+      db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1)
+    ]);
+    const isStaffOrAdminUser = staffOrAdminFlag;
+    const hasDbUser = dbUserResult.length > 0;
+    const isStripeBilled = hasDbUser && (dbUserResult[0].stripeSubscriptionId || dbUserResult[0].stripeCustomerId);
     
-    let firstName = isStaffOrAdmin ? 'Team Member' : 'Member';
+    let firstName = isStaffOrAdminUser ? 'Team Member' : 'Member';
     
-    if (hasDbUser && isStripeBilled && !isStaffOrAdmin) {
-      const dbMemberStatus = (dbUser[0].membershipStatus || '').toLowerCase();
+    if (hasDbUser && isStripeBilled && !isStaffOrAdminUser) {
+      const dbMemberStatus = (dbUserResult[0].membershipStatus || '').toLowerCase();
       const activeStatuses = ['active', 'trialing', 'past_due'];
       
-      if (!activeStatuses.includes(dbMemberStatus) && dbUser[0].stripeSubscriptionId) {
+      if (!activeStatuses.includes(dbMemberStatus) && dbUserResult[0].stripeSubscriptionId) {
         try {
           const { getStripeClient } = await import('../../core/stripe/client');
           const stripe = await getStripeClient();
-          const subscription = await stripe.subscriptions.retrieve(dbUser[0].stripeSubscriptionId);
+          const subscription = await stripe.subscriptions.retrieve(dbUserResult[0].stripeSubscriptionId);
           
           const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
           if (stripeActiveStatuses.includes(subscription.status)) {
-            await db.update(users).set({ membershipStatus: subscription.status, updatedAt: new Date() }).where(eq(users.id, dbUser[0].id));
+            await db.update(users).set({ membershipStatus: subscription.status, updatedAt: new Date() }).where(eq(users.id, dbUserResult[0].id));
             logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus, subscriptionStatus: subscription.status } });
             
-            try {
-              const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
-              await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
-              logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
-            } catch (hubspotError: unknown) {
-              logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } });
-            }
+            void import('../../core/hubspot/stages').then(({ syncMemberToHubSpot }) =>
+              syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' })
+                .then(() => logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } }))
+                .catch((hubspotError: unknown) => logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } }))
+            ).catch((importErr: unknown) => logger.error('[Auth] Failed to import HubSpot stages module', { extra: { error: getErrorMessage(importErr) } }));
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
@@ -325,10 +330,10 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
         return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
       }
       
-      if (dbUser[0].firstName) {
-        firstName = dbUser[0].firstName;
+      if (dbUserResult[0].firstName) {
+        firstName = dbUserResult[0].firstName;
       }
-    } else if (!isStaffOrAdmin) {
+    } else if (!isStaffOrAdminUser) {
       const hubspot = await getHubSpotClient();
       
       const searchResponse = await retryableHubSpotRequest(() => hubspot.crm.contacts.searchApi.doSearch({
@@ -339,7 +344,7 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
             value: normalizedEmail
           }]
         }],
-        properties: ['firstname', 'lastname', 'membership_status', 'email'],
+        properties: ['firstname', 'membership_status', 'email'],
         limit: 1
       }));
       
@@ -359,10 +364,10 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       
       if (contact?.properties?.firstname) {
         firstName = contact.properties.firstname;
-      } else if (hasDbUser && dbUser[0].firstName) {
-        firstName = dbUser[0].firstName;
+      } else if (hasDbUser && dbUserResult[0].firstName) {
+        firstName = dbUserResult[0].firstName;
       }
-    } else if (isStaffOrAdmin) {
+    } else if (isStaffOrAdminUser) {
       const staffUser = await getStaffUserByEmail(normalizedEmail);
       if (staffUser?.firstName) {
         firstName = staffUser.firstName;
@@ -372,14 +377,17 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
-    await db.insert(magicLinks).values({
-      email: normalizedEmail,
-      token: otpCode,
-      expiresAt,
-      used: false
-    });
+    const [, preWarmedClient] = await Promise.all([
+      db.insert(magicLinks).values({
+        email: normalizedEmail,
+        token: otpCode,
+        expiresAt,
+        used: false
+      }),
+      resendClientPromise
+    ]);
     
-    const { client: resendClient, fromEmail: resendFrom } = await getResendClient();
+    const { client: resendClient, fromEmail: resendFrom } = preWarmedClient || await getResendClient();
     
     const emailHtml = getOtpEmailHtml({ code: otpCode, firstName, logoUrl: 'https://everclub.app/images/everclub-logo-dark.png' });
     

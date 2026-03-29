@@ -155,25 +155,15 @@ async function checkHubSpot(): Promise<ServiceHealth> {
 
 async function checkResend(): Promise<ServiceHealth> {
   try {
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      return {
-        status: 'unhealthy',
-        message: 'Resend API key not configured',
-        lastChecked: new Date().toISOString()
-      };
-    }
-
     const { latencyMs, error } = await checkWithTimeout(
       async () => {
-        const response = await fetch('https://api.resend.com/api-keys', {
-          headers: { Authorization: `Bearer ${resendApiKey}` }
-        });
-        if (response.status === 401) {
-          throw new Error('API key invalid or expired');
+        const { getResendClient } = await import('../utils/resend');
+        const { client } = await getResendClient();
+        const response = await client.domains.list();
+        if (!response.data) {
+          throw new Error('Failed to list domains');
         }
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
+        return response;
       },
       5000
     );
