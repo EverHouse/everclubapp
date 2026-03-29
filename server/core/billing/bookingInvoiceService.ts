@@ -1630,7 +1630,7 @@ export async function checkBookingPaymentStatus(params: {
   const hasCompletedSnapshot = feeSnapshotCheck.rows.length > 0;
   const hasPaidFees = paidCount > 0;
 
-  let allPaid = !hasEmptySlots && (
+  let allPaid = (
     (hasCompletedSnapshot && pendingFeeCount === 0) ||
     (pendingFeeCount === 0 && hasPaidFees)
   );
