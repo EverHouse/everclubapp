@@ -446,7 +446,7 @@ export async function runStartupTasks(): Promise<void> {
     if (databaseUrl) {
       logger.info('[Stripe] Initializing Stripe schema...');
       const migrationUrl = new URL(databaseUrl);
-      migrationUrl.searchParams.set('options', '-c statement_timeout=30000');
+      migrationUrl.searchParams.set('options', '-c statement_timeout=60000');
       await retryWithBackoff(() => runMigrations({ databaseUrl: migrationUrl.toString(), schema: 'stripe' } as unknown as Parameters<typeof runMigrations>[0]), 'Stripe schema migration', 5);
       logger.info('[Stripe] Schema ready');
 

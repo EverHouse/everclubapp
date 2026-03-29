@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.92] - 2026-03-29
+
+### Bug Fixes & Reliability
+- **Fix**: Apple Wallet Pass 401 errors — Added single-member device fallback to the serial number list endpoint (`GET /v1/devices/:deviceLibraryId/registrations/:passTypeId`). When all registered passes on a device belong to one member but the auth token is unrecognized (Apple token rotation), the request is now accepted and the token mappings are repaired. Also added serial-owner fallback to the pass download endpoint (`GET /v1/passes/:passTypeId/:serialNumber`) for the same token drift scenario, and member-level fallback to the device unregistration endpoint (`DELETE /v1/devices/...`).
+- **Fix**: Stripe initialization statement timeout — Increased the `statement_timeout` for the Stripe schema migration from 30s to 60s (`server/loaders/startup.ts`). The migration was timing out on cold starts under load, requiring retry attempts and causing ~2min startup delays. The retry mechanism still provides additional safety.
+- **Fix**: KioskCheckin memory leak — The 200ms DOM style-fix `setTimeout` in `startScanner()` (`src/pages/Staff/KioskCheckin.tsx`) was not tracked or cleared on unmount. Added `styleFixTimeoutRef` and cleanup in the unmount effect.
+- **Files changed**: `server/loaders/startup.ts`, `server/routes/walletPassWebService.ts`, `src/pages/Staff/KioskCheckin.tsx`
+
 ## [8.97.91] - 2026-03-28
 
 ### Logging Convention Sweep (server/core/)

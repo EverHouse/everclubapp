@@ -91,6 +91,7 @@ const KioskCheckin: React.FC = () => {
   const hasScannedRef = useRef(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const passcodeSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const styleFixTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const passcodeSubmittingRef = useRef(false);
 
   const elementId = useMemo(() => `kiosk-qr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -210,7 +211,7 @@ const KioskCheckin: React.FC = () => {
       );
       scannerStartedRef.current = true;
       clearTimeout(initTimeout);
-      setTimeout(() => {
+      const styleFixTimeout = setTimeout(() => {
         const container = document.getElementById(elementId);
         if (container) {
           container.querySelectorAll('div').forEach(div => {
@@ -223,6 +224,7 @@ const KioskCheckin: React.FC = () => {
           });
         }
       }, 200);
+      styleFixTimeoutRef.current = styleFixTimeout;
     } catch (err: unknown) {
       clearTimeout(initTimeout);
       setCameraError(`Camera error: ${err instanceof Error ? err.message : String(err)}`);
@@ -257,6 +259,7 @@ const KioskCheckin: React.FC = () => {
     return () => {
       stopScanner();
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      if (styleFixTimeoutRef.current) clearTimeout(styleFixTimeoutRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [stopScanner]);

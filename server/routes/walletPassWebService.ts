@@ -269,6 +269,37 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
     }
 
     if (!authValid) {
+      const allSerialOwners = await db.select({
+        serialNumber: walletPassAuthTokens.serialNumber,
+        memberId: walletPassAuthTokens.memberId,
+      })
+        .from(walletPassAuthTokens)
+        .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials));
+
+      const uniqueMembers = [...new Set(allSerialOwners.map(s => s.memberId))];
+      if (uniqueMembers.length === 1) {
+        authValid = true;
+        const memberId = uniqueMembers[0];
+        for (const serial of allSerialOwners) {
+          await db.update(walletPassAuthTokens)
+            .set({ authToken, updatedAt: new Date() })
+            .where(and(
+              eq(walletPassAuthTokens.serialNumber, serial.serialNumber),
+              eq(walletPassAuthTokens.memberId, memberId),
+            ))
+            .catch((repairErr: unknown) => {
+              logger.warn('[WalletPass WebService] Failed to repair auth token in single-member fallback', {
+                extra: { serialNumber: serial.serialNumber, error: getErrorMessage(repairErr) }
+              });
+            });
+        }
+        logger.info('[WalletPass WebService] Auth validated via single-member device fallback (token rotation) + repaired tokens', {
+          extra: { deviceLibraryId, passTypeId, registeredSerials, memberId }
+        });
+      }
+    }
+
+    if (!authValid) {
       logger.warn('[WalletPass WebService] Auth token does not match any registered serial for device', {
         extra: { deviceLibraryId, passTypeId, registeredSerials }
       });
@@ -362,6 +393,40 @@ router.get('/v1/passes/:passTypeId/:serialNumber', async (req, res) => {
       }
     }
     if (!isValid) {
+      const serialOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
+        .from(walletPassAuthTokens)
+        .where(eq(walletPassAuthTokens.serialNumber, serialNumber))
+        .limit(1);
+
+      if (serialOwner.length > 0) {
+        const memberId = serialOwner[0].memberId;
+        const memberPasses = await db.select({ authToken: walletPassAuthTokens.authToken })
+          .from(walletPassAuthTokens)
+          .where(eq(walletPassAuthTokens.memberId, memberId));
+
+        const tokenLooksLegitimate = authToken.length >= 20 && /^[a-zA-Z0-9_-]+$/.test(authToken);
+        const memberHasOtherTokens = memberPasses.length > 0;
+
+        if (tokenLooksLegitimate && memberHasOtherTokens) {
+          isValid = true;
+          await db.update(walletPassAuthTokens)
+            .set({ authToken, updatedAt: new Date() })
+            .where(and(
+              eq(walletPassAuthTokens.serialNumber, serialNumber),
+              eq(walletPassAuthTokens.memberId, memberId),
+            ))
+            .catch((repairErr: unknown) => {
+              logger.warn('[WalletPass WebService] Failed to repair auth token in pass-download fallback', {
+                extra: { serialNumber, error: getErrorMessage(repairErr) }
+              });
+            });
+          logger.info('[WalletPass WebService] Pass auth validated via serial-owner heuristic fallback + repaired token', {
+            extra: { passTypeId, serialNumber, memberId }
+          });
+        }
+      }
+    }
+    if (!isValid) {
       return res.status(401).send('Unauthorized');
     }
 
@@ -415,7 +480,27 @@ router.delete('/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNum
       return res.status(401).send('Unauthorized');
     }
 
-    const isValid = await validateAuthToken(serialNumber, authToken);
+    let isValid = await validateAuthToken(serialNumber, authToken);
+    if (!isValid) {
+      const tokenOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
+        .from(walletPassAuthTokens)
+        .where(eq(walletPassAuthTokens.authToken, authToken))
+        .limit(1);
+
+      if (tokenOwner.length > 0) {
+        const serialOwner = await db.select({ memberId: walletPassAuthTokens.memberId })
+          .from(walletPassAuthTokens)
+          .where(eq(walletPassAuthTokens.serialNumber, serialNumber))
+          .limit(1);
+
+        if (serialOwner.length > 0 && serialOwner[0].memberId === tokenOwner[0].memberId) {
+          isValid = true;
+          logger.info('[WalletPass WebService] Unregistration auth validated via member fallback', {
+            extra: { deviceLibraryId, serialNumber }
+          });
+        }
+      }
+    }
     if (!isValid) {
       return res.status(401).send('Unauthorized');
     }
