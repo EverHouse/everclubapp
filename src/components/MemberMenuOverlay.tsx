@@ -46,7 +46,8 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
   const [isClosing, setIsClosing] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const originalBgRef = useRef<string>('');
+  const originalBodyBgRef = useRef<string>('');
+  const originalHtmlBgRef = useRef<string>('');
   const scrollingRef = useRef(false);
   const touchStartYRef = useRef<number | null>(null);
   const scrollCooldownRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,24 +60,18 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      originalBgRef.current = document.body.style.backgroundColor || '';
+      originalBodyBgRef.current = document.body.style.backgroundColor || '';
+      originalHtmlBgRef.current = document.documentElement.style.backgroundColor || '';
       document.documentElement.style.backgroundColor = menuBgColor;
       document.body.style.backgroundColor = menuBgColor;
-      document.querySelectorAll('meta[name="theme-color"]').forEach(el => el.setAttribute('content', menuBgColor));
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsVisible(true);
       setIsClosing(false);
     } else if (isVisible) {
       setIsClosing(true);
       timerRef.current = setTimeout(() => {
-        if (originalBgRef.current) {
-          document.documentElement.style.backgroundColor = originalBgRef.current;
-          document.body.style.backgroundColor = originalBgRef.current;
-        }
-        const metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
-        const metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
-        if (metaLight) metaLight.setAttribute('content', '#293515');
-        if (metaDark) metaDark.setAttribute('content', '#1a2310');
+        document.documentElement.style.backgroundColor = originalHtmlBgRef.current;
+        document.body.style.backgroundColor = originalBodyBgRef.current;
         setIsVisible(false);
         setIsClosing(false);
         timerRef.current = null;
