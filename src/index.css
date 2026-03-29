@@ -3273,11 +3273,11 @@ body[data-ptr-active="true"]:has(.ptr-refresh-overlay) header[role="banner"] {
 }
 
 .ptr-refresh-text {
-  font-family: 'Instrument Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255,255,255,0.8);
-  letter-spacing: 0.5px;
+  font-family: 'Newsreader', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.85);
 }
 
 /* Confetti Celebration */
