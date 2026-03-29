@@ -160,10 +160,10 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
       return {
         participantId: p.id,
         displayName: p.display_name || 'Unknown',
-        participantType: p.participant_type as 'owner' | 'member' | 'guest' | 'empty_slot',
+        participantType: p.participant_type as 'owner' | 'member' | 'guest',
         totalCents: p.cached_fee_cents,
-        overageCents: breakdownMatch?.overageCents ?? (p.participant_type === 'guest' || p.participant_type === 'empty_slot' ? 0 : p.cached_fee_cents),
-        guestCents: breakdownMatch?.guestCents ?? (p.participant_type === 'guest' || p.participant_type === 'empty_slot' ? p.cached_fee_cents : 0),
+        overageCents: breakdownMatch?.overageCents ?? (p.participant_type === 'guest' ? 0 : p.cached_fee_cents),
+        guestCents: breakdownMatch?.guestCents ?? (p.participant_type === 'guest' ? p.cached_fee_cents : 0),
         guestPassUsed: breakdownMatch?.guestPassUsed || false,
       };
     });
@@ -254,8 +254,8 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
 
     const participantFeesList = pendingFees.map(f => {
       const participant = typedParticipants.find(p => p.id === f.participantId);
-      const pType = participant?.participant_type as 'owner' | 'member' | 'guest' | 'empty_slot' | undefined;
-      const isGuest = pType === 'guest' || pType === 'empty_slot';
+      const pType = participant?.participant_type as 'owner' | 'member' | 'guest' | undefined;
+      const isGuest = pType === 'guest';
       const overageCents = 'overageCents' in f ? (f as { overageCents: number }).overageCents : 0;
       const guestCents = 'guestCents' in f ? (f as { guestCents: number }).guestCents : 0;
       const { feeType, feeDescription } = describeFee(isGuest, overageCents, guestCents);
@@ -373,11 +373,11 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
   for (const p of typedParticipants) {
     const fee = pendingFees.find(f => f.participantId === p.id);
     if (!fee || fee.totalCents <= 0) continue;
-    const isGuest = p.participant_type === 'guest' || p.participant_type === 'empty_slot';
+    const isGuest = p.participant_type === 'guest';
     feeLineItems.push({
       participantId: p.id,
       displayName: p.display_name || (isGuest ? 'Guest' : 'Member'),
-      participantType: p.participant_type as 'owner' | 'member' | 'guest' | 'empty_slot',
+      participantType: p.participant_type as 'owner' | 'member' | 'guest',
       overageCents: isGuest ? 0 : fee.totalCents,
       guestCents: isGuest ? fee.totalCents : 0,
       totalCents: fee.totalCents,
@@ -408,8 +408,8 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
 
   const participantFeesList = pendingFees.map(f => {
     const participant = typedParticipants.find(p => p.id === f.participantId);
-    const pType = participant?.participant_type as 'owner' | 'member' | 'guest' | 'empty_slot' | undefined;
-    const isGuest = pType === 'guest' || pType === 'empty_slot';
+    const pType = participant?.participant_type as 'owner' | 'member' | 'guest' | undefined;
+    const isGuest = pType === 'guest';
     const overageCents = 'overageCents' in f ? (f as { overageCents: number }).overageCents : 0;
     const guestCents = 'guestCents' in f ? (f as { guestCents: number }).guestCents : 0;
     const { feeType, feeDescription } = describeFee(isGuest, overageCents, guestCents);
@@ -812,7 +812,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
 
     const requestedIds: number[] = clientParticipantFees.map((pf: { id: number }) => pf.id);
 
-    const participantCountResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${sessionId} AND participant_type != 'empty_slot'`);
+    const participantCountResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${sessionId}`);
     const actualParticipantCount = parseInt((participantCountResult.rows[0] as { count: string })?.count || '1', 10);
     const effectivePlayerCount = getEffectivePlayerCount(actualParticipantCount, actualParticipantCount);
 
@@ -842,14 +842,14 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
 
     pendingFees = dbPending.map(p => {
       const breakdownMatch = feeBreakdown.participants.find(bp => bp.participantId === p.id);
-      const isGuestType = p.participant_type === 'guest' || p.participant_type === 'empty_slot';
+      const isGuest = p.participant_type === 'guest';
       return {
         participantId: p.id,
         displayName: p.display_name || 'Unknown',
         participantType: p.participant_type,
         totalCents: p.cached_fee_cents,
-        overageCents: breakdownMatch?.overageCents ?? (isGuestType ? 0 : p.cached_fee_cents),
-        guestCents: breakdownMatch?.guestCents ?? (isGuestType ? p.cached_fee_cents : 0),
+        overageCents: breakdownMatch?.overageCents ?? (isGuest ? 0 : p.cached_fee_cents),
+        guestCents: breakdownMatch?.guestCents ?? (isGuest ? p.cached_fee_cents : 0),
       };
     });
 
@@ -910,8 +910,8 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
       if (!fee || fee.totalCents <= 0) continue;
       feeLineItems.push({
         participantId: rawDetail.id,
-        displayName: rawDetail.display_name || (rawDetail.participant_type === 'guest' || rawDetail.participant_type === 'empty_slot' ? 'Guest' : 'Member'),
-        participantType: rawDetail.participant_type as 'owner' | 'member' | 'guest' | 'empty_slot',
+        displayName: rawDetail.display_name || (rawDetail.participant_type === 'guest' ? 'Guest' : 'Member'),
+        participantType: rawDetail.participant_type as 'owner' | 'member' | 'guest',
         overageCents: fee.overageCents || 0,
         guestCents: fee.guestCents || 0,
         totalCents: fee.totalCents,

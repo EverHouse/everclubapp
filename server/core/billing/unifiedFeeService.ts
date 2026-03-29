@@ -255,7 +255,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          FROM booking_participants bp
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE bp.session_id = ${session.session_id}
-         AND bp.participant_type != 'empty_slot'
+         AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = participantsResult.rows.map(row => ({
@@ -286,7 +286,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          JOIN booking_requests br ON br.session_id = bp.session_id
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE br.id = ${session.booking_id}
-         AND bp.participant_type != 'empty_slot'
+         AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = bpFallbackResult.rows.map(row => ({
@@ -1044,7 +1044,7 @@ export async function applyFeeBreakdownToParticipants(
         const existingSlots = await tx.execute(
           sql`SELECT id, cached_fee_cents, payment_status FROM booking_participants
            WHERE session_id = ${sessionId}
-           AND participant_type = 'empty_slot'
+           AND participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot'
            ORDER BY id ASC`
         );
         const existingRows = existingSlots.rows as { id: number; cached_fee_cents: number; payment_status: string }[];
@@ -1082,7 +1082,7 @@ export async function applyFeeBreakdownToParticipants(
           const fee = emptySlotItems[slotsToReuse + paidExisting.length + i]?.totalCents ?? emptySlotItems[0].totalCents;
           await tx.execute(
             sql`INSERT INTO booking_participants (session_id, user_id, guest_id, participant_type, display_name, payment_status, cached_fee_cents, used_guest_pass, slot_duration)
-             VALUES (${sessionId}, NULL, NULL, 'empty_slot', 'Empty Slot', 'pending', ${fee}, false, ${slotDuration})`
+             VALUES (${sessionId}, NULL, NULL, 'guest', 'Empty Slot', 'pending', ${fee}, false, ${slotDuration})`
           );
         }
 
@@ -1093,7 +1093,7 @@ export async function applyFeeBreakdownToParticipants(
         const staleSlots = await tx.execute(
           sql`SELECT id FROM booking_participants
            WHERE session_id = ${sessionId}
-           AND participant_type = 'empty_slot'
+           AND participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot'
            AND payment_status != 'paid'`
         );
         const staleIds = (staleSlots.rows as { id: number }[]).map(r => r.id);

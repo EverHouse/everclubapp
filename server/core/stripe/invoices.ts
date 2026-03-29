@@ -398,7 +398,7 @@ function mapInvoice(invoice: Stripe.Invoice): InvoiceResult {
 export interface BookingFeeLineItem {
   participantId?: number;
   displayName: string;
-  participantType: 'owner' | 'member' | 'guest' | 'empty_slot';
+  participantType: 'owner' | 'member' | 'guest';
   overageCents: number;
   guestCents: number;
   totalCents: number;

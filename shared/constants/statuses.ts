@@ -100,7 +100,6 @@ export const PARTICIPANT_TYPE = {
   OWNER: 'owner',
   MEMBER: 'member',
   GUEST: 'guest',
-  EMPTY_SLOT: 'empty_slot',
 } as const;
 
 export type ParticipantType = typeof PARTICIPANT_TYPE[keyof typeof PARTICIPANT_TYPE];
