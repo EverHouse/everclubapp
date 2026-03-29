@@ -93,6 +93,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           const existingGuests = await db.execute(sql`
             SELECT COUNT(*) as count FROM booking_participants 
             WHERE session_id = ${sessionId} AND participant_type = 'guest'
+            AND NOT (user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')
           `);
           const existingGuestCount = parseInt((existingGuests.rows as unknown as CountRow[])[0]?.count || '0', 10);
           

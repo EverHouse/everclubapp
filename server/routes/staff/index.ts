@@ -132,7 +132,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
       try {
         const filledResult = await db.execute(sql`
           SELECT br.id as booking_id,
-            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_count
+            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')), 0) as filled_count
           FROM booking_requests br
           WHERE br.id = ANY(ARRAY[${sql.join(todayBookingIds.map(id => sql`${id}`), sql`, `)}]::int[])
           AND br.session_id IS NOT NULL
@@ -367,7 +367,7 @@ router.get('/api/admin/todays-bookings', isStaffOrAdmin, async (req, res) => {
       try {
         const filledResult = await db.execute(sql`
           SELECT br.id as booking_id,
-            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_count
+            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')), 0) as filled_count
           FROM booking_requests br
           WHERE br.id = ANY(ARRAY[${sql.join(todayIds.map(id => sql`${id}`), sql`, `)}]::int[])
           AND br.session_id IS NOT NULL

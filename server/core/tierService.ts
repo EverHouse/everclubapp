@@ -180,7 +180,7 @@ export async function getDailyParticipantMinutes(email: string, date: string, ex
            COALESCE(
              NULLIF(br.declared_player_count, 0),
              NULLIF(br.trackman_player_count, 0),
-             (SELECT COUNT(*) FROM booking_participants bp2 WHERE bp2.session_id = br.session_id),
+             (SELECT COUNT(*) FROM booking_participants bp2 WHERE bp2.session_id = br.session_id AND NOT (bp2.participant_type = 'guest' AND bp2.user_id IS NULL AND bp2.guest_id IS NULL AND bp2.display_name = 'Empty Slot')),
              GREATEST(COALESCE(br.guest_count, 0) + 1, 1)
            ),
            1
@@ -220,7 +220,7 @@ export async function getTotalDailyUsageMinutes(
              COALESCE(
                NULLIF(declared_player_count, 0),
                NULLIF(trackman_player_count, 0),
-               (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id),
+               (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')),
                GREATEST(COALESCE(guest_count, 0) + 1, 1)
              ),
              1

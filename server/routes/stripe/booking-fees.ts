@@ -720,8 +720,8 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
           0
         ) as pending_fee_cents,
         (SELECT COUNT(*) FROM stripe_payment_intents spi WHERE spi.booking_id = br.id AND spi.status NOT IN ('succeeded', 'canceled')) as pending_intent_count,
-        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type = 'guest') as guest_count,
-        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) as participant_count
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type = 'guest' AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')) as guest_count,
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')) as participant_count
       FROM booking_requests br
       LEFT JOIN resources r ON r.id = br.resource_id
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)

@@ -336,7 +336,7 @@ export async function handleBookingModification(
     const effectiveSessionId = newSessionIdForFees || sessionId;
     if (effectiveSessionId && incoming.playerCount > 1) {
       try {
-        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${effectiveSessionId}`);
+        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${effectiveSessionId} AND NOT (participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')`);
         const currentParticipants = Number((existingCount.rows as Array<Record<string, unknown>>)[0]?.cnt || 0);
         const targetTotal = incoming.playerCount;
         const slotsToFill = Math.max(0, targetTotal - currentParticipants);

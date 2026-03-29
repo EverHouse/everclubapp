@@ -289,9 +289,9 @@ export async function checkinBooking(params: CheckinBookingParams) {
         br.trackman_player_count,
         br.declared_player_count,
         br.session_id,
-        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) as total_slots,
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')) as total_slots,
         0 as empty_slots,
-        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) as participant_count
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')) as participant_count
       FROM booking_requests br
       WHERE br.id = ${bookingId}
     `);

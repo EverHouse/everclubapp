@@ -520,7 +520,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     
     if (autoApproveResult.sessionId && normalized.playerCount > 1) {
       try {
-        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${autoApproveResult.sessionId}`);
+        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${autoApproveResult.sessionId} AND NOT (participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')`);
         const currentParticipants = Number((existingCount.rows as Array<Record<string, unknown>>)[0]?.cnt || 0);
         const targetTotal = normalized.playerCount;
         const slotsToFill = Math.max(0, targetTotal - currentParticipants);
