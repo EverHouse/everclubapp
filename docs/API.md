@@ -1,13 +1,14 @@
 # Ever Club Members App — API Reference
 
 > Manually maintained reference of all REST endpoints.
-> Last updated: 2026-03-19
+> Last updated: 2026-03-29
 
 **Auth legend:**
 - 🔓 Public — no authentication required
 - 👤 Member — any logged-in member
-- 🛡️ Staff/Admin — requires `isStaffOrAdmin` or `isAdmin` middleware
-- 🔑 Webhook — verified by signature/secret
+- 🛡️ Staff — requires `isStaffOrAdmin` middleware (staff or admin)
+- 🔑 Admin — requires `isAdmin` middleware (admin only)
+- 🔐 Webhook — verified by signature/secret
 - 🔒 Dev-gated — blocked in production or without explicit env flag
 
 ---
@@ -73,6 +74,15 @@
 57. [Passes (Redeemable)](#passes-redeemable)
 58. [Webhooks (Inbound)](#webhooks-inbound)
 59. [Account & Notices](#account--notices)
+60. [Kiosk Check-In](#kiosk-check-in)
+61. [Kiosk Payments](#kiosk-payments)
+62. [Merch Management](#merch-management)
+63. [Fee Products](#fee-products)
+64. [Public Membership Checkout](#public-membership-checkout)
+65. [Apple Wallet Pass (PKPass API)](#apple-wallet-pass-pkpass-api)
+66. [Directory & Sync](#directory--sync)
+67. [Calendar Admin](#calendar-admin)
+68. [Miscellaneous](#miscellaneous)
 
 ---
 
@@ -85,14 +95,12 @@
 | POST | `/api/auth/verify-otp` | 🔓 | Verify OTP and create session |
 | POST | `/api/auth/password-login` | 🔓 | Login with email + password |
 | POST | `/api/auth/set-password` | 👤 | Set/change password |
+| POST | `/api/auth/ws-token` | 👤 | Generate WebSocket authentication token |
 | POST | `/api/auth/logout` | 🔓 | Destroy session |
 | GET | `/api/auth/session` | 🔓 | Get current session info (self-guards with 401) |
 | GET | `/api/auth/check-staff-admin` | 🔓 | Check if email is staff/admin (public query) |
 | POST | `/api/auth/dev-login` | 🔓 | Dev-only: bypass login (blocked in production) |
 | POST | `/api/auth/test-welcome-email` | 🔒 | Dev-only: trigger welcome email (blocked in production, admin role check) |
-| POST | `/api/auth/test-login` | 🔒 | Dev: create test session (blocked unless `ENABLE_TEST_LOGIN=true`) |
-| POST | `/api/auth/test-logout` | 🔒 | Dev: destroy test session (blocked unless `ENABLE_TEST_LOGIN=true`) |
-| POST | `/api/auth/test-cleanup` | 🔒 | Dev: remove test accounts (blocked unless `ENABLE_TEST_LOGIN=true`) |
 
 ### Google Auth
 
@@ -105,14 +113,34 @@
 | GET | `/api/auth/google/status` | 👤 | Check Google link status |
 | GET | `/api/auth/google/unlinked-report` | 🛡️ | List members with no Google account linked |
 
+### Apple Sign-In
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/auth/apple/verify` | 🔓 | Verify Apple identity token |
+| POST | `/api/auth/apple/link` | 👤 | Link Apple account to profile |
+| POST | `/api/auth/apple/unlink` | 👤 | Unlink Apple account |
+| GET | `/api/auth/apple/status` | 👤 | Check Apple link status |
+
+### Passkeys (WebAuthn)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/auth/passkey/register/options` | 👤 | Get passkey registration options |
+| POST | `/api/auth/passkey/register/verify` | 👤 | Verify passkey registration |
+| POST | `/api/auth/passkey/authenticate/options` | 🔓 | Get passkey authentication options |
+| POST | `/api/auth/passkey/authenticate/verify` | 🔓 | Verify passkey authentication |
+| GET | `/api/auth/passkey/list` | 👤 | List registered passkeys |
+| DELETE | `/api/auth/passkey/:passkeyId` | 👤 | Delete a passkey |
+
 ---
 
 ## Bookings & Bays
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/bays` | 👤 | List all bay resources |
-| GET | `/api/bays/:bayId/availability` | 👤 | Get availability for a specific bay |
+| GET | `/api/bays` | 🔓 | List all bay resources |
+| GET | `/api/bays/:bayId/availability` | 🔓 | Get availability for a specific bay |
 | GET | `/api/booking-requests` | 👤 | List booking requests (filtered by user or all for staff) |
 | POST | `/api/booking-requests` | 👤 | Create a new booking request |
 | GET | `/api/booking-requests/:id` | 👤 | Get booking request details |
@@ -122,13 +150,14 @@
 | GET | `/api/fee-estimate` | 👤 | Get fee estimate for a booking |
 | PUT | `/api/bookings/:id/checkin` | 🛡️ | Check in a booking |
 | POST | `/api/admin/bookings/:id/dev-confirm` | 🛡️ | Dev: force-confirm a booking |
-| GET | `/api/resources` | 👤 | List all bookable resources |
-| GET | `/api/bookings` | 🛡️ | List all bookings |
-| POST | `/api/bookings` | 🛡️ | Create a booking directly |
+| GET | `/api/resources` | 🔓 | List all bookable resources |
+| GET | `/api/bookings` | 👤 | List all bookings |
+| POST | `/api/bookings` | 👤 | Create a booking directly |
 | GET | `/api/bookings/:id/cascade-preview` | 🛡️ | Preview cascade effects of deleting a booking |
 | DELETE | `/api/bookings/:id` | 🛡️ | Delete a booking |
 | PUT | `/api/bookings/:id/approve` | 🛡️ | Approve a pending booking |
 | PUT | `/api/bookings/:id/decline` | 🛡️ | Decline a pending booking |
+| PUT | `/api/bookings/:id/revert-to-approved` | 🛡️ | Revert checked-in booking to approved |
 | PUT | `/api/bookings/:id/member-cancel` | 👤 | Member cancels own booking |
 | POST | `/api/bookings/:id/assign-member` | 🛡️ | Assign a member to an unlinked booking |
 | PUT | `/api/bookings/:id/assign-with-players` | 🛡️ | Assign member + players to booking |
@@ -146,7 +175,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/conference-room-bookings` | 🛡️ | List conference room bookings |
+| GET | `/api/conference-room-bookings` | 🔓 | List conference room bookings |
 | GET | `/api/approved-bookings` | 🛡️ | List approved bookings for calendar |
 | GET | `/api/staff/conference-room/available-slots` | 🛡️ | Get available conference room slots |
 | GET | `/api/staff/conference-room/fee-estimate` | 🛡️ | Estimate conference room fees |
@@ -179,18 +208,17 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/availability/batch` | 🔓 | Batch check availability (public) |
-| GET | `/api/availability` | 👤 | Get availability for a date/resource |
+| GET | `/api/availability` | 🔓 | Get availability for a date/resource |
 | POST | `/api/availability-blocks` | 🛡️ | Create availability block |
 | GET | `/api/availability-blocks` | 🔓 | List availability blocks (public read) |
 | PUT | `/api/availability-blocks/:id` | 🛡️ | Update availability block |
 | DELETE | `/api/availability-blocks/:id` | 🛡️ | Delete availability block |
 | GET | `/api/admin/calendars` | 🛡️ | List Google Calendar connections |
-| GET | `/api/calendars` | 🛡️ | List calendars |
-| GET | `/api/calendar/availability` | 👤 | Get calendar availability |
-| GET | `/api/calendar-availability/golf` | 👤 | **DEPRECATED (410 Gone)** — Golf calendar availability removed; use `/api/availability/:date` instead |
-| GET | `/api/calendar-availability/conference` | 👤 | Get conference room calendar availability |
-| POST | `/api/admin/conference-room/backfill` | 🛡️ | Backfill conference room history |
-| POST | `/api/admin/bookings/sync-history` | 🛡️ | Sync booking history from calendar |
+| GET | `/api/calendars` | 🔓 | List calendars |
+| GET | `/api/calendar/availability` | 🔓 | Get calendar availability |
+| GET | `/api/calendar-availability/conference` | 🔓 | Get conference room calendar availability |
+| POST | `/api/admin/conference-room/backfill` | 🔑 | Backfill conference room history |
+| POST | `/api/admin/bookings/sync-history` | 🔑 | Sync booking history from calendar |
 | POST | `/api/admin/bookings/sync-calendar` | 🛡️ | Sync bookings to Google Calendar |
 
 ---
@@ -204,12 +232,13 @@
 | GET | `/api/members/search` | 👤 | Search members by name/email |
 | GET | `/api/members/directory` | 🛡️ | Member directory listing (staff/admin only) |
 | GET | `/api/guests/search` | 👤 | Search guests by name/email |
+| GET | `/api/members/frequent-partners` | 👤 | List frequently booked-with partners |
 
 ### Member Details
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/members/:email/details` | 🛡️ | Full member profile details |
+| GET | `/api/members/:email/details` | 👤 | Full member profile details |
 | GET | `/api/members/:email/history` | 🛡️ | Member activity history |
 | GET | `/api/members/:email/guests` | 🛡️ | List member's guests |
 | GET | `/api/members/:email/cascade-preview` | 🛡️ | Preview cascade effects of member deletion |
@@ -233,8 +262,8 @@
 | POST | `/api/member/onboarding/complete-step` | 👤 | Mark onboarding step complete |
 | POST | `/api/member/onboarding/dismiss` | 👤 | Dismiss onboarding |
 | PUT | `/api/member/profile` | 👤 | Update own profile |
-| PUT | `/api/members/:email/sms-preferences` | 🛡️ | Update member SMS preferences |
-| PUT | `/api/members/:id/role` | 🛡️ | Change member role |
+| PUT | `/api/members/:email/sms-preferences` | 👤 | Update member SMS preferences |
+| PUT | `/api/members/:id/role` | 🔑 | Change member role |
 
 ---
 
@@ -246,8 +275,8 @@
 | POST | `/api/members` | 🛡️ | Create a new member |
 | PATCH | `/api/members/:email/tier` | 🛡️ | Change member tier |
 | POST | `/api/members/:id/suspend` | 🛡️ | Suspend a member |
-| DELETE | `/api/members/:email` | 🛡️ | Soft-delete a member |
-| DELETE | `/api/members/:email/permanent` | 🛡️ | Permanently delete a member |
+| DELETE | `/api/members/:email` | 🔑 | Soft-delete a member |
+| DELETE | `/api/members/:email/permanent` | 🔑 | Permanently delete a member |
 | POST | `/api/members/:email/anonymize` | 🛡️ | Anonymize member data (GDPR) |
 | POST | `/api/members/admin/bulk-tier-update` | 🛡️ | Bulk update member tiers |
 | POST | `/api/admin/member/change-email` | 🛡️ | Change member email address |
@@ -256,9 +285,9 @@
 | POST | `/api/admin/tier-change/preview` | 🛡️ | Preview tier change effects |
 | POST | `/api/admin/tier-change/commit` | 🛡️ | Commit tier change |
 | GET | `/api/members/:userId/duplicates` | 🛡️ | Find duplicate member records |
-| POST | `/api/members/merge/preview` | 🛡️ | Preview member merge |
-| POST | `/api/members/merge/execute` | 🛡️ | Execute member merge |
-| POST | `/api/members/backfill-discount-codes` | 🛡️ | Backfill discount codes |
+| POST | `/api/members/merge/preview` | 🔑 | Preview member merge |
+| POST | `/api/members/merge/execute` | 🔑 | Execute member merge |
+| POST | `/api/members/backfill-discount-codes` | 🔑 | Backfill discount codes |
 
 ---
 
@@ -304,7 +333,8 @@
 | GET | `/api/visitors/search` | 🛡️ | Search visitors |
 | POST | `/api/visitors` | 🛡️ | Create visitor record |
 | DELETE | `/api/visitors/:id` | 🛡️ | Delete visitor |
-| POST | `/api/visitors/backfill-types` | 🛡️ | Backfill visitor types |
+| POST | `/api/visitors/backfill-types` | 🔑 | Backfill visitor types |
+| GET | `/api/visitors/check-email` | 🛡️ | Check if email belongs to existing visitor |
 | GET | `/api/guests/needs-email` | 🛡️ | Find guests missing email |
 | PATCH | `/api/guests/:guestId/email` | 🛡️ | Update guest email |
 
@@ -315,7 +345,7 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/guest-passes/:email` | 👤 | Get guest pass balance |
-| POST | `/api/guest-passes/:email/use` | 🛡️ | Consume a guest pass |
+| POST | `/api/guest-passes/:email/use` | 👤 | Consume a guest pass |
 | PUT | `/api/guest-passes/:email` | 🛡️ | Update guest pass allocation |
 
 ---
@@ -336,7 +366,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/stripe/config` | 👤 | Get Stripe publishable key |
+| GET | `/api/stripe/config` | 🔓 | Get Stripe publishable key |
 | GET | `/api/stripe/debug-connection` | 🛡️ | Debug Stripe connection |
 | GET | `/api/stripe/prices/recurring` | 🛡️ | List recurring price objects |
 | POST | `/api/stripe/create-payment-intent` | 🛡️ | Create a Stripe PaymentIntent |
@@ -387,6 +417,7 @@
 | POST | `/api/stripe/subscriptions/create-new-member` | 🛡️ | Create subscription + member |
 | POST | `/api/stripe/subscriptions/confirm-inline-payment` | 🛡️ | Confirm inline subscription payment |
 | POST | `/api/stripe/subscriptions/send-activation-link` | 🛡️ | Send activation payment link |
+| POST | `/api/stripe/subscriptions/confirm-trial-setup` | 🛡️ | Confirm trial setup intent |
 | DELETE | `/api/stripe/subscriptions/cleanup-pending/:userId` | 🛡️ | Clean up pending subscription |
 
 ---
@@ -422,6 +453,9 @@
 | GET | `/api/stripe/invoice/:invoiceId` | 🛡️ | Get invoice details |
 | POST | `/api/stripe/invoices/:invoiceId/void` | 🛡️ | Void invoice |
 | GET | `/api/my-invoices` | 👤 | Get own invoices |
+| GET | `/api/my-billing/payment-history` | 👤 | Get own payment history |
+| GET | `/api/stripe/subscriptions/invoice-link/:subscriptionId` | 🛡️ | Get hosted invoice link for subscription |
+| GET | `/api/stripe/subscriptions/refresh-intent/:subscriptionId` | 🛡️ | Refresh setup/payment intent for subscription |
 
 ---
 
@@ -430,9 +464,10 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/stripe/coupons` | 🛡️ | List coupons |
-| POST | `/api/stripe/coupons` | 🛡️ | Create coupon |
-| PUT | `/api/stripe/coupons/:id` | 🛡️ | Update coupon |
-| DELETE | `/api/stripe/coupons/:id` | 🛡️ | Delete coupon |
+| POST | `/api/stripe/coupons` | 🔑 | Create coupon |
+| PUT | `/api/stripe/coupons/:id` | 🔑 | Update coupon |
+| DELETE | `/api/stripe/coupons/:id` | 🔑 | Delete coupon |
+| POST | `/api/stripe/promo-codes/seed-welcome` | 🔑 | Seed default welcome promo code |
 
 ---
 
@@ -440,23 +475,20 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/admin/check-expiring-cards` | 🛡️ | Check expiring payment cards |
-| POST | `/api/admin/check-stale-waivers` | 🛡️ | Check stale waivers |
-| GET | `/api/stripe/products` | 🛡️ | List Stripe products |
-| POST | `/api/stripe/products/sync` | 🛡️ | Sync products from Stripe |
-| POST | `/api/stripe/products/sync-all` | 🛡️ | Sync all products |
+| POST | `/api/admin/check-expiring-cards` | 🔑 | Check expiring payment cards |
+| POST | `/api/admin/check-stale-waivers` | 🔑 | Check stale waivers |
 | GET | `/api/stripe/tiers/status` | 🛡️ | Tier sync status |
-| POST | `/api/stripe/tiers/sync` | 🛡️ | Sync tiers to Stripe |
+| POST | `/api/stripe/tiers/sync` | 🔑 | Sync tiers to Stripe |
 | GET | `/api/stripe/discounts/status` | 🛡️ | Discount sync status |
-| POST | `/api/stripe/discounts/sync` | 🛡️ | Sync discounts to Stripe |
-| GET | `/api/stripe/billing/classification` | 🛡️ | Billing classification report |
-| GET | `/api/stripe/billing/needs-migration` | 🛡️ | Members needing billing migration |
+| POST | `/api/stripe/discounts/sync` | 🔑 | Sync discounts to Stripe |
+| GET | `/api/stripe/billing/classification` | 🔑 | Billing classification report |
+| GET | `/api/stripe/billing/needs-migration` | 🔑 | Members needing billing migration |
 | POST | `/api/stripe/staff/send-membership-link` | 🛡️ | Send membership payment link |
 | POST | `/api/stripe/staff/send-reactivation-link` | 🛡️ | Send reactivation payment link |
 | POST | `/api/public/day-pass/checkout` | 🔓 | Public day pass checkout |
 | GET | `/api/stripe/customer-sync-status` | 🛡️ | Customer sync status |
 | POST | `/api/stripe/sync-customers` | 🛡️ | Sync customers from Stripe |
-| POST | `/api/admin/stripe/replay-webhook` | 🛡️ | Replay a Stripe webhook |
+| POST | `/api/admin/stripe/replay-webhook` | 🔑 | Replay a Stripe webhook |
 | POST | `/api/stripe/sync-member-subscriptions` | 🛡️ | Sync member subscriptions |
 
 ---
@@ -520,6 +552,9 @@
 | POST | `/api/member/balance/pay` | 👤 | Pay balance |
 | POST | `/api/member/balance/confirm` | 👤 | Confirm balance payment |
 | POST | `/api/member/bookings/:bookingId/cancel-payment` | 👤 | Cancel in-progress payment |
+| GET | `/api/member/payment-methods` | 👤 | List saved payment methods |
+| POST | `/api/member/bookings/:id/pay-saved-card` | 👤 | Pay booking fees with saved card |
+| POST | `/api/member/invoices/:invoiceId/pay-saved-card` | 👤 | Pay invoice with saved card |
 
 ---
 
@@ -559,9 +594,6 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/member/conference/prepay/estimate` | 👤 | Estimate prepayment amount |
-| POST | `/api/member/conference/prepay/create-intent` | 👤 | Create prepayment intent |
-| POST | `/api/member/conference/prepay/:id/confirm` | 👤 | Confirm prepayment |
-| GET | `/api/member/conference/prepay/:id` | 👤 | Get prepayment status |
 
 ---
 
@@ -637,13 +669,38 @@
 | GET | `/api/admin/trackman/duplicate-bookings` | 🛡️ | Find duplicate bookings |
 | POST | `/api/admin/trackman/cleanup-duplicates` | 🛡️ | Clean up duplicates |
 
+### Webhook Diagnostics
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/admin/trackman-webhooks` | 🛡️ | List Trackman webhook events |
+| GET | `/api/admin/trackman-webhooks/stats` | 🛡️ | Webhook processing statistics |
+| GET | `/api/admin/trackman-webhook/stats` | 🛡️ | Webhook stats (alternate) |
+| GET | `/api/admin/trackman-webhook/failed` | 🛡️ | List failed webhook events |
+| POST | `/api/admin/trackman-webhook/:eventId/retry` | 🛡️ | Retry failed webhook event |
+| POST | `/api/admin/trackman-webhook/:eventId/auto-match` | 🛡️ | Auto-match webhook event |
+| POST | `/api/admin/trackman-webhook/cleanup` | 🛡️ | Cleanup old webhook events |
+| POST | `/api/admin/trackman-webhooks/backfill` | 🔑 | Backfill webhook events |
+| GET | `/api/availability/trackman-cache` | 🛡️ | Get Trackman availability cache |
+| POST | `/api/trackman/replay-webhooks-to-dev` | 🔑 | Replay webhooks to dev environment |
+
+### Linked Emails (Admin)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/admin/linked-emails` | 🛡️ | List linked email records |
+| GET | `/api/admin/linked-emails/:email` | 🛡️ | Get linked email details |
+| POST | `/api/admin/linked-emails` | 🛡️ | Create linked email record |
+| DELETE | `/api/admin/linked-emails/:email` | 🛡️ | Delete linked email |
+| POST | `/api/admin/repair-linked-email-bookings` | 🛡️ | Repair bookings after linked email changes |
+
 ---
 
 ## Events
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/events` | 👤 | List events |
+| GET | `/api/events` | 🔓 | List events |
 | POST | `/api/events` | 🛡️ | Create event |
 | PUT | `/api/events/:id` | 🛡️ | Update event |
 | DELETE | `/api/events/:id` | 🛡️ | Delete event |
@@ -669,7 +726,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/wellness-classes` | 👤 | List wellness classes |
+| GET | `/api/wellness-classes` | 🔓 | List wellness classes |
 | POST | `/api/wellness-classes` | 🛡️ | Create wellness class |
 | PUT | `/api/wellness-classes/:id` | 🛡️ | Update wellness class |
 | DELETE | `/api/wellness-classes/:id` | 🛡️ | Delete wellness class |
@@ -695,7 +752,7 @@
 | PATCH | `/api/tours/:id/status` | 🛡️ | Update tour status |
 | POST | `/api/tours/sync` | 🛡️ | Sync tours |
 | POST | `/api/tours/book` | 🔓 | Book a tour (public) |
-| PATCH | `/api/tours/:id/confirm` | 🛡️ | Confirm tour |
+| PATCH | `/api/tours/:id/confirm` | 🔓 | Confirm tour |
 | GET | `/api/tours/needs-review` | 🛡️ | Tours needing review |
 | POST | `/api/tours/link-hubspot` | 🛡️ | Link tour to HubSpot |
 | POST | `/api/tours/create-from-hubspot` | 🛡️ | Create tour from HubSpot |
@@ -709,19 +766,19 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/closures` | 👤 | List closures |
+| GET | `/api/closures` | 🔓 | List closures |
 | GET | `/api/closures/needs-review` | 🛡️ | Closures needing review |
 | POST | `/api/closures` | 🛡️ | Create closure |
 | PUT | `/api/closures/:id` | 🛡️ | Update closure |
 | DELETE | `/api/closures/:id` | 🛡️ | Delete closure |
 | POST | `/api/closures/backfill-blocks` | 🛡️ | Backfill closure blocks |
 | POST | `/api/closures/sync` | 🛡️ | Sync closures |
-| POST | `/api/closures/fix-orphaned` | 🛡️ | Fix orphaned closures |
-| GET | `/api/notice-types` | 🛡️ | List notice types |
+| POST | `/api/closures/fix-orphaned` | 🔑 | Fix orphaned closures |
+| GET | `/api/notice-types` | 🔓 | List notice types |
 | POST | `/api/notice-types` | 🛡️ | Create notice type |
 | PUT | `/api/notice-types/:id` | 🛡️ | Update notice type |
 | DELETE | `/api/notice-types/:id` | 🛡️ | Delete notice type |
-| GET | `/api/closure-reasons` | 🛡️ | List closure reasons |
+| GET | `/api/closure-reasons` | 🔓 | List closure reasons |
 | POST | `/api/closure-reasons` | 🛡️ | Create closure reason |
 | PUT | `/api/closure-reasons/:id` | 🛡️ | Update closure reason |
 | DELETE | `/api/closure-reasons/:id` | 🛡️ | Delete closure reason |
@@ -732,8 +789,8 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/announcements` | 👤 | List announcements |
-| GET | `/api/announcements/banner` | 👤 | Get active banner |
+| GET | `/api/announcements` | 🔓 | List announcements |
+| GET | `/api/announcements/banner` | 🔓 | Get active banner |
 | GET | `/api/announcements/export` | 🛡️ | Export announcements |
 | POST | `/api/announcements` | 🛡️ | Create announcement |
 | PUT | `/api/announcements/:id` | 🛡️ | Update announcement |
@@ -781,16 +838,16 @@
 | POST | `/api/hubspot/forms/:formType` | 🔓 | Submit HubSpot form |
 | POST | `/api/hubspot/sync-tiers` | 🛡️ | Sync tiers to HubSpot |
 | PUT | `/api/hubspot/contacts/:id/tier` | 🛡️ | Update contact tier |
-| POST | `/api/hubspot/webhooks` | 🔑 | HubSpot webhook handler |
+| POST | `/api/hubspot/webhooks` | 🔓 | HubSpot webhook handler |
 | POST | `/api/hubspot/push-db-tiers` | 🛡️ | Push DB tiers to HubSpot |
 | POST | `/api/hubspot/sync-billing-providers` | 🛡️ | Sync billing providers |
 | POST | `/api/admin/hubspot/sync-form-submissions` | 🛡️ | Sync form submissions |
-| GET | `/api/admin/hubspot/form-sync-status` | 🛡️ | Form sync status |
-| POST | `/api/admin/hubspot/form-sync-reset` | 🛡️ | Reset form sync |
-| POST | `/api/admin/hubspot/set-forms-token` | 🛡️ | Set forms API token |
-| GET | `/api/admin/hubspot/set-forms-token-page` | 🛡️ | Token setup page |
-| GET | `/api/admin/hubspot/marketing-contacts-audit` | 🛡️ | Marketing contacts audit |
-| POST | `/api/admin/hubspot/remove-marketing-contacts` | 🛡️ | Remove marketing contacts |
+| GET | `/api/admin/hubspot/form-sync-status` | 🔑 | Form sync status |
+| POST | `/api/admin/hubspot/form-sync-reset` | 🔑 | Reset form sync |
+| POST | `/api/admin/hubspot/set-forms-token` | 🔑 | Set forms API token |
+| GET | `/api/admin/hubspot/set-forms-token-page` | 🔑 | Token setup page |
+| GET | `/api/admin/hubspot/marketing-contacts-audit` | 🔑 | Marketing contacts audit |
+| POST | `/api/admin/hubspot/remove-marketing-contacts` | 🔑 | Remove marketing contacts |
 
 ---
 
@@ -823,10 +880,6 @@
 | GET | `/api/bookings/:id/staff-checkin-context` | 🛡️ | Get check-in context |
 | PATCH | `/api/bookings/:id/payments` | 🛡️ | Update booking payments |
 | GET | `/api/bookings/overdue-payments` | 🛡️ | List overdue payments |
-| POST | `/api/booking-participants/:id/mark-waiver-reviewed` | 🛡️ | Mark waiver reviewed |
-| POST | `/api/bookings/:bookingId/mark-all-waivers-reviewed` | 🛡️ | Mark all waivers reviewed |
-| POST | `/api/bookings/bulk-review-all-waivers` | 🛡️ | Bulk review all waivers |
-| GET | `/api/bookings/stale-waivers` | 🛡️ | List stale waivers |
 | POST | `/api/bookings/:id/staff-direct-add` | 🛡️ | Staff directly adds participant |
 | POST | `/api/staff/qr-checkin` | 🛡️ | QR code check-in |
 
@@ -846,6 +899,7 @@
 |--------|------|------|-------------|
 | GET | `/api/waivers/status` | 👤 | Get waiver signing status |
 | POST | `/api/waivers/sign` | 👤 | Sign waiver |
+| POST | `/api/waivers/email-copy` | 👤 | Email signed waiver copy to member |
 | GET | `/api/waivers/current-version` | 🛡️ | Get current waiver version |
 | POST | `/api/waivers/update-version` | 🛡️ | Update waiver version |
 
@@ -858,8 +912,8 @@
 | GET | `/api/settings/public` | 🔓 | Get public settings (contact, hours, social) |
 | GET | `/api/settings` | 👤 | Get all settings |
 | GET | `/api/settings/:key` | 👤 | Get setting by key |
-| PUT | `/api/admin/settings/:key` | 🛡️ | Update setting by key |
-| PUT | `/api/admin/settings` | 🛡️ | Update multiple settings |
+| PUT | `/api/admin/settings/:key` | 🔑 | Update setting by key |
+| PUT | `/api/admin/settings` | 🔑 | Update multiple settings |
 
 ---
 
@@ -867,19 +921,21 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/membership-tiers` | 👤 | List membership tiers |
-| GET | `/api/membership-tiers/:id` | 👤 | Get tier details |
-| GET | `/api/membership-tiers/limits/:tierName` | 👤 | Get tier limits |
-| PUT | `/api/membership-tiers/:id` | 🛡️ | Update tier |
-| POST | `/api/membership-tiers` | 🛡️ | Create tier |
-| POST | `/api/admin/stripe/sync-products` | 🛡️ | Sync tier products to Stripe |
+| GET | `/api/membership-tiers` | 🔓 | List membership tiers (public) |
+| GET | `/api/membership-tiers/:id` | 🔓 | Get tier details (public) |
+| GET | `/api/membership-tiers/limits/:tierName` | 🔓 | Get tier limits (public) |
+| GET | `/api/membership-tiers/:id/member-count` | 🔑 | Get active member count for tier |
+| PUT | `/api/membership-tiers/:id` | 🔑 | Update tier |
+| POST | `/api/membership-tiers` | 🔑 | Create tier |
+| DELETE | `/api/membership-tiers/:id` | 🔑 | Delete tier (blocks if members assigned) |
+| POST | `/api/admin/stripe/sync-products` | 🔑 | Sync tier products to Stripe |
 | GET | `/api/admin/stripe/sync-status` | 🛡️ | Get product sync status |
 | POST | `/api/admin/stripe/pull-from-stripe` | 🛡️ | Pull products from Stripe |
-| GET | `/api/tier-features` | 👤 | List tier features |
-| POST | `/api/tier-features` | 🛡️ | Create tier feature |
-| PUT | `/api/tier-features/:id` | 🛡️ | Update tier feature |
-| DELETE | `/api/tier-features/:id` | 🛡️ | Delete tier feature |
-| PUT | `/api/tier-features/:featureId/values/:tierId` | 🛡️ | Set feature value for tier |
+| GET | `/api/tier-features` | 🔓 | List tier features |
+| POST | `/api/tier-features` | 🔑 | Create tier feature |
+| PUT | `/api/tier-features/:id` | 🔑 | Update tier feature |
+| DELETE | `/api/tier-features/:id` | 🔑 | Delete tier feature |
+| PUT | `/api/tier-features/:featureId/values/:tierId` | 🔑 | Set feature value for tier |
 
 ---
 
@@ -888,6 +944,9 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/pricing` | 🔓 | Get public pricing info |
+| PUT | `/api/pricing` | 🛡️ | Update pricing config |
+| PUT | `/api/admin/pricing/guest-fee` | 🔑 | Update guest fee rate |
+| PUT | `/api/admin/pricing/overage-rate` | 🔑 | Update overage fee rate |
 
 ---
 
@@ -895,7 +954,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/gallery` | 👤 | List gallery images |
+| GET | `/api/gallery` | 🔓 | List gallery images |
 | POST | `/api/admin/gallery` | 🛡️ | Add gallery image |
 | PUT | `/api/admin/gallery/:id` | 🛡️ | Update gallery image |
 | DELETE | `/api/admin/gallery/:id` | 🛡️ | Delete gallery image |
@@ -907,11 +966,12 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/cafe-menu` | 👤 | List menu items |
+| GET | `/api/cafe-menu` | 🔓 | List menu items |
 | POST | `/api/cafe-menu` | 🛡️ | Add menu item |
 | PUT | `/api/cafe-menu/:id` | 🛡️ | Update menu item |
 | DELETE | `/api/cafe-menu/:id` | 🛡️ | Delete menu item |
-| POST | `/api/admin/seed-cafe` | 🛡️ | Seed menu data |
+| POST | `/api/admin/seed-cafe` | 🔑 | Seed menu data |
+| DELETE | `/api/cafe-menu/inactive/all` | 🔑 | Bulk delete all inactive menu items |
 
 ---
 
@@ -919,7 +979,7 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/faqs` | 👤 | List public FAQs |
+| GET | `/api/faqs` | 🔓 | List public FAQs |
 | GET | `/api/admin/faqs` | 🛡️ | List all FAQs (admin) |
 | POST | `/api/admin/faqs` | 🛡️ | Create FAQ |
 | PUT | `/api/admin/faqs/:id` | 🛡️ | Update FAQ |
@@ -944,10 +1004,10 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/training-sections` | 🛡️ | List training sections |
-| POST | `/api/admin/training-sections` | 🛡️ | Create training section |
-| PUT | `/api/admin/training-sections/:id` | 🛡️ | Update training section |
-| DELETE | `/api/admin/training-sections/:id` | 🛡️ | Delete training section |
-| POST | `/api/admin/training-sections/seed` | 🛡️ | Seed training data |
+| POST | `/api/admin/training-sections` | 🔑 | Create training section |
+| PUT | `/api/admin/training-sections/:id` | 🔑 | Update training section |
+| DELETE | `/api/admin/training-sections/:id` | 🔑 | Delete training section |
+| POST | `/api/admin/training-sections/seed` | 🔑 | Seed training data |
 
 ---
 
@@ -980,13 +1040,13 @@
 |--------|------|------|-------------|
 | GET | `/api/staff-users` | 🛡️ | List staff users |
 | GET | `/api/staff-users/by-email/:email` | 🛡️ | Get staff user by email |
-| POST | `/api/staff-users` | 🛡️ | Create staff user |
-| PUT | `/api/staff-users/:id` | 🛡️ | Update staff user |
-| DELETE | `/api/staff-users/:id` | 🛡️ | Delete staff user |
-| GET | `/api/admin-users` | 🛡️ | List admin users |
-| POST | `/api/admin-users` | 🛡️ | Create admin user |
-| PUT | `/api/admin-users/:id` | 🛡️ | Update admin user |
-| DELETE | `/api/admin-users/:id` | 🛡️ | Delete admin user |
+| POST | `/api/staff-users` | 🔑 | Create staff user |
+| PUT | `/api/staff-users/:id` | 🔑 | Update staff user |
+| DELETE | `/api/staff-users/:id` | 🔑 | Delete staff user |
+| GET | `/api/admin-users` | 🔑 | List admin users |
+| POST | `/api/admin-users` | 🔑 | Create admin user |
+| PUT | `/api/admin-users/:id` | 🔑 | Update admin user |
+| DELETE | `/api/admin-users/:id` | 🔑 | Delete admin user |
 | POST | `/api/users/batch-emails` | 🛡️ | Batch lookup users by email |
 
 ---
@@ -995,47 +1055,77 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/data-integrity/health` | 🛡️ | System health check |
-| GET | `/api/data-integrity/audit-log` | 🛡️ | Integrity audit log |
-| POST | `/api/data-integrity/resolve` | 🛡️ | Resolve integrity issue |
-| POST | `/api/data-integrity/sync-push` | 🛡️ | Push sync to external systems |
-| POST | `/api/data-integrity/sync-pull` | 🛡️ | Pull sync from external systems |
-| GET | `/api/data-integrity/ignores` | 🛡️ | List ignored issues |
-| POST | `/api/data-integrity/ignore` | 🛡️ | Ignore an issue |
-| DELETE | `/api/data-integrity/ignore/:issueKey` | 🛡️ | Un-ignore an issue |
-| POST | `/api/data-integrity/ignore-bulk` | 🛡️ | Bulk ignore issues |
-| POST | `/api/data-integrity/sync-stripe-metadata` | 🛡️ | Sync Stripe metadata |
-| POST | `/api/data-integrity/cleanup` | 🛡️ | Run cleanup routines |
-| GET | `/api/data-integrity/placeholder-accounts` | 🛡️ | List placeholder accounts |
-| POST | `/api/data-integrity/placeholder-accounts/delete` | 🛡️ | Delete placeholder accounts |
-| POST | `/api/data-integrity/fix/unlink-hubspot` | 🛡️ | Unlink HubSpot record |
-| POST | `/api/data-integrity/fix/merge-hubspot-duplicates` | 🛡️ | Merge HubSpot duplicates |
-| POST | `/api/data-integrity/fix/delete-guest-pass` | 🛡️ | Delete guest pass |
-| POST | `/api/data-integrity/fix/delete-fee-snapshot` | 🛡️ | Delete fee snapshot |
-| POST | `/api/data-integrity/fix/dismiss-trackman-unmatched` | 🛡️ | Dismiss unmatched Trackman |
-| POST | `/api/data-integrity/fix/delete-booking-participant` | 🛡️ | Delete booking participant |
-| POST | `/api/data-integrity/fix/fix-orphaned-participants` | 🛡️ | Fix orphaned participants |
-| POST | `/api/data-integrity/fix/convert-participant-to-guest` | 🛡️ | Convert participant to guest |
-| POST | `/api/data-integrity/fix/approve-review-item` | 🛡️ | Approve review item |
-| POST | `/api/data-integrity/fix/delete-review-item` | 🛡️ | Delete review item |
-| POST | `/api/data-integrity/fix/approve-all-review-items` | 🛡️ | Approve all review items |
-| POST | `/api/data-integrity/fix/delete-empty-session` | 🛡️ | Delete empty session |
-| POST | `/api/data-integrity/fix/assign-session-owner` | 🛡️ | Assign session owner |
-| POST | `/api/data-integrity/fix/merge-stripe-customers` | 🛡️ | Merge Stripe customers |
-| POST | `/api/data-integrity/fix/deactivate-stale-member` | 🛡️ | Deactivate stale member |
-| POST | `/api/data-integrity/fix/change-billing-provider` | 🛡️ | Change billing provider |
-| POST | `/api/data-integrity/fix/delete-member-no-email` | 🛡️ | Delete member without email |
-| POST | `/api/data-integrity/fix/complete-booking` | 🛡️ | Force-complete booking |
-| POST | `/api/data-integrity/fix/cancel-stale-booking` | 🛡️ | Cancel stale booking |
-| POST | `/api/data-integrity/fix/bulk-cancel-stale-bookings` | 🛡️ | Bulk cancel stale bookings |
-| POST | `/api/data-integrity/fix/bulk-attend-stale-bookings` | 🛡️ | Bulk mark stale bookings as attended |
-| POST | `/api/data-integrity/fix/activate-stuck-member` | 🛡️ | Activate stuck member |
-| POST | `/api/data-integrity/fix/recalculate-guest-passes` | 🛡️ | Recalculate guest passes |
-| POST | `/api/data-integrity/fix/release-guest-pass-hold` | 🛡️ | Release guest pass hold |
-| POST | `/api/data-integrity/fix/cancel-orphaned-pi` | 🛡️ | Cancel orphaned PaymentIntent |
-| POST | `/api/data-integrity/fix/delete-orphan-enrollment` | 🛡️ | Delete orphan enrollment |
-| POST | `/api/data-integrity/fix/delete-orphan-rsvp` | 🛡️ | Delete orphan RSVP |
-| POST | `/api/data-integrity/fix/accept-tier` | 🛡️ | Accept tier mismatch |
+| GET | `/api/data-integrity/cached` | 🔑 | Get cached integrity check results |
+| GET | `/api/data-integrity/run` | 🔑 | Run integrity checks |
+| GET | `/api/data-integrity/summary` | 🔑 | Get integrity check summary |
+| GET | `/api/data-integrity/history` | 🔑 | Get integrity check history |
+| GET | `/api/data-integrity/health` | 🔑 | System health check |
+| GET | `/api/data-integrity/audit-log` | 🔑 | Integrity audit log |
+| GET | `/api/data-integrity/orphaned-stripe-customers` | 🔑 | List orphaned Stripe customers |
+| POST | `/api/data-integrity/resolve` | 🔑 | Resolve integrity issue |
+| POST | `/api/data-integrity/sync-push` | 🔑 | Push sync to external systems |
+| POST | `/api/data-integrity/sync-pull` | 🔑 | Pull sync from external systems |
+| POST | `/api/data-integrity/sync-stripe-metadata` | 🔑 | Sync Stripe metadata |
+| GET | `/api/data-integrity/sync-stripe-metadata/status` | 🔑 | Stripe metadata sync status |
+| POST | `/api/data-integrity/cleanup` | 🔑 | Run cleanup routines |
+| POST | `/api/data-integrity/resync-from-production` | 🔑 | Resync data from production |
+| GET | `/api/data-integrity/ignores` | 🔑 | List ignored issues |
+| POST | `/api/data-integrity/ignore` | 🔑 | Ignore an issue |
+| DELETE | `/api/data-integrity/ignore/:issueKey` | 🔑 | Un-ignore an issue |
+| POST | `/api/data-integrity/ignore-bulk` | 🔑 | Bulk ignore issues |
+| GET | `/api/data-integrity/placeholder-accounts` | 🔑 | List placeholder accounts |
+| POST | `/api/data-integrity/placeholder-accounts/delete` | 🔑 | Delete placeholder accounts |
+
+### Booking & Session Fixes
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/data-integrity/fix/delete-guest-pass` | 🔑 | Delete guest pass |
+| POST | `/api/data-integrity/fix/delete-fee-snapshot` | 🔑 | Delete fee snapshot |
+| POST | `/api/data-integrity/fix/dismiss-trackman-unmatched` | 🔑 | Dismiss unmatched Trackman |
+| POST | `/api/data-integrity/fix/delete-booking-participant` | 🔑 | Delete booking participant |
+| POST | `/api/data-integrity/fix/fix-orphaned-participants` | 🔑 | Fix orphaned participants |
+| POST | `/api/data-integrity/fix/convert-participant-to-guest` | 🔑 | Convert participant to guest |
+| POST | `/api/data-integrity/fix/approve-review-item` | 🔑 | Approve review item |
+| POST | `/api/data-integrity/fix/delete-review-item` | 🔑 | Delete review item |
+| POST | `/api/data-integrity/fix/approve-all-review-items` | 🔑 | Approve all review items |
+| POST | `/api/data-integrity/fix/delete-empty-session` | 🔑 | Delete empty session |
+| POST | `/api/data-integrity/fix/assign-session-owner` | 🔑 | Assign session owner |
+| POST | `/api/data-integrity/fix/complete-booking` | 🔑 | Force-complete booking |
+| POST | `/api/data-integrity/fix/cancel-stale-booking` | 🔑 | Cancel stale booking |
+| POST | `/api/data-integrity/fix/bulk-cancel-stale-bookings` | 🔑 | Bulk cancel stale bookings |
+| POST | `/api/data-integrity/fix/bulk-attend-stale-bookings` | 🔑 | Bulk mark stale bookings as attended |
+| POST | `/api/data-integrity/fix/recalculate-session-fees` | 🔑 | Recalculate session fees |
+| POST | `/api/data-integrity/fix/bulk-recalculate-usage-ledger` | 🔑 | Bulk recalculate usage ledger |
+
+### Member & Billing Fixes
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/data-integrity/fix/unlink-hubspot` | 🔑 | Unlink HubSpot record |
+| POST | `/api/data-integrity/fix/merge-hubspot-duplicates` | 🔑 | Merge HubSpot duplicates |
+| POST | `/api/data-integrity/fix/merge-stripe-customers` | 🔑 | Merge Stripe customers |
+| POST | `/api/data-integrity/fix/deactivate-stale-member` | 🔑 | Deactivate stale member |
+| POST | `/api/data-integrity/fix/change-billing-provider` | 🔑 | Change billing provider |
+| POST | `/api/data-integrity/fix/bulk-change-billing-provider` | 🔑 | Bulk change billing provider |
+| POST | `/api/data-integrity/fix/delete-member-no-email` | 🔑 | Delete member without email |
+| POST | `/api/data-integrity/fix/activate-stuck-member` | 🔑 | Activate stuck member |
+| POST | `/api/data-integrity/fix/recalculate-guest-passes` | 🔑 | Recalculate guest passes |
+| POST | `/api/data-integrity/fix/reconcile-all-guest-passes` | 🔑 | Reconcile all guest passes |
+| POST | `/api/data-integrity/fix/release-guest-pass-hold` | 🔑 | Release guest pass hold |
+| POST | `/api/data-integrity/fix/cancel-orphaned-pi` | 🔑 | Cancel orphaned PaymentIntent |
+| POST | `/api/data-integrity/fix/delete-orphan-enrollment` | 🔑 | Delete orphan enrollment |
+| POST | `/api/data-integrity/fix/delete-orphan-rsvp` | 🔑 | Delete orphan RSVP |
+| POST | `/api/data-integrity/fix/delete-orphan-records-by-email` | 🔑 | Delete orphan records by email |
+| POST | `/api/data-integrity/fix/mark-waiver-signed` | 🔑 | Mark waiver as signed |
+| POST | `/api/data-integrity/fix/accept-tier` | 🔑 | Accept tier mismatch |
+| POST | `/api/data-integrity/fix/update-tour-status` | 🔑 | Update tour status |
+| POST | `/api/data-integrity/fix/clear-stripe-customer-id` | 🔑 | Clear stale Stripe customer ID |
+| POST | `/api/data-integrity/fix/link-stripe-customer-only` | 🔑 | Link Stripe customer without subscription |
+| POST | `/api/data-integrity/fix/reconnect-stripe-subscription` | 🔑 | Reconnect Stripe subscription |
+| POST | `/api/data-integrity/fix/bulk-reconnect-stripe` | 🔑 | Bulk reconnect Stripe subscriptions |
+| POST | `/api/data-integrity/fix/repair-jan2026-status-dates` | 🔑 | Repair Jan 2026 status dates |
+| POST | `/api/data-integrity/fix/backfill-hubspot-last-modified` | 🔑 | Backfill HubSpot last modified dates |
 
 ---
 
@@ -1043,30 +1133,30 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/data-tools/resync-member` | 🛡️ | Resync member data |
-| GET | `/api/data-tools/unlinked-guest-fees` | 🛡️ | Find unlinked guest fees |
-| GET | `/api/data-tools/available-sessions` | 🛡️ | List available sessions |
-| POST | `/api/data-tools/link-guest-fee` | 🛡️ | Link guest fee to session |
+| POST | `/api/data-tools/resync-member` | 🔑 | Resync member data |
+| GET | `/api/data-tools/unlinked-guest-fees` | 🔑 | Find unlinked guest fees |
+| GET | `/api/data-tools/available-sessions` | 🔑 | List available sessions |
+| POST | `/api/data-tools/link-guest-fee` | 🔑 | Link guest fee to session |
 | GET | `/api/data-tools/bookings-search` | 🛡️ | Search bookings |
-| POST | `/api/data-tools/update-attendance` | 🛡️ | Update attendance records |
-| POST | `/api/data-tools/mindbody-reimport` | 🛡️ | Reimport from Mindbody |
-| GET | `/api/data-tools/audit-log` | 🛡️ | View audit log |
-| GET | `/api/data-tools/staff-activity` | 🛡️ | Staff activity report |
-| POST | `/api/data-tools/cleanup-mindbody-ids` | 🛡️ | Clean up Mindbody IDs |
-| POST | `/api/data-tools/bulk-push-to-hubspot` | 🛡️ | Bulk push to HubSpot |
-| POST | `/api/data-tools/sync-members-to-hubspot` | 🛡️ | Sync members to HubSpot |
-| POST | `/api/data-tools/sync-subscription-status` | 🛡️ | Sync subscription status |
-| POST | `/api/data-tools/clear-orphaned-stripe-ids` | 🛡️ | Clear orphaned Stripe IDs |
-| POST | `/api/data-tools/link-stripe-hubspot` | 🛡️ | Link Stripe to HubSpot |
-| POST | `/api/data-tools/sync-visit-counts` | 🛡️ | Sync visit counts |
-| POST | `/api/data-tools/detect-duplicates` | 🛡️ | Detect duplicate records |
-| POST | `/api/data-tools/sync-payment-status` | 🛡️ | Sync payment status |
-| POST | `/api/data-tools/fix-trackman-ghost-bookings` | 🛡️ | Fix Trackman ghost bookings |
-| POST | `/api/data-tools/cleanup-stripe-customers` | 🛡️ | Clean up Stripe customers |
-| GET | `/api/data-tools/cleanup-stripe-customers/status` | 🛡️ | Cleanup status |
-| POST | `/api/data-tools/archive-stale-visitors` | 🛡️ | Archive stale visitors |
-| GET | `/api/data-tools/archive-stale-visitors/status` | 🛡️ | Archive status |
-| POST | `/api/data-tools/cleanup-ghost-fees` | 🛡️ | Clean up ghost fees |
+| POST | `/api/data-tools/update-attendance` | 🔑 | Update attendance records |
+| POST | `/api/data-tools/mindbody-reimport` | 🔑 | Reimport from Mindbody |
+| GET | `/api/data-tools/audit-log` | 🔑 | View audit log |
+| GET | `/api/data-tools/staff-activity` | 🔑 | Staff activity report |
+| POST | `/api/data-tools/cleanup-mindbody-ids` | 🔑 | Clean up Mindbody IDs |
+| POST | `/api/data-tools/bulk-push-to-hubspot` | 🔑 | Bulk push to HubSpot |
+| POST | `/api/data-tools/sync-members-to-hubspot` | 🔑 | Sync members to HubSpot |
+| POST | `/api/data-tools/sync-subscription-status` | 🔑 | Sync subscription status |
+| POST | `/api/data-tools/clear-orphaned-stripe-ids` | 🔑 | Clear orphaned Stripe IDs |
+| POST | `/api/data-tools/link-stripe-hubspot` | 🔑 | Link Stripe to HubSpot |
+| POST | `/api/data-tools/sync-visit-counts` | 🔑 | Sync visit counts |
+| POST | `/api/data-tools/detect-duplicates` | 🔑 | Detect duplicate records |
+| POST | `/api/data-tools/sync-payment-status` | 🔑 | Sync payment status |
+| POST | `/api/data-tools/fix-trackman-ghost-bookings` | 🔑 | Fix Trackman ghost bookings |
+| POST | `/api/data-tools/cleanup-stripe-customers` | 🔑 | Clean up Stripe customers |
+| GET | `/api/data-tools/cleanup-stripe-customers/status` | 🔑 | Cleanup status |
+| POST | `/api/data-tools/archive-stale-visitors` | 🔑 | Archive stale visitors |
+| GET | `/api/data-tools/archive-stale-visitors/status` | 🔑 | Archive status |
+| POST | `/api/data-tools/cleanup-ghost-fees` | 🔑 | Clean up ghost fees |
 
 ---
 
@@ -1113,6 +1203,7 @@
 | GET | `/api/admin/monitoring/email-health` | 🛡️ | Email delivery health |
 | GET | `/api/admin/monitoring/push-status` | 🛡️ | Push notification status |
 | GET | `/api/admin/monitoring/auto-approve-config` | 🛡️ | Auto-approve configuration |
+| GET | `/api/admin/monitoring/external-systems` | 🛡️ | External system health status |
 
 ---
 
@@ -1130,6 +1221,7 @@
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/staff/passes/unredeemed` | 🛡️ | List unredeemed passes |
+| GET | `/api/staff/passes/golf-sim/by-email` | 🛡️ | Lookup golf sim passes by member email |
 | GET | `/api/staff/passes/search` | 🛡️ | Search passes |
 | POST | `/api/staff/passes/:id/redeem` | 🛡️ | Redeem pass |
 | GET | `/api/staff/passes/:passId/history` | 🛡️ | Pass history |
@@ -1141,9 +1233,9 @@
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/webhooks/trackman` | 🔑 | Trackman webhook receiver |
-| POST | `/api/webhooks/resend` | 🔑 | Resend email webhook receiver |
-| GET | `/api/webhooks/resend/health` | 🛡️ | Resend webhook health |
+| POST | `/api/webhooks/trackman` | 🔐 | Trackman webhook receiver |
+| POST | `/api/webhooks/resend` | 🔐 | Resend email webhook receiver |
+| GET | `/api/webhooks/resend/health` | 🔓 | Resend webhook health |
 
 Stripe webhook is handled separately via `express.raw()` middleware at the Express app level.
 
@@ -1160,10 +1252,105 @@ Stripe webhook is handled separately via `express.raw()` middleware at the Expre
 
 ---
 
-## Mindbody Integration
+## Kiosk Check-In
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/admin/mindbody/unmatched` | 🛡️ | List unmatched Mindbody records |
-| POST | `/api/admin/mindbody/link` | 🛡️ | Link Mindbody record |
-| GET | `/api/admin/mindbody/link-history` | 🛡️ | Link history |
+| POST | `/api/kiosk/checkin` | 🛡️ | Process kiosk member check-in (QR scan or manual lookup) |
+| GET | `/api/kiosk/verify-staff` | 🛡️ | Verify staff session for kiosk mode |
+| POST | `/api/kiosk/verify-passcode` | 🛡️ | Verify kiosk exit passcode |
+
+---
+
+## Kiosk Payments
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/kiosk/bookings/:id/pay-fees` | 🛡️ | Create payment intent for booking fees via kiosk (staff auth, resolves member by ID) |
+| POST | `/api/kiosk/bookings/:id/confirm-payment` | 🛡️ | Confirm kiosk payment intent |
+| POST | `/api/kiosk/bookings/:bookingId/cancel-payment` | 🛡️ | Cancel kiosk payment intent and restore account credit |
+
+---
+
+## Merch Management
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/merch` | 🔓 | List merch items (active only for public; all with `include_inactive=true` for staff) |
+| POST | `/api/merch` | 🛡️ | Create merch item (auto-syncs to Stripe) |
+| PUT | `/api/merch/:id` | 🛡️ | Update merch item (auto-syncs to Stripe) |
+| DELETE | `/api/merch/:id` | 🛡️ | Delete merch item (archives Stripe product) |
+
+---
+
+## Fee Products
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/fee-products` | 🛡️ | List fee products (overage, guest fee, etc.) |
+| POST | `/api/fee-products` | 🔑 | Create fee product (auto-syncs to Stripe) |
+| PUT | `/api/fee-products/:id` | 🔑 | Update fee product (auto-syncs to Stripe) |
+| DELETE | `/api/fee-products/:id` | 🔑 | Delete fee product (deletes Stripe product and prices) |
+
+---
+
+## Public Membership Checkout
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/public/membership-tiers` | 🔓 | List tiers eligible for self-serve checkout |
+| POST | `/api/public/membership-checkout` | 🔓 | Self-serve membership checkout (rate-limited, creates Stripe subscription) |
+| POST | `/api/public/day-pass/checkout` | 🔓 | Create day pass checkout session (public) |
+
+---
+
+## Apple Wallet Pass (PKPass API)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/member/wallet-pass` | 👤 | Download Apple Wallet pass (.pkpass) |
+| GET | `/api/member/wallet-pass/status` | 👤 | Check if wallet pass is active |
+| GET | `/api/member/booking-wallet-pass/:bookingId` | 👤 | Download booking-specific wallet pass |
+| POST | `/api/admin/wallet-pass/push-update-all` | 🛡️ | Push APNs update to all registered passes |
+| GET | `/api/wallet/v1/passes/:passTypeId/:serialNumber` | 👤 | Apple Wallet: get latest pass (session-authenticated) |
+| POST | `/api/wallet/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNumber` | 👤 | Apple Wallet: register device (session-authenticated) |
+| DELETE | `/api/wallet/v1/devices/:deviceLibraryId/registrations/:passTypeId/:serialNumber` | 👤 | Apple Wallet: unregister device (session-authenticated) |
+| GET | `/api/wallet/v1/devices/:deviceLibraryId/registrations/:passTypeId` | 🔓 | Apple Wallet: list serial numbers for device |
+| POST | `/api/wallet/v1/log` | 🔓 | Apple Wallet: receive device logs |
+
+---
+
+## Directory & Sync
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/directory/sync` | 🛡️ | Sync member directory |
+| GET | `/api/directory/sync-status` | 🛡️ | Get directory sync status |
+
+---
+
+## Calendar Admin
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/admin/backfill-availability-blocks` | 🛡️ | Backfill availability blocks from calendar |
+| POST | `/api/admin/backfill-calendar-extended-properties` | 🔑 | Backfill calendar extended properties |
+| GET | `/api/admin/backfill-calendar-extended-properties/status` | 🔑 | Backfill status |
+| GET | `/api/admin/calendar/cleanup-status` | 🛡️ | Calendar cleanup status |
+| POST | `/api/admin/calendar/migrate-clean-descriptions` | 🔑 | Migrate calendar descriptions |
+| POST | `/api/admin/calendar/sync-all` | 🛡️ | Sync all Google Calendars |
+| POST | `/api/admin/bookings/:id/simulate-confirm` | 🛡️ | Simulate booking confirmation (dry run) |
+| GET | `/api/tours/scheduler-url` | 🔓 | Get tour scheduler URL |
+
+---
+
+## Miscellaneous
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/mapkit-token` | 🔓 | Get Apple MapKit JS token |
+| GET | `/api/members/:email/contact-info` | 🛡️ | Get member contact info |
+| PUT | `/api/members/:email/contact-info` | 🛡️ | Update member contact info |
+| GET | `/api/members/:email/profile-details` | 🛡️ | Get member profile details |
+| PUT | `/api/members/:email/profile-details` | 🛡️ | Update member profile details |
+| POST | `/api/members/me/data-export-request` | 👤 | Request personal data export |

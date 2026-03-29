@@ -2,8 +2,8 @@
 
 ## Ever Club Members App
 
-**Version:** 1.0
-**Last Updated:** March 25, 2026
+**Version:** 1.1
+**Last Updated:** March 29, 2026
 **Document Owner:** Ever Club Product Team
 **Operating Entity:** Tempo CC Inc.
 
@@ -234,9 +234,14 @@ To provide an elegant, frictionless digital experience that mirrors the elevated
   - Warning for unfilled slots (not tracked, may incur guest fees)
   - Guardian consent form triggered for minor members (under 18)
 - Conflict detection for overlapping bookings (checks both owner and all participants)
+  - Advisory locks on `resourceId:sessionDate` composite keys serialize concurrent approvals
+  - Cross-midnight overlap safety via `timePeriodsOverlap()` post-filter
+  - Exclusion constraints with `SELECT FOR UPDATE` within advisory lock transactions
 - Bay preference selection (specific bay or any available)
+- Staff booking block removal and unblock flow
 - Auto-complete scheduler for sessions past their end time
 - Stale pending booking expiration
+- Revert checked-in booking to approved status (`revert-to-approved`)
 - Haptic feedback and success sounds on booking confirmation
 
 #### Conference Room Bookings
@@ -306,11 +311,24 @@ Valid status transitions enforced at the database level:
 - Volume-based corporate pricing tiers
 - Sub-member management
 
+#### Fee Products
+- Admin-managed fee product catalog (overage fees, guest fees, etc.)
+- Fee products synced to Stripe as products and prices
+- CRUD operations with Stripe auto-sync on create/update/delete
+- Fee products sourced for POS register and kiosk payment flows
+
 #### POS Register
 - Staff-facing point-of-sale for in-person transactions
-- Cart-based ordering system
+- Cart-based ordering system with fee product sourcing
 - Terminal payment integration
 - Idempotency protection against duplicate charges
+
+#### Kiosk Self-Service Payments
+- Members pay outstanding booking fees at the kiosk without staff assistance
+- Staff-authenticated session with member resolution by ID
+- Creates Stripe Payment Intent for booking fees
+- Confirm/cancel payment flow with account credit restoration on cancellation
+- Stale invoice handling: auto-finalize or void stale draft invoices
 
 ### 5.5 Membership Management
 
@@ -326,6 +344,12 @@ Valid status transitions enforced at the database level:
 | `suspended` | Account suspended (no access) |
 | `cancelled` | Membership cancelled |
 | `archived` | Permanently archived |
+
+#### Tier Configuration
+- Dynamic tier names (no hardcoded slugs; tiers driven by database records)
+- Admin can create, update, and delete tiers (delete blocked if members are assigned)
+- Per-tier member count tracking
+- Self-serve membership checkout with promo code support (including 100% off / free trial options)
 
 #### Application Pipeline
 - Online membership application form
@@ -401,7 +425,7 @@ Valid status transitions enforced at the database level:
 
 #### Scheduled Communications
 - Daily push reminders for upcoming bookings, events, and wellness classes
-- Morning closure notifications
+- Morning closure notifications (routed to staff only)
 - Stuck booking escalation alerts
 - Waiver review reminders
 
@@ -422,6 +446,8 @@ Valid status transitions enforced at the database level:
 - Billing verification and prepayment enforcement
 - Guest pass consumption at check-in (also triggered during bulk check-in and booking auto-complete)
 - Walk-in visit recording
+- Kiosk self-service payment mode (member pays fees at kiosk terminal with memberId resolution)
+- Kiosk passcode-protected exit to prevent unauthorized mode changes
 
 #### Walk-In Visit Tracking
 - Records unbooked visits via QR/NFC scan
@@ -445,6 +471,14 @@ Valid status transitions enforced at the database level:
 - Ordering support through POS register
 - Publicly accessible at `/menu`
 - Bulk delete all inactive menu items for easy cleanup
+
+#### Merch Management
+- Full CRUD for branded merchandise items (apparel, accessories, etc.)
+- Auto-sync to Stripe: product and price creation on save, archive on delete
+- Stock tracking (in_stock / out_of_stock / preorder)
+- Category and display order management
+- Public read-only endpoint (active items); staff can list all including inactive
+- Merch items are purchasable through the kiosk POS checkout flow (Section 5.9) via their synced Stripe prices
 
 ### 5.12 Public Website & Marketing Pages
 
@@ -510,6 +544,10 @@ Valid status transitions enforced at the database level:
 - Placeholder merge for unmatched-to-matched transitions
 - All Trackman-sourced participants get waived payment status (usage-tracking only, not billed)
 
+#### Day Pass & Trackman Linkage
+- Day pass visitors are automatically charged when linked to Trackman bookings
+- Day pass redemption tracked with Trackman booking ID for audit trail
+
 #### Historical Backfill
 - Tools and scripts for rescanning historical Trackman data
 - Ensures all sessions are accounted for and properly attributed
@@ -518,7 +556,7 @@ Valid status transitions enforced at the database level:
 
 #### Automated Health Checks
 - System health grid monitoring: Database, Stripe, HubSpot, Resend, Google Calendar
-- 23 integrity checks: 8 external-system (Stripe subscription sync, billing orphans, HubSpot, Trackman, MindBody) + 15 DB-enforced/internal
+- 25 integrity checks: 8 external-system (Stripe subscription sync, billing orphans, HubSpot, Trackman, MindBody) + 17 DB-enforced/internal (includes usage ledger gap detection and inactive member booking detection)
 - Scheduled runs for external-system checks; manual trigger for internal checks
 
 #### Resolution Dashboard (Admin)
@@ -542,7 +580,7 @@ Valid status transitions enforced at the database level:
 - Google Calendar extended property backfilling
 
 #### System Monitoring
-- Scheduled tasks monitor: status, last run, and results for all 28 background schedulers with master toggle
+- Scheduled tasks monitor: status, last run, and results for all 29 background schedulers with master toggle
 - Job queue monitor: pending, processing, completed, and failed background jobs
 - HubSpot sync queue: retry counts and error logs
 - Webhook monitor: incoming webhook log (Trackman, Stripe, Resend) with processing status
@@ -578,7 +616,7 @@ Valid status transitions enforced at the database level:
 - Slot duration configuration for Golf, Conference Rooms, and Tours
 
 #### Integration Configuration
-- HubSpot Form IDs (Membership, Private Hire, etc.)
+- HubSpot Form IDs (Membership, Private Hire, etc.) — configurable via admin settings
 - HubSpot tier and status mapping
 - Apple Messages for Business ID
 - Apple Wallet Pass Type ID and Team ID
@@ -817,12 +855,20 @@ All schedulers have overlap protection, catch-up windows, and error alerting.
 - Public endpoints creating database records are rate-limited
 - Subscription creation: dedicated rate limiter + per-email operation lock
 - OTP verification: three-tier rate limiting (per-IP+email, per-IP global, per-email aggregate)
+- Expanded rate limiting with pool backpressure awareness (skips cleanup when pool is under pressure)
+
+### CSRF & Origin Hardening
+- CSRF origin validation on state-changing endpoints
+- Allowed-origin enforcement for API requests
 
 ### Payment Security
 - PCI compliance via Stripe (card data never touches our servers)
-- Idempotency keys prevent duplicate charges
+- Idempotency keys prevent duplicate charges (with `isIdempotencyKeyReuse()` guard for retries)
 - Subscription locks prevent duplicate membership creation
 - Refund status tracking with double-failure logging
+- Dispute handling coverage for both terminal and web payments
+- Ghost reactivation blocking: dispute wins do not reactivate intentionally cancelled members
+- Guest pass cycle-aware refund: refunds only decrement passes within the current billing cycle
 
 ### Data Protection
 - SQL injection prevention via parameterized queries (Drizzle ORM)
@@ -830,6 +876,7 @@ All schedulers have overlap protection, catch-up windows, and error alerting.
 - Synthetic email guards block notifications to imported/placeholder addresses
 - INNER JOIN guards prevent notifications to deleted staff
 - Staff actions are audit-logged
+- Advisory lock domain isolation (fixed integer domains prevent cross-resource collisions)
 
 ### Legal
 - Digital waiver system with version tracking
@@ -882,4 +929,4 @@ All schedulers have overlap protection, catch-up windows, and error alerting.
 
 ---
 
-*This document reflects the state of the Ever Club Members App as of March 25, 2026 (v8.97.35). It should be updated as new features are developed and requirements evolve.*
+*This document reflects the state of the Ever Club Members App as of March 29, 2026 (v8.97.91). It should be updated as new features are developed and requirements evolve.*
