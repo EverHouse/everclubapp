@@ -190,11 +190,13 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           END,
           bp.created_at`);
 
-      participantsCount = bpResult.rows.length;
+      const isEmptySlot = (r: DbRow) => r.participant_type === 'guest' && !r.user_id && !r.guest_id && r.display_name === 'Empty Slot';
+      const filteredRows = (bpResult.rows as DbRow[]).filter(r => !isEmptySlot(r));
+      participantsCount = filteredRows.length;
 
-      const ownerParticipants = (bpResult.rows as DbRow[]).filter(r => r.participant_type === 'owner');
-      const memberParticipants = (bpResult.rows as DbRow[]).filter(r => r.participant_type === 'member');
-      const guestParticipants = (bpResult.rows as DbRow[]).filter(r => r.participant_type === 'guest');
+      const ownerParticipants = filteredRows.filter(r => r.participant_type === 'owner');
+      const memberParticipants = filteredRows.filter(r => r.participant_type === 'member');
+      const guestParticipants = filteredRows.filter(r => r.participant_type === 'guest');
 
       if (declaredPlayerCount && Number(declaredPlayerCount) > 0) {
         expectedPlayerCount = declaredPlayerCount as number;
@@ -495,6 +497,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
          INNER JOIN booking_requests br2 ON br2.session_id = bp.session_id
          LEFT JOIN guests g ON g.id = bp.guest_id
          WHERE br2.id = ${id} AND bp.participant_type = 'guest'
+           AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
          ORDER BY bp.id`);
 
       const legacyTotalMemberSlots = membersResult.rows.length;

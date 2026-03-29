@@ -226,7 +226,10 @@ export async function previewRosterFees(
 
   let existingParticipants: BookingParticipant[] = [];
   if (booking.session_id) {
-    existingParticipants = await getSessionParticipants(booking.session_id);
+    const rawParticipants = await getSessionParticipants(booking.session_id);
+    existingParticipants = rawParticipants.filter(p =>
+      !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
+    );
   }
 
   const allParticipants: Array<{ participantType: string; displayName: string; email?: string; userId?: string | null }> = [];

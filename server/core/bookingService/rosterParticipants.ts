@@ -102,7 +102,10 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       });
     }
 
-    const existingParticipants = await getSessionParticipants(sessionId);
+    const allExistingParticipants = await getSessionParticipants(sessionId);
+    const existingParticipants = allExistingParticipants.filter(p =>
+      !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
+    );
     const declaredCount = booking.declared_player_count || 1;
     const ownerInParticipants = existingParticipants.some(p => p.participantType === 'owner');
     const effectiveCount = ownerInParticipants ? existingParticipants.length : (1 + existingParticipants.length);
