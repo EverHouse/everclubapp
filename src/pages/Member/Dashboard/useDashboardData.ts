@@ -199,9 +199,12 @@ export function useDashboardData() {
     const localKey = `eh_first_login_shown_${user.email}`;
     if (localStorage.getItem(localKey)) return;
 
+    let cancelled = false;
+
     (async () => {
       try {
         const data = await fetchWithCredentials<Record<string, unknown>>('/api/member/onboarding');
+        if (cancelled) return;
 
         if (data.firstLoginAt || data.onboardingCompletedAt || data.isDismissed) {
           localStorage.setItem(localKey, 'true');
@@ -221,15 +224,21 @@ export function useDashboardData() {
 
         postWithCredentials('/api/member/onboarding/complete-step', { step: 'first_login' }).catch(err => console.error('[Dashboard] Failed to complete onboarding step:', err));
 
-        queueMicrotask(() => setShowFirstLoginModal(true));
+        if (!cancelled) {
+          setShowFirstLoginModal(true);
+        }
       } catch {
         const key = `eh_first_login_shown_${user?.email}`;
         if (!localStorage.getItem(key)) {
           localStorage.setItem(key, 'true');
-          queueMicrotask(() => setShowFirstLoginModal(true));
+          if (!cancelled) {
+            setShowFirstLoginModal(true);
+          }
         }
       }
     })();
+
+    return () => { cancelled = true; };
   }, [user?.email]);
 
   useEffect(() => {
