@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../core/logger';
 
@@ -47,13 +47,18 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   const internalHeader = req.headers['x-internal-request'] as string | undefined;
   if (internalHeader) {
     const internalSecret = process.env.INTERNAL_API_SECRET;
-    if (internalSecret && internalHeader === internalSecret) {
-      return next();
-    } else {
-      logger.warn('[CSRF] Blocked request with invalid x-internal-request header', { path: req.path, method: req.method });
-      res.status(403).json({ error: 'Internal verification failed.' });
-      return;
+    if (internalSecret) {
+      const headerBuf = Buffer.alloc(64);
+      const secretBuf = Buffer.alloc(64);
+      headerBuf.write(internalHeader);
+      secretBuf.write(internalSecret);
+      if (timingSafeEqual(headerBuf, secretBuf)) {
+        return next();
+      }
     }
+    logger.warn('[CSRF] Blocked request with invalid x-internal-request header', { path: req.path, method: req.method });
+    res.status(403).json({ error: 'Internal verification failed.' });
+    return;
   }
 
   const origin = req.headers['origin'] as string | undefined;

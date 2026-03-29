@@ -1,19 +1,28 @@
 import type { Express, RequestHandler } from 'express';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { authStorage } from '../replit_integrations/auth/storage';
 import { logger } from '../core/logger';
 import { getSupabaseAnon } from '../core/supabase/client';
-import type { SupabaseClient } from '@supabase/supabase-js';
 import { getErrorMessage } from '../utils/errorUtils';
 
 const SUPABASE_ROUTE_TIMEOUT = 10000;
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  promise.catch((err) => logger.debug(`[Supabase] ${label} settled after timeout race`, { extra: { error: getErrorMessage(err) } }));
+
   return Promise.race([
     promise,
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`${label} timed out after ${SUPABASE_ROUTE_TIMEOUT / 1000}s`)), SUPABASE_ROUTE_TIMEOUT)
     )
   ]);
+}
+
+function createPerRequestClient(): SupabaseClient | null {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) return null;
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
 }
 
 function getSupabaseClient(): SupabaseClient | null {
@@ -31,9 +40,7 @@ function getSupabaseClient(): SupabaseClient | null {
 export { getSupabaseClient };
 
 export function setupSupabaseAuthRoutes(app: Express) {
-  const client = getSupabaseClient();
-  
-  if (!client) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
     logger.info('Supabase auth routes disabled - credentials not configured');
     
     const supabaseNotConfigured: RequestHandler = (_req, res) => {
@@ -52,6 +59,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
   logger.info('Supabase auth routes enabled');
 
   app.post('/api/supabase/signup', async (req, res) => {
+    const client = createPerRequestClient();
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+
     try {
       const { email, password, firstName, lastName } = req.body;
       
@@ -74,12 +84,19 @@ export function setupSupabaseAuthRoutes(app: Express) {
       }
       
       if (data.user) {
-        await authStorage.upsertUser({
-          id: data.user.id,
-          email: data.user.email || email,
-          firstName: firstName || '',
-          lastName: lastName || '',
-        });
+        try {
+          await authStorage.upsertUser({
+            id: data.user.id,
+            email: data.user.email || email,
+            firstName: firstName || '',
+            lastName: lastName || '',
+          });
+        } catch (dbError: unknown) {
+          logger.error('[Supabase Auth] Local DB sync failed after signup, Supabase user may be orphaned', {
+            extra: { userId: data.user.id, email, error: getErrorMessage(dbError) }
+          });
+          return res.status(500).json({ error: 'Failed to initialize user profile. Please try again or contact support.' });
+        }
       }
       
       res.json({ 
@@ -98,6 +115,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
   });
 
   app.post('/api/supabase/login', async (req, res) => {
+    const client = createPerRequestClient();
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+
     try {
       const { email, password } = req.body;
       
@@ -138,6 +158,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
   });
 
   app.post('/api/supabase/logout', async (req, res) => {
+    const client = createPerRequestClient();
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+
     try {
       const { error } = await withTimeout(
         client.auth.signOut(),
@@ -161,6 +184,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
   });
 
   app.post('/api/supabase/forgot-password', async (req, res) => {
+    const client = createPerRequestClient();
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+
     try {
       const { email } = req.body;
       
@@ -188,6 +214,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
   });
 
   app.get('/api/supabase/user', async (req, res) => {
+    const client = createPerRequestClient();
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader?.startsWith('Bearer ')) {
@@ -225,6 +254,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
   });
 
   app.post('/api/supabase/oauth', async (req, res) => {
+    const client = createPerRequestClient();
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+
     try {
       const { provider } = req.body;
       

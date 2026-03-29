@@ -140,12 +140,6 @@ export async function findConflictingBookings(
   const normalizedEmail = String(memberEmail).trim().toLowerCase();
 
   try {
-    const memberResult = await db.execute(
-      sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${normalizedEmail}) LIMIT 1`
-    );
-    const memberRows = memberResult.rows as unknown as UserIdRow[];
-    const memberId = memberRows[0]?.id;
-
     const [ownerResult, participantResult] = await Promise.all([
       db.execute(sql`
         SELECT 
@@ -159,16 +153,16 @@ export async function findConflictingBookings(
         FROM booking_requests br
         LEFT JOIN resources r ON br.resource_id = r.id
         WHERE (
-            LOWER(br.user_email) = LOWER(${normalizedEmail})
-            OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${normalizedEmail}))
-            OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${normalizedEmail}))
+            LOWER(br.user_email) = ${normalizedEmail}
+            OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = ${normalizedEmail})
+            OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${normalizedEmail})
           )
           AND br.request_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND br.status = ANY(${OCCUPIED_STATUSES})
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `),
 
-      memberId ? db.execute(sql`
+      db.execute(sql`
         SELECT 
           COALESCE(br.id, -bs.id) as booking_id,
           COALESCE(r.name, 'Unknown Resource') as resource_name,
@@ -182,12 +176,12 @@ export async function findConflictingBookings(
         JOIN booking_sessions bs ON bp.session_id = bs.id
         LEFT JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON bs.resource_id = r.id
-        WHERE bp.user_id = ${memberId}
+        WHERE bp.user_id = (SELECT id FROM users WHERE LOWER(email) = ${normalizedEmail} LIMIT 1)
           AND bs.session_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND bp.invite_status = 'accepted'
           AND (br.id IS NULL OR br.status = ANY(${OCCUPIED_STATUSES}))
           ${excludeBookingId ? sql`AND (br.id IS NULL OR br.id != ${excludeBookingId})` : sql``}
-      `) : Promise.resolve({ rows: [] }),
+      `),
     ]);
 
     const reqStart = timeToMinutes(startTime);
