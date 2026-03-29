@@ -114,6 +114,10 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
   }
 });
 
+const completeStepSchema = z.object({
+  step: z.enum(['profile', 'app', 'first_login', 'concierge']),
+});
+
 router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
@@ -122,12 +126,11 @@ router.post('/api/member/onboarding/complete-step', isAuthenticated, async (req,
     const email = sessionUser.email?.toLowerCase();
     if (!email) return res.status(400).json({ error: 'User email required' });
 
-    const { step } = req.body;
-    const validSteps = ['profile', 'app', 'first_login', 'concierge'];
-    
-    if (!step || !validSteps.includes(step)) {
+    const parsed = completeStepSchema.safeParse(req.body);
+    if (!parsed.success) {
       return res.status(400).json({ error: 'Invalid step' });
     }
+    const { step } = parsed.data;
 
     if (step === 'profile') {
       await db.execute(sql`UPDATE users SET profile_completed_at = NOW(), updated_at = NOW() WHERE LOWER(email) = ${email} AND profile_completed_at IS NULL`);

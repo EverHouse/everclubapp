@@ -1557,7 +1557,7 @@ router.post('/api/members/backfill-discount-codes', isAdmin, async (req, res) =>
     for (let i = 0; i < total; i += BATCH_SIZE) {
       const batch = usersWithSubs.rows.slice(i, i + BATCH_SIZE);
       
-      await Promise.all(batch.map(async (row: Record<string, unknown>) => {
+      await Promise.allSettled(batch.map(async (row: Record<string, unknown>) => {
         try {
           const subscription = await stripe.subscriptions.retrieve(row.stripe_subscription_id as string);
           const discounts = subscription.discounts?.filter((d): d is Stripe.Discount => typeof d !== 'string');

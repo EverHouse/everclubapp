@@ -279,7 +279,7 @@ router.post('/api/data-tools/clear-orphaned-stripe-ids', isAdmin, async (req: Re
     for (let i = 0; i < usersWithStripe.rows.length; i += BATCH_SIZE) {
       const batch = usersWithStripe.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
-      await Promise.all(batch.map(async (user) => {
+      await Promise.allSettled(batch.map(async (user) => {
         try {
           const customerId = user.stripe_customer_id;
           if (!customerId) return;
@@ -552,7 +552,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
     for (let i = 0; i < membersWithBoth.rows.length; i += BATCH_SIZE) {
       const batch = membersWithBoth.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
-      await Promise.all(batch.map(async (member) => {
+      await Promise.allSettled(batch.map(async (member) => {
         try {
           const invoices = await stripe.invoices.list({
             customer: member.stripe_customer_id!,

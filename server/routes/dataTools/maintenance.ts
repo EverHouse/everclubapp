@@ -354,7 +354,7 @@ router.post('/api/data-tools/sync-visit-counts', isAdmin, async (req: Request, r
         wellnessCountMap.set(row.norm_email, parseInt(row.count || '0', 10));
       }
 
-      await Promise.all(batch.map(async (member) => {
+      await Promise.allSettled(batch.map(async (member) => {
         try {
           const normalizedEmail = member.email.toLowerCase();
 
@@ -531,7 +531,7 @@ router.post('/api/data-tools/detect-duplicates', isAdmin, async (req: Request, r
     for (let i = 0; i < membersWithHubspot.rows.length; i += BATCH_SIZE) {
       const batch = membersWithHubspot.rows.slice(i, i + BATCH_SIZE) as unknown as DbUserRow[];
       
-      await Promise.all(batch.map(async (member) => {
+      await Promise.allSettled(batch.map(async (member) => {
         try {
           const searchResponse = await retryableHubSpotRequest(() =>
             hubspot.crm.contacts.searchApi.doSearch({
@@ -1014,7 +1014,7 @@ async function runVisitorArchiveInBackground(jobId: string, dryRun: boolean, sta
       for (let i = 0; i < visitorsWithStripe.length; i += BATCH_SIZE) {
         const batch = visitorsWithStripe.slice(i, i + BATCH_SIZE);
 
-        await Promise.all(batch.map(async (visitor) => {
+        await Promise.allSettled(batch.map(async (visitor) => {
           try {
             const charges = await stripe.charges.list({ customer: visitor.stripe_customer_id as string, limit: 1 });
             if (charges.data.length > 0) { keptCount++; return; }

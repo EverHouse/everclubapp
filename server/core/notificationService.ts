@@ -368,7 +368,7 @@ async function deliverViaPush(userEmail: string, payload: PushPayload): Promise<
     let failCount = 0;
     const staleEndpoints: string[] = [];
     
-    await Promise.all(subscriptions.map(async (sub) => {
+    await Promise.allSettled(subscriptions.map(async (sub) => {
       const pushSubscription = {
         endpoint: sub.endpoint,
         keys: { p256dh: sub.p256dh, auth: sub.auth }
@@ -786,7 +786,7 @@ async function deliverPushToStaff(payload: PushPayload): Promise<DeliveryResult>
     let failCount = 0;
     const staleEndpoints: string[] = [];
     
-    await Promise.all(staffSubscriptions.map(async (sub) => {
+    await Promise.allSettled(staffSubscriptions.map(async (sub) => {
       const pushSubscription = {
         endpoint: sub.endpoint,
         keys: { p256dh: sub.p256dh, auth: sub.auth }

@@ -520,7 +520,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
         const primaryEmail = contact.properties.email?.toLowerCase();
         if (!primaryEmail) continue;
         
-        const mergedIds = contact.properties.hs_merged_object_ids!
+        const mergedIds = (contact.properties.hs_merged_object_ids || '')
           .split(';')
           .map(id => id.trim())
           .filter(id => id.length > 0);
