@@ -2,12 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
-## [8.97.96] - 2026-03-29
+## [8.97.97] - 2026-03-29
 
-### Fix: Apple Wallet Pass Authentication
-- **Fix**: Rewrote the Apple Wallet "Get serial numbers" endpoint (`GET /v1/devices/:deviceLibraryId/registrations/:passTypeId`) authentication to fix persistent 401 errors affecting multiple member devices. The previous implementation had ~200 lines of cascading fallback auth logic that still failed when a device's auth token got out of sync with the database. The new approach: (1) tries direct token validation first (fast path), (2) if that fails, looks up serial owners and checks if the token belongs to the same member (member-match fallback with token repair), (3) for single-member devices, accepts legitimate hex tokens (>=32 chars, matching system-generated format) and repairs the mapping. Multi-member devices without a member-match are rejected. Token repair only happens with a confirmed member ID. Added diagnostic logging for missing `Authorization` headers (previously returned 401 silently with no log).
-- **Root cause**: Devices had valid registrations and auth tokens in their passes, but the tokens in the `wallet_pass_auth_tokens` DB table had drifted (different token stored). All fallback paths queried by token first, so when the token wasn't in the DB at all, every fallback failed. The new single-member-device fallback doesn't require the token to exist in the DB.
+### Fix: Apple Wallet Pass Authentication (comprehensive)
+- **Fix**: Rewrote Apple Wallet web service authentication across both the "Get serial numbers" and "Get latest pass" endpoints to fix persistent 401 errors affecting 10+ member devices. Three layers of fallback now cover all known failure modes:
+  - **Layer 1** (direct match): Standard token validation — fast path when tokens match the DB.
+  - **Layer 2** (member-match + repair): If the token exists in the DB for a different serial but same member, accept and repair the mapping. Also handles single-member devices with legitimate hex tokens.
+  - **Layer 3** (registered-device ownership): If the `Authorization` header is missing entirely (e.g., stripped by reverse proxy), accept the request based on the device having valid registrations with auth token records. This covers the case where production proxies strip the non-standard `ApplePass` auth scheme from GET requests. The serial number and deviceLibraryId are device-level secrets — the serial list and pass data belong to the device's own member.
+- **Root cause**: Two independent failure modes were occurring simultaneously: (1) DB auth tokens had drifted from what devices stored in their installed passes, and (2) the `Authorization: ApplePass <token>` header may not survive all proxy layers in production. The old code required the token to exist in the DB AND be present in the header, so both failure modes produced 401.
+- **Security**: Token repair only happens with a confirmed member ID. The serial-ownership fallback is only for read endpoints (get serials, get pass). Write endpoints (register, unregister) still require the auth header.
 - **Files changed**: `server/routes/walletPassWebService.ts`
+
+## [8.97.96] - 2026-03-29
+- Intermediate version (superseded by 8.97.97)
 
 ## [8.97.95] - 2026-03-29
 

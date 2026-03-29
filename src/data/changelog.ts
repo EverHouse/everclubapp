@@ -8,11 +8,12 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "8.97.96",
+    version: "8.97.97",
     date: "2026-03-29",
     title: "Apple Wallet Pass Sync Fix",
     changes: [
       "Fixed: Apple Wallet membership passes now sync correctly. Members whose Wallet passes had stopped updating will see them work again automatically.",
+      "Fixed: Wallet pass downloads now work even when the auth header is not delivered by the network.",
     ]
   },
   {
