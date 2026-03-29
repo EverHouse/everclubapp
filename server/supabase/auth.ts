@@ -7,16 +7,31 @@ import { getSupabaseAnon } from '../core/supabase/client';
 import { getErrorMessage } from '../utils/errorUtils';
 
 const SUPABASE_ROUTE_TIMEOUT = 10000;
+const VALID_OAUTH_PROVIDERS = new Set(['google', 'apple', 'facebook', 'github', 'azure', 'twitter']);
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 256;
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   promise.catch((err) => logger.debug(`[Supabase] ${label} settled after timeout race`, { extra: { error: getErrorMessage(err) } }));
 
+  let timer: ReturnType<typeof setTimeout>;
   return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${SUPABASE_ROUTE_TIMEOUT / 1000}s`)), SUPABASE_ROUTE_TIMEOUT)
-    )
+    promise.then(
+      (val) => { clearTimeout(timer); return val; },
+      (err) => { clearTimeout(timer); throw err; },
+    ),
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${SUPABASE_ROUTE_TIMEOUT / 1000}s`)), SUPABASE_ROUTE_TIMEOUT);
+    })
   ]);
+}
+
+function validateEmail(email: unknown): email is string {
+  return typeof email === 'string' && email.length > 0 && email.length <= MAX_EMAIL_LENGTH;
+}
+
+function validatePassword(password: unknown): password is string {
+  return typeof password === 'string' && password.length >= 6 && password.length <= MAX_PASSWORD_LENGTH;
 }
 
 function createPerRequestClient(): SupabaseClient | null {
@@ -82,6 +97,12 @@ export function setupSupabaseAuthRoutes(app: Express) {
     try {
       const { email, password, firstName, lastName } = req.body;
 
+      if (!validateEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email address' });
+      }
+      if (!validatePassword(password)) {
+        return res.status(400).json({ error: 'Password must be between 6 and 256 characters' });
+      }
       if (typeof firstName !== 'string' || firstName.length > 100 ||
           typeof lastName !== 'string' || lastName.length > 100) {
         return res.status(400).json({ error: 'Invalid name parameters' });
@@ -143,6 +164,13 @@ export function setupSupabaseAuthRoutes(app: Express) {
     try {
       const { email, password } = req.body;
       
+      if (!validateEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email address' });
+      }
+      if (!validatePassword(password)) {
+        return res.status(400).json({ error: 'Invalid password' });
+      }
+
       const { data, error } = await withTimeout(
         client.auth.signInWithPassword({
           email,
@@ -156,12 +184,18 @@ export function setupSupabaseAuthRoutes(app: Express) {
       }
       
       if (data.user) {
-        await authStorage.upsertUser({
-          id: data.user.id,
-          email: data.user.email || email,
-          firstName: data.user.user_metadata?.first_name || '',
-          lastName: data.user.user_metadata?.last_name || '',
-        });
+        try {
+          await authStorage.upsertUser({
+            id: data.user.id,
+            email: data.user.email || email,
+            firstName: String(data.user.user_metadata?.first_name || '').slice(0, 100),
+            lastName: String(data.user.user_metadata?.last_name || '').slice(0, 100),
+          });
+        } catch (dbError: unknown) {
+          logger.error('[Supabase Auth] Local DB sync failed during login', {
+            extra: { userId: data.user.id, error: getErrorMessage(dbError) }
+          });
+        }
       }
 
       res.json({ 
@@ -211,6 +245,10 @@ export function setupSupabaseAuthRoutes(app: Express) {
 
     try {
       const { email } = req.body;
+
+      if (!validateEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email address' });
+      }
       
       const { error } = await withTimeout(
         client.auth.resetPasswordForEmail(email, {
@@ -281,6 +319,10 @@ export function setupSupabaseAuthRoutes(app: Express) {
 
     try {
       const { provider } = req.body;
+
+      if (typeof provider !== 'string' || !VALID_OAUTH_PROVIDERS.has(provider)) {
+        return res.status(400).json({ error: 'Invalid OAuth provider' });
+      }
       
       const { data, error } = await withTimeout(
         client.auth.signInWithOAuth({
