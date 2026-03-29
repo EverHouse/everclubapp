@@ -21,6 +21,7 @@ import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { logAndRespond } from '../../core/logger';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getBookingInvoiceId, finalizeAndPayInvoice, createDraftInvoiceForBooking, finalizeInvoicePaidOutOfBand, buildInvoiceDescription } from '../../core/billing/bookingInvoiceService';
+import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { validateBody } from '../../middleware/validate';
 import { createPaymentIntentSchema, markBookingPaidSchema, confirmPaymentSchema, cancelPaymentIntentSchema, createCustomerSchema, chargeSavedCardSchema } from '../../../shared/validators/payments';
 
@@ -262,6 +263,21 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
     const member = memberResult.rows[0] as unknown as DbMemberRow;
     const _memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email;
 
+    const sessionLookup = await db.execute(sql`SELECT DISTINCT bs.id as session_id
+       FROM booking_participants bp
+       JOIN booking_sessions bs ON bp.session_id = bs.id
+       WHERE bp.id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)})
+       LIMIT 1`);
+    if (sessionLookup.rows.length > 0) {
+      const sid = (sessionLookup.rows[0] as { session_id: number }).session_id;
+      try {
+        await recalculateSessionFees(sid, 'stripe');
+        logger.info('[Stripe] Staff charge: recalculated session fees before charging', { extra: { sessionId: sid } });
+      } catch (recalcErr: unknown) {
+        logger.warn('[Stripe] Staff charge: fee recalculation failed, proceeding with cached values', { extra: { sessionId: sid, error: getErrorMessage(recalcErr) } });
+      }
+    }
+
     const participantResult = await db.execute(sql`SELECT bp.id, bp.session_id, bp.cached_fee_cents, bp.payment_status, bp.participant_type, bp.display_name,
        br.id as booking_id, bs.trackman_booking_id
        FROM booking_participants bp
@@ -418,23 +434,40 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
     }
 
     let invoiceResult;
-    const existingInvoiceId = resolvedBookingId ? await getBookingInvoiceId(Number(resolvedBookingId)) : null;
-    
+    let existingInvoiceId = resolvedBookingId ? await getBookingInvoiceId(Number(resolvedBookingId)) : null;
+
     if (existingInvoiceId) {
       try {
-        invoiceResult = await finalizeAndPayInvoice({
-          bookingId: Number(resolvedBookingId),
-          paymentMethodId: paymentMethod.id,
-          offSession: true,
-        });
-        logger.info('[Stripe] Staff charge using existing draft invoice', {
-          extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId, paymentIntentId: invoiceResult.paymentIntentId }
-        });
+        const stripeClient = await getStripeClient();
+        const existingInvoice = await stripeClient.invoices.retrieve(existingInvoiceId);
+        if (existingInvoice.status === 'draft' && existingInvoice.amount_due !== authoritativeAmountCents) {
+          logger.warn('[Stripe] Staff charge: existing draft invoice amount mismatch — voiding stale draft', {
+            extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId, invoiceAmount: existingInvoice.amount_due, authoritativeAmount: authoritativeAmountCents }
+          });
+          await stripeClient.invoices.del(existingInvoiceId);
+          await db.execute(sql`UPDATE booking_requests SET stripe_invoice_id = NULL, updated_at = NOW() WHERE id = ${Number(resolvedBookingId)}`);
+          existingInvoiceId = null;
+        } else if (existingInvoice.status === 'draft') {
+          invoiceResult = await finalizeAndPayInvoice({
+            bookingId: Number(resolvedBookingId),
+            paymentMethodId: paymentMethod.id,
+            offSession: true,
+          });
+          logger.info('[Stripe] Staff charge using existing draft invoice', {
+            extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId, paymentIntentId: invoiceResult.paymentIntentId }
+          });
+        } else {
+          logger.info('[Stripe] Staff charge: existing invoice is not draft, will create new one', {
+            extra: { bookingId: resolvedBookingId, invoiceId: existingInvoiceId, status: existingInvoice.status }
+          });
+          existingInvoiceId = null;
+        }
       } catch (draftErr: unknown) {
         logger.warn('[Stripe] Failed to use existing draft invoice, falling back to new invoice', {
           extra: { bookingId: resolvedBookingId, existingInvoiceId, error: getErrorMessage(draftErr) }
         });
         invoiceResult = null;
+        existingInvoiceId = null;
       }
     }
     
