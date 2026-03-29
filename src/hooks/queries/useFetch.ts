@@ -44,11 +44,12 @@ export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
-export async function postWithCredentials<T>(url: string, data: unknown): Promise<T> {
+export async function postWithCredentials<T>(url: string, data: unknown, options?: { signal?: AbortSignal }): Promise<T> {
   return fetchWithCredentials<T>(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    signal: options?.signal,
   });
 }
 

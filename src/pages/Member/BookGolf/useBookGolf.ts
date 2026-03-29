@@ -6,7 +6,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useToast } from '../../../components/Toast';
 import { bookingEvents } from '../../../lib/bookingEvents';
-import { fetchWithCredentials, postWithCredentials, putWithCredentials, ApiError } from '../../../hooks/queries/useFetch';
+import { fetchWithCredentials, postWithCredentials, putWithCredentials, ApiError, isAbortError } from '../../../hooks/queries/useFetch';
 import { usePricing } from '../../../hooks/usePricing';
 import { haptic } from '../../../utils/haptics';
 import { playSound } from '../../../utils/sounds';
@@ -398,16 +398,22 @@ export function useBookGolf() {
 
   useEffect(() => {
     if (activeTab !== 'conference' || !selectedSlot || !selectedResource || !selectedDateObj || !effectiveUser?.email) return;
+    const controller = new AbortController();
     const fetchPrepaymentEstimate = async () => {
       try {
         const response = await postWithCredentials<{ totalCents: number; overageMinutes: number; dailyAllowance: number; usedToday: number; paymentRequired: boolean }>('/api/member/conference/prepay/estimate', {
           memberEmail: effectiveUser.email, date: selectedDateObj.date, startTime: selectedSlot.startTime24, durationMinutes: duration
-        });
+        }, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         if (response.paymentRequired) { setConferencePaymentRequired(true); setConferenceOverageFee(response.totalCents); }
         else { setConferencePaymentRequired(false); setConferenceOverageFee(0); }
-      } catch (err: unknown) { console.error('[BookGolf] Failed to fetch prepayment estimate:', err); setConferencePaymentRequired(false); setConferenceOverageFee(0); }
+      } catch (err: unknown) {
+        if (controller.signal.aborted || isAbortError(err)) return;
+        console.error('[BookGolf] Failed to fetch prepayment estimate:', err); setConferencePaymentRequired(false); setConferenceOverageFee(0);
+      }
     };
     fetchPrepaymentEstimate();
+    return () => { controller.abort(); };
   }, [activeTab, selectedSlot, selectedResource, selectedDateObj, duration, effectiveUser?.email]);
 
   useEffect(() => {

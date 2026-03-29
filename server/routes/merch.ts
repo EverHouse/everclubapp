@@ -267,6 +267,7 @@ export async function deductMerchStock(cartItems: Array<{ productId?: string; qu
     }
   }
 
+  let anyDeducted = false;
   for (const item of merchCartItems) {
     const merchId = Number(item.productId!.replace('merch_', ''));
     const qty = item.quantity || 1;
@@ -286,13 +287,15 @@ export async function deductMerchStock(cartItems: Array<{ productId?: string; qu
         } else {
           logger.warn('[Merch] Insufficient stock for deduction', { extra: { merchId, requestedQty: qty, currentStock } });
         }
+      } else {
+        anyDeducted = true;
       }
     } catch (err: unknown) {
       logger.error('[Merch] Failed to deduct stock', { extra: { merchId, qty, error: getErrorMessage(err) } });
     }
   }
 
-  if (paymentIntentId) {
+  if (paymentIntentId && anyDeducted) {
     await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_deducted]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch(() => {});
   }
 
@@ -304,10 +307,19 @@ export async function restoreMerchStock(cartItems: Array<{ productId?: string; q
   if (merchCartItems.length === 0) return;
 
   if (paymentIntentId) {
-    const existing = await db.execute(sql`SELECT 1 FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId} AND description LIKE '%[stock_restored]%'`);
-    if (existing.rows.length > 0) {
-      logger.info('[Merch] Stock already restored for this refund, skipping', { extra: { paymentIntentId } });
-      return;
+    const piCheck = await db.execute(sql`SELECT description FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+    if (piCheck.rows.length > 0) {
+      const desc = (piCheck.rows[0] as { description?: string })?.description || '';
+      if (desc.includes('[stock_restored]')) {
+        logger.info('[Merch] Stock already restored for this refund, skipping', { extra: { paymentIntentId } });
+        return;
+      }
+      if (!desc.includes('[stock_deducted]')) {
+        logger.warn('[Merch] Stock was never deducted for this payment, skipping restoration to prevent over-counting', { extra: { paymentIntentId } });
+        return;
+      }
+    } else {
+      logger.warn('[Merch] No payment intent record found, proceeding with restoration as safety fallback', { extra: { paymentIntentId } });
     }
   }
 
