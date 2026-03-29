@@ -24,7 +24,7 @@ async function internalPost(path: string, sessionCookie: string): Promise<{ ok: 
     headers: {
       'Content-Type': 'application/json',
       'Cookie': sessionCookie,
-      'X-Internal-Request': 'directory-sync',
+      'X-Internal-Request': process.env.INTERNAL_API_SECRET || '',
     },
     body: JSON.stringify({}),
   });
