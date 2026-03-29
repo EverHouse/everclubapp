@@ -113,6 +113,7 @@ const ToastItem: React.FC<{
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerStartRef = useRef<number>(Date.now());
   const remainingRef = useRef<number>(duration);
+  const snapBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startTimer = useCallback((ms: number) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -144,6 +145,7 @@ const ToastItem: React.FC<{
     startTimer(duration);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [duration, toast.isExiting]);
@@ -186,7 +188,8 @@ const ToastItem: React.FC<{
       setSwipeX(0);
       currentSwipeX.current = 0;
       setSwipeState('snapping-back');
-      setTimeout(() => setSwipeState('idle'), 350);
+      if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+      snapBackTimerRef.current = setTimeout(() => setSwipeState('idle'), 350);
       resumeTimer();
     }
   };
@@ -197,7 +200,8 @@ const ToastItem: React.FC<{
     setSwipeX(0);
     currentSwipeX.current = 0;
     setSwipeState('snapping-back');
-    setTimeout(() => setSwipeState('idle'), 350);
+    if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
+    snapBackTimerRef.current = setTimeout(() => setSwipeState('idle'), 350);
     resumeTimer();
   };
 
