@@ -701,7 +701,7 @@ export async function finalizeAndPayInvoice(params: {
       WHERE session_id = ${bookingInfo.session_id} AND cached_fee_cents > 0
     `);
     const newFeeLineItems: BookingFeeLineItem[] = (partResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
-      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
+      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST || row.participant_type === PARTICIPANT_TYPE.EMPTY_SLOT;
       return {
         participantId: row.id,
         displayName: row.display_name || 'Unknown',
@@ -1252,7 +1252,7 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
 
     const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
       const totalCents = row.cached_fee_cents;
-      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
+      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST || row.participant_type === PARTICIPANT_TYPE.EMPTY_SLOT;
       return {
         participantId: row.id,
         displayName: row.display_name || 'Unknown',
@@ -1315,7 +1315,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
 
       const feeLineItems: BookingFeeLineItem[] = typedParticipants.map((row) => {
         const totalCents = row.cached_fee_cents;
-        const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
+        const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST || row.participant_type === PARTICIPANT_TYPE.EMPTY_SLOT;
         return {
           participantId: row.id,
           displayName: row.display_name || 'Unknown',
@@ -1408,7 +1408,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
           const voidRecoveryParts = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
              FROM booking_participants WHERE session_id = ${sessionId} AND cached_fee_cents > 0`);
           const voidRecoveryItems: BookingFeeLineItem[] = (voidRecoveryParts.rows as unknown as ParticipantFeeRow[]).map((row) => {
-            const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
+            const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST || row.participant_type === PARTICIPANT_TYPE.EMPTY_SLOT;
             return {
               participantId: row.id,
               displayName: row.display_name || 'Unknown',
@@ -1448,7 +1448,7 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
 
     const feeLineItems: BookingFeeLineItem[] = (participantResult.rows as unknown as ParticipantFeeRow[]).map((row) => {
       const totalCents = row.cached_fee_cents;
-      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST;
+      const isGuest = row.participant_type === PARTICIPANT_TYPE.GUEST || row.participant_type === PARTICIPANT_TYPE.EMPTY_SLOT;
       return {
         participantId: row.id,
         displayName: row.display_name || 'Unknown',

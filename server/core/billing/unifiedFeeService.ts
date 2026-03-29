@@ -255,6 +255,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          FROM booking_participants bp
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE bp.session_id = ${session.session_id}
+         AND bp.participant_type != 'empty_slot'
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = participantsResult.rows.map(row => ({
@@ -285,6 +286,7 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          JOIN booking_requests br ON br.session_id = bp.session_id
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE br.id = ${session.booking_id}
+         AND bp.participant_type != 'empty_slot'
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = bpFallbackResult.rows.map(row => ({
@@ -1035,24 +1037,72 @@ export async function applyFeeBreakdownToParticipants(
   try {
     await db.transaction(async (tx) => {
       const participantsWithIds = breakdown.participants.filter(p => p.participantId);
-      const orphanItems = breakdown.participants
-        .filter(p => !p.participantId && p.totalCents > 0 && !(p as { _foldedIntoOwner?: boolean })._foldedIntoOwner);
-      const orphanFees = orphanItems.reduce((sum, p) => sum + p.totalCents, 0);
+      const emptySlotItems = breakdown.participants
+        .filter(p => !p.participantId && p.totalCents > 0 && p.displayName === 'Empty Slot');
 
-      if (orphanFees > 0) {
-        const ownerLineItem = participantsWithIds.find(p => p.participantType === 'owner') ||
-                              participantsWithIds.find(p => p.participantType === 'member');
-        if (ownerLineItem) {
-          ownerLineItem.totalCents += orphanFees;
-          for (const item of orphanItems) {
-            (item as { _foldedIntoOwner?: boolean })._foldedIntoOwner = true;
+      if (emptySlotItems.length > 0) {
+        const existingSlots = await tx.execute(
+          sql`SELECT id, cached_fee_cents, payment_status FROM booking_participants
+           WHERE session_id = ${sessionId}
+           AND participant_type = 'empty_slot'
+           ORDER BY id ASC`
+        );
+        const existingRows = existingSlots.rows as { id: number; cached_fee_cents: number; payment_status: string }[];
+
+        const unpaidExisting = existingRows.filter(r => r.payment_status !== 'paid');
+        const paidExisting = existingRows.filter(r => r.payment_status === 'paid');
+
+        const slotsNeeded = emptySlotItems.length;
+        const slotsToReuse = Math.min(unpaidExisting.length, slotsNeeded);
+        const slotsToCreate = Math.max(0, slotsNeeded - unpaidExisting.length - paidExisting.length);
+        const slotsToRemove = Math.max(0, unpaidExisting.length - slotsNeeded);
+
+        for (let i = 0; i < slotsToReuse; i++) {
+          const row = unpaidExisting[i];
+          const fee = emptySlotItems[i].totalCents;
+          if (row.cached_fee_cents !== fee) {
+            await tx.execute(
+              sql`UPDATE booking_participants SET cached_fee_cents = ${fee} WHERE id = ${row.id}`
+            );
           }
-          logger.info('[UnifiedFeeService] Folded orphan fees (empty slots) into owner cached_fee_cents', {
-            extra: { sessionId, orphanFees, ownerId: ownerLineItem.participantId, newTotal: ownerLineItem.totalCents }
+        }
+
+        if (slotsToRemove > 0) {
+          const removeIds = unpaidExisting.slice(slotsToReuse).map(r => r.id);
+          await tx.execute(
+            sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(removeIds)}::int[])`
+          );
+          logger.info('[UnifiedFeeService] Removed excess empty slot participant rows', {
+            extra: { sessionId, removedCount: removeIds.length, removedIds: removeIds }
           });
-        } else {
-          logger.warn('[UnifiedFeeService] Orphan fees exist but no owner/member participant to absorb them', {
-            extra: { sessionId, orphanFees }
+        }
+
+        const slotDuration = breakdown.metadata.sessionDuration || 60;
+        for (let i = 0; i < slotsToCreate; i++) {
+          const fee = emptySlotItems[slotsToReuse + paidExisting.length + i]?.totalCents ?? emptySlotItems[0].totalCents;
+          await tx.execute(
+            sql`INSERT INTO booking_participants (session_id, user_id, guest_id, participant_type, display_name, payment_status, cached_fee_cents, used_guest_pass, slot_duration)
+             VALUES (${sessionId}, NULL, NULL, 'empty_slot', 'Empty Slot', 'pending', ${fee}, false, ${slotDuration})`
+          );
+        }
+
+        logger.info('[UnifiedFeeService] Synced empty slot participant rows', {
+          extra: { sessionId, needed: slotsNeeded, reused: slotsToReuse, created: slotsToCreate, removed: slotsToRemove, paidKept: paidExisting.length }
+        });
+      } else {
+        const staleSlots = await tx.execute(
+          sql`SELECT id FROM booking_participants
+           WHERE session_id = ${sessionId}
+           AND participant_type = 'empty_slot'
+           AND payment_status != 'paid'`
+        );
+        const staleIds = (staleSlots.rows as { id: number }[]).map(r => r.id);
+        if (staleIds.length > 0) {
+          await tx.execute(
+            sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(staleIds)}::int[])`
+          );
+          logger.info('[UnifiedFeeService] Cleaned up stale empty slot rows (no longer needed)', {
+            extra: { sessionId, removedCount: staleIds.length }
           });
         }
       }

@@ -373,7 +373,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
     const feeLineItems: BookingFeeLineItem[] = [];
     for (const r of participantResult.rows as unknown as DbParticipantRow[]) {
       if ((r.cached_fee_cents || 0) <= 0) continue;
-      const isGuest = r.participant_type === 'guest';
+      const isGuest = r.participant_type === 'guest' || r.participant_type === 'empty_slot';
       feeLineItems.push({
         participantId: r.id,
         displayName: r.display_name || (isGuest ? 'Guest' : 'Member'),
