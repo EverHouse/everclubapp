@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.98] - 2026-03-29
+
+### Fix: Apple Wallet `If-Modified-Since` and update loop
+- **Fix**: Pass download endpoint now respects the `If-Modified-Since` header from Apple devices, returning `304 Not Modified` when the pass hasn't changed. Previously the server always regenerated and re-sent the full pass data on every request, wasting bandwidth and triggering Apple's "Server ignored the if-modified-since header" error.
+- **Fix**: Removed `updatedAt` bump on every pass fetch in `walletPassWebService.ts` — this was creating an infinite update loop where each download made Apple think the pass changed again.
+- **Fix**: `sendPassUpdatePush()` now bumps `updatedAt` on device registrations before sending the APN push. Previously only booking passes bumped this via `bumpSerialChangeTimestamp()`, but membership pass updates (tier changes, guest pass changes, etc.) did not — causing Apple's "lastUpdated tag remained the same" error.
+- **Fix**: `sendPassUpdateToAllRegistrations()` (bulk push) also now bumps all registration timestamps.
+- **Fix**: `Last-Modified` header now uses `MAX(updatedAt)` across all device registrations for the serial (falls back to auth token `updatedAt`), truncated to second precision. Previously it was always `new Date()`.
+- **Files changed**: `server/walletPass/apnPushService.ts`, `server/routes/walletPassWebService.ts`
+
 ## [8.97.97] - 2026-03-29
 
 ### Fix: Apple Wallet Pass Authentication (comprehensive)

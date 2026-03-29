@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db';
-import { eq, and, gt, inArray } from 'drizzle-orm';
+import { eq, and, gt, inArray, max, sql } from 'drizzle-orm';
 import { walletPassDeviceRegistrations, walletPassAuthTokens } from '../../shared/schema';
 import { validateAuthToken } from '../walletPass/apnPushService';
 import { logger } from '../core/logger';
@@ -369,6 +369,34 @@ router.get('/v1/passes/:passTypeId/:serialNumber', async (req, res) => {
       return res.status(404).send('Pass not found');
     }
 
+    const [regMax] = await db.select({ maxUpdated: max(walletPassDeviceRegistrations.updatedAt) })
+      .from(walletPassDeviceRegistrations)
+      .where(and(
+        eq(walletPassDeviceRegistrations.passTypeId, passTypeId),
+        eq(walletPassDeviceRegistrations.serialNumber, serialNumber),
+      ));
+
+    const authRecord = await db.select({ updatedAt: walletPassAuthTokens.updatedAt })
+      .from(walletPassAuthTokens)
+      .where(eq(walletPassAuthTokens.serialNumber, serialNumber))
+      .limit(1);
+
+    const regTimestamp = regMax?.maxUpdated ? new Date(regMax.maxUpdated).getTime() : 0;
+    const authTimestamp = authRecord.length > 0 && authRecord[0].updatedAt
+      ? new Date(authRecord[0].updatedAt).getTime() : 0;
+    const bestTimestamp = Math.max(regTimestamp, authTimestamp);
+    const passLastModified = bestTimestamp > 0
+      ? new Date(Math.floor(bestTimestamp / 1000) * 1000)
+      : new Date(Math.floor(Date.now() / 1000) * 1000);
+
+    const ifModifiedSince = req.headers['if-modified-since'];
+    if (ifModifiedSince) {
+      const sinceDate = new Date(ifModifiedSince);
+      if (!isNaN(sinceDate.getTime()) && passLastModified.getTime() <= sinceDate.getTime()) {
+        return res.status(304).send('');
+      }
+    }
+
     let pkpassBuffer: Buffer | null = null;
 
     if (serialNumber.startsWith('EVERBOOKING-')) {
@@ -383,16 +411,9 @@ router.get('/v1/passes/:passTypeId/:serialNumber', async (req, res) => {
       return res.status(404).send('Pass not found');
     }
 
-    await db.update(walletPassDeviceRegistrations)
-      .set({ updatedAt: new Date() })
-      .where(and(
-        eq(walletPassDeviceRegistrations.passTypeId, passTypeId),
-        eq(walletPassDeviceRegistrations.serialNumber, serialNumber),
-      ));
-
     res.set({
       'Content-Type': 'application/vnd.apple.pkpass',
-      'Last-Modified': new Date().toUTCString(),
+      'Last-Modified': passLastModified.toUTCString(),
     });
     return res.send(pkpassBuffer);
   } catch (err) {

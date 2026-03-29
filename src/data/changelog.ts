@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.98",
+    date: "2026-03-29",
+    title: "Apple Wallet Pass Performance & Sync Fix",
+    changes: [
+      "Fixed: Apple Wallet passes no longer re-download unnecessarily — your phone now correctly skips passes that haven't changed, saving battery and data.",
+      "Fixed: Wallet pass updates (tier changes, guest pass changes, booking updates) now reliably trigger pass refreshes on all registered devices.",
+    ]
+  },
+  {
     version: "8.97.97",
     date: "2026-03-29",
     title: "Apple Wallet Pass Sync Fix",

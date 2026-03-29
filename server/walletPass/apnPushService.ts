@@ -121,6 +121,10 @@ export async function sendPassUpdatePush(serialNumber: string): Promise<{ sent: 
   const result = { sent: 0, failed: 0 };
 
   try {
+    await db.update(walletPassDeviceRegistrations)
+      .set({ updatedAt: new Date() })
+      .where(eq(walletPassDeviceRegistrations.serialNumber, serialNumber));
+
     const registrations = await db.select({
       pushToken: walletPassDeviceRegistrations.pushToken,
       passTypeId: walletPassDeviceRegistrations.passTypeId,
@@ -183,6 +187,9 @@ export async function sendPassUpdateToAllRegistrations(): Promise<{ sent: number
   const result = { sent: 0, failed: 0 };
 
   try {
+    await db.update(walletPassDeviceRegistrations)
+      .set({ updatedAt: new Date() });
+
     const registrations = await db.select({
       pushToken: walletPassDeviceRegistrations.pushToken,
       passTypeId: walletPassDeviceRegistrations.passTypeId,
