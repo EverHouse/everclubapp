@@ -1,5 +1,4 @@
 import { db } from '../../db';
-import { pool, safeRelease } from '../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
 import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../../routes/push';
@@ -53,40 +52,34 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
 
   const previousStatus = existing.status;
 
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const revertResult = await client.query(
-      `UPDATE booking_requests SET status = 'approved', reviewed_by = $1, reviewed_at = NOW(), updated_at = NOW() WHERE id = $2 AND status IN ('attended', 'no_show', 'checked_in')`,
-      [staffEmail, bookingId]
+  let reverted = false;
+  await db.transaction(async (tx) => {
+    const revertResult = await tx.execute(
+      sql`UPDATE booking_requests SET status = 'approved', reviewed_by = ${staffEmail}, reviewed_at = NOW(), updated_at = NOW() WHERE id = ${bookingId} AND status IN ('attended', 'no_show', 'checked_in')`
     );
 
-    if (revertResult.rowCount === 0) {
-      await client.query('ROLLBACK');
-      logger.warn('[RevertToApproved] Status already changed by concurrent action — skipping revert', {
-        extra: { bookingId, expectedStatuses: ['attended', 'no_show', 'checked_in'], staffEmail }
-      });
-      return { error: 'Booking status was changed by another action. Please refresh and try again.', statusCode: 409 };
+    if ((revertResult as unknown as { rowCount: number }).rowCount === 0) {
+      return;
     }
+
+    reverted = true;
 
     if (existing.sessionId) {
-      await client.query(
-        `UPDATE booking_participants bp SET payment_status = 'pending'
+      await tx.execute(
+        sql`UPDATE booking_participants bp SET payment_status = 'pending'
          FROM booking_sessions bs
-         WHERE bp.session_id = $1 AND bp.payment_status = 'waived'
+         WHERE bp.session_id = ${existing.sessionId} AND bp.payment_status = 'waived'
            AND bs.id = bp.session_id
-           AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))`,
-        [existing.sessionId]
+           AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))`
       );
     }
+  });
 
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    safeRelease(client);
+  if (!reverted) {
+    logger.warn('[RevertToApproved] Status already changed by concurrent action — skipping revert', {
+      extra: { bookingId, expectedStatuses: ['attended', 'no_show', 'checked_in'], staffEmail }
+    });
+    return { error: 'Booking status was changed by another action. Please refresh and try again.', statusCode: 409 };
   }
 
   logger.info('[RevertToApproved] Booking reverted to approved', {
@@ -434,7 +427,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
 
   }
 
-  const result = await db.transaction(async (tx) => {
+  const txResult = await db.transaction(async (tx) => {
     if (skipPaymentCheck) {
       await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
     }
@@ -455,25 +448,40 @@ export async function checkinBooking(params: CheckinBookingParams) {
       return null;
     }
 
-    if (confirmPayment && totalOutstanding > 0) {
-      for (const p of unpaidParticipants) {
+    let paidParticipants: Array<{ id: number; display_name: string; fee_cents: number }> = [];
+    if (confirmPayment && totalOutstanding > 0 && existing.session_id) {
+      const freshUnpaid = await tx.execute(sql`
+        SELECT bp.id, bp.display_name, COALESCE(bp.cached_fee_cents, 0) as fee_cents
+        FROM booking_participants bp
+        WHERE bp.session_id = ${existing.session_id} AND bp.payment_status = 'pending'
+          AND COALESCE(bp.cached_fee_cents, 0) > 0
+        FOR UPDATE
+      `);
+      paidParticipants = freshUnpaid.rows as unknown as Array<{ id: number; display_name: string; fee_cents: number }>;
+      for (const row of paidParticipants) {
         await tx.update(bookingParticipants)
           .set({ paymentStatus: 'paid' })
-          .where(eq(bookingParticipants.id, p.id));
+          .where(eq(bookingParticipants.id, row.id));
       }
     }
 
-    return updated;
+    return { updated, paidParticipants };
   });
 
-  if (!result || result.length === 0) {
+  if (!txResult || txResult.updated.length === 0) {
     logger.warn('[Checkin] Booking status changed during check-in, possible race condition', { extra: { bookingId, expectedStatus: currentStatus, newStatus } });
     return { error: 'Booking status changed during check-in. Please refresh and try again.', statusCode: 409 };
   }
 
-  if (confirmPayment && totalOutstanding > 0) {
+  const result = txResult.updated;
+  const { paidParticipants } = txResult;
 
-    for (const p of unpaidParticipants) {
+  if (confirmPayment && paidParticipants.length > 0) {
+    let confirmedTotal = 0;
+
+    for (const p of paidParticipants) {
+      const amount = (p.fee_cents || 0) / 100;
+      confirmedTotal += amount;
       await logPaymentAudit({
         bookingId,
         sessionId: existing.session_id as number,
@@ -481,7 +489,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
         action: 'payment_confirmed',
         staffEmail,
         staffName,
-        amountAffected: p.amount,
+        amountAffected: amount,
         previousStatus: 'pending',
         newStatus: 'paid',
       });
@@ -492,7 +500,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       bookingId,
       sessionId: existing.session_id as number,
       memberEmail: existing.user_email as string,
-      amount: totalOutstanding * 100
+      amount: Math.round(confirmedTotal * 100)
     });
   }
 

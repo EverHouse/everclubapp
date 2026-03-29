@@ -895,7 +895,7 @@ const KioskCheckin: React.FC = () => {
             <div className="flex justify-center gap-3 mb-6">
               {passcodeDigits.map((digit, i) => (
                 <input
-                  key={i}
+                  key={`passcode-${i}`}
                   ref={el => { passcodeInputRefs.current[i] = el; }}
                   type="tel"
                   inputMode="numeric"

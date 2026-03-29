@@ -7,6 +7,25 @@ import { logger } from '../logger';
 import { isPlaceholderGuestName } from './pricingConfig';
 import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 
+async function fetchStripePriceCents(stripePriceId: string, fallback: number): Promise<number> {
+  try {
+    const { getStripeClient } = await import('../stripe/client');
+    const stripe = await getStripeClient();
+    const price = await Promise.race([
+      stripe.prices.retrieve(stripePriceId),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Stripe prices.retrieve timed out after 5s')), 5000)
+      )
+    ]) as { unit_amount: number | null };
+    if (price.unit_amount) {
+      return price.unit_amount;
+    }
+  } catch (err: unknown) {
+    logger.warn('[GuestPassConsumer] Stripe price fetch failed, using fallback', { extra: { stripePriceId, error: getErrorMessage(err) } });
+  }
+  return fallback;
+}
+
 interface GuestPassCheckRow { id: number; used_guest_pass: boolean; guest_id: number | null }
 interface OwnerIdRow { id: number }
 interface TierGuestPassRow { guest_passes_per_year: number }
@@ -237,6 +256,18 @@ export async function refundGuestPassForParticipant(
   const ownerEmailLower = ownerEmail.toLowerCase().trim();
   
   try {
+    const { PRICING } = await import('./pricingConfig');
+    let guestFeeCents = PRICING.GUEST_FEE_CENTS;
+    try {
+      const priceResult = await db.execute(sql`SELECT stripe_price_id FROM fee_products WHERE LOWER(slug) = 'guest-pass' AND stripe_price_id IS NOT NULL`);
+      const stripePriceId = (priceResult.rows[0] as unknown as StripePriceIdRow)?.stripe_price_id;
+      if (stripePriceId) {
+        guestFeeCents = await fetchStripePriceCents(stripePriceId, guestFeeCents);
+      }
+    } catch (err: unknown) {
+      logger.warn(`[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $${PRICING.GUEST_FEE_DOLLARS}:`, { extra: { error: getErrorMessage(err) } });
+    }
+
     let remaining: number = 0;
     
     await db.transaction(async (tx) => {
@@ -253,28 +284,6 @@ export async function refundGuestPassForParticipant(
        WHERE LOWER(member_email) = ${ownerEmailLower}`);
       
       const passResult = await tx.execute(sql`SELECT passes_total - passes_used as remaining FROM guest_passes WHERE LOWER(member_email) = ${ownerEmailLower}`);
-      
-      const { PRICING } = await import('./pricingConfig');
-      let guestFeeCents = PRICING.GUEST_FEE_CENTS;
-      try {
-        const priceResult = await tx.execute(sql`SELECT stripe_price_id FROM fee_products WHERE LOWER(slug) = 'guest-pass' AND stripe_price_id IS NOT NULL`);
-        if ((priceResult.rows[0] as unknown as StripePriceIdRow)?.stripe_price_id) {
-          const { getStripeClient } = await import('../stripe/client');
-          const stripe = await getStripeClient();
-          // NOTE: Must stay in transaction - result needed for DB writes (guest fee amount for cached_fee_cents)
-          const price = await Promise.race([
-            stripe.prices.retrieve((priceResult.rows[0] as unknown as StripePriceIdRow).stripe_price_id as string),
-            new Promise<never>((_, reject) => 
-              setTimeout(() => reject(new Error('Stripe prices.retrieve timed out after 5s')), 5000)
-            )
-          ]) as { unit_amount: number | null };
-          if (price.unit_amount) {
-            guestFeeCents = price.unit_amount;
-          }
-        }
-      } catch (err: unknown) {
-        logger.warn(`[GuestPassConsumer] Failed to fetch Stripe guest fee price, using default $${PRICING.GUEST_FEE_DOLLARS}:`, { extra: { error: getErrorMessage(err) } });
-      }
       
       await tx.execute(sql`UPDATE booking_participants 
        SET payment_status = 'pending', 

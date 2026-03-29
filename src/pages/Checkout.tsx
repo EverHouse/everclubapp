@@ -709,6 +709,7 @@ function CheckoutSuccess() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [customerEmail, setCustomerEmail] = useState<string | null>(null);
   const [purchaseType, setPurchaseType] = useState<'membership' | 'day_pass' | null>(null);
   const [accountReady, setAccountReady] = useState(false);
@@ -717,6 +718,7 @@ function CheckoutSuccess() {
 
   useEffect(() => {
     if (!sessionId) {
+      setErrorDetail('No checkout session found. Please start the checkout process again.');
       setStatus('error');
       return;
     }
@@ -742,10 +744,12 @@ function CheckoutSuccess() {
             setPollingDone(true);
           }
         } else {
+          setErrorDetail(`Your payment session is "${data.status}". If you were not charged, please try again. If you believe you were charged, contact support.`);
           setStatus('error');
         }
       } catch {
         if (!isActive) return;
+        setErrorDetail('We couldn\'t reach our servers to verify your payment. Please check your connection and refresh the page, or contact support.');
         setStatus('error');
       }
     };
@@ -792,7 +796,7 @@ function CheckoutSuccess() {
       <div className="text-center py-16">
         <Icon name="info" className="text-5xl text-amber-500 mb-4 block" />
         <h2 className="text-2xl font-semibold text-primary dark:text-white mb-2">Something went wrong</h2>
-        <p className="text-primary/70 dark:text-white/70 mb-6">We couldn't verify your payment. Please contact support.</p>
+        <p className="text-primary/70 dark:text-white/70 mb-6">{errorDetail || 'We couldn\'t verify your payment. Please contact support.'}</p>
         <a
           href="/contact"
           className="inline-block py-3 px-6 rounded-xl font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"

@@ -109,10 +109,15 @@ export function useBookGolf() {
   const [selectedDateObj, setSelectedDateObj] = useState<{ label: string; date: string; day: string; dateNum: string } | null>(null);
 
   useEffect(() => {
-    if (dates.length > 0 && (!selectedDateObj || !dates.find(d => d.date === selectedDateObj.date))) {
-      setSelectedDateObj(dates[0]);
+    if (dates.length > 0) {
+      setSelectedDateObj(prev => {
+        if (!prev || !dates.find(d => d.date === prev.date)) {
+          return dates[0];
+        }
+        return prev;
+      });
     }
-  }, [dates, selectedDateObj]);
+  }, [dates]);
 
   useEffect(() => {
     if (isFirstTabRenderRef.current) { isFirstTabRenderRef.current = false; return; }
