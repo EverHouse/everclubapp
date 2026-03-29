@@ -127,7 +127,10 @@ router.post('/api/rsvps', isAuthenticated, bookingRateLimiter, validateBody(rsvp
       return res.status(401).json({ error: 'Authentication required' });
     }
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
-    const isOwnAction = sessionEmail === user_email.toLowerCase();
+    if (!user_email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    const isOwnAction = sessionEmail === user_email;
     const isAdminOrStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
     if (!isOwnAction && !isAdminOrStaff) {
       return res.status(403).json({ error: 'You can only perform this action for yourself' });

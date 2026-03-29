@@ -169,65 +169,72 @@ router.post('/api/eventbrite/sync', isStaffOrAdmin, async (req, res) => {
     let synced = 0;
     let updated = 0;
 
+    let errors = 0;
     for (const ebEvent of eventbriteEvents) {
-      const eventbriteId = ebEvent.id;
-      const title = ebEvent.name?.text || 'Untitled Event';
-      const description = ebEvent.description?.text || '';
-      const eventDate = ebEvent.start?.local?.split('T')[0] || '';
-      const startTime = ebEvent.start?.local?.split('T')[1]?.substring(0, 8) || '18:00:00';
-      const endTime = ebEvent.end?.local?.split('T')[1]?.substring(0, 8) || '21:00:00';
-      const location = ebEvent.venue?.name || ebEvent.online_event ? 'Online Event' : 'TBD';
-      const imageUrl = ebEvent.logo?.url || null;
-      const eventbriteUrl = ebEvent.url || null;
-      const maxAttendees = ebEvent.capacity || null;
+      try {
+        const eventbriteId = ebEvent.id;
+        const title = ebEvent.name?.text || 'Untitled Event';
+        const description = ebEvent.description?.text || '';
+        const eventDate = ebEvent.start?.local?.split('T')[0] || '';
+        const startTime = ebEvent.start?.local?.split('T')[1]?.substring(0, 8) || '18:00:00';
+        const endTime = ebEvent.end?.local?.split('T')[1]?.substring(0, 8) || '21:00:00';
+        const location = ebEvent.venue?.name || (ebEvent.online_event ? 'Online Event' : 'TBD');
+        const imageUrl = ebEvent.logo?.url || null;
+        const eventbriteUrl = ebEvent.url || null;
+        const maxAttendees = ebEvent.capacity || null;
 
-      const existing = await db.select({ id: events.id })
-        .from(events)
-        .where(eq(events.eventbriteId, eventbriteId));
+        const existing = await db.select({ id: events.id })
+          .from(events)
+          .where(eq(events.eventbriteId, eventbriteId));
 
-      if (existing.length > 0) {
-        await db.update(events).set({
-          title,
-          description,
-          eventDate,
-          startTime,
-          endTime,
-          location,
-          imageUrl,
-          eventbriteUrl,
-          maxAttendees,
-          source: 'eventbrite',
-          visibility: 'members_only',
-          requiresRsvp: true,
-        }).where(eq(events.eventbriteId, eventbriteId));
-        updated++;
-      } else {
-        await db.insert(events).values({
-          title,
-          description,
-          eventDate,
-          startTime,
-          endTime,
-          location,
-          category: 'Social',
-          imageUrl,
-          eventbriteId,
-          eventbriteUrl,
-          maxAttendees,
-          source: 'eventbrite',
-          visibility: 'members_only',
-          requiresRsvp: true,
-        });
-        synced++;
+        if (existing.length > 0) {
+          await db.update(events).set({
+            title,
+            description,
+            eventDate,
+            startTime,
+            endTime,
+            location,
+            imageUrl,
+            eventbriteUrl,
+            maxAttendees,
+            source: 'eventbrite',
+            visibility: 'members_only',
+            requiresRsvp: true,
+          }).where(eq(events.eventbriteId, eventbriteId));
+          updated++;
+        } else {
+          await db.insert(events).values({
+            title,
+            description,
+            eventDate,
+            startTime,
+            endTime,
+            location,
+            category: 'Social',
+            imageUrl,
+            eventbriteId,
+            eventbriteUrl,
+            maxAttendees,
+            source: 'eventbrite',
+            visibility: 'members_only',
+            requiresRsvp: true,
+          });
+          synced++;
+        }
+      } catch (eventErr: unknown) {
+        errors++;
+        logger.error('[EventSync] Failed to sync individual Eventbrite event', { extra: { eventbriteId: ebEvent.id, title: ebEvent.name?.text, error: getErrorMessage(eventErr) } });
       }
     }
 
     res.json({ 
       success: true, 
-      message: `Synced ${synced} new events, updated ${updated} existing events`,
+      message: `Synced ${synced} new events, updated ${updated} existing events${errors > 0 ? `, ${errors} failed` : ''}`,
       total: eventbriteEvents.length,
       synced,
-      updated
+      updated,
+      errors
     });
   } catch (error: unknown) {
     logger.error('Eventbrite sync error', { extra: { error: getErrorMessage(error) } });

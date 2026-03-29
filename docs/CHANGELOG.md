@@ -2,13 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
-## [8.97.94] - 2026-03-29
+## [8.97.95] - 2026-03-29
 
-### Bug Fixes: Stripe Payment Flow Safety
+### Bug Fixes: Payment Safety, Event Sync, and Input Validation
 - **Fix**: Day pass checkout endpoint (`POST /api/public/day-pass/checkout`) now validates `session.url` before returning the response. Previously, if Stripe returned a null URL, the endpoint would send `{ checkoutUrl: undefined }`, causing a silent failure on the frontend. Now returns a 500 error with proper logging.
 - **Fix**: Reactivation link billing portal fallback (`POST /api/stripe/staff/send-reactivation-link`) — `reactivationLink = session.url` now uses `|| reactivationLink` to preserve the fallback URL (`https://everclub.app/billing`) when Stripe's portal session returns a null URL. Previously, a null portal URL would overwrite the safe default, causing the reactivation email to contain no link.
 - **Fix**: Two malformed log messages in `server/routes/stripe/admin.ts` — day pass creation log was `'created for , pass type'` (missing interpolation), and reactivation log was `'sent manually to by staff'` (missing email). Both now use template literals with the correct variables.
-- **Files changed**: `server/routes/stripe/admin.ts`
+- **Fix**: RSVP creation (`POST /api/rsvps`) — added null guard on `user_email` before calling `.toLowerCase()`. Previously could throw `TypeError` if Zod schema validation was bypassed or `raw_user_email?.trim()?.toLowerCase()` returned undefined. Also removed redundant `.toLowerCase()` call since the value is already normalized on line 123.
+- **Fix**: Eventbrite sync (`POST /api/events/sync-eventbrite`) — wrapped individual event processing in try-catch so one failing event doesn't stop the entire sync. Response now includes `errors` count. Also fixed operator precedence bug on location line: `ebEvent.venue?.name || ebEvent.online_event ? 'Online Event' : 'TBD'` was evaluating as `(venue_name || online_event) ? 'Online'` — all events with a venue name would show as "Online Event". Fixed to `venue?.name || (online_event ? 'Online Event' : 'TBD')`.
+- **Fix**: Group billing routes — added `isNaN()` validation after all `parseInt(groupId/memberId, 10)` calls across 8 endpoints in `server/routes/groupBilling.ts`. Previously, non-numeric URL params would produce `NaN` passed to DB queries, causing cryptic database errors instead of clean 400 responses.
+- **Files changed**: `server/routes/stripe/admin.ts`, `server/routes/events/rsvp.ts`, `server/routes/events/sync.ts`, `server/routes/groupBilling.ts`
 
 ## [8.97.93] - 2026-03-29
 

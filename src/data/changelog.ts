@@ -8,12 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: "8.97.94",
+    version: "8.97.95",
     date: "2026-03-29",
-    title: "Payment Flow Reliability Fixes",
+    title: "Stability & Input Validation Improvements",
     changes: [
       "Fixed: Day pass checkout now shows a proper error message instead of failing silently in the rare case Stripe doesn't return a checkout link.",
       "Fixed: Reactivation links sent by staff are now more reliable when Stripe's billing portal is temporarily unavailable.",
+      "Fixed: Eventbrite event sync no longer stops entirely if a single event fails — other events continue syncing normally.",
+      "Fixed: Event venue locations from Eventbrite now display correctly (previously could show 'Online Event' for in-person events).",
+      "Improved: Better input validation across group and family billing management.",
     ]
   },
   {

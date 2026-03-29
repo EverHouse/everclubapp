@@ -187,7 +187,9 @@ router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req,
       }
     }
     
-    const result = await updateBillingGroupName(parseInt(groupId, 10), groupName);
+    const parsedGroupId = parseInt(groupId, 10);
+    if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
+    const result = await updateBillingGroupName(parsedGroupId, groupName);
     
     if (result.success) {
       res.json({ success: true });
@@ -203,8 +205,10 @@ router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req,
 router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, res) => {
   try {
     const groupId = req.params.groupId as string;
+    const parsedGroupId = parseInt(groupId, 10);
+    if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     
-    const result = await deleteBillingGroup(parseInt(groupId, 10));
+    const result = await deleteBillingGroup(parsedGroupId);
     
     if (result.success) {
       res.json({ success: true });
@@ -276,6 +280,8 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
     const groupId = req.params.groupId as string;
+    const parsedGroupId = parseInt(groupId, 10);
+    if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { memberEmail: rawMemberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode, discountCode } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const user = getSessionUser(req);
@@ -285,7 +291,7 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
     }
     
     const result = await addGroupMember({
-      billingGroupId: parseInt(groupId, 10),
+      billingGroupId: parsedGroupId,
       memberEmail,
       memberTier,
       relationship,
@@ -325,6 +331,7 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
     }
     
     const groupIdInt = parseInt(groupId, 10);
+    if (isNaN(groupIdInt)) return res.status(400).json({ error: 'Invalid group ID' });
     
     const group = await db.select()
       .from(billingGroups)
@@ -383,6 +390,8 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
 router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
     const groupId = req.params.groupId as string;
+    const parsedGroupId = parseInt(groupId, 10);
+    if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { memberEmail: rawMemberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode, discountCode } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const user = getSessionUser(req);
@@ -392,7 +401,7 @@ router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async
     }
     
     const result = await addGroupMember({
-      billingGroupId: parseInt(groupId, 10),
+      billingGroupId: parsedGroupId,
       memberEmail,
       memberTier,
       relationship,
@@ -446,6 +455,7 @@ router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req
     const memberId = req.params.memberId as string;
     const user = getSessionUser(req);
     const memberIdInt = parseInt(memberId, 10);
+    if (isNaN(memberIdInt)) return res.status(400).json({ error: 'Invalid member ID' });
     
     const memberRecord = await db.select({
       billingGroupId: groupMembers.billingGroupId,
@@ -500,8 +510,10 @@ router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (re
     const memberId = req.params.memberId as string;
     const user = getSessionUser(req);
     
+    const parsedMemberId = parseInt(memberId, 10);
+    if (isNaN(parsedMemberId)) return res.status(400).json({ error: 'Invalid member ID' });
     const result = await removeGroupMember({
-      memberId: parseInt(memberId, 10),
+      memberId: parsedMemberId,
       removedBy: user?.email || 'staff',
     });
     
@@ -523,6 +535,8 @@ router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (re
 router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
   try {
     const groupId = req.params.groupId as string;
+    const parsedGroupId = parseInt(groupId, 10);
+    if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { stripeSubscriptionId } = req.body;
     
     if (!stripeSubscriptionId) {
@@ -530,7 +544,7 @@ router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdm
     }
     
     const result = await linkStripeSubscriptionToBillingGroup({
-      billingGroupId: parseInt(groupId, 10),
+      billingGroupId: parsedGroupId,
       stripeSubscriptionId,
     });
     
@@ -552,6 +566,8 @@ router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdm
 router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
   try {
     const groupId = req.params.groupId as string;
+    const parsedGroupId = parseInt(groupId, 10);
+    if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { stripeSubscriptionId } = req.body;
     
     if (!stripeSubscriptionId) {
@@ -559,7 +575,7 @@ router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAd
     }
     
     const result = await linkStripeSubscriptionToBillingGroup({
-      billingGroupId: parseInt(groupId, 10),
+      billingGroupId: parsedGroupId,
       stripeSubscriptionId,
     });
     
