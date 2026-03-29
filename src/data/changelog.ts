@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.94",
+    date: "2026-03-29",
+    title: "Payment Flow Reliability Fixes",
+    changes: [
+      "Fixed: Day pass checkout now shows a proper error message instead of failing silently in the rare case Stripe doesn't return a checkout link.",
+      "Fixed: Reactivation links sent by staff are now more reliable when Stripe's billing portal is temporarily unavailable.",
+    ]
+  },
+  {
     version: "8.97.93",
     date: "2026-03-29",
     title: "Add to Calendar Fix for iPhone",

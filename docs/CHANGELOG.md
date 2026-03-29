@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.94] - 2026-03-29
+
+### Bug Fixes: Stripe Payment Flow Safety
+- **Fix**: Day pass checkout endpoint (`POST /api/public/day-pass/checkout`) now validates `session.url` before returning the response. Previously, if Stripe returned a null URL, the endpoint would send `{ checkoutUrl: undefined }`, causing a silent failure on the frontend. Now returns a 500 error with proper logging.
+- **Fix**: Reactivation link billing portal fallback (`POST /api/stripe/staff/send-reactivation-link`) — `reactivationLink = session.url` now uses `|| reactivationLink` to preserve the fallback URL (`https://everclub.app/billing`) when Stripe's portal session returns a null URL. Previously, a null portal URL would overwrite the safe default, causing the reactivation email to contain no link.
+- **Fix**: Two malformed log messages in `server/routes/stripe/admin.ts` — day pass creation log was `'created for , pass type'` (missing interpolation), and reactivation log was `'sent manually to by staff'` (missing email). Both now use template literals with the correct variables.
+- **Files changed**: `server/routes/stripe/admin.ts`
+
 ## [8.97.93] - 2026-03-29
 
 ### Add to Calendar Fix for iOS

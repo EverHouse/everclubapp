@@ -324,7 +324,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
             type: 'payment_method_update',
           },
         });
-        reactivationLink = session.url;
+        reactivationLink = session.url || reactivationLink;
         logger.info('[Stripe] Created billing portal session for reactivation', { extra: { memberEmail: member.email } });
       } catch (portalError: unknown) {
         logger.warn('[Stripe] Could not create billing portal for member, using fallback link', { extra: { email: member.email, error: getErrorMessage(portalError) } });
@@ -423,7 +423,7 @@ router.post('/api/stripe/staff/send-reactivation-link', isStaffOrAdmin, async (r
       }
     });
 
-    logger.info('[Stripe] Reactivation link sent manually to by staff', { extra: { memberEmail: member.email } });
+    logger.info(`[Stripe] Reactivation link sent manually to ${member.email} by staff`, { extra: { memberEmail: member.email } });
 
     res.json({ success: true, message: `Reactivation link sent to ${member.email}`, checkoutUrl: reactivationLink, emailSent });
   } catch (error: unknown) {
@@ -496,7 +496,12 @@ router.post('/api/public/day-pass/checkout', checkoutRateLimiter, async (req: Re
       },
     });
 
-    logger.info('[Stripe] Day pass checkout session created for , pass type', { extra: { email, tierName: tier.name } });
+    logger.info(`[Stripe] Day pass checkout session created for ${email}, pass type ${tier.name}`, { extra: { email, tierName: tier.name } });
+
+    if (!session.url) {
+      logger.error('[Stripe] Day pass checkout session created but no URL returned', { extra: { sessionId: session.id, email } });
+      return res.status(500).json({ error: 'Failed to generate checkout URL' });
+    }
 
     res.json({ checkoutUrl: session.url });
   } catch (error: unknown) {
