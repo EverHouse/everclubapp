@@ -1263,23 +1263,6 @@ export async function recreateDraftInvoiceFromBooking(bookingId: number): Promis
       };
     });
 
-    if (booking.resource_type !== RESOURCE_TYPE.CONFERENCE_ROOM) {
-      const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${booking.session_id}`);
-      const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt, 10) || 0;
-      const declaredCount = booking.declared_player_count || actualCount;
-      const emptySlots = Math.max(0, declaredCount - actualCount);
-      if (emptySlots > 0) {
-        const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
-        feeLineItems.push({
-          displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
-          participantType: PARTICIPANT_TYPE.GUEST,
-          overageCents: 0,
-          guestCents: emptySlotFeeCents,
-          totalCents: emptySlotFeeCents,
-        });
-      }
-    }
-
     const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
 
     if (totalFees === 0) {
@@ -1342,23 +1325,6 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
           totalCents,
         };
       });
-
-      if (booking.resource_type !== RESOURCE_TYPE.CONFERENCE_ROOM) {
-        const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${sessionId}`);
-        const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt, 10) || 0;
-        const declaredCount = booking.declared_player_count || actualCount;
-        const emptySlots = Math.max(0, declaredCount - actualCount);
-        if (emptySlots > 0) {
-          const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
-          feeLineItems.push({
-            displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
-            participantType: PARTICIPANT_TYPE.GUEST,
-            overageCents: 0,
-            guestCents: emptySlotFeeCents,
-            totalCents: emptySlotFeeCents,
-          });
-        }
-      }
 
       const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
       if (totalFees <= 0) return { success: true };
@@ -1492,23 +1458,6 @@ export async function syncBookingInvoice(bookingId: number, sessionId: number, _
         totalCents,
       };
     });
-
-    if (booking.resource_type !== RESOURCE_TYPE.CONFERENCE_ROOM) {
-      const allParticipantResult = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${sessionId}`);
-      const actualCount = parseInt((allParticipantResult.rows[0] as { cnt: string }).cnt, 10) || 0;
-      const declaredCount = booking.declared_player_count || actualCount;
-      const emptySlots = Math.max(0, declaredCount - actualCount);
-      if (emptySlots > 0) {
-        const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
-        feeLineItems.push({
-          displayName: `Empty Slot${emptySlots > 1 ? 's' : ''}`,
-          participantType: PARTICIPANT_TYPE.GUEST,
-          overageCents: 0,
-          guestCents: emptySlotFeeCents,
-          totalCents: emptySlotFeeCents,
-        });
-      }
-    }
 
     const totalFees = feeLineItems.reduce((sum, li) => sum + li.totalCents, 0);
 

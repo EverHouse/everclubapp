@@ -1,5 +1,4 @@
 import { logger } from '../../core/logger';
-import { PRICING } from '../../core/billing/pricingConfig';
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
@@ -732,12 +731,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
       LIMIT 50`);
 
     const futureBookings = (result.rows as unknown as DbFutureBookingRow[]).map((row) => {
-      const pendingFeeCents = parseInt(row.pending_fee_cents, 10) || 0;
-      const declaredPlayers = row.player_count || 1;
-      const actualParticipants = parseInt(row.participant_count, 10) || 0;
-      const emptySlots = Math.max(0, declaredPlayers - actualParticipants);
-      const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
-      const totalFeeCents = pendingFeeCents + emptySlotFeeCents;
+      const totalFeeCents = parseInt(row.pending_fee_cents, 10) || 0;
       
       return {
         bookingId: row.booking_id,
