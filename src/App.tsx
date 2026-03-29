@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, ErrorInfo, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, useNavigationType, Navigate } from 'react-router-dom';
 import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query';
@@ -200,87 +200,6 @@ const useDebugLayout = () => {
     return undefined;
   }, []);
 };
-
-interface ErrorBoundaryProps {
-  children?: React.ReactNode;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-  retryCount: number;
-}
-
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false, error: null, retryCount: 0 };
-
-  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  handleRetry = () => {
-    try {
-      localStorage.removeItem('sync_events');
-      localStorage.removeItem('sync_cafe_menu');
-    } catch (e) {
-      console.warn('LocalStorage access denied', e);
-    }
-    
-    this.setState(prev => ({
-      hasError: false,
-      error: null,
-      retryCount: prev.retryCount + 1
-    }));
-  };
-
-  handleReload = () => {
-    window.location.reload();
-  };
-
-  render() {
-    if (this.state.hasError) {
-      const errorMessage = this.state.error?.message?.toLowerCase() || '';
-      const isNetworkError = errorMessage.includes('fetch') ||
-                              errorMessage.includes('network') ||
-                              errorMessage.includes('load failed');
-      return (
-        <div className="flex items-center justify-center h-screen bg-[#141414] text-white p-6">
-          <div className="glass-card rounded-xl p-8 max-w-md text-center">
-            <Icon name={isNetworkError ? 'wifi_off' : 'error'} className="text-6xl text-red-400 mb-4" />
-            <h2 className="text-2xl font-bold mb-2">
-              {isNetworkError ? 'Connection Issue' : 'Something went wrong'}
-            </h2>
-            <p className="text-white/70 mb-6">
-              {isNetworkError 
-                ? 'Please check your internet connection and try again.'
-                : 'We\'re sorry for the inconvenience.'}
-            </p>
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={this.handleRetry}
-                className="px-6 py-3 bg-accent rounded-xl font-semibold hover:opacity-90 transition-opacity text-brand-green"
-              >
-                Try Again
-              </button>
-              <a
-                href="sms:9495455855"
-                className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:opacity-90 transition-opacity text-center"
-              >
-                Contact Support
-              </a>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return <React.Fragment key={this.state.retryCount}>{this.props.children}</React.Fragment>;
-  }
-}
 
 
 
@@ -964,25 +883,23 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App: React.FC = () => {
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <DataProvider>
-            <ToastProvider>
-            <InitialLoadingScreen>
-              <BrowserRouter>
-                <OfflineBanner />
-                <UpdateNotification />
-                <Layout>
-                  <AnimatedRoutes />
-                </Layout>
-              </BrowserRouter>
-            </InitialLoadingScreen>
-            </ToastProvider>
-          </DataProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <DataProvider>
+          <ToastProvider>
+          <InitialLoadingScreen>
+            <BrowserRouter>
+              <OfflineBanner />
+              <UpdateNotification />
+              <Layout>
+                <AnimatedRoutes />
+              </Layout>
+            </BrowserRouter>
+          </InitialLoadingScreen>
+          </ToastProvider>
+        </DataProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 };
 

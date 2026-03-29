@@ -30,7 +30,16 @@ export async function getAvailableGuestPasses(
   const tierRow = tierResult.rows[0] as Record<string, unknown> | undefined;
   const tierGuestPasses = tierRow?.guest_passes_per_year as number | null;
   if (tierGuestPasses == null) {
-    logger.warn('[GuestPassHoldService] Tier guest_passes_per_year lookup returned null — member may have no tier_id linked. Defaulting to 0 passes (fail-closed).', { extra: { memberEmail: emailLower } });
+    const statusResult = await executor.execute(sql`
+      SELECT membership_status FROM users WHERE LOWER(email) = ${emailLower} LIMIT 1
+    `);
+    const status = (statusResult.rows[0] as Record<string, unknown> | undefined)?.membership_status as string | undefined;
+    const isNonMember = !status || status === 'visitor' || status === 'non-member' || status === 'archived';
+    if (isNonMember) {
+      logger.debug('[GuestPassHoldService] No tier for non-member — 0 guest passes (expected).', { extra: { memberEmail: emailLower, status } });
+    } else {
+      logger.warn('[GuestPassHoldService] Tier guest_passes_per_year lookup returned null — member may have no tier_id linked. Defaulting to 0 passes (fail-closed).', { extra: { memberEmail: emailLower, status } });
+    }
   }
   const effectiveGuestPasses = tierGuestPasses ?? 0;
   

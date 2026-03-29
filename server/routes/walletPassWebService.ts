@@ -111,13 +111,36 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
       return res.status(204).send('');
     }
 
+    const registeredSerials = deviceRegistrations.map(r => r.serialNumber);
+
+    const authTokenRecordsForSerials = await db.select({ id: walletPassAuthTokens.id })
+      .from(walletPassAuthTokens)
+      .where(inArray(walletPassAuthTokens.serialNumber, registeredSerials))
+      .limit(1);
+
+    if (authTokenRecordsForSerials.length === 0) {
+      logger.info('[WalletPass WebService] Cleaning up orphaned device registrations (no auth tokens exist for registered serials)', {
+        extra: { deviceLibraryId, passTypeId, registeredSerials }
+      });
+      await db.delete(walletPassDeviceRegistrations)
+        .where(and(
+          eq(walletPassDeviceRegistrations.deviceLibraryId, deviceLibraryId),
+          eq(walletPassDeviceRegistrations.passTypeId, passTypeId),
+        ))
+        .catch((cleanupErr: unknown) => {
+          logger.warn('[WalletPass WebService] Failed to cleanup orphaned registrations', {
+            extra: { error: getErrorMessage(cleanupErr) }
+          });
+        });
+      return res.status(204).send('');
+    }
+
     const authToken = extractAuthToken(req.headers.authorization);
     if (!authToken) {
       return res.status(401).send('Unauthorized');
     }
 
     let authValid = false;
-    const registeredSerials = deviceRegistrations.map(r => r.serialNumber);
     for (const reg of deviceRegistrations) {
       const isValid = await validateAuthToken(reg.serialNumber, authToken);
       if (isValid) {

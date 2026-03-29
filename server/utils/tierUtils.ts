@@ -92,14 +92,36 @@ export function normalizeTierSlug(rawName: string | null | undefined): string | 
   }
 
   for (const [slug, canonicalName] of Object.entries(_canonicalTierNames)) {
-    if (lowered === canonicalName.toLowerCase()) {
+    const canonLower = canonicalName.toLowerCase();
+    if (lowered === canonLower) {
       return slug;
+    }
+    if (lowered === `${canonLower} membership`) {
+      return slug;
+    }
+  }
+
+  const stripped = lowered
+    .replace(/\s+membership$/i, '')
+    .replace(/\s+plan$/i, '')
+    .replace(/\s+tier$/i, '')
+    .trim();
+  if (stripped !== lowered) {
+    for (const slug of _tierSlugs) {
+      if (stripped === slug) {
+        return slug;
+      }
+    }
+    for (const [slug, canonicalName] of Object.entries(_canonicalTierNames)) {
+      if (stripped === canonicalName.toLowerCase()) {
+        return slug;
+      }
     }
   }
 
   for (const { pattern, slug } of _fuzzyTierPatterns) {
     if (lowered.includes(pattern)) {
-      logger.warn('[normalizeTierSlug] Fuzzy match used for tier normalization', {
+      logger.debug('[normalizeTierSlug] Fuzzy match used for tier normalization', {
         rawName,
         matchedPattern: pattern,
         normalizedSlug: slug,
