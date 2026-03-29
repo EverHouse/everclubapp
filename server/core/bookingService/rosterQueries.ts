@@ -77,7 +77,9 @@ export async function getBookingParticipants(
       .from(bookingParticipants)
       .where(eq(bookingParticipants.sessionId, booking.session_id));
 
-    participants = participantRows;
+    participants = participantRows.filter(p =>
+      !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
+    );
 
     const needsNameFix = participants.filter(p => p.displayName && p.displayName.includes('@'));
     if (needsNameFix.length > 0) {
