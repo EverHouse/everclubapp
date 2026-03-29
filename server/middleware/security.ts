@@ -17,6 +17,11 @@ const cachedAllowedHostnames: string[] = (process.env.ALLOWED_ORIGINS || '')
   })
   .filter(Boolean);
 
+function isReplitDomain(hostname: string): boolean {
+  return hostname.endsWith('.replit.dev') || hostname.endsWith('.replit.app') ||
+         hostname.endsWith('.repl.co') || hostname.endsWith('.replit.com');
+}
+
 function isAllowedOrigin(origin: string): boolean {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
   try {
@@ -24,12 +29,11 @@ function isAllowedOrigin(origin: string): boolean {
     const hostname = url.hostname;
     if (!isProduction) {
       if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
-      const replitDomain = process.env.REPLIT_DEV_DOMAIN;
-      if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) return true;
+      if (isReplitDomain(hostname)) return true;
     }
     if (cachedAllowedHostnames.includes(hostname)) return true;
     const replitDomain = process.env.REPLIT_DEV_DOMAIN;
-    if (replitDomain && (hostname === replitDomain || hostname === replitDomain.replace('-00-', '-'))) return true;
+    if (replitDomain && hostname === replitDomain) return true;
     if (hostname === 'everclub.app' || hostname.endsWith('.everclub.app')) return true;
     return false;
   } catch {

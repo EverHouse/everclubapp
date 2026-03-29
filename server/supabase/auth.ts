@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from 'express';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { jwtVerify, errors as joseErrors } from 'jose';
 import { authStorage } from '../replit_integrations/auth/storage';
 import { logger } from '../core/logger';
 import { getSupabaseAnon } from '../core/supabase/client';
@@ -39,6 +40,22 @@ function getSupabaseClient(): SupabaseClient | null {
 
 export { getSupabaseClient };
 
+function getAppUrl(): string {
+  const raw = process.env.FRONTEND_URL || 'https://everclub.app';
+  const normalized = raw.replace(/\/+$/, '');
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
+      logger.warn('[Supabase Auth] FRONTEND_URL is not HTTPS in production, falling back to https://everclub.app');
+      return 'https://everclub.app';
+    }
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    logger.warn('[Supabase Auth] FRONTEND_URL is malformed, falling back to https://everclub.app', { extra: { value: raw } });
+    return 'https://everclub.app';
+  }
+}
+
 export function setupSupabaseAuthRoutes(app: Express) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
     logger.info('Supabase auth routes disabled - credentials not configured');
@@ -64,6 +81,11 @@ export function setupSupabaseAuthRoutes(app: Express) {
 
     try {
       const { email, password, firstName, lastName } = req.body;
+
+      if (typeof firstName !== 'string' || firstName.length > 100 ||
+          typeof lastName !== 'string' || lastName.length > 100) {
+        return res.status(400).json({ error: 'Invalid name parameters' });
+      }
       
       const { data, error } = await withTimeout(
         client.auth.signUp({
@@ -71,8 +93,8 @@ export function setupSupabaseAuthRoutes(app: Express) {
           password,
           options: {
             data: {
-              first_name: firstName,
-              last_name: lastName,
+              first_name: firstName.trim().slice(0, 100),
+              last_name: lastName.trim().slice(0, 100),
             }
           }
         }),
@@ -192,7 +214,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
       
       const { error } = await withTimeout(
         client.auth.resetPasswordForEmail(email, {
-          redirectTo: `${req.protocol}://${req.hostname}/reset-password`,
+          redirectTo: `${getAppUrl()}/reset-password`,
         }),
         'Supabase resetPasswordForEmail'
       );
@@ -264,7 +286,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
         client.auth.signInWithOAuth({
           provider,
           options: {
-            redirectTo: `${req.protocol}://${req.hostname}/auth/callback`,
+            redirectTo: `${getAppUrl()}/auth/callback`,
           }
         }),
         'Supabase signInWithOAuth'
@@ -287,13 +309,17 @@ export function setupSupabaseAuthRoutes(app: Express) {
   });
 }
 
+let jwtSecretKey: Uint8Array | null = null;
+
+function getJwtSecret(): Uint8Array | null {
+  if (jwtSecretKey) return jwtSecretKey;
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret) return null;
+  jwtSecretKey = new TextEncoder().encode(secret);
+  return jwtSecretKey;
+}
+
 export const isSupabaseAuthenticated: RequestHandler = async (req, res, next) => {
-  const client = getSupabaseClient();
-  
-  if (!client) {
-    return res.status(503).json({ error: 'Supabase authentication is not configured' });
-  }
-  
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
@@ -301,6 +327,43 @@ export const isSupabaseAuthenticated: RequestHandler = async (req, res, next) =>
     }
     
     const token = authHeader.substring(7);
+    const secret = getJwtSecret();
+
+    if (secret) {
+      try {
+        const { payload } = await jwtVerify(token, secret, {
+          issuer: process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL}/auth/v1` : undefined,
+        });
+
+        if (!payload.sub) {
+          return res.status(401).json({ error: 'Invalid token' });
+        }
+
+        req.supabaseUser = {
+          id: payload.sub,
+          email: payload.email as string | undefined,
+          app_metadata: payload.app_metadata as Record<string, unknown> || {},
+          user_metadata: payload.user_metadata as Record<string, unknown> || {},
+          aud: payload.aud as string || 'authenticated',
+          created_at: '',
+        } as User;
+
+        return next();
+      } catch (err) {
+        if (err instanceof joseErrors.JWTExpired) {
+          return res.status(401).json({ error: 'Token expired' });
+        }
+        logger.debug('[Supabase Auth] Local JWT verification failed, falling back to remote', {
+          extra: { error: err instanceof Error ? err.message : 'unknown' }
+        });
+      }
+    }
+
+    const client = getSupabaseClient();
+    if (!client) {
+      return res.status(503).json({ error: 'Supabase authentication is not configured' });
+    }
+
     const { data: { user }, error } = await withTimeout(
       client.auth.getUser(token),
       'Supabase getUser (middleware)'
