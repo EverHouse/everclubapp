@@ -1,4 +1,5 @@
 import { logger } from '../../core/logger';
+import { PRICING } from '../../core/billing/pricingConfig';
 import { Router, Request, Response } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
@@ -664,6 +665,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
       pending_fee_cents: string;
       pending_intent_count: string;
       guest_count: string;
+      participant_count: string;
     }
 
     const result = await db.execute(sql`SELECT 
@@ -686,7 +688,8 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
           0
         ) as pending_fee_cents,
         (SELECT COUNT(*) FROM stripe_payment_intents spi WHERE spi.booking_id = br.id AND spi.status NOT IN ('succeeded', 'canceled')) as pending_intent_count,
-        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type = 'guest') as guest_count
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type = 'guest') as guest_count,
+        (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) as participant_count
       FROM booking_requests br
       LEFT JOIN resources r ON r.id = br.resource_id
       LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
@@ -696,7 +699,12 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
       LIMIT 50`);
 
     const futureBookings = (result.rows as unknown as DbFutureBookingRow[]).map((row) => {
-      const totalFeeCents = parseInt(row.pending_fee_cents, 10) || 0;
+      const pendingFeeCents = parseInt(row.pending_fee_cents, 10) || 0;
+      const declaredPlayers = row.player_count || 1;
+      const actualParticipants = parseInt(row.participant_count, 10) || 0;
+      const emptySlots = Math.max(0, declaredPlayers - actualParticipants);
+      const emptySlotFeeCents = emptySlots * PRICING.GUEST_FEE_CENTS;
+      const totalFeeCents = pendingFeeCents + emptySlotFeeCents;
       
       return {
         bookingId: row.booking_id,
