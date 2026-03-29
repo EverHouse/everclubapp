@@ -432,9 +432,9 @@ export function useCommandCenterData(userEmail?: string) {
 
   const refresh = useCallback(async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.all }),
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all }),
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all }),
+      queryClient.refetchQueries({ queryKey: commandCenterKeys.all, type: 'active' }),
+      queryClient.refetchQueries({ queryKey: bookingsKeys.all, type: 'active' }),
+      queryClient.refetchQueries({ queryKey: simulatorKeys.all, type: 'active' }),
     ]);
   }, [queryClient]);
 

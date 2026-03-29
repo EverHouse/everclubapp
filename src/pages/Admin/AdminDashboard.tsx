@@ -54,7 +54,7 @@ const AdminDashboard: React.FC = () => {
   const adminQueryClient = useQueryClient();
   const handleAdminRefresh = useCallback(async () => {
     window.dispatchEvent(new Event('app-refresh'));
-    await adminQueryClient.invalidateQueries();
+    await adminQueryClient.refetchQueries({ type: 'active' });
   }, [adminQueryClient]);
 
   const [checkinConfirmation, setCheckinConfirmation] = useState<{
