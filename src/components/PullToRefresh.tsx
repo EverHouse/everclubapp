@@ -18,10 +18,46 @@ const isTouchDevice = () => {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 };
 
+const golfLoadingMessages = [
+  "Mowing the fairways…",
+  "Raking the bunkers…",
+  "Filling in divots…",
+  "Chasing geese off the 9th green…",
+  "Checking wind speed and direction…",
+  "Stocking the beverage cart…",
+  "Placing the pins…",
+  "Rolling the greens…",
+  "Practicing the practice swing…",
+  "Looking for lost balls in the woods…",
+  "Overthinking the putt…",
+  "Blaming the wind…",
+  "Taking a mulligan…",
+  "Waiting on the group ahead…",
+  "Recalculating the handicap…",
+  "Fishing a ball out of the water hazard…",
+  "Checking the scorecard math…",
+  "Selecting the wrong club…",
+  "Polishing the irons…",
+  "Searching for the lucky tee…",
+  "Zipping the golf bag…",
+  "Cleaning the golf balls…",
+  "Tying the golf spikes…",
+  "Consulting the yardage book…",
+  "Yelling 'Fore!'…",
+  "Slicing into the next dimension…",
+  "Trying to get out of the sand…",
+  "Reading the break…",
+  "Driving for show, putting for dough…",
+];
+
+const getRandomGolfMessage = () =>
+  golfLoadingMessages[Math.floor(Math.random() * golfLoadingMessages.length)];
+
 const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disabled = false, className = '' }) => {
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState('');
   const [isFillingScreen, setIsFillingScreen] = useState(false);
   const [isSpringBack, setIsSpringBack] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
