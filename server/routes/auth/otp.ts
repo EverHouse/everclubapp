@@ -7,14 +7,13 @@ import { isProduction } from '../../core/db';
 import { getHubSpotClient } from '../../core/integrations';
 import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { normalizeTierName } from '../../../shared/constants/tiers';
-import { getResendClient } from '../../utils/resend';
-import { withResendRetry } from '../../core/retryUtils';
+import { safeSendEmail } from '../../utils/resend';
 import { getSessionUser, SessionUser } from '../../types/session';
 import { sendWelcomeEmail } from '../../emails/welcomeEmail';
 import { normalizeEmail, getAlternateDomainEmail } from '../../core/utils/emailNormalization';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { getOtpEmailHtml } from '../../emails/otpEmail';
+import { getOtpEmailHtml, getOtpEmailText } from '../../emails/otpEmail';
 import { authRateLimiter } from '../../middleware/rateLimiting';
 import {
   getStaffUserByEmail,
@@ -284,11 +283,6 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       });
     }
     
-    const resendClientPromise = getResendClient().catch((err: unknown) => {
-      logger.error('[Auth] Failed to pre-warm Resend client', { extra: { error: getErrorMessage(err) } });
-      return null;
-    });
-    
     const [staffOrAdminFlag, dbUserResult] = await Promise.all([
       isStaffOrAdminEmail(normalizedEmail),
       db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1)
@@ -377,26 +371,32 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
-    const [, preWarmedClient] = await Promise.all([
-      db.insert(magicLinks).values({
-        email: normalizedEmail,
-        token: otpCode,
-        expiresAt,
-        used: false
-      }),
-      resendClientPromise
-    ]);
-    
-    const { client: resendClient, fromEmail: resendFrom } = preWarmedClient || await getResendClient();
+    await db.insert(magicLinks).values({
+      email: normalizedEmail,
+      token: otpCode,
+      expiresAt,
+      used: false
+    });
     
     const emailHtml = getOtpEmailHtml({ code: otpCode, firstName, logoUrl: 'https://everclub.app/images/everclub-logo-dark.png' });
+    const emailText = getOtpEmailText({ code: otpCode, firstName });
     
-    await withResendRetry(() => resendClient.emails.send({
-      from: resendFrom,
+    const sendResult = await safeSendEmail({
       to: normalizedEmail,
       subject: `${otpCode} - Your Ever Club Login Code`,
-      html: emailHtml
-    }));
+      html: emailHtml,
+      text: emailText
+    });
+    
+    if (!sendResult.success) {
+      logger.error('[Auth] OTP email send failed', { extra: { normalizedEmail } });
+      return res.status(500).json({ error: 'Unable to send login code. Please try again.' });
+    }
+    
+    if (sendResult.suppressed) {
+      logger.warn('[Auth] OTP email suppressed (bounced/complained recipient)', { extra: { normalizedEmail } });
+      return res.status(400).json({ error: 'We are unable to deliver emails to this address. Please contact us for assistance.' });
+    }
     
     logger.info('[Auth] OTP sent to', { extra: { normalizedEmail } });
     

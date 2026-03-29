@@ -1,10 +1,12 @@
 export function getOtpEmailHtml(params: { firstName: string; code: string; logoUrl: string }): string {
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>Your Ever Club Login Code</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #F2F2EC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #F2F2EC;">
@@ -46,9 +48,11 @@ export function getOtpEmailHtml(params: { firstName: string; code: string; logoU
           </tr>
           <tr>
             <td style="padding: 24px 40px; background-color: #f8f8f6; border-radius: 0 0 16px 16px; text-align: center;">
-              <p style="margin: 0; font-size: 12px; color: #999999;">
-                Ever Club<br>
-                <span style="color: #293515;">Golf & Wellness</span>
+              <p style="margin: 0 0 4px 0; font-size: 12px; color: #999999;">
+                Ever Club &middot; <span style="color: #293515;">Golf & Wellness</span>
+              </p>
+              <p style="margin: 0; font-size: 11px; color: #bbbbbb; line-height: 1.4;">
+                5951 Village Center Dr, Austin, TX 78739
               </p>
             </td>
           </tr>
@@ -59,4 +63,19 @@ export function getOtpEmailHtml(params: { firstName: string; code: string; logoU
 </body>
 </html>
 `;
+}
+
+export function getOtpEmailText(params: { firstName: string; code: string }): string {
+  return `Hi ${params.firstName},
+
+Your Ever Club login code is: ${params.code}
+
+Enter this code in the Ever Club app to sign in.
+This code expires in 15 minutes.
+
+If you didn't request this code, you can safely ignore this email.
+
+Ever Club - Golf & Wellness
+5951 Village Center Dr, Austin, TX 78739
+https://everclub.app`;
 }

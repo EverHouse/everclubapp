@@ -81,6 +81,7 @@ export interface SafeSendOptions {
   to: string | string[];
   subject: string;
   html: string;
+  text?: string;
   from?: string;
   replyTo?: string;
 }
@@ -129,13 +130,15 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
     const { client, fromEmail } = await getResendClient();
     const senderEmail = options.from || fromEmail || 'noreply@everclub.app';
     const from = senderEmail.includes('<') ? senderEmail : `Ever Club <${senderEmail}>`;
-    const result = await client.emails.send({
+    const sendPayload: Record<string, unknown> = {
       from,
       to: options.to,
       subject: options.subject,
       html: options.html,
       replyTo: options.replyTo
-    });
+    };
+    if (options.text) sendPayload.text = options.text;
+    const result = await client.emails.send(sendPayload as Parameters<typeof client.emails.send>[0]);
     
     const emailId = result.data?.id || null;
     const finalRecipients = Array.isArray(options.to) ? options.to : [options.to];
