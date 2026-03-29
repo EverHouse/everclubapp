@@ -52,11 +52,9 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (internalHeader) {
     const internalSecret = process.env.INTERNAL_API_SECRET;
     if (internalSecret) {
-      const headerBuf = Buffer.alloc(64);
-      const secretBuf = Buffer.alloc(64);
-      headerBuf.write(internalHeader);
-      secretBuf.write(internalSecret);
-      if (timingSafeEqual(headerBuf, secretBuf)) {
+      const headerBuf = Buffer.from(internalHeader, 'utf8');
+      const secretBuf = Buffer.from(internalSecret, 'utf8');
+      if (headerBuf.length === secretBuf.length && timingSafeEqual(headerBuf, secretBuf)) {
         return next();
       }
     }

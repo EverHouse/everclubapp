@@ -10,6 +10,7 @@ const SUPABASE_ROUTE_TIMEOUT = 10000;
 const VALID_OAUTH_PROVIDERS = new Set(['google', 'apple', 'facebook', 'github', 'azure', 'twitter']);
 const MAX_EMAIL_LENGTH = 254;
 const MAX_PASSWORD_LENGTH = 256;
+const MAX_TOKEN_LENGTH = 8192;
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   promise.catch((err) => logger.debug(`[Supabase] ${label} settled after timeout race`, { extra: { error: getErrorMessage(err) } }));
@@ -131,8 +132,8 @@ export function setupSupabaseAuthRoutes(app: Express) {
           await authStorage.upsertUser({
             id: data.user.id,
             email: data.user.email || email,
-            firstName: firstName || '',
-            lastName: lastName || '',
+            firstName: firstName.trim().slice(0, 100),
+            lastName: lastName.trim().slice(0, 100),
           });
         } catch (dbError: unknown) {
           logger.error('[Supabase Auth] Local DB sync failed after signup, Supabase user may be orphaned', {
@@ -180,7 +181,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
       );
       
       if (error) {
-        return res.status(401).json({ error: error.message });
+        return res.status(401).json({ error: 'Invalid email or password' });
       }
       
       if (data.user) {
@@ -258,10 +259,10 @@ export function setupSupabaseAuthRoutes(app: Express) {
       );
       
       if (error) {
-        return res.status(400).json({ error: error.message });
+        logger.warn('[Supabase Auth] Password reset error', { extra: { error: error.message } });
       }
       
-      res.json({ message: 'Check your email for the password reset link' });
+      res.json({ message: 'If an account exists with that email, you will receive a password reset link' });
     } catch (error: unknown) {
       const msg = getErrorMessage(error);
       if (msg.includes('timed out')) {
@@ -284,6 +285,9 @@ export function setupSupabaseAuthRoutes(app: Express) {
       }
       
       const token = authHeader.substring(7);
+      if (token.length > MAX_TOKEN_LENGTH) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
       const { data: { user }, error } = await withTimeout(
         client.auth.getUser(token),
         'Supabase getUser'
@@ -369,6 +373,9 @@ export const isSupabaseAuthenticated: RequestHandler = async (req, res, next) =>
     }
     
     const token = authHeader.substring(7);
+    if (token.length > MAX_TOKEN_LENGTH) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
     const secret = getJwtSecret();
 
     if (secret) {
