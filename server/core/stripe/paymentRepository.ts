@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { stripePaymentIntents, users } from '../../../shared/schema';
-import { eq, and, gte, inArray, desc } from 'drizzle-orm';
+import { eq, and, gte, inArray, desc, sql } from 'drizzle-orm';
 
 export interface PaymentWithMember {
   id: number;
@@ -35,6 +35,7 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
     .select({
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
+      userId: stripePaymentIntents.userId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -44,7 +45,7 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
       createdAt: stripePaymentIntents.createdAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
     .where(
       and(
         eq(stripePaymentIntents.status, 'succeeded'),
@@ -56,8 +57,8 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
   return results.map(row => ({
     id: row.id,
     paymentIntentId: row.paymentIntentId,
-    memberEmail: row.memberEmail,
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail),
+    memberEmail: row.memberEmail || row.userId || null,
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -75,6 +76,7 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
     .select({
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
+      userId: stripePaymentIntents.userId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -84,7 +86,7 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
       createdAt: stripePaymentIntents.createdAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
     .where(
       and(
         inArray(stripePaymentIntents.status, refundedStatuses),
@@ -96,8 +98,8 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
   return results.map(row => ({
     id: row.id,
     paymentIntentId: row.paymentIntentId,
-    memberEmail: row.memberEmail,
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail),
+    memberEmail: row.memberEmail || row.userId || null,
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -113,6 +115,7 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
     .select({
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
+      userId: stripePaymentIntents.userId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -127,7 +130,7 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
       dunningNotifiedAt: stripePaymentIntents.dunningNotifiedAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
     .where(inArray(stripePaymentIntents.status, failedStatuses))
     .orderBy(desc(stripePaymentIntents.createdAt))
     .limit(limit);
@@ -135,8 +138,8 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
   return results.map(row => ({
     id: row.id,
     paymentIntentId: row.paymentIntentId,
-    memberEmail: row.memberEmail || 'unknown',
-    memberName: formatMemberName(row.firstName, row.lastName, 'Unknown'),
+    memberEmail: row.memberEmail || row.userId || 'unknown',
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId || 'Unknown'),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -157,6 +160,7 @@ export async function getPendingAuthorizations(): Promise<PendingAuthorization[]
     .select({
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
+      userId: stripePaymentIntents.userId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -166,15 +170,15 @@ export async function getPendingAuthorizations(): Promise<PendingAuthorization[]
       createdAt: stripePaymentIntents.createdAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
     .where(inArray(stripePaymentIntents.status, pendingStatuses))
     .orderBy(desc(stripePaymentIntents.createdAt));
 
   return results.map(row => ({
     id: row.id,
     paymentIntentId: row.paymentIntentId,
-    memberEmail: row.memberEmail,
-    memberName: formatMemberName(row.firstName, row.lastName, row.description),
+    memberEmail: row.memberEmail || row.userId || null,
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId || row.description),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -202,7 +206,7 @@ export async function getPaymentByIntentId(paymentIntentId: string) {
       lastName: users.lastName,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, eq(users.id, stripePaymentIntents.userId))
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
     .where(eq(stripePaymentIntents.stripePaymentIntentId, paymentIntentId))
     .limit(1);
 
