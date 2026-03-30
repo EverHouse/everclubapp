@@ -466,7 +466,7 @@ export async function handleChargeDisputeCreated(client: PoolClient, dispute: St
       const webPaymentResult = await client.query(
         `SELECT spi.user_id, u.email as user_email, u.billing_provider, spi.amount_cents, spi.booking_id
          FROM stripe_payment_intents spi
-         JOIN users u ON u.id = spi.user_id
+         LEFT JOIN users u ON (u.id = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id))
          WHERE spi.stripe_payment_intent_id = $1
          LIMIT 1`,
         [paymentIntentId]
@@ -474,7 +474,7 @@ export async function handleChargeDisputeCreated(client: PoolClient, dispute: St
       
       if (webPaymentResult.rows.length > 0) {
         const webPayment = webPaymentResult.rows[0];
-        logger.info(`[Stripe Webhook] Web payment disputed for user ${webPayment.user_email}`);
+        logger.info(`[Stripe Webhook] Web payment disputed for user ${webPayment.user_email || webPayment.user_id}`);
         
         await client.query(
           `UPDATE stripe_payment_intents SET status = 'disputed', updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
@@ -738,7 +738,7 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
       const webPaymentResult = await client.query(
         `SELECT spi.user_id, u.email as user_email, u.billing_provider, u.membership_status, u.stripe_subscription_id as user_stripe_sub, spi.amount_cents, spi.booking_id
          FROM stripe_payment_intents spi
-         JOIN users u ON u.id = spi.user_id
+         LEFT JOIN users u ON (u.id = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id))
          WHERE spi.stripe_payment_intent_id = $1
          LIMIT 1`,
         [paymentIntentId]
@@ -746,7 +746,7 @@ export async function handleChargeDisputeClosed(client: PoolClient, dispute: Str
 
       if (webPaymentResult.rows.length > 0) {
         const webPayment = webPaymentResult.rows[0];
-        logger.info(`[Stripe Webhook] Web payment dispute closed for user ${webPayment.user_email}: ${status}`);
+        logger.info(`[Stripe Webhook] Web payment dispute closed for user ${webPayment.user_email || webPayment.user_id}: ${status}`);
 
         await client.query(
           `UPDATE stripe_payment_intents SET status = CASE WHEN $1 = true THEN 'succeeded' ELSE 'disputed_lost' END, updated_at = NOW() WHERE stripe_payment_intent_id = $2`,

@@ -999,8 +999,8 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
         spi.product_name,
         spi.created_at
        FROM stripe_payment_intents spi
-       JOIN users u ON u.id = spi.user_id
-       WHERE LOWER(u.email) = ${userEmail}
+       LEFT JOIN users u ON (u.id = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id))
+       WHERE LOWER(COALESCE(u.email, spi.user_id)) = ${userEmail}
          AND spi.status IN ('succeeded', 'refunded')
        ORDER BY spi.created_at DESC
        LIMIT 200`);

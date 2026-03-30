@@ -69,8 +69,8 @@ router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, r
         spi.product_name,
         spi.created_at
        FROM stripe_payment_intents spi
-       JOIN users u ON u.id = spi.user_id
-       WHERE LOWER(u.email) = ${email.toLowerCase()}
+       LEFT JOIN users u ON (u.id = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id))
+       WHERE LOWER(COALESCE(u.email, spi.user_id)) = ${email.toLowerCase()}
        ORDER BY spi.created_at DESC
        LIMIT 50`);
 

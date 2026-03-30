@@ -179,7 +179,7 @@ router.post('/api/payments/add-note', isStaffOrAdmin, validateBody(addPaymentNot
 
     const piResult = await db.execute(sql`SELECT u.email as member_email 
        FROM stripe_payment_intents spi
-       LEFT JOIN users u ON u.id = spi.user_id
+       LEFT JOIN users u ON (u.id = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id))
        WHERE spi.stripe_payment_intent_id = ${transactionId}`);
 
     let memberEmail = 'unknown';
