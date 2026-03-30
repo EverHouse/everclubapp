@@ -201,7 +201,6 @@ httpServer.on('error', (err: unknown) => {
 async function initializeApp() {
   const { default: express } = await import('express');
   const { default: cors } = await import('cors');
-  // @ts-expect-error no declaration file for compression
   const { default: compression } = await import('compression');
   const { default: expressStaticGzip } = await import('express-static-gzip');
   const { default: rateLimit } = await import('express-rate-limit');

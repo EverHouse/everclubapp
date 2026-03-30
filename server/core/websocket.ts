@@ -2,7 +2,6 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { getErrorMessage } from '../utils/errorUtils';
 import { Server, IncomingMessage } from 'http';
 import { parse as parseCookie } from 'cookie';
-// @ts-expect-error no declaration file for cookie-signature
 import { unsign } from 'cookie-signature';
 import crypto from 'crypto';
 import { logger } from './logger';

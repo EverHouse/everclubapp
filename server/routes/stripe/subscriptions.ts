@@ -32,14 +32,21 @@ import { sensitiveActionRateLimiter, subscriptionCreationRateLimiter, acquireSub
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logAndRespond } from '../../core/logger';
 import { getAppBaseUrl } from '../../utils/urlUtils';
+import { z } from 'zod';
+
+const customerIdParamSchema = z.object({ customerId: z.string().min(1) });
+const subscriptionIdParamSchema = z.object({ subscriptionId: z.string().min(1) });
+const userIdParamSchema = z.object({ userId: z.string().uuid() });
 
 const router = Router();
 
 router.get('/api/stripe/subscriptions/:customerId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { customerId } = req.params;
+    const parsed = customerIdParamSchema.safeParse(req.params);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid customer ID' });
+    const { customerId } = parsed.data;
     
-    const result = await listCustomerSubscriptions(customerId as string);
+    const result = await listCustomerSubscriptions(customerId);
     
     if (!result.success) {
       const statusCode = result.errorCode === 'CUSTOMER_NOT_FOUND' ? 404 : 500;
@@ -125,11 +132,13 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, validateBody(createSubs
 
 router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { subscriptionId } = req.params;
+    const parsed = subscriptionIdParamSchema.safeParse(req.params);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid subscription ID' });
+    const { subscriptionId } = parsed.data;
     
-    const memberLookup = await db.select({ email: users.email }).from(users).where(eq(users.stripeSubscriptionId, subscriptionId as string));
+    const memberLookup = await db.select({ email: users.email }).from(users).where(eq(users.stripeSubscriptionId, subscriptionId));
     
-    const result = await cancelSubscription(subscriptionId as string);
+    const result = await cancelSubscription(subscriptionId);
     
     if (!result.success) {
       return res.status(500).json({ error: result.error || 'Failed to cancel subscription' });
@@ -711,11 +720,10 @@ router.post('/api/stripe/subscriptions/create-new-member', isStaffOrAdmin, subsc
 
 router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { subscriptionId } = req.params;
+    const subParsed = subscriptionIdParamSchema.safeParse(req.params);
+    if (!subParsed.success) return res.status(400).json({ error: 'subscriptionId is required' });
+    const { subscriptionId } = subParsed.data;
     const { memberEmail } = req.query;
-    if (!subscriptionId) {
-      return res.status(400).json({ error: 'subscriptionId is required' });
-    }
     if (!memberEmail) {
       return res.status(400).json({ error: 'memberEmail query parameter is required' });
     }
@@ -727,7 +735,7 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
     const member = memberResult.rows[0] as { id: number; stripe_customer_id: string | null };
 
     const stripe = await getStripeClient();
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
       expand: ['latest_invoice']
     });
 
@@ -749,7 +757,7 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
     await logFromRequest(req, {
       action: 'get_invoice_link',
       resourceType: 'subscription',
-      resourceId: subscriptionId as string,
+      resourceId: subscriptionId,
       resourceName: memberEmailStr,
       details: {
         memberEmail: String(memberEmail),
@@ -767,13 +775,12 @@ router.get('/api/stripe/subscriptions/invoice-link/:subscriptionId', isStaffOrAd
 
 router.get('/api/stripe/subscriptions/refresh-intent/:subscriptionId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { subscriptionId } = req.params;
-    if (!subscriptionId) {
-      return res.status(400).json({ error: 'subscriptionId is required' });
-    }
+    const subParsed = subscriptionIdParamSchema.safeParse(req.params);
+    if (!subParsed.success) return res.status(400).json({ error: 'subscriptionId is required' });
+    const { subscriptionId } = subParsed.data;
 
     const stripe = await getStripeClient();
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
       expand: ['latest_invoice.payment_intent']
     });
 
@@ -1269,7 +1276,9 @@ router.post('/api/stripe/subscriptions/send-activation-link', isStaffOrAdmin, va
 
 router.delete('/api/stripe/subscriptions/cleanup-pending/:userId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const userId = req.params.userId as string;
+    const uidParsed = userIdParamSchema.safeParse(req.params);
+    if (!uidParsed.success) return res.status(400).json({ error: 'Invalid user ID' });
+    const userId = uidParsed.data.userId;
     const sessionUser = getSessionUser(req);
     
     const userResult = await db.select({
