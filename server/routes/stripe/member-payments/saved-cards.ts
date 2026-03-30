@@ -107,25 +107,35 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     `);
     if (existingPaymentResult.rows.length > 0) {
       const existingPi = existingPaymentResult.rows[0] as { stripe_payment_intent_id: string; status: string };
-      try {
-        const { getStripeClient: getClient } = await import('../../../core/stripe/client');
-        const stripeClient = await getClient();
-        const livePi = await stripeClient.paymentIntents.retrieve(existingPi.stripe_payment_intent_id);
-        if (livePi.status === 'succeeded') {
-          return res.status(409).json({ error: 'Payment has already been collected for this booking.' });
-        }
-        const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
-        logger.warn('[MemberPayments] DB says payment succeeded but Stripe disagrees — correcting and allowing retry', {
-          extra: { bookingId, piId: existingPi.stripe_payment_intent_id, dbStatus: existingPi.status, stripeStatus: livePi.status }
+      if (!existingPi.stripe_payment_intent_id.startsWith('pi_')) {
+        logger.info('[MemberPayments] Synthetic/non-Stripe PI ID in succeeded check — correcting to canceled and allowing charge', {
+          extra: { bookingId, piId: existingPi.stripe_payment_intent_id }
         });
-        await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id}`);
+        await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id}`);
         await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
            WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND payment_status = 'paid'`);
         await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
-      } catch (verifyErr: unknown) {
-        logger.warn('[MemberPayments] Could not verify existing payment with Stripe — allowing charge retry', {
-          extra: { bookingId, piId: existingPi.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }
-        });
+      } else {
+        try {
+          const { getStripeClient: getClient } = await import('../../../core/stripe/client');
+          const stripeClient = await getClient();
+          const livePi = await stripeClient.paymentIntents.retrieve(existingPi.stripe_payment_intent_id);
+          if (livePi.status === 'succeeded') {
+            return res.status(409).json({ error: 'Payment has already been collected for this booking.' });
+          }
+          const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
+          logger.warn('[MemberPayments] DB says payment succeeded but Stripe disagrees — correcting and allowing retry', {
+            extra: { bookingId, piId: existingPi.stripe_payment_intent_id, dbStatus: existingPi.status, stripeStatus: livePi.status }
+          });
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id}`);
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+             WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND payment_status = 'paid'`);
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
+        } catch (verifyErr: unknown) {
+          logger.warn('[MemberPayments] Could not verify existing payment with Stripe — allowing charge retry', {
+            extra: { bookingId, piId: existingPi.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }
+          });
+        }
       }
     }
 
@@ -184,13 +194,21 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
       const stalePis = await db.execute(sql`SELECT stripe_payment_intent_id FROM stripe_payment_intents 
          WHERE booking_id = ${bookingId} AND status NOT IN ('succeeded', 'canceled', 'refunded')`);
       for (const row of stalePis.rows as Array<{ stripe_payment_intent_id: string }>) {
+        const piId = row.stripe_payment_intent_id;
+        if (!piId.startsWith('pi_')) {
+          logger.info('[MemberPayments] Skipping synthetic/non-Stripe PI ID during stale PI cleanup — marking as canceled', {
+            extra: { bookingId, piId }
+          });
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
+          continue;
+        }
         try {
           const { getStripeClient } = await import('../../../core/stripe/client');
           const stripeClient = await getStripeClient();
-          const livePi = await stripeClient.paymentIntents.retrieve(row.stripe_payment_intent_id);
+          const livePi = await stripeClient.paymentIntents.retrieve(piId);
           if (livePi.status === 'succeeded' || livePi.status === 'processing' || livePi.status === 'requires_capture') {
             logger.warn('[MemberPayments] Existing PI is already processing/succeeded — blocking duplicate charge', {
-              extra: { bookingId, piId: row.stripe_payment_intent_id, liveStatus: livePi.status }
+              extra: { bookingId, piId, liveStatus: livePi.status }
             });
             return res.status(409).json({ error: 'A payment is already being processed for this booking.' });
           }
@@ -198,23 +216,32 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
             const livePiInvoice = (livePi as unknown as { invoice: string | { id: string } | null }).invoice;
             if (livePiInvoice) {
               logger.info('[MemberPayments] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
-                extra: { bookingId, piId: row.stripe_payment_intent_id, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice.id }
+                extra: { bookingId, piId, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice.id }
               });
             } else {
               const { cancelPaymentIntent } = await import('../../../core/stripe');
-              const cancelResult = await cancelPaymentIntent(row.stripe_payment_intent_id);
+              const cancelResult = await cancelPaymentIntent(piId);
               if (!cancelResult.success) {
                 logger.warn('[MemberPayments] Could not cancel stale PI — checking if booking has invoice to fall through', {
-                  extra: { bookingId, piId: row.stripe_payment_intent_id, error: cancelResult.error }
+                  extra: { bookingId, piId, error: cancelResult.error }
                 });
               }
             }
           } else {
-            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
           }
         } catch (_cancelErr) {
+          const errMsg = getErrorMessage(_cancelErr);
+          const isResourceMissing = errMsg.includes('No such payment_intent') || errMsg.includes('resource_missing');
+          if (isResourceMissing) {
+            logger.warn('[MemberPayments] PI not found in Stripe — marking as canceled and allowing charge to proceed', {
+              extra: { bookingId, piId, error: errMsg }
+            });
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
+            continue;
+          }
           logger.error('[MemberPayments] Could not verify/cancel stale PI — blocking charge to prevent duplicate', {
-            extra: { bookingId, piId: row.stripe_payment_intent_id }
+            extra: { bookingId, piId }
           });
           return res.status(503).json({ error: 'Could not verify existing payment status. Please try again.' });
         }

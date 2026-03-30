@@ -143,35 +143,57 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
       `);
       if (stalePiCheck.rows.length > 0) {
         const piId = (stalePiCheck.rows[0] as { stripe_payment_intent_id: string }).stripe_payment_intent_id;
-        try {
-          const stripeClient = await getStripeClient();
-          const livePi = await stripeClient.paymentIntents.retrieve(piId);
-          if (livePi.status !== 'succeeded') {
-            const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
-            logger.warn(`[${label} Stripe] All participants marked paid but Stripe PI not succeeded — correcting stale data`, {
-              extra: { bookingId, piId, dbStatus: 'succeeded', stripeStatus: livePi.status }
-            });
-            await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
-            await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
-               WHERE stripe_payment_intent_id = ${piId} AND payment_status = 'paid'`);
-            await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${piId} AND status IN ('completed', 'paid')`);
-            await applyFeeBreakdownToParticipants(booking.session_id!, breakdown);
-            const retryPending = await db.execute(sql`
-              SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents
-               FROM booking_participants bp
-               WHERE bp.session_id = ${booking.session_id}
-                 AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
-                 AND bp.cached_fee_cents > 0
-            `);
-            if (retryPending.rows.length > 0) {
-              logger.info(`[${label} Stripe] Stale data corrected, re-running with ${retryPending.rows.length} pending participants`, { extra: { bookingId } });
-              return processPayFees(params);
-            }
-          }
-        } catch (verifyErr: unknown) {
-          logger.warn(`[${label} Stripe] Could not verify PI with Stripe during all-paid check`, {
-            extra: { bookingId, piId, error: getErrorMessage(verifyErr) }
+        if (!piId.startsWith('pi_')) {
+          logger.info(`[${label} Stripe] Synthetic/non-Stripe PI ID in all-paid check — correcting to canceled and re-checking`, {
+            extra: { bookingId, piId }
           });
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+             WHERE stripe_payment_intent_id = ${piId} AND payment_status = 'paid'`);
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${piId} AND status IN ('completed', 'paid')`);
+          await applyFeeBreakdownToParticipants(booking.session_id!, breakdown);
+          const retryPending = await db.execute(sql`
+            SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents
+             FROM booking_participants bp
+             WHERE bp.session_id = ${booking.session_id}
+               AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
+               AND bp.cached_fee_cents > 0
+          `);
+          if (retryPending.rows.length > 0) {
+            logger.info(`[${label} Stripe] Synthetic PI corrected, re-running with ${retryPending.rows.length} pending participants`, { extra: { bookingId } });
+            return processPayFees(params);
+          }
+        } else {
+          try {
+            const stripeClient = await getStripeClient();
+            const livePi = await stripeClient.paymentIntents.retrieve(piId);
+            if (livePi.status !== 'succeeded') {
+              const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
+              logger.warn(`[${label} Stripe] All participants marked paid but Stripe PI not succeeded — correcting stale data`, {
+                extra: { bookingId, piId, dbStatus: 'succeeded', stripeStatus: livePi.status }
+              });
+              await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
+              await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+                 WHERE stripe_payment_intent_id = ${piId} AND payment_status = 'paid'`);
+              await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${piId} AND status IN ('completed', 'paid')`);
+              await applyFeeBreakdownToParticipants(booking.session_id!, breakdown);
+              const retryPending = await db.execute(sql`
+                SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents
+                 FROM booking_participants bp
+                 WHERE bp.session_id = ${booking.session_id}
+                   AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
+                   AND bp.cached_fee_cents > 0
+              `);
+              if (retryPending.rows.length > 0) {
+                logger.info(`[${label} Stripe] Stale data corrected, re-running with ${retryPending.rows.length} pending participants`, { extra: { bookingId } });
+                return processPayFees(params);
+              }
+            }
+          } catch (verifyErr: unknown) {
+            logger.warn(`[${label} Stripe] Could not verify PI with Stripe during all-paid check`, {
+              extra: { bookingId, piId, error: getErrorMessage(verifyErr) }
+            });
+          }
         }
       }
       logger.info(`[${label} Stripe] All participants settled (paid or zero-fee)`, { extra: { bookingId, paidCount, totalCount } });
@@ -796,36 +818,46 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
        ORDER BY spi.created_at DESC LIMIT 1`);
     if (existingSucceeded.rows.length > 0) {
       const succeededPi = existingSucceeded.rows[0] as { stripe_payment_intent_id: string; amount_cents: number };
-      try {
-        const stripeClient = await getStripeClient();
-        const livePi = await stripeClient.paymentIntents.retrieve(succeededPi.stripe_payment_intent_id);
-        if (livePi.status === 'succeeded') {
-          logger.info('[Stripe] Booking already has succeeded payment (verified with Stripe), preventing double charge', {
-            extra: { bookingId, sessionId, existingPiId: succeededPi.stripe_payment_intent_id }
-          });
-          return { status: 200, body: {
-            alreadyPaid: true,
-            message: 'Payment already completed',
-            paymentIntentId: succeededPi.stripe_payment_intent_id
-          }};
-        }
-        const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
-        logger.warn('[Stripe] DB says payment succeeded but Stripe disagrees — correcting and allowing retry', {
-          extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id, dbStatus: 'succeeded', stripeStatus: livePi.status }
+      if (!succeededPi.stripe_payment_intent_id.startsWith('pi_')) {
+        logger.info('[Stripe] Synthetic/non-Stripe PI ID in succeeded check — correcting to canceled and allowing charge', {
+          extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id }
         });
-        await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id}`);
-        const resetResult = await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+        await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id}`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
            WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id} AND payment_status = 'paid'`);
-        if ((resetResult as { rowCount?: number }).rowCount && (resetResult as { rowCount?: number }).rowCount! > 0) {
-          logger.info('[Stripe] Reset participants linked to stale PI back to pending', {
-            extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id, resetCount: (resetResult as { rowCount?: number }).rowCount }
+        await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
+      } else {
+        try {
+          const stripeClient = await getStripeClient();
+          const livePi = await stripeClient.paymentIntents.retrieve(succeededPi.stripe_payment_intent_id);
+          if (livePi.status === 'succeeded') {
+            logger.info('[Stripe] Booking already has succeeded payment (verified with Stripe), preventing double charge', {
+              extra: { bookingId, sessionId, existingPiId: succeededPi.stripe_payment_intent_id }
+            });
+            return { status: 200, body: {
+              alreadyPaid: true,
+              message: 'Payment already completed',
+              paymentIntentId: succeededPi.stripe_payment_intent_id
+            }};
+          }
+          const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
+          logger.warn('[Stripe] DB says payment succeeded but Stripe disagrees — correcting and allowing retry', {
+            extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id, dbStatus: 'succeeded', stripeStatus: livePi.status }
+          });
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id}`);
+          const resetResult = await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+             WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id} AND payment_status = 'paid'`);
+          if ((resetResult as { rowCount?: number }).rowCount && (resetResult as { rowCount?: number }).rowCount! > 0) {
+            logger.info('[Stripe] Reset participants linked to stale PI back to pending', {
+              extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id, resetCount: (resetResult as { rowCount?: number }).rowCount }
+            });
+          }
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
+        } catch (verifyErr: unknown) {
+          logger.warn('[Stripe] Could not verify existing payment with Stripe — allowing charge retry', {
+            extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }
           });
         }
-        await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${succeededPi.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
-      } catch (verifyErr: unknown) {
-        logger.warn('[Stripe] Could not verify existing payment with Stripe — allowing charge retry', {
-          extra: { bookingId, sessionId, piId: succeededPi.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }
-        });
       }
     }
 

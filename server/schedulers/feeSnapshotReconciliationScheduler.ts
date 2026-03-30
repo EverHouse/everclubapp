@@ -77,6 +77,11 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
     
     for (const snapshot of snapshotRows) {
       try {
+        if (!snapshot.stripe_payment_intent_id.startsWith('pi_')) {
+          logger.info(`[Fee Snapshot Reconciliation] Skipping synthetic PI ID ${snapshot.stripe_payment_intent_id} for booking ${snapshot.booking_id}`);
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE stripe_payment_intent_id = ${snapshot.stripe_payment_intent_id} AND status IN ('pending', 'requires_action')`);
+          continue;
+        }
         const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
         
         if (pi.status === 'succeeded') {
