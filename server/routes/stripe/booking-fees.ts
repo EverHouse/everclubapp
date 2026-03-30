@@ -282,7 +282,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
        FROM booking_participants bp
        JOIN booking_sessions bs ON bp.session_id = bs.id
        LEFT JOIN booking_requests br ON br.session_id = bs.id
-       WHERE bp.id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)}) AND bp.payment_status = 'pending'`);
+       WHERE bp.id IN (${sql.join(participantIds.map((id: number) => sql`${id}`), sql`, `)}) AND bp.payment_status IN ('pending', 'refunded')`);
 
     if (participantResult.rows.length === 0) {
       return res.status(400).json({ error: 'No pending participants found for the provided IDs' });
@@ -330,11 +330,11 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
 
     if (resolvedBookingId) {
       const existingPaymentResult = await db.execute(sql`
-        SELECT stripe_payment_intent_id, status, amount_cents 
-        FROM stripe_payment_intents 
-        WHERE booking_id = ${resolvedBookingId} 
-        AND status = 'succeeded'
-        AND purpose IN ('prepayment', 'booking_fee')
+        SELECT spi.stripe_payment_intent_id, spi.status, spi.amount_cents 
+        FROM stripe_payment_intents spi
+        WHERE spi.booking_id = ${resolvedBookingId} 
+        AND spi.status IN ('succeeded', 'refunding', 'partially_refunded')
+        AND spi.purpose IN ('prepayment', 'booking_fee')
         LIMIT 1`);
 
       if (existingPaymentResult.rows.length > 0) {

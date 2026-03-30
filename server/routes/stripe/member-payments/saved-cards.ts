@@ -99,7 +99,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
 
     const existingPaymentResult = await db.execute(sql`
       SELECT stripe_payment_intent_id FROM stripe_payment_intents 
-      WHERE booking_id = ${bookingId} AND status = 'succeeded'
+      WHERE booking_id = ${bookingId} AND status IN ('succeeded', 'refunding', 'partially_refunded')
       AND purpose IN ('prepayment', 'booking_fee')
       LIMIT 1
     `);
@@ -115,7 +115,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     const participantResult = await db.execute(sql`
       SELECT id, cached_fee_cents, payment_status, participant_type, display_name
       FROM booking_participants
-      WHERE session_id = ${booking.session_id} AND payment_status = 'pending' AND (cached_fee_cents > 0 OR cached_fee_cents IS NOT NULL)
+      WHERE session_id = ${booking.session_id} AND payment_status IN ('pending', 'refunded') AND (cached_fee_cents > 0 OR cached_fee_cents IS NOT NULL)
     `);
 
     const pendingParticipants = (participantResult.rows as Array<{
