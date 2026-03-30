@@ -33,7 +33,9 @@ async function connectWithTimeout(timeoutMs = 15000): Promise<PoolClient> {
       connectPromise.then(c => {
         safeRelease(c);
         logger.info('[FeeReconciliation] Released late-arriving connection after timeout');
-      }).catch(() => {});
+      }).catch((connErr) => {
+        logger.warn('[FeeReconciliation] Late connection also failed after timeout', { extra: { error: getErrorMessage(connErr) } });
+      });
     }
     throw err;
   }

@@ -53,7 +53,9 @@ export class PgRateLimitStore implements Store {
     ensureTable();
     this.cleanupInterval = setInterval(() => {
       if (this.cleanupRunning) return;
-      this.cleanup().catch(() => {});
+      this.cleanup().catch((err) => {
+        logger.warn('[PgRateLimitStore] Scheduled cleanup failed', { extra: { error: getErrorMessage(err) } });
+      });
     }, Math.max(this.windowMs, 60_000));
     this.cleanupInterval.unref();
   }
@@ -147,7 +149,9 @@ export class PgRateLimitStore implements Store {
             );
             await client.query('COMMIT');
           } catch (txErr) {
-            await client.query('ROLLBACK').catch(() => {});
+            await client.query('ROLLBACK').catch((rollbackErr) => {
+              logger.warn('[PgRateLimitStore] Rollback failed during cleanup', { extra: { error: getErrorMessage(rollbackErr) } });
+            });
             throw txErr;
           } finally {
             client.release();

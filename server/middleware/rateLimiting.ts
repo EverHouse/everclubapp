@@ -169,7 +169,9 @@ setInterval(() => {
       logger.warn('[SubscriptionLock] Releasing stale in-memory lock', { extra: { email: key, heldMs: now - acquiredAt } });
       inMemoryLocks.delete(key);
       const expirySeconds = Math.floor(LOCK_TIMEOUT_MS / 1000);
-      db.execute(sql`DELETE FROM subscription_locks WHERE email = ${key} AND locked_at < NOW() - INTERVAL '1 second' * ${expirySeconds}`).catch(() => {});
+      db.execute(sql`DELETE FROM subscription_locks WHERE email = ${key} AND locked_at < NOW() - INTERVAL '1 second' * ${expirySeconds}`).catch((err) => {
+        logger.warn('[SubscriptionLock] Failed to delete stale DB lock', { extra: { email: key, error: getErrorMessage(err) } });
+      });
     }
   }
 }, 30_000).unref();

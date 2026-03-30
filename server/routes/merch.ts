@@ -296,7 +296,9 @@ export async function deductMerchStock(cartItems: Array<{ productId?: string; qu
   }
 
   if (paymentIntentId && anyDeducted) {
-    await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_deducted]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch(() => {});
+    await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_deducted]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch((err) => {
+      logger.warn('[Merch] Failed to mark stock_deducted on payment intent', { extra: { paymentIntentId, error: getErrorMessage(err) } });
+    });
   }
 
   invalidateCache(MERCH_CACHE_KEY);
@@ -340,7 +342,9 @@ export async function restoreMerchStock(cartItems: Array<{ productId?: string; q
   }
 
   if (paymentIntentId) {
-    await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_restored]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch(() => {});
+    await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_restored]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch((err) => {
+      logger.warn('[Merch] Failed to mark stock_restored on payment intent', { extra: { paymentIntentId, error: getErrorMessage(err) } });
+    });
   }
 
   invalidateCache(MERCH_CACHE_KEY);

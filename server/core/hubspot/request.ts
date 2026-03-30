@@ -45,7 +45,7 @@ async function throttle(): Promise<void> {
     }
     lastRequestTime = Date.now();
   });
-  throttleChain = ticket.catch(() => {});
+  throttleChain = ticket.catch(() => { /* intentional: prevents unhandled rejection on the shared chain; the original ticket promise propagates the error to the caller */ });
   return ticket;
 }
 
