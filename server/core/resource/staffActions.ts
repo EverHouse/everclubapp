@@ -1,6 +1,6 @@
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../db';
-import { resources, users, bookingRequests } from '../../../shared/schema';
+import { resources, users, bookingRequests, failedSideEffects } from '../../../shared/schema';
 import { logger } from '../logger';
 import { notifyMember, notifyAllStaff } from '../notificationService';
 import { checkAllConflicts } from '../bookingValidation';
@@ -19,6 +19,27 @@ import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtil
 import { getErrorMessage } from '../../utils/errorUtils';
 import { refreshBookingPass } from '../../walletPass/bookingPassService';
 import type { StaffManualBookingInput } from '../../../shared/validators/manualBooking';
+
+const TERMINAL_STATUSES = ['cancelled', 'attended', 'completed', 'no_show', 'declined', 'expired'];
+const ASSIGNABLE_STATUSES = ['pending', 'pending_approval', 'approved', 'confirmed'];
+
+async function persistFailedSideEffect(bookingId: number, actionType: string, errorMessage: string, context?: Record<string, unknown>): Promise<void> {
+  try {
+    await db.insert(failedSideEffects).values({
+      bookingId,
+      actionType,
+      errorMessage,
+      context: context || null,
+    });
+    logger.warn(`[Failed Side Effect] Persisted ${actionType} failure for booking ${bookingId}`, {
+      extra: { bookingId, actionType }
+    });
+  } catch (persistErr: unknown) {
+    logger.error('[Failed Side Effect] CRITICAL: Failed to persist side effect failure', {
+      extra: { bookingId, actionType, errorMessage, persistError: getErrorMessage(persistErr) }
+    });
+  }
+}
 
 interface MemberLookupRow {
   id: string;
@@ -39,6 +60,14 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
     if (!existing) {
       throw new AppError(404, 'Booking not found');
     }
+
+    if (TERMINAL_STATUSES.includes(existing.status || '')) {
+      throw new AppError(400, `Cannot assign a member to a booking with status "${existing.status}". Only active bookings can be modified.`);
+    }
+
+    if (!ASSIGNABLE_STATUSES.includes(existing.status || '')) {
+      throw new AppError(400, `Booking is in status "${existing.status}" and cannot be assigned. Expected a booking in one of these statuses: ${ASSIGNABLE_STATUSES.join(', ')}.`);
+    }
     
     if (!existing.isUnmatched) {
       throw new AppError(400, 'Booking is not an unmatched booking');
@@ -54,8 +83,15 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Member assigned by staff: ' || ${memberName} || ']'`,
         updatedAt: new Date()
       })
-      .where(eq(bookingRequests.id, bookingId))
+      .where(and(
+        eq(bookingRequests.id, bookingId),
+        sql`${bookingRequests.status} IN ('pending', 'pending_approval', 'approved', 'confirmed')`
+      ))
       .returning();
+
+    if (!updated) {
+      throw new AppError(409, 'Booking was modified by another staff member. Please refresh and try again.');
+    }
 
     if (existing.sessionId) {
       await tx.execute(sql`UPDATE booking_participants
@@ -80,14 +116,18 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
   const formattedTime = result.startTime || '';
   
   if (memberEmail) {
-    await notifyMember({
-      userEmail: memberEmail,
-      title: 'Booking Confirmed',
-      message: `Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`,
-      type: 'booking_confirmed',
-      relatedId: bookingId,
-      relatedType: 'booking'
-    });
+    try {
+      await notifyMember({
+        userEmail: memberEmail,
+        title: 'Booking Confirmed',
+        message: `Your simulator booking for ${formattedDate} at ${formattedTime} has been confirmed.`,
+        type: 'booking_confirmed',
+        relatedId: bookingId,
+        relatedType: 'booking'
+      });
+    } catch (notifyErr: unknown) {
+      await persistFailedSideEffect(bookingId, 'notification', getErrorMessage(notifyErr), { flow: 'assign_member', memberEmail });
+    }
   }
   
   return result;
@@ -132,6 +172,10 @@ export async function assignWithPlayers(
     if (!existingBooking) {
       throw new AppError(404, 'Booking not found');
     }
+
+    if (TERMINAL_STATUSES.includes(existingBooking.status || '')) {
+      throw new AppError(400, `Cannot assign players to a booking with status "${existingBooking.status}". Only active bookings can be modified.`);
+    }
     
     const newNote = ` [Assigned by staff: ${owner.name} with ${totalPlayerCount} players]`;
     
@@ -142,8 +186,8 @@ export async function assignWithPlayers(
       return { type: 'member' as const, email: p.email, name: p.name, userId: p.member_id };
     });
 
-    const statusesAlreadyBeyondApproved = ['approved', 'confirmed', 'checked_in', 'attended', 'completed', 'no_show'];
-    const keepCurrentStatus = statusesAlreadyBeyondApproved.includes(existingBooking.status);
+    const statusesAllowingKeep = ['approved', 'confirmed', 'checked_in'];
+    const keepCurrentStatus = statusesAllowingKeep.includes(existingBooking.status);
     const targetStatus = keepCurrentStatus ? existingBooking.status : 'approved';
 
     const [updated] = await tx.update(bookingRequests)
@@ -159,72 +203,68 @@ export async function assignWithPlayers(
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ${newNote}`,
         updatedAt: new Date()
       })
-      .where(eq(bookingRequests.id, bookingId))
+      .where(and(
+        eq(bookingRequests.id, bookingId),
+        sql`${bookingRequests.status} NOT IN ('cancelled', 'attended', 'completed', 'no_show', 'declined', 'expired')`
+      ))
       .returning();
-    
-    return { booking: updated, sessionId: existingBooking.sessionId };
-  });
-  
-  let sessionId = result.sessionId;
 
-  if (sessionId) {
-    try {
-      await db.execute(sql`UPDATE booking_participants
+    if (!updated) {
+      throw new AppError(409, 'Booking was modified by another staff member or is no longer in a modifiable status. Please refresh and try again.');
+    }
+
+    let sessionId = existingBooking.sessionId;
+
+    if (sessionId) {
+      await tx.execute(sql`UPDATE booking_participants
         SET user_id = ${resolvedOwnerId || null},
             display_name = ${owner.name}
         WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
-    } catch (ownerUpdateErr: unknown) {
-      logger.warn('[assign-with-players] Failed to update session owner participant', {
-        extra: { bookingId, sessionId, error: ownerUpdateErr }
-      });
     }
-  }
 
-  if (!sessionId && result.booking.resourceId && result.booking.requestDate && result.booking.startTime && result.booking.endTime) {
-    try {
+    if (!sessionId && updated.resourceId && updated.requestDate && updated.startTime && updated.endTime) {
+      const txClient = createTxQueryClient(tx);
       const sessionResult = await ensureSessionForBooking({
         bookingId,
-        resourceId: result.booking.resourceId,
-        sessionDate: String(result.booking.requestDate),
-        startTime: String(result.booking.startTime),
-        endTime: String(result.booking.endTime),
+        resourceId: updated.resourceId,
+        sessionDate: String(updated.requestDate),
+        startTime: String(updated.startTime),
+        endTime: String(updated.endTime),
         ownerEmail: owner.email,
         ownerName: owner.name,
         ownerUserId: resolvedOwnerId || undefined,
-        trackmanBookingId: result.booking.trackmanBookingId || undefined,
+        trackmanBookingId: updated.trackmanBookingId || undefined,
         source: 'staff_manual',
         createdBy: staffEmail
-      });
-      sessionId = sessionResult.sessionId;
-      logger.info('[assign-with-players] Created session for booking without one', {
-        extra: { bookingId, sessionId, newOwner: owner.email }
-      });
-    } catch (sessErr: unknown) {
-      logger.warn('[assign-with-players] Failed to create session for booking', {
-        extra: { bookingId, error: sessErr }
-      });
+      }, txClient);
+      if (sessionResult.sessionId) {
+        sessionId = sessionResult.sessionId;
+        logger.info('[assign-with-players] Created session for booking within transaction', {
+          extra: { bookingId, sessionId, newOwner: owner.email }
+        });
+      } else {
+        throw new AppError(500, `Failed to create session for booking: ${sessionResult.error || 'unknown error'}`);
+      }
     }
-  }
 
-  if (sessionId && additionalPlayers.length > 0) {
-    try {
-      const durationMinutes = Number(result.booking.durationMinutes) || 60;
+    if (sessionId && additionalPlayers.length > 0) {
+      const durationMinutes = Number(updated.durationMinutes) || 60;
       const slotDuration = Math.floor(durationMinutes / Math.max(totalPlayerCount, 1));
       for (const player of additionalPlayers) {
         if (player.type === 'guest_placeholder') {
-          await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, used_guest_pass, created_at)
+          await tx.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, used_guest_pass, created_at)
              VALUES (${sessionId}, 'guest', ${player.guest_name || 'Guest (info pending)'}, ${slotDuration}, 'pending', false, NOW())`);
         } else if (player.type === 'member' && player.email) {
-          const memberLookup = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${player.email}) LIMIT 1`);
+          const memberLookup = await tx.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${player.email}) LIMIT 1`);
           const memberRow = (memberLookup.rows as unknown as MemberLookupRow[])[0];
           const displayName = memberRow
             ? `${memberRow.first_name || ''} ${memberRow.last_name || ''}`.trim() || player.name || player.email
             : player.name || player.email;
           if (memberRow?.id) {
-            await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
+            await tx.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, slot_duration, payment_status, created_at)
                VALUES (${sessionId}, ${memberRow.id}, 'member', ${displayName}, ${slotDuration}, 'pending', NOW())`);
           } else {
-            await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, created_at)
+            await tx.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, slot_duration, payment_status, created_at)
                VALUES (${sessionId}, 'guest', ${displayName}, ${slotDuration}, 'pending', NOW())`);
             logger.warn('[assign-with-players] Member not found in system, added as guest instead', {
               extra: { email: player.email, sessionId }
@@ -232,12 +272,12 @@ export async function assignWithPlayers(
           }
         }
       }
-    } catch (partErr: unknown) {
-      logger.warn('[assign-with-players] Failed to add participants to booking_participants', {
-        extra: { bookingId, sessionId, error: getErrorMessage(partErr) }
-      });
     }
-  }
+    
+    return { booking: updated, sessionId };
+  });
+
+  const sessionId = result.sessionId;
 
   if (sessionId) {
     try {
@@ -293,6 +333,7 @@ export async function assignWithPlayers(
       logger.warn('[assign-with-players] Failed to create prepayment intent', {
         extra: { bookingId, sessionId, error: prepayErr }
       });
+      await persistFailedSideEffect(bookingId, 'prepayment_creation', getErrorMessage(prepayErr), { flow: 'assign_with_players', sessionId });
     }
   }
   
@@ -336,6 +377,7 @@ export async function assignWithPlayers(
       logger.warn('[assign-with-players] Failed to notify member', {
         extra: { bookingId, error: getErrorMessage(notifyErr) }
       });
+      await persistFailedSideEffect(bookingId, 'notification', getErrorMessage(notifyErr), { flow: 'assign_with_players', ownerEmail: owner.email });
     }
   }
   
@@ -343,63 +385,78 @@ export async function assignWithPlayers(
 }
 
 export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string | null) {
-  const [existingBooking] = await db.select()
-    .from(bookingRequests)
-    .where(eq(bookingRequests.id, bookingId));
-  
-  if (!existingBooking) {
-    throw new AppError(404, 'Booking not found');
-  }
-  
-  const previousOwner = existingBooking.userName || existingBooking.userEmail;
-  
-  const [updated] = await db.update(bookingRequests)
-    .set({
-      userEmail: newEmail.toLowerCase(),
-      userName: newName,
-      userId: memberId || null,
-      isUnmatched: false,
-      status: 'approved',
-      staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Owner changed from ' || ${previousOwner} || ' to ' || ${newName} || ' by staff]'`,
-      updatedAt: new Date()
-    })
-    .where(eq(bookingRequests.id, bookingId))
-    .returning();
-  
-  if (existingBooking.sessionId) {
-    const resolvedUserId = memberId || null;
-    let resolvedName = newName;
-    let resolvedMemberId = resolvedUserId;
-
-    if (!resolvedMemberId) {
-      const userResult = await db.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${newEmail}) LIMIT 1`);
-      const userRow = (userResult.rows as Array<{ id: string; first_name: string | null; last_name: string | null }>)[0];
-      if (userRow) {
-        resolvedMemberId = userRow.id;
-        const fullName = [userRow.first_name, userRow.last_name].filter(Boolean).join(' ');
-        if (fullName) resolvedName = fullName;
-      }
+  const result = await db.transaction(async (tx) => {
+    const [existingBooking] = await tx.select()
+      .from(bookingRequests)
+      .where(eq(bookingRequests.id, bookingId));
+    
+    if (!existingBooking) {
+      throw new AppError(404, 'Booking not found');
     }
 
-    await db.execute(sql`
-      UPDATE booking_participants
-      SET user_id = ${resolvedMemberId},
-          display_name = ${resolvedName}
-      WHERE session_id = ${existingBooking.sessionId} AND participant_type = 'owner'
-    `);
-  }
+    if (TERMINAL_STATUSES.includes(existingBooking.status || '')) {
+      throw new AppError(400, `Cannot change owner of a booking with status "${existingBooking.status}". Only active bookings can be reassigned.`);
+    }
+    
+    const previousOwner = existingBooking.userName || existingBooking.userEmail;
+    
+    const [updated] = await tx.update(bookingRequests)
+      .set({
+        userEmail: newEmail.toLowerCase(),
+        userName: newName,
+        userId: memberId || null,
+        isUnmatched: false,
+        status: 'approved',
+        staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Owner changed from ' || ${previousOwner} || ' to ' || ${newName} || ' by staff]'`,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(bookingRequests.id, bookingId),
+        sql`${bookingRequests.status} IN ('pending', 'pending_approval', 'approved', 'confirmed')`
+      ))
+      .returning();
+
+    if (!updated) {
+      throw new AppError(409, 'Booking was modified by another staff member or is no longer in a modifiable status. Please refresh and try again.');
+    }
+    
+    if (existingBooking.sessionId) {
+      const resolvedUserId = memberId || null;
+      let resolvedName = newName;
+      let resolvedMemberId = resolvedUserId;
+
+      if (!resolvedMemberId) {
+        const userResult = await tx.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${newEmail}) LIMIT 1`);
+        const userRow = (userResult.rows as Array<{ id: string; first_name: string | null; last_name: string | null }>)[0];
+        if (userRow) {
+          resolvedMemberId = userRow.id;
+          const fullName = [userRow.first_name, userRow.last_name].filter(Boolean).join(' ');
+          if (fullName) resolvedName = fullName;
+        }
+      }
+
+      await tx.execute(sql`
+        UPDATE booking_participants
+        SET user_id = ${resolvedMemberId},
+            display_name = ${resolvedName}
+        WHERE session_id = ${existingBooking.sessionId} AND participant_type = 'owner'
+      `);
+    }
+
+    return { booking: updated, previousOwner };
+  });
   
   const { broadcastToStaff } = await import('../websocket');
   broadcastToStaff({
     type: 'booking_updated',
-    bookingId: updated.id,
+    bookingId: result.booking.id,
     action: 'owner_changed',
-    previousOwner,
+    previousOwner: result.previousOwner,
     newOwnerEmail: newEmail,
     newOwnerName: newName
   });
   
-  return { booking: updated, previousOwner };
+  return result;
 }
 
 export async function createManualBooking(params: {
