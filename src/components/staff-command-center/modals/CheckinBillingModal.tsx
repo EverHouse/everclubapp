@@ -90,6 +90,7 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [waiverReason, setWaiverReason] = useState('');
   const [showWaiverInput, setShowWaiverInput] = useState<number | 'all' | null>(null);
+  const [confirmResetId, setConfirmResetId] = useState<number | null>(null);
   const [showStripePayment, setShowStripePayment] = useState(false);
   const [frozenPaymentData, setFrozenPaymentData] = useState<{
     participantFees: Array<{id: number; amount: number}>;
@@ -789,14 +790,33 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                               </span>
                             )}
                           </div>
-                          {(p.paymentStatus === PAYMENT_STATUS.PAID || p.paymentStatus === PAYMENT_STATUS.WAIVED) && (
-                            <button
-                              onClick={() => handleResetPayment(p.participantId)}
-                              disabled={actionInProgress !== null}
-                              className="tactile-btn px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-600/30 rounded hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50 transition-colors"
-                            >
-                              {actionInProgress === `reset-${p.participantId}` ? 'Resetting...' : 'Reset'}
-                            </button>
+                          {p.paymentStatus === PAYMENT_STATUS.PAID && (
+                            confirmResetId === p.participantId ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { handleResetPayment(p.participantId); setConfirmResetId(null); }}
+                                  disabled={actionInProgress !== null}
+                                  className="tactile-btn px-2 py-0.5 text-[10px] font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600/30 rounded hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50 transition-colors"
+                                >
+                                  {actionInProgress === `reset-${p.participantId}` ? 'Resetting...' : 'Confirm'}
+                                </button>
+                                <button
+                                  onClick={() => setConfirmResetId(null)}
+                                  disabled={actionInProgress !== null}
+                                  className="tactile-btn px-2 py-0.5 text-[10px] font-medium text-primary/50 dark:text-white/50 border border-primary/10 dark:border-white/10 rounded hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmResetId(p.participantId)}
+                                disabled={actionInProgress !== null}
+                                className="tactile-btn px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-600/30 rounded hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50 transition-colors"
+                              >
+                                Reset
+                              </button>
+                            )
                           )}
                         </div>
                       )}

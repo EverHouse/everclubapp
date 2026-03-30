@@ -123,8 +123,8 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const participant = participantCheck.rows[0] as { payment_status: string; display_name: string; session_id: number | null; used_guest_pass: boolean; participant_type: string; refunded_at: string | null };
       const previousStatus = participant.payment_status;
 
-      if (!['paid', 'waived', 'refunded'].includes(previousStatus)) {
-        return res.status(400).json({ error: `Cannot reset participant with status: ${previousStatus}` });
+      if (previousStatus !== 'paid') {
+        return res.status(400).json({ error: `Cannot reset participant with status: ${previousStatus}. Only paid participants can be reset.` });
       }
 
       if (participant.used_guest_pass) {
