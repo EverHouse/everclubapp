@@ -707,13 +707,9 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     updated.recurringUpdated = recurringUpdated;
-    const idParse = numericIdParam.safeParse(id);
-    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
-    const wellnessClassId = parseInt(idParse.data, 10);
-    if (isNaN(wellnessClassId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     const userEmail = getSessionUser(req)?.email || 'system';
     
-    logFromRequest(req, 'update_wellness_class', 'wellness', String(wellnessClassId), updated.title as string, {
+    logFromRequest(req, 'update_wellness_class', 'wellness', String(wellnessId), updated.title as string, {
       instructor: updated.instructor,
       date: updated.date,
       time: updated.time,
