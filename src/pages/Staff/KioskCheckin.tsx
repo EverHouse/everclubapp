@@ -17,7 +17,7 @@ interface Html5QrcodeInstance {
   ): Promise<null | void>;
 }
 
-type KioskState = 'idle' | 'scanning' | 'processing' | 'success' | 'already_checked_in' | 'error';
+type KioskState = 'idle' | 'scanning' | 'processing' | 'payment_required' | 'see_staff' | 'success' | 'already_checked_in' | 'error';
 
 interface UpcomingBooking {
   bookingId: number;
@@ -29,6 +29,18 @@ interface UpcomingBooking {
   declaredPlayerCount: number;
   ownerEmail: string;
   ownerName: string;
+  unpaidFeeCents: number;
+}
+
+interface PreflightResult {
+  memberName: string;
+  memberId: string;
+  memberEmail: string;
+  tier: string | null;
+  membershipStatus: string | null;
+  upcomingBooking: UpcomingBooking | null;
+  isBookingOwner: boolean;
+  requiresPayment: boolean;
   unpaidFeeCents: number;
 }
 
@@ -50,16 +62,7 @@ const CARD_BORDER = 'rgba(139, 154, 107, 0.25)';
 const RESET_DELAY_SUCCESS = 6000;
 const RESET_DELAY_WITH_BOOKING = 25000;
 const RESET_DELAY_ERROR = 3000;
-
-function getPacificGreeting(): string {
-  const h = parseInt(
-    new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', hour12: false }),
-    10
-  );
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
+const RESET_DELAY_SEE_STAFF = 8000;
 
 function formatTime12h(time24: string): string {
   if (!time24) return '';
@@ -74,9 +77,12 @@ const KioskCheckin: React.FC = () => {
   const navigate = useNavigate();
   const [state, setState] = useState<KioskState>('idle');
   const [checkinResult, setCheckinResult] = useState<CheckinResult | null>(null);
+  const [preflightData, setPreflightData] = useState<PreflightResult | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [checkinAfterPayment, setCheckinAfterPayment] = useState(false);
+  const [checkinAfterPaymentError, setCheckinAfterPaymentError] = useState<string | null>(null);
 
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [passcodeDigits, setPasscodeDigits] = useState<string[]>(['', '', '', '']);
@@ -114,6 +120,18 @@ const KioskCheckin: React.FC = () => {
     }
   }, []);
 
+  const performCheckin = useCallback(async (memberId: string, paymentConfirmed: boolean) => {
+    const res = await fetch('/api/kiosk/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ memberId, paymentConfirmed })
+    });
+
+    const data = await res.json();
+    return { res, data };
+  }, []);
+
   const handleScan = useCallback(async (decodedText: string) => {
     const parsed = parseQrCode(decodedText);
     if (parsed.type !== 'member' || !parsed.memberId) {
@@ -125,14 +143,37 @@ const KioskCheckin: React.FC = () => {
     setState('processing');
 
     try {
-      const res = await fetch('/api/kiosk/checkin', {
+      const preflightRes = await fetch('/api/kiosk/checkin-preflight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ memberId: parsed.memberId })
       });
 
-      const data = await res.json();
+      const preflightResult = await preflightRes.json();
+
+      if (!preflightRes.ok) {
+        setErrorMessage(preflightResult.error || 'Check-in failed. Please ask staff for help.');
+        playSound('checkinWarning');
+        setState('error');
+        return;
+      }
+
+      setPreflightData(preflightResult);
+
+      if (preflightResult.requiresPayment && preflightResult.unpaidFeeCents > 0) {
+        if (preflightResult.isBookingOwner) {
+          playSound('tap');
+          setState('payment_required');
+          setShowPaymentModal(true);
+        } else {
+          playSound('checkinWarning');
+          setState('see_staff');
+        }
+        return;
+      }
+
+      const { res, data } = await performCheckin(parsed.memberId, false);
 
       if (res.ok && data.success) {
         setCheckinResult({
@@ -163,6 +204,60 @@ const KioskCheckin: React.FC = () => {
       playSound('checkinWarning');
       setState('error');
     }
+  }, [performCheckin]);
+
+  const handlePaymentSuccess = useCallback(async () => {
+    setShowPaymentModal(false);
+    setCheckinAfterPayment(true);
+    setCheckinAfterPaymentError(null);
+
+    if (!preflightData?.memberId) {
+      setCheckinAfterPayment(false);
+      setCheckinAfterPaymentError('Payment was processed, but check-in could not be completed. Please see staff.');
+      return;
+    }
+
+    try {
+      const { res, data } = await performCheckin(preflightData.memberId, true);
+
+      if (res.ok && data.success) {
+        setCheckinResult({
+          memberName: data.memberName,
+          memberId: data.memberId || undefined,
+          memberEmail: data.memberEmail || undefined,
+          tier: data.tier,
+          lifetimeVisits: data.lifetimeVisits,
+          upcomingBooking: data.upcomingBooking || null
+        });
+        playSound('checkinSuccess');
+        setState('success');
+      } else if (data.alreadyCheckedIn) {
+        setCheckinResult({
+          memberName: data.memberName || '',
+          tier: data.tier || null,
+          lifetimeVisits: 0
+        });
+        playSound('tap');
+        setState('already_checked_in');
+      } else {
+        setCheckinAfterPaymentError(
+          'Payment was processed, but check-in could not be completed. Please see staff.'
+        );
+      }
+    } catch {
+      setCheckinAfterPaymentError(
+        'Payment was processed, but a connection error occurred. Please see staff to complete check-in.'
+      );
+    } finally {
+      setCheckinAfterPayment(false);
+    }
+  }, [preflightData, performCheckin]);
+
+  const handlePaymentDismissed = useCallback(() => {
+    setShowPaymentModal(false);
+    setErrorMessage('Check-in incomplete — fees must be paid. Please see staff for assistance.');
+    playSound('checkinWarning');
+    setState('error');
   }, []);
 
   const scannerStartedRef = useRef(false);
@@ -235,13 +330,16 @@ const KioskCheckin: React.FC = () => {
     stopScanner();
     setState('idle');
     setCheckinResult(null);
+    setPreflightData(null);
     setErrorMessage('');
     setShowPaymentModal(false);
+    setCheckinAfterPayment(false);
+    setCheckinAfterPaymentError(null);
     hasScannedRef.current = false;
   }, [stopScanner]);
 
   useEffect(() => {
-    if (showPaymentModal) return;
+    if (showPaymentModal || checkinAfterPayment) return;
     if (state === 'success' || state === 'already_checked_in') {
       stopScanner();
       const delay = checkinResult?.upcomingBooking ? RESET_DELAY_WITH_BOOKING : RESET_DELAY_SUCCESS;
@@ -249,11 +347,17 @@ const KioskCheckin: React.FC = () => {
     } else if (state === 'error') {
       stopScanner();
       resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_ERROR);
+    } else if (state === 'see_staff') {
+      stopScanner();
+      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_SEE_STAFF);
+    } else if (state === 'payment_required' && checkinAfterPaymentError) {
+      stopScanner();
+      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_SEE_STAFF);
     }
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     };
-  }, [state, stopScanner, resetToIdle, showPaymentModal, checkinResult?.upcomingBooking]);
+  }, [state, stopScanner, resetToIdle, showPaymentModal, checkinAfterPayment, checkinAfterPaymentError, checkinResult?.upcomingBooking]);
 
   useEffect(() => {
     return () => {
@@ -492,10 +596,9 @@ const KioskCheckin: React.FC = () => {
   }
 
   const booking = checkinResult?.upcomingBooking;
-  const firstName = checkinResult?.memberName?.split(' ')[0] || '';
-  const isBookingOwner = booking && checkinResult?.memberEmail
-    ? booking.ownerEmail.toLowerCase() === checkinResult.memberEmail.toLowerCase()
-    : false;
+  const firstName = (checkinResult?.memberName || preflightData?.memberName || '')?.split(' ')[0] || '';
+
+  const preflightBooking = preflightData?.upcomingBooking;
 
   return (
     <div className="fixed inset-0 flex flex-col select-none" style={{ zIndex: 9999, touchAction: 'none', background: BG_GRADIENT }}>
@@ -668,6 +771,107 @@ const KioskCheckin: React.FC = () => {
           </div>
         )}
 
+        {state === 'payment_required' && preflightData && !showPaymentModal && !checkinAfterPayment && (
+          <div className="text-center animate-in fade-in duration-500 max-w-md">
+            {checkinAfterPaymentError ? (
+              <>
+                <p
+                  className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
+                  style={{ color: '#E57373' }}
+                >
+                  Check-In Issue
+                </p>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(229, 115, 115, 0.1)', border: '1px solid rgba(229, 115, 115, 0.25)' }}>
+                  <Icon name="warning" className="text-3xl text-red-400" />
+                </div>
+                <h2
+                  className="text-3xl mb-3"
+                  style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
+                >
+                  See Staff
+                </h2>
+                <p className="text-red-300/80 text-base mb-6">{checkinAfterPaymentError}</p>
+                <p className="text-white/30 text-sm">A team member can complete your check-in at the front desk</p>
+              </>
+            ) : (
+              <>
+                <p
+                  className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
+                  style={{ color: '#D4A844' }}
+                >
+                  Payment Required
+                </p>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
+                  <Icon name="payment" className="text-3xl text-amber-400" />
+                </div>
+                <h2
+                  className="text-3xl mb-3"
+                  style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
+                >
+                  Outstanding Fees
+                </h2>
+                <p className="text-amber-300/80 text-lg mb-2">
+                  ${(preflightData.unpaidFeeCents / 100).toFixed(2)}
+                </p>
+                <p className="text-white/40 text-sm mb-6">
+                  Payment is required before check-in can be completed
+                </p>
+                <button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="tactile-btn px-8 py-3 rounded-xl text-base font-semibold transition-colors duration-200"
+                  style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
+                >
+                  Pay Now
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {(state === 'payment_required' && checkinAfterPayment) && (
+          <div className="text-center animate-in fade-in duration-200">
+            <p
+              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
+              style={{ color: OLIVE_ACCENT }}
+            >
+              Completing Check-In
+            </p>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: 'rgba(139, 154, 107, 0.1)', border: `1px solid ${CARD_BORDER}` }}>
+              <div className="w-10 h-10 rounded-full border-3 border-white/15 animate-spin" style={{ borderTopColor: OLIVE_ACCENT }} />
+            </div>
+            <h2 className="text-3xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>
+              Payment received, finalizing...
+            </h2>
+            <p className="text-white/35 text-sm">One moment, please</p>
+          </div>
+        )}
+
+        {state === 'see_staff' && preflightData && (
+          <div className="text-center animate-in fade-in duration-500 max-w-md">
+            <p
+              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
+              style={{ color: '#D4A844' }}
+            >
+              Staff Assistance Needed
+            </p>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
+              <Icon name="support_agent" className="text-3xl text-amber-400" />
+            </div>
+            <h2
+              className="text-3xl mb-3"
+              style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
+            >
+              Welcome, <em>{firstName}</em>
+            </h2>
+            <p className="text-amber-300/80 text-base mb-4">
+              Your booking has outstanding fees of ${(preflightData.unpaidFeeCents / 100).toFixed(2)}
+            </p>
+            <p className="text-white/40 text-sm">
+              Please see staff at the front desk to complete payment and check-in
+            </p>
+          </div>
+        )}
+
         {state === 'success' && checkinResult && (
           <div className="animate-in fade-in duration-700 w-full max-w-2xl px-2">
             <div className="mb-8">
@@ -763,17 +967,8 @@ const KioskCheckin: React.FC = () => {
                     </div>
                     <div className="rounded-xl p-5" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
                       <p className="text-[10px] tracking-[0.15em] uppercase mb-2" style={{ color: OLIVE_ACCENT }}>Status</p>
-                      {booking.unpaidFeeCents > 0 ? (
-                        <>
-                          <p className="text-amber-300 text-lg font-bold">${(booking.unpaidFeeCents / 100).toFixed(2)}</p>
-                          <p className="text-white/40 text-xs mt-0.5">Fees outstanding</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-emerald-400 text-lg font-bold">Settled</p>
-                          <p className="text-white/40 text-xs mt-0.5">All clear</p>
-                        </>
-                      )}
+                      <p className="text-emerald-400 text-lg font-bold">Settled</p>
+                      <p className="text-white/40 text-xs mt-0.5">All clear</p>
                     </div>
                   </div>
                 </>
@@ -787,41 +982,6 @@ const KioskCheckin: React.FC = () => {
                 </div>
               )}
             </div>
-
-            {booking && booking.unpaidFeeCents > 0 && booking.sessionId && (
-              <div
-                className="rounded-xl p-5 flex items-center justify-between animate-in fade-in slide-in-from-bottom-2 duration-500"
-                style={{ background: 'rgba(139, 154, 107, 0.1)', border: `1px solid ${CARD_BORDER}` }}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon name="payment" className="text-xl" style={{ color: OLIVE_ACCENT }} />
-                  <div>
-                    <p className="text-white font-medium text-sm">Outstanding balance</p>
-                    <p className="text-white/40 text-xs">
-                      {isBookingOwner
-                        ? 'Settle before your session for seamless entry'
-                        : 'Please see staff for payment assistance'}
-                    </p>
-                  </div>
-                </div>
-                {isBookingOwner ? (
-                  <button
-                    onClick={() => setShowPaymentModal(true)}
-                    className="tactile-btn px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors duration-200"
-                    style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
-                  >
-                    Pay Now
-                  </button>
-                ) : (
-                  <span
-                    className="px-4 py-2 rounded-lg text-xs font-medium"
-                    style={{ background: 'rgba(139, 154, 107, 0.15)', color: OLIVE_TEXT }}
-                  >
-                    See Staff
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         )}
 
@@ -952,20 +1112,17 @@ const KioskCheckin: React.FC = () => {
         </div>
       )}
 
-      {showPaymentModal && booking && booking.sessionId && checkinResult?.memberId && (
+      {showPaymentModal && preflightBooking && preflightBooking.sessionId && preflightData?.memberId && (
         <MemberPaymentModal
           isOpen={showPaymentModal}
-          bookingId={booking.bookingId}
-          sessionId={booking.sessionId}
-          ownerEmail={booking.ownerEmail}
-          ownerName={booking.ownerName}
+          bookingId={preflightBooking.bookingId}
+          sessionId={preflightBooking.sessionId}
+          ownerEmail={preflightBooking.ownerEmail}
+          ownerName={preflightBooking.ownerName}
           kioskMode
-          memberId={checkinResult.memberId}
-          onSuccess={() => {
-            setShowPaymentModal(false);
-            resetToIdle();
-          }}
-          onClose={() => setShowPaymentModal(false)}
+          memberId={preflightData.memberId}
+          onSuccess={handlePaymentSuccess}
+          onClose={handlePaymentDismissed}
         />
       )}
     </div>
