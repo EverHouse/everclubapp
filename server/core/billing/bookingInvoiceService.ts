@@ -1585,13 +1585,51 @@ export async function checkBookingPaymentStatus(params: {
   );
 
   if (allPaid) {
-    const invoiceStatus = await isBookingInvoicePaid(bookingId);
-    if (invoiceStatus.locked === false && hasPaidFees) {
-      const hasSucceededPi = await db.execute(
-        sql`SELECT 1 FROM stripe_payment_intents WHERE booking_id = ${bookingId} AND status = 'succeeded' LIMIT 1`
-      );
-      if (hasSucceededPi.rows.length === 0) {
-        allPaid = false;
+    const syntheticPaidCheck = await db.execute(sql`
+      SELECT bp.id, bp.stripe_payment_intent_id 
+      FROM booking_participants bp
+      WHERE bp.session_id = ${sessionId}
+        AND bp.payment_status = 'paid'
+        AND bp.cached_fee_cents > 0
+        AND bp.stripe_payment_intent_id IS NOT NULL
+        AND bp.stripe_payment_intent_id NOT LIKE 'pi_%'
+    `);
+    if (syntheticPaidCheck.rows.length > 0) {
+      const syntheticIds = (syntheticPaidCheck.rows as Array<{ id: number; stripe_payment_intent_id: string }>);
+      logger.warn('[PaymentStatus] Found participants marked paid with synthetic/non-Stripe PI IDs — resetting to pending', {
+        extra: { bookingId, sessionId, participantIds: syntheticIds.map(r => r.id), piIds: syntheticIds.map(r => r.stripe_payment_intent_id) }
+      });
+      await db.execute(sql`
+        UPDATE booking_participants 
+        SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+        WHERE session_id = ${sessionId}
+          AND payment_status = 'paid'
+          AND cached_fee_cents > 0
+          AND stripe_payment_intent_id IS NOT NULL
+          AND stripe_payment_intent_id NOT LIKE 'pi_%'
+      `);
+      await db.execute(sql`
+        UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW()
+        WHERE booking_id = ${bookingId} AND status IN ('succeeded', 'processing')
+          AND stripe_payment_intent_id NOT LIKE 'pi_%'
+      `);
+      await db.execute(sql`
+        UPDATE booking_fee_snapshots SET status = 'stale'
+        WHERE session_id = ${sessionId} AND status IN ('completed', 'paid')
+          AND stripe_payment_intent_id IS NOT NULL AND stripe_payment_intent_id NOT LIKE 'pi_%'
+      `);
+      allPaid = false;
+    }
+
+    if (allPaid) {
+      const invoiceStatus = await isBookingInvoicePaid(bookingId);
+      if (invoiceStatus.locked === false && hasPaidFees) {
+        const hasSucceededPi = await db.execute(
+          sql`SELECT 1 FROM stripe_payment_intents WHERE booking_id = ${bookingId} AND status = 'succeeded' AND stripe_payment_intent_id LIKE 'pi_%' LIMIT 1`
+        );
+        if (hasSucceededPi.rows.length === 0) {
+          allPaid = false;
+        }
       }
     }
   }
