@@ -391,6 +391,6 @@ export const useAuthData = () => {
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useAuthDataSafe = () => {
-  return useContext(AuthDataContext);
+export const useAuthDataSafe = (): AuthDataContextType | null => {
+  return useContext(AuthDataContext) ?? null;
 };
