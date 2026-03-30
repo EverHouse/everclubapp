@@ -339,10 +339,25 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
 
       if (existingPaymentResult.rows.length > 0) {
         const existingPayment = existingPaymentResult.rows[0] as { stripe_payment_intent_id: string; status: string; amount_cents: number };
-        return res.status(409).json({ 
-          error: 'Payment already collected for this booking',
-          existingPaymentId: existingPayment.stripe_payment_intent_id
-        });
+        try {
+          const stripeClient = await getStripeClient();
+          const livePi = await stripeClient.paymentIntents.retrieve(existingPayment.stripe_payment_intent_id);
+          if (livePi.status === 'succeeded') {
+            return res.status(409).json({ 
+              error: 'Payment already collected for this booking',
+              existingPaymentId: existingPayment.stripe_payment_intent_id
+            });
+          }
+          const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
+          logger.warn('[Stripe] DB says payment succeeded but Stripe disagrees — correcting and allowing retry', {
+            extra: { bookingId: resolvedBookingId, piId: existingPayment.stripe_payment_intent_id, dbStatus: existingPayment.status, stripeStatus: livePi.status }
+          });
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPayment.stripe_payment_intent_id}`);
+        } catch (verifyErr: unknown) {
+          logger.warn('[Stripe] Could not verify existing payment with Stripe — allowing charge retry', {
+            extra: { bookingId: resolvedBookingId, piId: existingPayment.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }
+          });
+        }
       }
     }
 
