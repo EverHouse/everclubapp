@@ -63,13 +63,13 @@ async function autoCompletePastBookings(): Promise<void> {
         const forceResult = await queryWithRetry<{ id: number }>(
           `UPDATE booking_requests
            SET status = 'attended',
-               is_unmatched = false,
                staff_notes = COALESCE(staff_notes || E'\n', '') || $2,
                updated_at = NOW(),
                reviewed_at = NOW(),
                reviewed_by = 'system-force-complete'
            WHERE id = ANY($1::int[])
              AND status IN ('approved', 'confirmed')
+             AND (is_unmatched IS NOT TRUE)
            RETURNING id`,
           [forceIds, `[Force-completed after ${STUCK_FORCE_COMPLETE_DAYS}+ days stuck with unpaid fees]`]
         );
@@ -195,13 +195,13 @@ async function autoCompletePastBookings(): Promise<void> {
     const markedBookings = await queryWithRetry<AutoCompletedBookingResult>(
       `UPDATE booking_requests 
        SET status = 'attended',
-           is_unmatched = false,
            staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto checked-in: booking time passed]',
            updated_at = NOW(),
            reviewed_at = NOW(),
            reviewed_by = 'system-auto-checkin'
        WHERE status IN ('approved', 'confirmed')
          AND status NOT IN ('attended', 'checked_in')
+         AND (is_unmatched IS NOT TRUE)
          AND request_date >= $1::date - INTERVAL '14 days'
          AND (
            request_date < $1::date - INTERVAL '1 day'
@@ -490,13 +490,13 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
   const result = await queryWithRetry<AutoCompletedBookingResult>(
     `UPDATE booking_requests 
      SET status = 'attended',
-         is_unmatched = false,
          staff_notes = COALESCE(staff_notes || E'\n', '') || '[Auto checked-in: booking time passed]',
          updated_at = NOW(),
          reviewed_at = NOW(),
          reviewed_by = 'system-auto-checkin'
      WHERE status IN ('approved', 'confirmed')
        AND status NOT IN ('attended', 'checked_in')
+       AND (is_unmatched IS NOT TRUE)
        AND request_date >= $1::date - INTERVAL '14 days'
        AND (
          request_date < $1::date - INTERVAL '1 day'
