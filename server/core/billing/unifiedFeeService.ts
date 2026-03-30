@@ -1121,20 +1121,41 @@ export async function applyFeeBreakdownToParticipants(
         const paidIds = new Set((paidCheck.rows as { id: number; cached_fee_cents: number }[]).map(r => r.id));
 
         const discrepancies: { participantId: number; displayName: string; previousCents: number; newComputedCents: number }[] = [];
+        const zeroPaidResetIds: number[] = [];
         for (const paidRow of paidCheck.rows as { id: number; cached_fee_cents: number }[]) {
           const idx = idsToUpdate.indexOf(paidRow.id);
           if (idx !== -1 && feesToUpdate[idx] !== paidRow.cached_fee_cents) {
             const matchingParticipant = participantsWithIds.find(p => p.participantId === paidRow.id);
             const displayName = matchingParticipant?.displayName ?? `Participant #${paidRow.id}`;
-            logger.warn('[UnifiedFeeService] Skipping fee update for already-paid participant — fee changed, manual review needed', {
-              participantId: paidRow.id,
-              sessionId,
-              displayName,
-              previousCents: paidRow.cached_fee_cents,
-              newComputedCents: feesToUpdate[idx]
-            });
-            discrepancies.push({ participantId: paidRow.id, displayName, previousCents: paidRow.cached_fee_cents, newComputedCents: feesToUpdate[idx] });
+
+            if (paidRow.cached_fee_cents === 0 && feesToUpdate[idx] > 0) {
+              logger.info('[UnifiedFeeService] Resetting zero-dollar "paid" participant back to pending — fee now > $0, no real payment was made', {
+                participantId: paidRow.id,
+                sessionId,
+                displayName,
+                newComputedCents: feesToUpdate[idx]
+              });
+              zeroPaidResetIds.push(paidRow.id);
+              paidIds.delete(paidRow.id);
+            } else {
+              logger.warn('[UnifiedFeeService] Skipping fee update for already-paid participant — fee changed, manual review needed', {
+                participantId: paidRow.id,
+                sessionId,
+                displayName,
+                previousCents: paidRow.cached_fee_cents,
+                newComputedCents: feesToUpdate[idx]
+              });
+              discrepancies.push({ participantId: paidRow.id, displayName, previousCents: paidRow.cached_fee_cents, newComputedCents: feesToUpdate[idx] });
+            }
           }
+        }
+
+        if (zeroPaidResetIds.length > 0) {
+          await tx.execute(
+            sql`UPDATE booking_participants
+             SET payment_status = 'pending', stripe_payment_intent_id = NULL, updated_at = NOW()
+             WHERE id = ANY(${toIntArrayLiteral(zeroPaidResetIds)}::int[])`
+          );
         }
 
         if (discrepancies.length > 0) {
