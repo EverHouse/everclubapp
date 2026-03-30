@@ -54,6 +54,7 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
 
   let reverted = false;
   await db.transaction(async (tx) => {
+    await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
     const revertResult = await tx.execute(
       sql`UPDATE booking_requests SET status = 'approved', reviewed_by = ${staffEmail}, reviewed_at = NOW(), updated_at = NOW() WHERE id = ${bookingId} AND status IN ('attended', 'no_show', 'checked_in')`
     );
