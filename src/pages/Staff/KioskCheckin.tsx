@@ -17,7 +17,7 @@ interface Html5QrcodeInstance {
   ): Promise<null | void>;
 }
 
-type KioskState = 'idle' | 'scanning' | 'processing' | 'payment_required' | 'see_staff' | 'success' | 'already_checked_in' | 'error';
+type KioskState = 'scanning' | 'processing' | 'payment_required' | 'see_staff' | 'success' | 'already_checked_in' | 'error';
 
 interface UpcomingBooking {
   bookingId: number;
@@ -75,7 +75,12 @@ function formatTime12h(time24: string): string {
 const KioskCheckin: React.FC = () => {
   const { actualUser, sessionChecked } = useAuthData();
   const navigate = useNavigate();
-  const [state, setState] = useState<KioskState>('idle');
+  const [state, _setState] = useState<KioskState>('scanning');
+  const stateRef = useRef<KioskState>('scanning');
+  const setState = useCallback((newState: KioskState) => {
+    stateRef.current = newState;
+    _setState(newState);
+  }, []);
   const [checkinResult, setCheckinResult] = useState<CheckinResult | null>(null);
   const [preflightData, setPreflightData] = useState<PreflightResult | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -95,6 +100,7 @@ const KioskCheckin: React.FC = () => {
 
   const qrScannerRef = useRef<Html5QrcodeInstance | null>(null);
   const hasScannedRef = useRef(false);
+  const isStartingRef = useRef(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const passcodeSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const styleFixTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,13 +269,18 @@ const KioskCheckin: React.FC = () => {
   const scannerStartedRef = useRef(false);
 
   const startScanner = useCallback(async () => {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
     await stopScanner();
     hasScannedRef.current = false;
     scannerStartedRef.current = false;
     setCameraError(null);
 
     const containerEl = document.getElementById(elementId);
-    if (!containerEl) return;
+    if (!containerEl) {
+      isStartingRef.current = false;
+      return;
+    }
 
     const initTimeout = setTimeout(() => {
       if (!scannerStartedRef.current) {
@@ -297,7 +308,7 @@ const KioskCheckin: React.FC = () => {
           aspectRatio: 1.0,
         },
         (decodedText) => {
-          if (!hasScannedRef.current) {
+          if (!hasScannedRef.current && stateRef.current === 'scanning') {
             hasScannedRef.current = true;
             handleScan(decodedText);
           }
@@ -323,12 +334,13 @@ const KioskCheckin: React.FC = () => {
     } catch (err: unknown) {
       clearTimeout(initTimeout);
       setCameraError(`Camera error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      isStartingRef.current = false;
     }
   }, [elementId, stopScanner, handleScan]);
 
-  const resetToIdle = useCallback(() => {
-    stopScanner();
-    setState('idle');
+  const resetToScanning = useCallback(() => {
+    setState('scanning');
     setCheckinResult(null);
     setPreflightData(null);
     setErrorMessage('');
@@ -336,28 +348,24 @@ const KioskCheckin: React.FC = () => {
     setCheckinAfterPayment(false);
     setCheckinAfterPaymentError(null);
     hasScannedRef.current = false;
-  }, [stopScanner]);
+  }, []);
 
   useEffect(() => {
     if (showPaymentModal || checkinAfterPayment) return;
     if (state === 'success' || state === 'already_checked_in') {
-      stopScanner();
       const delay = checkinResult?.upcomingBooking ? RESET_DELAY_WITH_BOOKING : RESET_DELAY_SUCCESS;
-      resetTimerRef.current = setTimeout(resetToIdle, delay);
+      resetTimerRef.current = setTimeout(resetToScanning, delay);
     } else if (state === 'error') {
-      stopScanner();
-      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_ERROR);
+      resetTimerRef.current = setTimeout(resetToScanning, RESET_DELAY_ERROR);
     } else if (state === 'see_staff') {
-      stopScanner();
-      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_SEE_STAFF);
+      resetTimerRef.current = setTimeout(resetToScanning, RESET_DELAY_SEE_STAFF);
     } else if (state === 'payment_required' && checkinAfterPaymentError) {
-      stopScanner();
-      resetTimerRef.current = setTimeout(resetToIdle, RESET_DELAY_SEE_STAFF);
+      resetTimerRef.current = setTimeout(resetToScanning, RESET_DELAY_SEE_STAFF);
     }
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     };
-  }, [state, stopScanner, resetToIdle, showPaymentModal, checkinAfterPayment, checkinAfterPaymentError, checkinResult?.upcomingBooking]);
+  }, [state, resetToScanning, showPaymentModal, checkinAfterPayment, checkinAfterPaymentError, checkinResult?.upcomingBooking]);
 
   useEffect(() => {
     return () => {
@@ -365,6 +373,7 @@ const KioskCheckin: React.FC = () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       if (styleFixTimeoutRef.current) clearTimeout(styleFixTimeoutRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (healthCheckRef.current) clearInterval(healthCheckRef.current);
     };
   }, [stopScanner]);
 
@@ -419,9 +428,11 @@ const KioskCheckin: React.FC = () => {
   }, []);
 
   const rafRef = useRef<number | null>(null);
+  const healthCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const handleStartCheckin = useCallback(() => {
-    setState('scanning');
+  useEffect(() => {
+    if (!isStaff || !sessionChecked) return;
+
     let attempts = 0;
     const waitForElement = () => {
       const el = document.getElementById(elementId);
@@ -434,7 +445,39 @@ const KioskCheckin: React.FC = () => {
       }
     };
     rafRef.current = requestAnimationFrame(waitForElement);
-  }, [startScanner, elementId]);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [isStaff, sessionChecked, elementId, startScanner]);
+
+  useEffect(() => {
+    if (!isStaff || !sessionChecked) return;
+
+    healthCheckRef.current = setInterval(async () => {
+      if (isStartingRef.current) return;
+      try {
+        const { Html5QrcodeScannerState } = await import('html5-qrcode');
+        const scanner = qrScannerRef.current;
+        if (!scanner) {
+          console.warn('[Kiosk] Health check: no scanner instance, restarting...');
+          startScanner();
+          return;
+        }
+        const scannerState = scanner.getState();
+        if (scannerState !== Html5QrcodeScannerState.SCANNING) {
+          console.warn('[Kiosk] Health check: scanner not in SCANNING state, restarting...');
+          startScanner();
+        }
+      } catch (err) {
+        console.error('[Kiosk] Health check error:', err);
+      }
+    }, 30000);
+
+    return () => {
+      if (healthCheckRef.current) clearInterval(healthCheckRef.current);
+    };
+  }, [isStaff, sessionChecked, startScanner]);
 
   const handlePasscodeOpen = useCallback(() => {
     setShowPasscodeModal(true);
@@ -560,15 +603,6 @@ const KioskCheckin: React.FC = () => {
     }
   }, [handlePasscodeSubmit]);
 
-  const currentPacificTime = useMemo(() => {
-    return new Date().toLocaleString('en-US', {
-      timeZone: 'America/Los_Angeles',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: false
-    });
-  }, [state]);
-
   if (!sessionChecked) {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, background: BG_GRADIENT }}>
@@ -621,409 +655,202 @@ const KioskCheckin: React.FC = () => {
 
       <div className="relative flex-1 flex flex-col items-center justify-center px-6 overflow-hidden min-h-0">
 
-        {state === 'idle' && (
-          <div className="w-full max-w-lg flex flex-col items-center animate-in fade-in duration-700 relative">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-4"
-              style={{ color: OLIVE_ACCENT }}
-            >
-              Arrival Protocol
-            </p>
-
-            <h1
-              className="text-4xl md:text-5xl text-center leading-[1.1] mb-2"
-              style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-            >
-              Welcome to
-            </h1>
-            <img
-              src="/images/everclub-logo-light.webp"
-              alt="Ever Club"
-              className="w-full max-w-xs md:max-w-sm object-contain mx-auto mb-3 opacity-90"
-              style={{ filter: 'brightness(1.3)' }}
-            />
-
-            <p className="text-white/45 text-sm text-center max-w-xs mb-6 leading-relaxed">
-              Please present your digital key or scan the physical portal code.
-            </p>
-
-            <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium tracking-wider uppercase mb-6"
-              style={{ background: 'rgba(139, 154, 107, 0.12)', border: `1px solid ${CARD_BORDER}`, color: OLIVE_TEXT }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Secure Link Active
-            </div>
-
-            <div className="relative w-52 h-52 md:w-64 md:h-64 flex items-center justify-center mb-6">
-              <div className="absolute top-0 left-0 w-7 h-7 border-t-2 border-l-2" style={{ borderColor: OLIVE_ACCENT }} />
-              <div className="absolute top-0 right-0 w-7 h-7 border-t-2 border-r-2" style={{ borderColor: OLIVE_ACCENT }} />
-              <div className="absolute bottom-0 left-0 w-7 h-7 border-b-2 border-l-2" style={{ borderColor: OLIVE_ACCENT }} />
-              <div className="absolute bottom-0 right-0 w-7 h-7 border-b-2 border-r-2" style={{ borderColor: OLIVE_ACCENT }} />
-
-              <div className="flex flex-col items-center gap-3">
-                <Icon name="qr_code_scanner" className="text-6xl" style={{ color: 'rgba(139, 154, 107, 0.4)' }} />
-                <p
-                  className="text-[10px] tracking-[0.25em] uppercase font-medium"
-                  style={{ color: 'rgba(139, 154, 107, 0.5)' }}
-                >
-                  Aligning Sensors
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleStartCheckin}
-              className="tactile-btn group relative w-full max-w-xs py-3.5 rounded-xl text-lg font-semibold transition-colors duration-300"
-              style={{
-                background: 'rgba(139, 154, 107, 0.15)',
-                border: `1px solid ${CARD_BORDER}`,
-                color: CREAM
-              }}
-            >
-              <span className="flex items-center justify-center gap-2">
-                Start Check-In
-                <Icon name="chevron_right" className="text-xl" style={{ color: OLIVE_ACCENT }} />
-              </span>
-            </button>
-          </div>
-        )}
-
-        {state === 'scanning' && (
-          <div className="w-full max-w-lg flex flex-col items-center animate-in fade-in duration-300">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-3"
-              style={{ color: OLIVE_ACCENT }}
-            >
-              Arrival Protocol
-            </p>
-            <h1
-              className="text-3xl md:text-4xl text-center leading-[1.1] mb-2"
-              style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-            >
-              Present Your Key
-            </h1>
-            <p className="text-white/40 text-sm mb-4 text-center">Hold your membership QR code to the camera</p>
-
-            <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium tracking-wider uppercase mb-4"
-              style={{ background: 'rgba(139, 154, 107, 0.12)', border: `1px solid ${CARD_BORDER}`, color: OLIVE_TEXT }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Scanner Active
-            </div>
-
-            <div className="relative w-full max-w-sm mx-auto">
-              <div className="absolute -top-2 -left-2 w-7 h-7 border-t-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
-              <div className="absolute -top-2 -right-2 w-7 h-7 border-t-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
-              <div className="absolute -bottom-2 -left-2 w-7 h-7 border-b-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
-              <div className="absolute -bottom-2 -right-2 w-7 h-7 border-b-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
-
-              <div className="rounded-lg overflow-hidden bg-black/40 kiosk-scanner-container" style={{ border: `1px solid ${CARD_BORDER}`, aspectRatio: '1', maxHeight: 'min(400px, 50vh)' }}>
-                <style>{`
-                  .kiosk-scanner-container [id$="__scan_region"] ~ div,
-                  .kiosk-scanner-container > div > div > div[style*="border-width"] {
-                    display: none !important;
-                  }
-                  .kiosk-scanner-container video {
-                    object-fit: cover !important;
-                    width: 100% !important;
-                    height: 100% !important;
-                  }
-                `}</style>
-                <div id={elementId} className="w-full h-full" />
-              </div>
-
-              {cameraError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg p-6">
-                  <div className="text-center">
-                    <Icon name="photo_camera" className="text-4xl text-red-400 mb-3" />
-                    <p className="text-red-300 text-sm">{cameraError}</p>
-                    <button
-                      onClick={() => startScanner()}
-                      className="mt-4 px-4 py-2 rounded-lg text-white text-sm transition-colors"
-                      style={{ background: 'rgba(139, 154, 107, 0.2)', border: `1px solid ${CARD_BORDER}` }}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {state === 'processing' && (
-          <div className="text-center animate-in fade-in duration-200">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-              style={{ color: OLIVE_ACCENT }}
-            >
-              Verifying Identity
-            </p>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: 'rgba(139, 154, 107, 0.1)', border: `1px solid ${CARD_BORDER}` }}>
-              <div className="w-10 h-10 rounded-full border-3 border-white/15 animate-spin" style={{ borderTopColor: OLIVE_ACCENT }} />
-            </div>
-            <h2 className="text-3xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>
-              Confirming your arrival...
-            </h2>
-            <p className="text-white/35 text-sm">One moment, please</p>
-          </div>
-        )}
-
-        {state === 'payment_required' && preflightData && !showPaymentModal && !checkinAfterPayment && (
-          <div className="text-center animate-in fade-in duration-500 max-w-md">
-            {checkinAfterPaymentError ? (
-              <>
-                <p
-                  className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-                  style={{ color: '#E57373' }}
-                >
-                  Check-In Issue
-                </p>
-                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(229, 115, 115, 0.1)', border: '1px solid rgba(229, 115, 115, 0.25)' }}>
-                  <Icon name="warning" className="text-3xl text-red-400" />
-                </div>
-                <h2
-                  className="text-3xl mb-3"
-                  style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-                >
-                  See Staff
-                </h2>
-                <p className="text-red-300/80 text-base mb-6">{checkinAfterPaymentError}</p>
-                <p className="text-white/30 text-sm">A team member can complete your check-in at the front desk</p>
-              </>
-            ) : (
-              <>
-                <p
-                  className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-                  style={{ color: '#D4A844' }}
-                >
-                  Payment Required
-                </p>
-                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
-                  <Icon name="payment" className="text-3xl text-amber-400" />
-                </div>
-                <h2
-                  className="text-3xl mb-3"
-                  style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-                >
-                  Outstanding Fees
-                </h2>
-                <p className="text-amber-300/80 text-lg mb-2">
-                  ${(preflightData.unpaidFeeCents / 100).toFixed(2)}
-                </p>
-                <p className="text-white/40 text-sm mb-6">
-                  Payment is required before check-in can be completed
-                </p>
-                <button
-                  onClick={() => setShowPaymentModal(true)}
-                  className="tactile-btn px-8 py-3 rounded-xl text-base font-semibold transition-colors duration-200"
-                  style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
-                >
-                  Pay Now
-                </button>
-              </>
-            )}
-          </div>
-        )}
-
-        {(state === 'payment_required' && checkinAfterPayment) && (
-          <div className="text-center animate-in fade-in duration-200">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-              style={{ color: OLIVE_ACCENT }}
-            >
-              Completing Check-In
-            </p>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: 'rgba(139, 154, 107, 0.1)', border: `1px solid ${CARD_BORDER}` }}>
-              <div className="w-10 h-10 rounded-full border-3 border-white/15 animate-spin" style={{ borderTopColor: OLIVE_ACCENT }} />
-            </div>
-            <h2 className="text-3xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>
-              Payment received, finalizing...
-            </h2>
-            <p className="text-white/35 text-sm">One moment, please</p>
-          </div>
-        )}
-
-        {state === 'see_staff' && preflightData && (
-          <div className="text-center animate-in fade-in duration-500 max-w-md">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-              style={{ color: '#D4A844' }}
-            >
-              Staff Assistance Needed
-            </p>
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
-              <Icon name="support_agent" className="text-3xl text-amber-400" />
-            </div>
-            <h2
-              className="text-3xl mb-3"
-              style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-            >
-              Welcome, <em>{firstName}</em>
-            </h2>
-            <p className="text-amber-300/80 text-base mb-4">
-              Your booking has outstanding fees of ${(preflightData.unpaidFeeCents / 100).toFixed(2)}
-            </p>
-            <p className="text-white/40 text-sm">
-              Please see staff at the front desk to complete payment and check-in
-            </p>
-          </div>
-        )}
-
-        {state === 'success' && checkinResult && (
-          <div className="animate-in fade-in duration-700 w-full max-w-2xl px-2">
-            <div className="mb-8">
+        <div className="w-full max-w-lg flex flex-col items-center">
+          {state === 'scanning' && (
+            <div className="animate-in fade-in duration-300 w-full flex flex-col items-center">
               <p
-                className="text-xs font-semibold tracking-[0.3em] uppercase mb-4"
+                className="text-xs font-semibold tracking-[0.3em] uppercase mb-3"
                 style={{ color: OLIVE_ACCENT }}
               >
-                Confirmed Access
+                Arrival Protocol
               </p>
+              <h1
+                className="text-3xl md:text-4xl text-center leading-[1.1] mb-2"
+                style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
+              >
+                Present Your Key
+              </h1>
+              <p className="text-white/40 text-sm mb-4 text-center">Hold your membership QR code to the camera</p>
 
-              <div className="flex items-start justify-between flex-wrap gap-4">
-                <h2
-                  className="text-4xl md:text-5xl leading-[1.1] max-w-md"
-                  style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-                >
-                  Welcome home,{' '}<em>{firstName}.</em>{' '}
-                  <span className="text-white/60">Your sanctuary is prepared.</span>
-                </h2>
-
-                <div className="text-right flex-shrink-0 mt-2">
-                  <p className="text-[10px] tracking-[0.2em] uppercase mb-1" style={{ color: OLIVE_ACCENT }}>Arrival Protocol</p>
-                  <p className="text-white font-semibold text-lg">{currentPacificTime} — PT</p>
-                </div>
+              <div
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium tracking-wider uppercase mb-4"
+                style={{ background: 'rgba(139, 154, 107, 0.12)', border: `1px solid ${CARD_BORDER}`, color: OLIVE_TEXT }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Scanner Active
               </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 mb-6">
-              <div
-                className="rounded-xl p-6 row-span-2"
-                style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white" style={{ fontFamily: 'var(--font-headline)' }}>Digital Identity</h3>
-                    <p className="text-[10px] tracking-[0.15em] uppercase mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>Non-Transferable Member Pass</p>
-                  </div>
-                  <Icon name="verified" className="text-xl" style={{ color: OLIVE_ACCENT }} />
-                </div>
+          <div className="relative w-full max-w-sm mx-auto">
+            <div className="absolute -top-2 -left-2 w-7 h-7 border-t-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
+            <div className="absolute -top-2 -right-2 w-7 h-7 border-t-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
+            <div className="absolute -bottom-2 -left-2 w-7 h-7 border-b-2 border-l-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
+            <div className="absolute -bottom-2 -right-2 w-7 h-7 border-b-2 border-r-2 z-10" style={{ borderColor: OLIVE_ACCENT }} />
 
-                <div className="flex items-center justify-between py-4" style={{ borderTop: `1px solid ${CARD_BORDER}`, borderBottom: `1px solid ${CARD_BORDER}` }}>
-                  <div>
-                    <p className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Member</p>
-                    <p className="text-white text-lg font-semibold">{checkinResult.memberName}</p>
-                  </div>
-                  <span
-                    className="px-3 py-1 rounded-full text-[10px] font-semibold tracking-wider uppercase"
-                    style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7', border: '1px solid rgba(16, 185, 129, 0.25)' }}
+            <div className="rounded-lg overflow-hidden bg-black/40 kiosk-scanner-container" style={{ border: `1px solid ${CARD_BORDER}`, aspectRatio: '1', maxHeight: 'min(400px, 50vh)' }}>
+              <style>{`
+                .kiosk-scanner-container [id$="__scan_region"] ~ div,
+                .kiosk-scanner-container > div > div > div[style*="border-width"] {
+                  display: none !important;
+                }
+                .kiosk-scanner-container video {
+                  object-fit: cover !important;
+                  width: 100% !important;
+                  height: 100% !important;
+                }
+              `}</style>
+              <div id={elementId} className="w-full h-full" />
+            </div>
+
+            {cameraError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80 rounded-lg p-6 z-20">
+                <div className="text-center">
+                  <Icon name="photo_camera" className="text-4xl text-red-400 mb-3" />
+                  <p className="text-red-300 text-sm">{cameraError}</p>
+                  <button
+                    onClick={() => startScanner()}
+                    className="mt-4 px-4 py-2 rounded-lg text-white text-sm transition-colors"
+                    style={{ background: 'rgba(139, 154, 107, 0.2)', border: `1px solid ${CARD_BORDER}` }}
                   >
-                    Verified
-                  </span>
+                    Retry
+                  </button>
                 </div>
+              </div>
+            )}
 
-                {checkinResult.tier && (
-                  <div className="flex items-center justify-between pt-4">
-                    <div>
-                      <p className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Tier</p>
-                      <p className="text-white font-medium">{checkinResult.tier}</p>
+            {state !== 'scanning' && (
+              <div className="absolute inset-0 rounded-lg z-20 flex items-center justify-center" style={{ background: 'rgba(13, 17, 6, 0.88)', backdropFilter: 'blur(4px)' }}>
+
+                {state === 'processing' && (
+                  <div className="text-center animate-in fade-in duration-200 px-4">
+                    <p
+                      className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
+                      style={{ color: OLIVE_ACCENT }}
+                    >
+                      Verifying Identity
+                    </p>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(139, 154, 107, 0.1)', border: `1px solid ${CARD_BORDER}` }}>
+                      <div className="w-8 h-8 rounded-full border-3 border-white/15 animate-spin" style={{ borderTopColor: OLIVE_ACCENT }} />
                     </div>
-                    {checkinResult.lifetimeVisits > 0 && (
-                      <div className="text-right">
-                        <p className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Lifetime Visits</p>
-                        <p className="text-white font-medium">{checkinResult.lifetimeVisits}</p>
-                      </div>
+                    <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>
+                      Confirming your arrival...
+                    </h2>
+                    <p className="text-white/35 text-xs">One moment, please</p>
+                  </div>
+                )}
+
+                {state === 'payment_required' && preflightData && !showPaymentModal && !checkinAfterPayment && (
+                  <div className="text-center animate-in fade-in duration-500 px-4">
+                    {checkinAfterPaymentError ? (
+                      <>
+                        <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-4" style={{ color: '#E57373' }}>Check-In Issue</p>
+                        <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(229, 115, 115, 0.1)', border: '1px solid rgba(229, 115, 115, 0.25)' }}>
+                          <Icon name="warning" className="text-2xl text-red-400" />
+                        </div>
+                        <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>See Staff</h2>
+                        <p className="text-red-300/80 text-sm mb-3">{checkinAfterPaymentError}</p>
+                        <p className="text-white/30 text-xs">A team member can complete your check-in</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-4" style={{ color: '#D4A844' }}>Payment Required</p>
+                        <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
+                          <Icon name="payment" className="text-2xl text-amber-400" />
+                        </div>
+                        <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>Outstanding Fees</h2>
+                        <p className="text-amber-300/80 text-base mb-1">${(preflightData.unpaidFeeCents / 100).toFixed(2)}</p>
+                        <p className="text-white/40 text-xs mb-4">Payment is required before check-in</p>
+                        <button
+                          onClick={() => setShowPaymentModal(true)}
+                          className="tactile-btn px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-200"
+                          style={{ background: OLIVE_ACCENT, color: '#1a220c' }}
+                        >
+                          Pay Now
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
+
+                {state === 'payment_required' && checkinAfterPayment && (
+                  <div className="text-center animate-in fade-in duration-200 px-4">
+                    <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-6" style={{ color: OLIVE_ACCENT }}>Completing Check-In</p>
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(139, 154, 107, 0.1)', border: `1px solid ${CARD_BORDER}` }}>
+                      <div className="w-8 h-8 rounded-full border-3 border-white/15 animate-spin" style={{ borderTopColor: OLIVE_ACCENT }} />
+                    </div>
+                    <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>Payment received, finalizing...</h2>
+                    <p className="text-white/35 text-xs">One moment, please</p>
+                  </div>
+                )}
+
+                {state === 'see_staff' && preflightData && (
+                  <div className="text-center animate-in fade-in duration-500 px-4">
+                    <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-4" style={{ color: '#D4A844' }}>Staff Assistance Needed</p>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
+                      <Icon name="support_agent" className="text-2xl text-amber-400" />
+                    </div>
+                    <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>Welcome, <em>{firstName}</em></h2>
+                    <p className="text-amber-300/80 text-sm mb-3">Outstanding fees: ${(preflightData.unpaidFeeCents / 100).toFixed(2)}</p>
+                    <p className="text-white/40 text-xs">Please see staff to complete payment and check-in</p>
+                  </div>
+                )}
+
+                {state === 'success' && checkinResult && (
+                  <div className="text-center animate-in fade-in duration-500 px-4">
+                    <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-4" style={{ color: OLIVE_ACCENT }}>Confirmed Access</p>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                      <Icon name="check_circle" className="text-3xl text-emerald-400" />
+                    </div>
+                    <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>Welcome, <em>{firstName}</em></h2>
+                    {checkinResult.tier && <p className="text-white/50 text-sm mb-1">{checkinResult.tier} Member</p>}
+                    <p className="text-white/35 text-xs">Enjoy your visit</p>
+                  </div>
+                )}
+
+                {state === 'already_checked_in' && checkinResult && (
+                  <div className="text-center animate-in fade-in zoom-in-95 duration-500 px-4">
+                    <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-4" style={{ color: '#D4A844' }}>Already Registered</p>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(212, 168, 68, 0.1)', border: '1px solid rgba(212, 168, 68, 0.25)' }}>
+                      <Icon name="how_to_reg" className="text-2xl text-amber-400" />
+                    </div>
+                    <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>Welcome back, <em>{firstName}</em></h2>
+                    <p className="text-white/35 text-xs">Your arrival was recently noted</p>
+                  </div>
+                )}
+
+                {state === 'error' && (
+                  <div className="text-center animate-in fade-in zoom-in-95 duration-300 px-4">
+                    <p className="text-xs font-semibold tracking-[0.3em] uppercase mb-4" style={{ color: '#E57373' }}>Access Issue</p>
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(229, 115, 115, 0.1)', border: '1px solid rgba(229, 115, 115, 0.25)' }}>
+                      <Icon name="error_outline" className="text-2xl text-red-400" />
+                    </div>
+                    <h2 className="text-xl mb-2" style={{ fontFamily: 'var(--font-headline)', color: CREAM }}>Unable to verify</h2>
+                    <p className="text-red-300/80 text-sm mb-3">{errorMessage}</p>
+                    <p className="text-white/30 text-xs">Please see the concierge for assistance</p>
+                  </div>
+                )}
               </div>
-
-              {booking ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl p-5" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-                      <p className="text-[10px] tracking-[0.15em] uppercase mb-2" style={{ color: OLIVE_ACCENT }}>Session Time</p>
-                      <p className="text-white text-lg font-bold">{formatTime12h(booking.startTime)}</p>
-                      <p className="text-white/40 text-xs mt-0.5">to {formatTime12h(booking.endTime)}</p>
-                    </div>
-                    <div className="rounded-xl p-5" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-                      <p className="text-[10px] tracking-[0.15em] uppercase mb-2" style={{ color: OLIVE_ACCENT }}>Party Size</p>
-                      <p className="text-white text-lg font-bold">
-                        {String(booking.declaredPlayerCount).padStart(2, '0')} {booking.declaredPlayerCount === 1 ? 'Guest' : 'Guests'}
-                      </p>
-                      <p className="text-white/40 text-xs mt-0.5">
-                        {booking.declaredPlayerCount === 1 ? 'Solo session' : 'Member + Companions'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl p-5" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-                      <p className="text-[10px] tracking-[0.15em] uppercase mb-2" style={{ color: OLIVE_ACCENT }}>Accommodation</p>
-                      <p className="text-white text-lg font-bold">{booking.resourceName}</p>
-                      <p className="text-white/40 text-xs mt-0.5 capitalize">{booking.resourceType.replace(/_/g, ' ')}</p>
-                    </div>
-                    <div className="rounded-xl p-5" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-                      <p className="text-[10px] tracking-[0.15em] uppercase mb-2" style={{ color: OLIVE_ACCENT }}>Status</p>
-                      <p className="text-emerald-400 text-lg font-bold">Settled</p>
-                      <p className="text-white/40 text-xs mt-0.5">All clear</p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-xl p-6 flex items-center gap-4" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
-                  <Icon name="self_improvement" className="text-3xl" style={{ color: OLIVE_ACCENT }} />
-                  <div>
-                    <p className="text-white font-medium" style={{ fontFamily: 'var(--font-headline)' }}>No upcoming reservations</p>
-                    <p className="text-white/40 text-xs mt-1">Enjoy the house at your leisure. Walk-in visit recorded.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {state === 'already_checked_in' && checkinResult && (
-          <div className="text-center animate-in fade-in zoom-in-95 duration-500 max-w-md">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-              style={{ color: '#D4A844' }}
-            >
-              Already Registered
-            </p>
-            <h2
-              className="text-4xl mb-3"
-              style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-            >
-              Welcome back, <em>{firstName}</em>
-            </h2>
-            {checkinResult.memberName && (
-              <p className="text-amber-300/80 text-lg mb-4">{checkinResult.memberName}</p>
             )}
-            <p className="text-white/35 text-sm">Your arrival was recently noted. No further action required.</p>
           </div>
-        )}
 
-        {state === 'error' && (
-          <div className="text-center animate-in fade-in zoom-in-95 duration-300 max-w-md">
-            <p
-              className="text-xs font-semibold tracking-[0.3em] uppercase mb-6"
-              style={{ color: '#E57373' }}
-            >
-              Access Issue
-            </p>
-            <h2
-              className="text-3xl mb-3"
-              style={{ fontFamily: 'var(--font-headline)', color: CREAM }}
-            >
-              Unable to verify
-            </h2>
-            <p className="text-red-300/80 text-base mb-6">{errorMessage}</p>
-            <p className="text-white/30 text-sm">Please see the concierge for assistance</p>
-          </div>
-        )}
+          {state === 'success' && checkinResult && booking && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 w-full max-w-lg mt-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-4" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+                  <p className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: OLIVE_ACCENT }}>Session Time</p>
+                  <p className="text-white text-base font-bold">{formatTime12h(booking.startTime)}</p>
+                  <p className="text-white/40 text-xs">to {formatTime12h(booking.endTime)}</p>
+                </div>
+                <div className="rounded-xl p-4" style={{ background: CARD_BG, border: `1px solid ${CARD_BORDER}` }}>
+                  <p className="text-[10px] tracking-[0.15em] uppercase mb-1" style={{ color: OLIVE_ACCENT }}>Bay</p>
+                  <p className="text-white text-base font-bold">{booking.resourceName}</p>
+                  <p className="text-white/40 text-xs capitalize">{booking.resourceType.replace(/_/g, ' ')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="relative pb-6 flex justify-center">
