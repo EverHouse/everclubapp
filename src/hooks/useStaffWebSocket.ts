@@ -15,6 +15,7 @@ export interface BookingEvent {
   durationMinutes?: number;
   playerCount?: number;
   status: string;
+  version?: number;
   actionBy?: 'member' | 'staff';
   timestamp: string;
 }

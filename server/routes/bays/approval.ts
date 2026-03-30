@@ -23,7 +23,8 @@ const router = Router();
 router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = req.body;
+    const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync, version } = req.body;
+    const expectedVersion = typeof version === 'number' ? version : undefined;
     const idParse = numericIdParam.safeParse(id);
     if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
@@ -52,7 +53,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         resource_id,
         trackman_booking_id,
         trackman_external_id,
-        pending_trackman_sync
+        pending_trackman_sync,
+        expectedVersion
       });
 
       refreshBookingPass(bookingId).catch(err =>
@@ -67,7 +69,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         bookingId,
         staff_notes,
         suggested_time,
-        reviewed_by
+        reviewed_by,
+        expectedVersion
       });
 
       voidBookingPass(bookingId).catch(err =>
@@ -84,7 +87,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         source: cancelled_by && cancelled_by !== getSessionUser(req)?.email ? 'member' : 'staff',
         cancelledBy: cancelled_by,
         staffNotes: staff_notes,
-        staffEmail: getSessionUser(req)?.email
+        staffEmail: getSessionUser(req)?.email,
+        expectedVersion
       });
       if (!result.success) {
         return res.status(result.statusCode || 500).json({ error: result.error });
@@ -104,7 +108,7 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
       return res.json({ success: true, status: 'cancelled', bookingId });
     }
 
-    const result = await updateGenericStatus(bookingId, status, staff_notes);
+    const result = await updateGenericStatus(bookingId, status, staff_notes, expectedVersion);
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Booking request not found' });
@@ -145,7 +149,8 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
 router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status: targetStatus, confirmPayment, skipPaymentCheck, skipRosterCheck } = req.body;
+    const { status: targetStatus, confirmPayment, skipPaymentCheck, skipRosterCheck, version: checkinVersion } = req.body;
+    const checkinExpectedVersion = typeof checkinVersion === 'number' ? checkinVersion : undefined;
     const idParse = numericIdParam.safeParse(id);
     if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
@@ -162,7 +167,8 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       skipPaymentCheck,
       skipRosterCheck,
       staffEmail,
-      staffName
+      staffName,
+      expectedVersion: checkinExpectedVersion
     });
 
     if (result.error && result.statusCode) {
@@ -186,6 +192,10 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
 
     res.json(result);
   } catch (error: unknown) {
+    const statusCode = getErrorStatusCode(error);
+    if (statusCode) {
+      return res.status(statusCode).json({ error: getErrorMessage(error) });
+    }
     logAndRespond(req, res, 500, 'Failed to update booking status', error);
   }
 });
@@ -277,7 +287,8 @@ router.put('/api/bookings/:id/revert-to-approved', isStaffOrAdmin, async (req, r
     const bookingId = parseInt(idParse.data, 10);
 
     const staffEmail = getSessionUser(req)?.email || 'unknown';
-    const result = await revertToApproved({ bookingId, staffEmail });
+    const revertExpectedVersion = typeof req.body?.version === 'number' ? req.body.version : undefined;
+    const result = await revertToApproved({ bookingId, staffEmail, expectedVersion: revertExpectedVersion });
 
     if (result.error && result.statusCode) {
       return res.status(result.statusCode).json({ error: result.error });
@@ -293,6 +304,10 @@ router.put('/api/bookings/:id/revert-to-approved', isStaffOrAdmin, async (req, r
 
     res.json(result);
   } catch (error: unknown) {
+    const statusCode = getErrorStatusCode(error);
+    if (statusCode) {
+      return res.status(statusCode).json({ error: getErrorMessage(error) });
+    }
     logAndRespond(req, res, 500, 'Failed to revert booking', error);
   }
 });

@@ -85,7 +85,8 @@ export async function cancelBooking(params: CancelBookingParams) {
           status: 'cancellation_pending',
           cancellationPendingAt: new Date(),
           staffNotes: (existing.staffNotes || '') + '\n[Staff initiated cancellation - awaiting Trackman cancellation]',
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
         })
         .where(and(
           eq(bookingRequests.id, bookingId),
@@ -191,7 +192,8 @@ export async function cancelBooking(params: CancelBookingParams) {
       .set({
         status: 'cancelled',
         staffNotes: updatedStaffNotes || undefined,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),

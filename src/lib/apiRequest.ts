@@ -14,6 +14,7 @@ export interface ApiResult<T = unknown> {
   error?: string;
   errorType?: string;
   errorData?: Record<string, unknown>;
+  status?: number;
 }
 
 interface RetryConfig {
@@ -129,7 +130,8 @@ export async function apiRequest<T = unknown>(
           ok: false, 
           error,
           errorType: errorData.errorType,
-          errorData: errorData
+          errorData: errorData,
+          status: res.status
         };
       }
 

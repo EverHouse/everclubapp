@@ -28,6 +28,7 @@ export interface BookingRow {
   createdAt: Date | null;
   updatedAt: Date | null;
   calendarEventId: string | null;
+  version: number;
 }
 
 export interface BookingUpdateResult {
@@ -97,7 +98,8 @@ export function formatBookingRow(row: BookingRow) {
     reviewed_at: row.reviewedAt,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
-    calendar_event_id: row.calendarEventId
+    calendar_event_id: row.calendarEventId,
+    version: row.version
   };
 }
 

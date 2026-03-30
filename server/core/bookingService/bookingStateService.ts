@@ -11,6 +11,7 @@ import { getCalendarNameForBayAsync } from '../../routes/bays/helpers';
 import { getCalendarIdByName, deleteCalendarEvent } from '../calendar/index';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { assertBookingVersion } from '../errors';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { queueJob } from '../jobQueue';
 import { voidBookingPass } from '../../walletPass/bookingPassService';
@@ -96,8 +97,9 @@ export class BookingStateService {
     staffNotes?: string;
     staffEmail?: string;
     enforceLateCancel?: boolean;
+    expectedVersion?: number;
   }): Promise<CancelResult> {
-    const { bookingId, source, cancelledBy, staffNotes, staffEmail: _staffEmail, enforceLateCancel } = params;
+    const { bookingId, source, cancelledBy, staffNotes, staffEmail: _staffEmail, enforceLateCancel, expectedVersion } = params;
 
     let booking: BookingRecord;
     try {
@@ -114,6 +116,7 @@ export class BookingStateService {
         sessionId: bookingRequests.sessionId,
         trackmanBookingId: bookingRequests.trackmanBookingId,
         staffNotes: bookingRequests.staffNotes,
+        version: bookingRequests.version,
       })
         .from(bookingRequests)
         .where(eq(bookingRequests.id, bookingId));
@@ -128,8 +131,14 @@ export class BookingStateService {
           statusCode: 404,
         };
       }
+
+      assertBookingVersion(expectedVersion, existing.version);
+
       booking = existing;
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'StaleBookingVersionError') {
+        throw err;
+      }
       return {
         success: false,
         status: 'cancelled',
@@ -391,6 +400,7 @@ export class BookingStateService {
           isUnmatched: false,
           staffNotes: updatedStaffNotes || undefined,
           updatedAt: new Date(),
+          version: sql`COALESCE(${bookingRequests.version}, 1) + 1`,
         })
         .where(eq(bookingRequests.id, bookingId));
 
@@ -747,7 +757,8 @@ export class BookingStateService {
         SET status = 'cancelled',
             is_unmatched = false,
             staff_notes = COALESCE(staff_notes, '') || ${noteAppend},
-            updated_at = NOW()
+            updated_at = NOW(),
+            version = COALESCE(version, 1) + 1
         WHERE id = ${bookingId}
           AND status = 'cancellation_pending'
       `);
@@ -818,7 +829,8 @@ export class BookingStateService {
         SET status = 'cancellation_pending',
             cancellation_pending_at = NOW(),
             staff_notes = COALESCE(staff_notes, '') || ${'\n[Staff initiated cancellation - awaiting Trackman cancellation]'},
-            updated_at = NOW()
+            updated_at = NOW(),
+            version = COALESCE(version, 1) + 1
         WHERE id = ${bookingId}
           AND status IN ('approved', 'confirmed')
       `);

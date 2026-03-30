@@ -51,7 +51,8 @@ router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
       trackman_player_count: bookingRequests.trackmanPlayerCount,
       declared_player_count: bookingRequests.declaredPlayerCount,
       created_at: bookingRequests.createdAt,
-      bay_name: resources.name
+      bay_name: resources.name,
+      version: bookingRequests.version
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))

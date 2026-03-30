@@ -25,7 +25,7 @@ import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { voidBookingInvoice, finalizeAndPayInvoice, syncBookingInvoice, getBookingInvoiceId } from '../billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { upsertVisitor } from '../visitors/matchingService';
-import { AppError } from '../errors';
+import { AppError, assertBookingVersion } from '../errors';
 import { logPaymentAudit } from '../auditLog';
 import { voidBookingPass } from '../../walletPass/bookingPassService';
 import { BookingRow, BookingUpdateResult, CancelPushInfo, formatBookingRow, validateTrackmanId } from './approvalTypes';
@@ -40,6 +40,7 @@ interface ApproveBookingParams {
   trackman_booking_id?: string;
   trackman_external_id?: string;
   pending_trackman_sync?: boolean;
+  expectedVersion?: number;
 }
 
 const CALENDAR_FAIL_NOTE = '[CALENDAR_SYNC_FAILED] Google Calendar invite could not be created for this booking.';
@@ -78,7 +79,7 @@ async function persistApprovalSideEffectFailure(bookingId: number, actionType: s
 }
 
 export async function approveBooking(params: ApproveBookingParams) {
-  const { bookingId, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = params;
+  const { bookingId, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync, expectedVersion } = params;
 
   const { updated, bayName, approvalMessage, isConferenceRoom, calendarData, createdSessionId, createdParticipantIds, ownerUserId } = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('approve_booking_' || ${String(bookingId)}))`);
@@ -88,6 +89,8 @@ export async function approveBooking(params: ApproveBookingParams) {
     if (!req_data) {
       throw new AppError(404, 'Request not found');
     }
+
+    assertBookingVersion(expectedVersion, req_data.version);
 
     const assignedBayForLock = resource_id || req_data.resourceId;
     if (assignedBayForLock && req_data.requestDate) {
@@ -179,7 +182,8 @@ export async function approveBooking(params: ApproveBookingParams) {
         isUnmatched: false,
         ...(trackman_booking_id !== undefined ? { trackmanBookingId: trackman_booking_id || null } : {}),
         ...(trackman_external_id !== undefined ? { trackmanExternalId: trackman_external_id || null } : {}),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(eq(bookingRequests.id, bookingId), or(eq(bookingRequests.status, 'pending'), eq(bookingRequests.status, 'pending_approval'))))
       .returning();
@@ -742,10 +746,11 @@ interface DeclineBookingParams {
   staff_notes?: string;
   suggested_time?: string;
   reviewed_by?: string;
+  expectedVersion?: number;
 }
 
 export async function declineBooking(params: DeclineBookingParams) {
-  const { bookingId, staff_notes, suggested_time, reviewed_by } = params;
+  const { bookingId, staff_notes, suggested_time, reviewed_by, expectedVersion } = params;
 
   const { updated, declineMessage, resourceTypeName: _resourceTypeName } = await db.transaction(async (tx) => {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
@@ -753,6 +758,8 @@ export async function declineBooking(params: DeclineBookingParams) {
     if (!existing) {
       throw new AppError(404, 'Booking request not found');
     }
+
+    assertBookingVersion(expectedVersion, existing.version);
 
     const declinableStatuses = ['pending', 'pending_approval'];
     if (!declinableStatuses.includes(existing.status || '')) {
@@ -775,7 +782,8 @@ export async function declineBooking(params: DeclineBookingParams) {
         suggestedTime: suggested_time,
         reviewedBy: reviewed_by,
         reviewedAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),

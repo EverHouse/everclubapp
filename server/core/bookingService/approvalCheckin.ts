@@ -23,19 +23,20 @@ import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { voidBookingInvoice, finalizeAndPayInvoice, syncBookingInvoice, getBookingInvoiceId } from '../billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { upsertVisitor } from '../visitors/matchingService';
-import { AppError } from '../errors';
+import { AppError, assertBookingVersion } from '../errors';
 import { logPaymentAudit } from '../auditLog';
 import { voidBookingPass, refreshBookingPass } from '../../walletPass/bookingPassService';
 import { BookingUpdateResult } from './approvalTypes';
 
-export async function revertToApproved(params: { bookingId: number; staffEmail: string }) {
-  const { bookingId, staffEmail } = params;
+export async function revertToApproved(params: { bookingId: number; staffEmail: string; expectedVersion?: number }) {
+  const { bookingId, staffEmail, expectedVersion } = params;
 
   const existingResult = await db.select({
     status: bookingRequests.status,
     userEmail: bookingRequests.userEmail,
     userName: bookingRequests.userName,
     sessionId: bookingRequests.sessionId,
+    version: bookingRequests.version,
   })
     .from(bookingRequests)
     .where(eq(bookingRequests.id, bookingId));
@@ -45,6 +46,9 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
   }
 
   const existing = existingResult[0];
+
+  assertBookingVersion(expectedVersion, existing.version);
+
   const allowedStatuses = ['attended', 'no_show', 'checked_in'];
   if (!existing.status || !allowedStatuses.includes(existing.status)) {
     return { error: `Cannot revert from status "${existing.status}"`, statusCode: 400 };
@@ -56,7 +60,7 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
   await db.transaction(async (tx) => {
     await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
     const revertResult = await tx.execute(
-      sql`UPDATE booking_requests SET status = 'approved', reviewed_by = ${staffEmail}, reviewed_at = NOW(), updated_at = NOW() WHERE id = ${bookingId} AND status IN ('attended', 'no_show', 'checked_in')`
+      sql`UPDATE booking_requests SET status = 'approved', reviewed_by = ${staffEmail}, reviewed_at = NOW(), updated_at = NOW(), version = COALESCE(version, 1) + 1 WHERE id = ${bookingId} AND status IN ('attended', 'no_show', 'checked_in')`
     );
 
     if ((revertResult as unknown as { rowCount: number }).rowCount === 0) {
@@ -101,14 +105,16 @@ const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
   no_show: [],
 };
 
-export async function updateGenericStatus(bookingId: number, status: string, staff_notes?: string) {
-  const [current] = await db.select({ status: bookingRequests.status })
+export async function updateGenericStatus(bookingId: number, status: string, staff_notes?: string, expectedVersion?: number) {
+  const [current] = await db.select({ status: bookingRequests.status, version: bookingRequests.version })
     .from(bookingRequests)
     .where(eq(bookingRequests.id, bookingId));
 
   if (!current) {
     throw new Error(`Booking ${bookingId} not found`);
   }
+
+  assertBookingVersion(expectedVersion, current.version);
 
   const currentStatus = current.status || 'pending';
   const allowed = ALLOWED_STATUS_TRANSITIONS[currentStatus];
@@ -124,7 +130,8 @@ export async function updateGenericStatus(bookingId: number, status: string, sta
     .set({
       status: status,
       staffNotes: staff_notes || undefined,
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
     })
     .where(and(
       eq(bookingRequests.id, bookingId),
@@ -185,10 +192,11 @@ interface CheckinBookingParams {
   skipRosterCheck?: boolean;
   staffEmail: string;
   staffName: string | null;
+  expectedVersion?: number;
 }
 
 export async function checkinBooking(params: CheckinBookingParams) {
-  const { bookingId, targetStatus, confirmPayment, skipPaymentCheck, skipRosterCheck, staffEmail, staffName } = params;
+  const { bookingId, targetStatus, confirmPayment, skipPaymentCheck, skipRosterCheck, staffEmail, staffName, expectedVersion } = params;
 
   const validStatuses = ['attended', 'no_show'];
   const newStatus = validStatuses.includes(targetStatus || '') ? targetStatus! : 'attended';
@@ -202,6 +210,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
     start_time: bookingRequests.startTime,
     end_time: bookingRequests.endTime,
     declared_player_count: bookingRequests.declaredPlayerCount,
+    version: bookingRequests.version,
     user_name: sql`COALESCE(
       NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
       NULLIF(${bookingRequests.userName}, ''),
@@ -217,6 +226,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   const existing: CheckinExistingRow = existingResult[0] as unknown as CheckinExistingRow;
+
+  assertBookingVersion(expectedVersion, (existingResult[0] as unknown as { version: number | null }).version);
   const currentStatus = existing.status;
 
   if (newStatus === 'attended') {
@@ -528,7 +539,8 @@ export async function checkinBooking(params: CheckinBookingParams) {
       .set({
         status: newStatus,
         isUnmatched: false,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),

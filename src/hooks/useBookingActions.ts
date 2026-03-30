@@ -8,6 +8,7 @@ export interface CheckInOptions {
   status?: 'attended' | 'no_show' | 'cancelled';
   source?: string;
   skipPaymentCheck?: boolean;
+  version?: number;
 }
 
 export interface CheckInResult {
@@ -55,6 +56,7 @@ export interface ChargeCardResult {
 export interface StaffCancelOptions {
   source?: string;
   cancelledBy?: string;
+  version?: number;
 }
 
 function invalidateBookingQueries(queryClient: ReturnType<typeof useQueryClient>) {
@@ -70,7 +72,7 @@ export function useBookingActions() {
     bookingId: number | string,
     options: CheckInOptions = {}
   ): Promise<CheckInResult> => {
-    const { status = 'attended', source, skipPaymentCheck } = options;
+    const { status = 'attended', source, skipPaymentCheck, version } = options;
 
     await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
     await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
@@ -104,11 +106,17 @@ export function useBookingActions() {
     const res = await apiRequest<Record<string, unknown>>(`/api/bookings/${bookingId}/checkin`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, source, skipPaymentCheck })
+      body: JSON.stringify({ status, source, skipPaymentCheck, ...(version !== undefined ? { version } : {}) })
     }, { maxRetries: 1 });
 
     if (!res.ok) {
       const errorData = res.errorData || {};
+
+      if (res.status === 409) {
+        restoreOptimistic();
+        invalidateBookingQueries(queryClient);
+        return { success: false, error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
+      }
 
       if (errorData.requiresRoster || errorData.requiresPayment || errorData.error === 'Payment required') {
         restoreOptimistic();
@@ -125,7 +133,7 @@ export function useBookingActions() {
         const retryRes = await apiRequest<Record<string, unknown>>(`/api/bookings/${bookingId}/checkin`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, source, skipPaymentCheck: true })
+          body: JSON.stringify({ status, source, skipPaymentCheck: true, ...(version !== undefined ? { version } : {}) })
         }, { maxRetries: 1 });
 
         if (retryRes.ok) {
@@ -238,7 +246,7 @@ export function useBookingActions() {
     bookingId: number | string,
     options: StaffCancelOptions = {}
   ): Promise<{ success: boolean; error?: string }> => {
-    const { source, cancelledBy } = options;
+    const { source, cancelledBy, version } = options;
 
     await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
     await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
@@ -267,12 +275,17 @@ export function useBookingActions() {
     const res = await apiRequest(`/api/booking-requests/${bookingId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'cancelled', source, cancelled_by: cancelledBy })
+      body: JSON.stringify({ status: 'cancelled', source, cancelled_by: cancelledBy, ...(version !== undefined ? { version } : {}) })
     }, { maxRetries: 1 });
 
     if (!res.ok) {
       previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
       previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      if (res.status === 409) {
+        invalidateBookingQueries(queryClient);
+        const errorData = res.errorData || {};
+        return { success: false, error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
+      }
       return { success: false, error: res.error || 'Failed to cancel booking' };
     }
 
@@ -295,7 +308,8 @@ export function useBookingActions() {
     return result;
   }, [staffCancelBooking, showToast]);
 
-  const revertToApproved = useCallback(async (bookingId: number | string): Promise<{ success?: boolean; error?: string }> => {
+  const revertToApproved = useCallback(async (bookingId: number | string, options?: { version?: number }): Promise<{ success?: boolean; error?: string }> => {
+    const version = options?.version;
     await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
     await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
     const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
@@ -323,11 +337,17 @@ export function useBookingActions() {
     const res = await apiRequest(`/api/bookings/${bookingId}/revert-to-approved`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...(version !== undefined ? { version } : {}) }),
     }, { maxRetries: 1 });
 
     if (!res.ok) {
       previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
       previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      if (res.status === 409) {
+        invalidateBookingQueries(queryClient);
+        const errorData = res.errorData || {};
+        return { error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
+      }
       return { error: res.error || 'Failed to revert booking' };
     }
 

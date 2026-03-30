@@ -1218,6 +1218,7 @@ export async function ensureDatabaseConstraints() {
       }
 
       try { await db.execute(sql`ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS billing_sync_pending BOOLEAN DEFAULT FALSE`); } catch { logger.debug('[DB Init] billing_sync_pending column already exists or failed'); }
+      try { await db.execute(sql`ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1`); } catch { logger.debug('[DB Init] version column already exists or failed'); }
 
       try {
         await db.execute(sql`

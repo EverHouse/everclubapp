@@ -24,6 +24,24 @@ export class AppError extends Error {
   }
 }
 
+export const STALE_BOOKING_MESSAGE = 'This booking was updated by someone else. Please refresh and try again.';
+
+export class StaleBookingVersionError extends AppError {
+  constructor() {
+    super(409, STALE_BOOKING_MESSAGE);
+    this.name = 'StaleBookingVersionError';
+  }
+}
+
+export function assertBookingVersion(
+  expectedVersion: number | undefined,
+  currentVersion: number | null | undefined
+): void {
+  if (expectedVersion !== undefined && expectedVersion !== (currentVersion ?? 1)) {
+    throw new StaleBookingVersionError();
+  }
+}
+
 export class GuestPassHoldError extends Error {
   constructor(message: string, public readonly passesAvailable?: number) {
     super(message);

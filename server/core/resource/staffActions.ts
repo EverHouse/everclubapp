@@ -12,7 +12,7 @@ import { acquireBookingLocks, BookingConflictError } from '../bookingService/boo
 import { computeEndTime, prepareBookingCreation, acquireLocksAndCheckConflicts, sanitizeAndResolveParticipants } from '../bookingService/createBooking';
 import { BookingValidationError } from '../bookingService/bookingTypes';
 import { createCalendarEventOnCalendar, getCalendarIdByName, CALENDAR_CONFIG } from '../calendar/index';
-import { AppError } from '../errors';
+import { AppError, StaleBookingVersionError } from '../errors';
 import { resolveUserByEmail } from '../stripe/customers';
 import { broadcastAvailabilityUpdate } from '../websocket';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
@@ -53,7 +53,7 @@ interface FeeSumRow {
   guest_cents?: string | null;
 }
 
-export async function assignMemberToBooking(bookingId: number, memberEmail: string, memberName: string, memberId?: string | null) {
+export async function assignMemberToBooking(bookingId: number, memberEmail: string, memberName: string, memberId?: string | null, expectedVersion?: number) {
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     
@@ -73,6 +73,10 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
       throw new AppError(400, 'Booking is not an unmatched booking');
     }
     
+    if (expectedVersion != null && existing.version !== expectedVersion) {
+      throw new StaleBookingVersionError();
+    }
+
     const [updated] = await tx.update(bookingRequests)
       .set({
         userEmail: memberEmail.toLowerCase(),
@@ -81,7 +85,8 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
         isUnmatched: false,
         status: 'approved',
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Member assigned by staff: ' || ${memberName} || ']'`,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
@@ -109,7 +114,8 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
     bookingId,
     action: 'member_assigned',
     memberEmail: memberEmail,
-    memberName: memberName
+    memberName: memberName,
+    version: result.version
   });
   
   const formattedDate = result.requestDate ? new Date(result.requestDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' }) : '';
@@ -137,7 +143,8 @@ export async function assignWithPlayers(
   bookingId: number,
   owner: { email: string; name: string; member_id?: string | null },
   additionalPlayers: Array<{ type: 'member' | 'guest_placeholder'; member_id?: string | null; email?: string; name?: string; guest_name?: string }>,
-  staffEmail: string
+  staffEmail: string,
+  expectedVersion?: number
 ) {
   const totalPlayerCount = 1 + additionalPlayers.filter(p => p.type === 'member' || p.type === 'guest_placeholder').length;
   const guestCount = additionalPlayers.filter(p => p.type === 'guest_placeholder').length;
@@ -176,6 +183,10 @@ export async function assignWithPlayers(
     if (TERMINAL_STATUSES.includes(existingBooking.status || '')) {
       throw new AppError(400, `Cannot assign players to a booking with status "${existingBooking.status}". Only active bookings can be modified.`);
     }
+
+    if (expectedVersion !== undefined && expectedVersion !== (existingBooking.version ?? 1)) {
+      throw new StaleBookingVersionError();
+    }
     
     const newNote = ` [Assigned by staff: ${owner.name} with ${totalPlayerCount} players]`;
     
@@ -201,7 +212,8 @@ export async function assignWithPlayers(
         guestCount: guestCount,
         requestParticipants: participantsJson.length > 0 ? participantsJson : undefined,
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ${newNote}`,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
@@ -344,7 +356,8 @@ export async function assignWithPlayers(
     action: 'players_assigned',
     memberEmail: owner.email,
     memberName: owner.name,
-    totalPlayers: totalPlayerCount
+    totalPlayers: totalPlayerCount,
+    version: result.booking.version
   });
   
   if (owner.member_id) {
@@ -384,7 +397,7 @@ export async function assignWithPlayers(
   return { booking: result.booking, totalPlayerCount, guestCount, sessionId };
 }
 
-export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string | null) {
+export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string | null, expectedVersion?: number) {
   const result = await db.transaction(async (tx) => {
     const [existingBooking] = await tx.select()
       .from(bookingRequests)
@@ -397,6 +410,10 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
     if (TERMINAL_STATUSES.includes(existingBooking.status || '')) {
       throw new AppError(400, `Cannot change owner of a booking with status "${existingBooking.status}". Only active bookings can be reassigned.`);
     }
+
+    if (expectedVersion !== undefined && expectedVersion !== (existingBooking.version ?? 1)) {
+      throw new StaleBookingVersionError();
+    }
     
     const previousOwner = existingBooking.userName || existingBooking.userEmail;
     
@@ -408,7 +425,8 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
         isUnmatched: false,
         status: 'approved',
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Owner changed from ' || ${previousOwner} || ' to ' || ${newName} || ' by staff]'`,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
@@ -453,7 +471,8 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
     action: 'owner_changed',
     previousOwner: result.previousOwner,
     newOwnerEmail: newEmail,
-    newOwnerName: newName
+    newOwnerName: newName,
+    version: result.booking.version
   });
   
   return result;

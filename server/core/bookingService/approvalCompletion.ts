@@ -210,7 +210,8 @@ export async function devConfirmBooking(params: DevConfirmParams) {
        SET status = 'approved', 
            session_id = COALESCE(session_id, ${sessionId}),
            notes = COALESCE(notes, '') || E'\n[Dev confirmed]',
-           updated_at = NOW()
+           updated_at = NOW(),
+           version = COALESCE(version, 1) + 1
        WHERE id = ${bookingId} AND status IN ('pending', 'pending_approval')
     `);
 
@@ -422,7 +423,8 @@ export async function completeCancellation(params: CompleteCancellationParams) {
       .set({
         status: 'cancelled',
         staffNotes: sql`COALESCE(staff_notes, '') || ${'\n[Cancellation completed manually by ' + staffEmail + ']'}`,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
@@ -639,7 +641,8 @@ export async function completeCancellation(params: CompleteCancellationParams) {
     await db.update(bookingRequests)
       .set({
         staffNotes: sql`COALESCE(staff_notes, '') || ${errorNote}`,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(eq(bookingRequests.id, bookingId));
   }
