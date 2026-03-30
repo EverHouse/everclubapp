@@ -25,33 +25,45 @@ const RELOAD_TIMESTAMP_KEY = 'error_reload_timestamp';
 const MAX_AUTO_RELOADS = 3;
 const RELOAD_WINDOW_MS = 300000;
 
+function safeSessionStorage(op: () => void): void {
+  try { op(); } catch { /* storage unavailable */ }
+}
+
 function getReloadCount(): number {
-  const timestamp = sessionStorage.getItem(RELOAD_TIMESTAMP_KEY);
-  const count = sessionStorage.getItem(RELOAD_COUNT_KEY);
-  
-  if (!timestamp || !count) return 0;
-  
-  const elapsed = Date.now() - parseInt(timestamp, 10);
-  if (elapsed > RELOAD_WINDOW_MS) {
-    sessionStorage.removeItem(RELOAD_COUNT_KEY);
-    sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+  try {
+    const timestamp = sessionStorage.getItem(RELOAD_TIMESTAMP_KEY);
+    const count = sessionStorage.getItem(RELOAD_COUNT_KEY);
+    
+    if (!timestamp || !count) return 0;
+    
+    const elapsed = Date.now() - parseInt(timestamp, 10);
+    if (elapsed > RELOAD_WINDOW_MS) {
+      sessionStorage.removeItem(RELOAD_COUNT_KEY);
+      sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+      return 0;
+    }
+    
+    return parseInt(count, 10) || 0;
+  } catch {
     return 0;
   }
-  
-  return parseInt(count, 10) || 0;
 }
 
 function incrementReloadCount(): number {
   const currentCount = getReloadCount();
   const newCount = currentCount + 1;
-  sessionStorage.setItem(RELOAD_COUNT_KEY, newCount.toString());
-  sessionStorage.setItem(RELOAD_TIMESTAMP_KEY, Date.now().toString());
+  safeSessionStorage(() => {
+    sessionStorage.setItem(RELOAD_COUNT_KEY, newCount.toString());
+    sessionStorage.setItem(RELOAD_TIMESTAMP_KEY, Date.now().toString());
+  });
   return newCount;
 }
 
 function clearReloadCount(): void {
-  sessionStorage.removeItem(RELOAD_COUNT_KEY);
-  sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+  safeSessionStorage(() => {
+    sessionStorage.removeItem(RELOAD_COUNT_KEY);
+    sessionStorage.removeItem(RELOAD_TIMESTAMP_KEY);
+  });
 }
 
 function isChunkLoadError(error: Error | null): boolean {
