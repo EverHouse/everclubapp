@@ -12,7 +12,7 @@ import { cancelPaymentIntent, createBalanceAwarePayment, getOrCreateStripeCustom
 import { resolveUserByEmail } from '../../core/stripe/customers';
 import { logFromRequest, logPaymentAudit } from '../../core/auditLog';
 import { PRICING } from '../../core/billing/pricingConfig';
-import { broadcastMemberStatsUpdated, broadcastBookingInvoiceUpdate } from '../../core/websocket';
+import { broadcastMemberStatsUpdated, broadcastBookingInvoiceUpdate, broadcastBillingUpdate } from '../../core/websocket';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { toIntArrayLiteral, toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
@@ -244,7 +244,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const intentIds = new Set<string>();
 
       const spiResult = await db.execute(sql`
-        SELECT stripe_payment_intent_id FROM stripe_payment_intents
+        SELECT stripe_payment_intent_id, status FROM stripe_payment_intents
         WHERE booking_id = ${bookingId}
           AND status IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')
       `);
@@ -293,11 +293,59 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         `);
       }
 
+      const succeededOobResult = await db.execute(sql`
+        SELECT stripe_payment_intent_id FROM stripe_payment_intents
+        WHERE booking_id = ${bookingId}
+          AND status = 'succeeded'
+          AND purpose IN ('prepayment', 'booking_fee')
+      `);
+      const succeededOobIds: string[] = [];
+      for (const row of succeededOobResult.rows as unknown as PaymentIntentIdRow[]) {
+        if (row.stripe_payment_intent_id) {
+          succeededOobIds.push(row.stripe_payment_intent_id);
+        }
+      }
+      if (succeededOobIds.length > 0) {
+        await db.execute(sql`
+          UPDATE stripe_payment_intents SET status = 'voided', updated_at = NOW()
+          WHERE stripe_payment_intent_id = ANY(${toTextArrayLiteral(succeededOobIds)}::text[])
+            AND booking_id = ${bookingId}
+        `);
+        cancelledCount += succeededOobIds.length;
+        logger.info('[StaffCheckin] Voided succeeded payment intents for rebilling', {
+          extra: { bookingId, voidedIds: succeededOobIds }
+        });
+      }
+
       if (sessionId) {
         await db.execute(sql`
-          UPDATE booking_participants SET payment_status = 'waived'
-          WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')
+          UPDATE booking_participants 
+          SET payment_status = 'pending',
+              paid_at = NULL,
+              stripe_payment_intent_id = NULL,
+              cached_fee_cents = 0,
+              updated_at = NOW()
+          WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded', 'paid', 'waived')
         `);
+      }
+
+      try {
+        const { voidBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
+        await voidBookingInvoice(bookingId);
+        logger.info('[StaffCheckin] Voided invoice for booking during cancel_all', { extra: { bookingId } });
+      } catch (invoiceErr: unknown) {
+        logger.warn('[StaffCheckin] Could not void invoice during cancel_all (may not exist)', {
+          extra: { bookingId, error: getErrorMessage(invoiceErr) }
+        });
+      }
+
+      if (sessionId) {
+        try {
+          await recalculateSessionFees(sessionId, 'void_all');
+          logger.info('[StaffCheckin] Recalculated fees after voiding all payments', { extra: { sessionId, bookingId } });
+        } catch (recalcErr: unknown) {
+          logger.warn('[StaffCheckin] Fee recalculation after void failed', { extra: { sessionId, error: getErrorMessage(recalcErr) } });
+        }
       }
 
       await logPaymentAudit({
@@ -307,20 +355,27 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         action: 'payment_cancelled',
         staffEmail,
         staffName,
-        reason: reason || `Cancelled ${cancelledCount} payment intent(s)`,
-        previousStatus: 'pending',
-        newStatus: 'waived',
+        reason: reason || `Voided all payments: ${cancelledCount} intent(s)`,
+        previousStatus: 'paid',
+        newStatus: 'pending',
       });
 
       logFromRequest(req, 'cancel_payment', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {
         cancelledCount,
         failedCount,
-        intentsCancelled: Array.from(intentIds)
+        intentsCancelled: Array.from(intentIds),
+        succeededVoided: succeededOobIds
+      });
+
+      broadcastBillingUpdate({
+        action: 'invoice_voided',
+        bookingId,
+        status: 'pending'
       });
 
       return res.json({
         success: true,
-        message: `${cancelledCount} payment(s) cancelled`,
+        message: `${cancelledCount} payment(s) voided`,
         cancelledCount,
         failedCount
       });
