@@ -14,6 +14,7 @@ interface State {
   retryCount: number;
   autoRetryCount: number;
   countdown: number | null;
+  chunkRetryCountdown: number | null;
 }
 
 const MAX_AUTO_RETRIES = 2;
@@ -21,8 +22,8 @@ const AUTO_RETRY_DELAYS = [3, 5];
 
 const RELOAD_COUNT_KEY = 'error_reload_count';
 const RELOAD_TIMESTAMP_KEY = 'error_reload_timestamp';
-const MAX_AUTO_RELOADS = 2;
-const RELOAD_WINDOW_MS = 60000;
+const MAX_AUTO_RELOADS = 3;
+const RELOAD_WINDOW_MS = 300000;
 
 function getReloadCount(): number {
   const timestamp = sessionStorage.getItem(RELOAD_TIMESTAMP_KEY);
@@ -69,10 +70,12 @@ function isChunkLoadError(error: Error | null): boolean {
 }
 
 class PageErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null, retryCount: 0, autoRetryCount: 0, countdown: null };
+  state: State = { hasError: false, error: null, retryCount: 0, autoRetryCount: 0, countdown: null, chunkRetryCountdown: null };
 
   private retryTimerRef: ReturnType<typeof setTimeout> | null = null;
   private countdownTimerRef: ReturnType<typeof setInterval> | null = null;
+  private chunkRetryTimerRef: ReturnType<typeof setTimeout> | null = null;
+  private chunkCountdownRef: ReturnType<typeof setInterval> | null = null;
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
@@ -102,14 +105,16 @@ class PageErrorBoundary extends Component<Props, State> {
       const reloadCount = getReloadCount();
       
       if (reloadCount < MAX_AUTO_RELOADS) {
+        const delayMs = reloadCount === 0 ? 1000 : reloadCount === 1 ? 3000 : 5000;
         // eslint-disable-next-line no-console
-        console.log(`[PageErrorBoundary] Detected stale chunk error, clearing caches and reloading (${reloadCount + 1}/${MAX_AUTO_RELOADS})...`);
+        console.log(`[PageErrorBoundary] Detected stale chunk error, clearing caches and reloading in ${delayMs}ms (${reloadCount + 1}/${MAX_AUTO_RELOADS})...`);
         incrementReloadCount();
-        this.clearCachesAndReload();
+        this.clearCachesAndReload(delayMs);
         return;
       } else {
         // eslint-disable-next-line no-console
-        console.log('[PageErrorBoundary] Max auto-reloads reached, showing error UI');
+        console.log('[PageErrorBoundary] Max auto-reloads reached, showing error UI — will auto-retry in 15s');
+        this.scheduleChunkRetry();
       }
     }
 
@@ -131,6 +136,44 @@ class PageErrorBoundary extends Component<Props, State> {
       clearInterval(this.countdownTimerRef);
       this.countdownTimerRef = null;
     }
+    if (this.chunkRetryTimerRef) {
+      clearTimeout(this.chunkRetryTimerRef);
+      this.chunkRetryTimerRef = null;
+    }
+    if (this.chunkCountdownRef) {
+      clearInterval(this.chunkCountdownRef);
+      this.chunkCountdownRef = null;
+    }
+  }
+
+  private scheduleChunkRetry() {
+    if (this.chunkRetryTimerRef) {
+      clearTimeout(this.chunkRetryTimerRef);
+      this.chunkRetryTimerRef = null;
+    }
+    if (this.chunkCountdownRef) {
+      clearInterval(this.chunkCountdownRef);
+      this.chunkCountdownRef = null;
+    }
+    const CHUNK_RETRY_DELAY = 15;
+    this.setState({ chunkRetryCountdown: CHUNK_RETRY_DELAY });
+
+    this.chunkCountdownRef = setInterval(() => {
+      this.setState(prev => {
+        const next = (prev.chunkRetryCountdown ?? 1) - 1;
+        if (next <= 0) return { chunkRetryCountdown: null };
+        return { chunkRetryCountdown: next };
+      });
+    }, 1000);
+
+    this.chunkRetryTimerRef = setTimeout(() => {
+      if (this.chunkCountdownRef) {
+        clearInterval(this.chunkCountdownRef);
+        this.chunkCountdownRef = null;
+      }
+      clearReloadCount();
+      this.clearCachesAndReload(2000);
+    }, CHUNK_RETRY_DELAY * 1000);
   }
 
   private startAutoRetryCountdown() {
@@ -186,7 +229,7 @@ class PageErrorBoundary extends Component<Props, State> {
     this.cacheBustReload();
   };
 
-  private clearCachesAndReload() {
+  private clearCachesAndReload(delayMs = 0) {
     const doClear = async () => {
       try {
         if ('caches' in window) {
@@ -199,6 +242,9 @@ class PageErrorBoundary extends Component<Props, State> {
         }
       } catch (err: unknown) {
         console.error('[PageErrorBoundary] Failed to clear caches:', err);
+      }
+      if (delayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
       }
       this.cacheBustReload();
     };
@@ -263,7 +309,10 @@ class PageErrorBoundary extends Component<Props, State> {
                 App Update Required
               </h2>
               <p className="text-gray-600 dark:text-white/60 text-sm mb-4">
-                A new version is available but couldn't load automatically. Try clearing the cache or contact support if the issue persists.
+                A new version is available but couldn't load automatically.
+                {this.state.chunkRetryCountdown != null
+                  ? ` Retrying automatically in ${this.state.chunkRetryCountdown}s...`
+                  : ' Try clearing the cache or contact support if the issue persists.'}
               </p>
               <div className="flex flex-col gap-2">
                 <button
