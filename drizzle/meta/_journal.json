@@ -281,6 +281,13 @@
       "when": 1774915200000,
       "tag": "0067_add_fee_products",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1775001600000,
+      "tag": "0068_add_amount_paid_cents",
+      "breakpoints": true
     }
   ]
 }

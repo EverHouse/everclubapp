@@ -1278,6 +1278,7 @@ export async function ensureDatabaseConstraints() {
       }
 
       try { await db.execute(sql`ALTER TABLE booking_participants ADD COLUMN IF NOT EXISTS day_pass_purchase_id VARCHAR`); } catch { logger.debug('[DB Init] day_pass_purchase_id column already exists or failed'); }
+      try { await db.execute(sql`ALTER TABLE booking_participants ADD COLUMN IF NOT EXISTS amount_paid_cents INTEGER`); } catch { logger.debug('[DB Init] amount_paid_cents column already exists or failed'); }
       try { await db.execute(sql`ALTER TABLE pass_redemption_logs ADD COLUMN IF NOT EXISTS booking_id INTEGER`); } catch { logger.debug('[DB Init] pass_redemption_logs.booking_id column already exists or failed'); }
 
       try {
