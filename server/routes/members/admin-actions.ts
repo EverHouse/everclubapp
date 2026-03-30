@@ -1145,6 +1145,19 @@ router.post('/api/members', isStaffOrAdmin, validateBody(createMemberSchema), as
     
     const hubspotSyncQueued = false;
     
+    await logFromRequest(req, {
+      action: 'create_member',
+      resourceType: 'member',
+      resourceId: result.userId?.toString() || email.toLowerCase(),
+      resourceName: `${firstName} ${lastName}`,
+      details: {
+        email: email.toLowerCase(),
+        tier,
+        startDate: startDate || null,
+        createdBy: sessionUser.email,
+      }
+    });
+
     invalidateCache('members_directory');
     res.status(201).json({
       success: true,
@@ -1360,6 +1373,21 @@ router.post('/api/members/admin/bulk-tier-update', isStaffOrAdmin, async (req, r
       logger.info('[BulkTierUpdate] Queued member tier update jobs (IDs: )', { extra: { jobIdsLength: jobIds.length, jobIdsJoin: jobIds.join(', ') } });
     }
     
+    await logFromRequest(req, {
+      action: 'bulk_tier_update',
+      resourceType: 'member',
+      resourceId: undefined,
+      details: {
+        totalMembers: members.length,
+        queued: results.queued,
+        unchanged: results.unchanged.length,
+        notFound: results.notFound.length,
+        errors: results.errors.length,
+        performedBy,
+        syncToHubspot,
+      }
+    });
+
     res.json({
       success: true,
       dryRun: false,
@@ -1406,6 +1434,19 @@ router.post('/api/admin/member/change-email', isStaffOrAdmin, async (req, res) =
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
+
+    await logFromRequest(req, {
+      action: 'email_change',
+      resourceType: 'member',
+      resourceId: newEmail,
+      resourceName: newEmail,
+      details: {
+        oldEmail: result.oldEmail,
+        newEmail: result.newEmail,
+        tablesUpdated: result.tablesUpdated,
+        performedBy,
+      }
+    });
     
     res.json({
       success: true,
@@ -1482,6 +1523,20 @@ router.post('/api/admin/tier-change/commit', isStaffOrAdmin, async (req, res) =>
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
+
+    await logFromRequest(req, {
+      action: 'change_tier',
+      resourceType: 'member',
+      resourceId: memberEmail,
+      resourceName: memberEmail,
+      details: {
+        memberEmail,
+        subscriptionId,
+        newPriceId,
+        immediate,
+        staffEmail,
+      }
+    });
     
     res.json({ success: true });
   } catch (error: unknown) {

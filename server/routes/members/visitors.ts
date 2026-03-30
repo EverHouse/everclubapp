@@ -447,11 +447,23 @@ router.patch('/api/guests/:guestId/email', isStaffOrAdmin, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Guest not found' });
     }
+
+    const guest = result.rows[0] as { id: number; name: string; email: string };
+    await logFromRequest(req, {
+      action: 'update_guest_email',
+      resourceType: 'member',
+      resourceId: guestId,
+      resourceName: guest.name || normalizedEmail,
+      details: {
+        guestId,
+        newEmail: normalizedEmail,
+      }
+    });
     
     res.json({
       success: true,
-      guest: result.rows[0],
-      message: `Email updated for ${(result.rows[0] as { id: number; name: string; email: string }).name}`
+      guest,
+      message: `Email updated for ${guest.name}`
     });
   } catch (error: unknown) {
     logger.error('[Update Guest Email] Error', { extra: { error: getErrorMessage(error) } });

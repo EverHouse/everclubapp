@@ -310,7 +310,13 @@ export type AuditAction =
   | 'delete_orphan_records'
   | 'mark_waiver_signed'
   | 'update_tour_status'
-  | 'clear_stripe_customer_id';
+  | 'clear_stripe_customer_id'
+  | 'roster_batch_update'
+  | 'recalculate_fees'
+  | 'checkin_booking'
+  | 'payment_retry'
+  | 'update_guest_email'
+  | 'bulk_tier_update';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

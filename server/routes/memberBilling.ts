@@ -491,6 +491,18 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
     await db.execute(sql`UPDATE users SET billing_provider = ${billingProvider}, updated_at = NOW() WHERE LOWER(email) = ${email.toLowerCase()}`);
 
     logger.info('[MemberBilling] Updated billing provider for to', { extra: { email, billingProvider } });
+
+    await logFromRequest(req, {
+      action: 'change_billing_provider',
+      resourceType: 'billing',
+      resourceId: email,
+      resourceName: email,
+      details: {
+        email,
+        newBillingProvider: billingProvider,
+        previousBillingProvider: member.billing_provider || null,
+      }
+    });
     
     // Sync billing provider AND current membership status to HubSpot
     // This ensures HubSpot reflects the app's status, not external system's status

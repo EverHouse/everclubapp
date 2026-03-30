@@ -347,6 +347,20 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
         performedByName: staffName
       });
 
+      await logFromRequest(req, {
+        action: 'payment_retry',
+        resourceType: 'payment',
+        resourceId: paymentIntentId,
+        resourceName: payment.member_email || undefined,
+        details: {
+          paymentIntentId,
+          retryAttempt: newRetryCount,
+          amountCents: payment.amount_cents,
+          result: 'succeeded',
+          viaInvoice: !!invoiceId,
+        }
+      });
+
       logger.info('[Payments] Retry # succeeded for', { extra: { newRetryCount, paymentIntentId, viaInvoice: !!invoiceId } });
 
       res.json({
@@ -378,6 +392,22 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
         newValue: `Retry #${newRetryCount} failed: ${retryStatus}${nowReachesLimit ? ' (limit reached)' : ''}`,
         performedBy: staffEmail,
         performedByName: staffName
+      });
+
+      await logFromRequest(req, {
+        action: 'payment_retry',
+        resourceType: 'payment',
+        resourceId: paymentIntentId,
+        resourceName: payment.member_email || undefined,
+        details: {
+          paymentIntentId,
+          retryAttempt: newRetryCount,
+          amountCents: payment.amount_cents,
+          result: 'failed',
+          newStatus: retryStatus,
+          reachedLimit: nowReachesLimit,
+          viaInvoice: !!invoiceId,
+        }
       });
 
       logger.info('[Payments] Retry # failed for', { extra: { newRetryCount, paymentIntentId, retryStatus } });

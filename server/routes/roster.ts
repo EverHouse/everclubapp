@@ -308,6 +308,19 @@ router.post('/api/admin/booking/:bookingId/roster/batch', isStaffOrAdmin, valida
       staffEmail
     });
 
+    const { logFromRequest: logFromReq } = await import('../core/auditLog');
+    await logFromReq(req, {
+      action: 'roster_batch_update',
+      resourceType: 'booking',
+      resourceId: bookingId.toString(),
+      details: {
+        bookingId,
+        operationCount: operations?.length || 0,
+        rosterVersion,
+        staffEmail,
+      }
+    });
+
     res.json({ success: true, ...result });
   } catch (error: unknown) {
     await handleConstraintAndRespond(req, res, error, 'Failed to apply batch roster update');
@@ -390,6 +403,20 @@ router.post('/api/admin/booking/:bookingId/recalculate-fees', isStaffOrAdmin, as
         });
       }
     }
+
+    const { logFromRequest: logFromReq2 } = await import('../core/auditLog');
+    await logFromReq2(req, {
+      action: 'recalculate_fees',
+      resourceType: 'booking',
+      resourceId: bookingId.toString(),
+      details: {
+        bookingId,
+        sessionId: booking.session_id,
+        totalFees: recalcResult.totals?.totalCents || 0,
+        participantsUpdated: recalcResult.participants?.length || 0,
+        prepaymentCreated,
+      }
+    });
 
     res.json({
       success: true,

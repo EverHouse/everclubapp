@@ -170,6 +170,20 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
       return res.status(statusCode).json({ error, ...rest });
     }
 
+    await logFromRequest(req, {
+      action: 'checkin_booking',
+      resourceType: 'booking',
+      resourceId: bookingId.toString(),
+      details: {
+        bookingId,
+        targetStatus,
+        confirmPayment: !!confirmPayment,
+        skipPaymentCheck: !!skipPaymentCheck,
+        skipRosterCheck: !!skipRosterCheck,
+        staffEmail,
+      }
+    });
+
     res.json(result);
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update booking status', error);
