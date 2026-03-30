@@ -36,6 +36,7 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
       userId: stripePaymentIntents.userId,
+      stripeCustomerId: stripePaymentIntents.stripeCustomerId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -45,7 +46,7 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
       createdAt: stripePaymentIntents.createdAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
     .where(
       and(
         eq(stripePaymentIntents.status, 'succeeded'),
@@ -58,7 +59,7 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
     id: row.id,
     paymentIntentId: row.paymentIntentId,
     memberEmail: row.memberEmail || row.userId || null,
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId),
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId, row.stripeCustomerId),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -77,6 +78,7 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
       userId: stripePaymentIntents.userId,
+      stripeCustomerId: stripePaymentIntents.stripeCustomerId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -86,7 +88,7 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
       createdAt: stripePaymentIntents.createdAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
     .where(
       and(
         inArray(stripePaymentIntents.status, refundedStatuses),
@@ -99,7 +101,7 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
     id: row.id,
     paymentIntentId: row.paymentIntentId,
     memberEmail: row.memberEmail || row.userId || null,
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId),
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId, row.stripeCustomerId),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -116,6 +118,7 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
       userId: stripePaymentIntents.userId,
+      stripeCustomerId: stripePaymentIntents.stripeCustomerId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -130,7 +133,7 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
       dunningNotifiedAt: stripePaymentIntents.dunningNotifiedAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
     .where(inArray(stripePaymentIntents.status, failedStatuses))
     .orderBy(desc(stripePaymentIntents.createdAt))
     .limit(limit);
@@ -139,7 +142,7 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
     id: row.id,
     paymentIntentId: row.paymentIntentId,
     memberEmail: row.memberEmail || row.userId || 'unknown',
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId || 'Unknown'),
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId || null, row.stripeCustomerId),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -161,6 +164,7 @@ export async function getPendingAuthorizations(): Promise<PendingAuthorization[]
       id: stripePaymentIntents.id,
       paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
       userId: stripePaymentIntents.userId,
+      stripeCustomerId: stripePaymentIntents.stripeCustomerId,
       memberEmail: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -170,7 +174,7 @@ export async function getPendingAuthorizations(): Promise<PendingAuthorization[]
       createdAt: stripePaymentIntents.createdAt,
     })
     .from(stripePaymentIntents)
-    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}))`)
+    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
     .where(inArray(stripePaymentIntents.status, pendingStatuses))
     .orderBy(desc(stripePaymentIntents.createdAt));
 
@@ -178,7 +182,7 @@ export async function getPendingAuthorizations(): Promise<PendingAuthorization[]
     id: row.id,
     paymentIntentId: row.paymentIntentId,
     memberEmail: row.memberEmail || row.userId || null,
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId || row.description),
+    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId || row.description, row.stripeCustomerId),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -237,7 +241,7 @@ export async function updatePaymentStatusAndAmount(paymentIntentId: string, stat
     .where(eq(stripePaymentIntents.stripePaymentIntentId, paymentIntentId));
 }
 
-function formatMemberName(firstName: string | null, lastName: string | null, fallback: string | null): string {
+function formatMemberName(firstName: string | null, lastName: string | null, fallback: string | null, stripeCustomerId?: string | null): string {
   const name = [firstName, lastName].filter(Boolean).join(' ').trim();
-  return name || fallback || 'Unknown';
+  return name || fallback || stripeCustomerId || 'Unknown';
 }

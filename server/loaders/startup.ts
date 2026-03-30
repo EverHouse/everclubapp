@@ -722,6 +722,22 @@ export async function runStartupTasks(): Promise<void> {
     })().catch((err: unknown) => logger.warn('[Startup] last_tier backfill failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
 
     (async () => {
+      const paymentUserBackfill = await db.execute(sql`
+        UPDATE stripe_payment_intents spi
+        SET user_id = u.email,
+            updated_at = NOW()
+        FROM users u
+        WHERE spi.stripe_customer_id IS NOT NULL
+          AND spi.stripe_customer_id = u.stripe_customer_id
+          AND (spi.user_id IS NULL OR spi.user_id = '')
+      `);
+      const count = (paymentUserBackfill as { rowCount?: number })?.rowCount || 0;
+      if (count > 0) {
+        logger.info(`[Startup] Backfilled user_id for ${count} payment intents from stripe_customer_id`);
+      }
+    })().catch((err: unknown) => logger.warn('[Startup] payment intent user_id backfill failed (non-critical)', { extra: { error: getErrorMessage(err) } })),
+
+    (async () => {
       const passReconcile = await db.execute(sql`
         UPDATE guest_passes gp
         SET passes_used = COALESCE(actual.used_count, 0),
