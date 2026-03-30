@@ -1583,36 +1583,31 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
     errorCode
   });
 
-  const existingResult = await client.query(
-    `SELECT retry_count FROM stripe_payment_intents WHERE stripe_payment_intent_id = $1`,
-    [id]
-  );
-  const currentRetryCount = existingResult.rows[0]?.retry_count || 0;
-  
-  const newRetryCount = currentRetryCount + 1;
-  const requiresCardUpdate = newRetryCount >= MAX_RETRY_ATTEMPTS;
-
   const userIdFromMeta = metadata?.email || metadata?.memberEmail || '';
   const bookingIdFromMeta = metadata?.bookingId ? parseInt(metadata.bookingId, 10) : NaN;
   const sessionIdFromMeta = metadata?.sessionId ? parseInt(metadata.sessionId, 10) : NaN;
 
-  await client.query(
+  const upsertResult = await client.query(
     `INSERT INTO stripe_payment_intents
        (stripe_payment_intent_id, user_id, amount_cents, status, retry_count, last_retry_at, failure_reason, dunning_notified_at, requires_card_update, booking_id, session_id, purpose, created_at, updated_at)
-     VALUES ($1, $2, $3, 'failed', $4, NOW(), $5, NOW(), $6, $7, $8, $9, NOW(), NOW())
+     VALUES ($1, $2, $3, 'failed', 1, NOW(), $4, NOW(), (1 >= ${MAX_RETRY_ATTEMPTS}), $5, $6, $7, NOW(), NOW())
      ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET
        status = 'failed',
        updated_at = NOW(),
-       retry_count = $4,
+       retry_count = stripe_payment_intents.retry_count + 1,
        last_retry_at = NOW(),
-       failure_reason = $5,
+       failure_reason = $4,
        dunning_notified_at = NOW(),
-       requires_card_update = $6`,
-    [id, userIdFromMeta, amount, newRetryCount, reason, requiresCardUpdate,
+       requires_card_update = (stripe_payment_intents.retry_count + 1) >= ${MAX_RETRY_ATTEMPTS}
+     RETURNING retry_count, requires_card_update`,
+    [id, userIdFromMeta, amount, reason,
      isNaN(bookingIdFromMeta) ? null : bookingIdFromMeta,
      isNaN(sessionIdFromMeta) ? null : sessionIdFromMeta,
      metadata?.paymentType || 'unknown']
   );
+
+  const newRetryCount = upsertResult.rows[0]?.retry_count ?? 1;
+  const requiresCardUpdate = upsertResult.rows[0]?.requires_card_update ?? false;
 
   await client.query(
     `UPDATE booking_fee_snapshots SET status = 'failed', updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status = 'pending'`,
@@ -1759,27 +1754,23 @@ export async function handlePaymentIntentCanceled(client: PoolClient, paymentInt
     const subscriptionId = metadata?.subscriptionId;
     
     try {
-      const updateResult = await client.query(
-        `UPDATE terminal_payments SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = $1`,
-        [id]
+      await client.query(
+        `INSERT INTO terminal_payments (
+          user_id, user_email, stripe_payment_intent_id, stripe_subscription_id,
+          amount_cents, currency, status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'canceled', NOW(), NOW())
+        ON CONFLICT (stripe_payment_intent_id) DO UPDATE SET
+          status = 'canceled',
+          updated_at = NOW()`,
+        [
+          metadata?.userId || null,
+          email || 'unknown',
+          id,
+          subscriptionId || null,
+          amount,
+          paymentIntent.currency || 'usd'
+        ]
       );
-      if (updateResult.rowCount === 0) {
-        await client.query(
-          `INSERT INTO terminal_payments (
-            user_id, user_email, stripe_payment_intent_id, stripe_subscription_id,
-            amount_cents, currency, status, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
-          [
-            metadata?.userId || null,
-            email || 'unknown',
-            id,
-            subscriptionId || null,
-            amount,
-            paymentIntent.currency || 'usd',
-            'canceled'
-          ]
-        );
-      }
     } catch (err: unknown) {
       logger.error(`[Stripe Webhook] Failed to record canceled payment ${id}`, { extra: { error: getErrorMessage(err) } });
     }
