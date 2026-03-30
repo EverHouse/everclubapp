@@ -9,7 +9,7 @@ import { AnnouncementDataProvider } from './AnnouncementDataContext';
 export type { CafeItem, EventSource, EventData, Announcement, MemberProfile, Booking };
 export type { PaginatedMembersResponse, FetchMembersOptions } from './MemberDataContext';
 // eslint-disable-next-line react-refresh/only-export-components
-export { useAuthData } from './AuthDataContext';
+export { useAuthData, useAuthDataSafe } from './AuthDataContext';
 // eslint-disable-next-line react-refresh/only-export-components
 export { useMemberData, useMemberLoading } from './MemberDataContext';
 // eslint-disable-next-line react-refresh/only-export-components

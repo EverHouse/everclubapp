@@ -4,7 +4,7 @@ import EmptyState from '../../../components/EmptyState';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import { AnimatedPage } from '../../../components/motion';
-import { useAuthData } from '../../../contexts/DataContext';
+import { useAuthDataSafe } from '../../../contexts/DataContext';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../../components/icons/Icon';
 
@@ -268,7 +268,8 @@ const FILTER_CATEGORIES = [
 ];
 
 const ChangelogTab: React.FC = () => {
-    const { actualUser } = useAuthData();
+    const authData = useAuthDataSafe();
+    const actualUser = authData?.actualUser ?? null;
     const isAdmin = actualUser?.role === 'admin';
     const [activeTab, setActiveTab] = useState<'updates' | 'activity'>('updates');
     
