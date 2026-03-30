@@ -6,6 +6,7 @@ import { MemberService, isEmail, normalizeEmail, isUUID } from '../memberService
 import { FeeBreakdown, FeeComputeParams, FeeLineItem } from '../../../shared/models/billing';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { notifyAllStaff } from '../notificationService';
 import { PRICING, isPlaceholderGuestName } from './pricingConfig';
 import { toIntArrayLiteral, toTextArrayLiteral, toBoolArrayLiteral } from '../../utils/sqlArrayLiteral';
 
@@ -1119,16 +1120,35 @@ export async function applyFeeBreakdownToParticipants(
         );
         const paidIds = new Set((paidCheck.rows as { id: number; cached_fee_cents: number }[]).map(r => r.id));
 
+        const discrepancies: { participantId: number; displayName: string; previousCents: number; newComputedCents: number }[] = [];
         for (const paidRow of paidCheck.rows as { id: number; cached_fee_cents: number }[]) {
           const idx = idsToUpdate.indexOf(paidRow.id);
           if (idx !== -1 && feesToUpdate[idx] !== paidRow.cached_fee_cents) {
+            const matchingParticipant = participantsWithIds.find(p => p.participantId === paidRow.id);
+            const displayName = matchingParticipant?.displayName ?? `Participant #${paidRow.id}`;
             logger.warn('[UnifiedFeeService] Skipping fee update for already-paid participant — fee changed, manual review needed', {
               participantId: paidRow.id,
               sessionId,
+              displayName,
               previousCents: paidRow.cached_fee_cents,
               newComputedCents: feesToUpdate[idx]
             });
+            discrepancies.push({ participantId: paidRow.id, displayName, previousCents: paidRow.cached_fee_cents, newComputedCents: feesToUpdate[idx] });
           }
+        }
+
+        if (discrepancies.length > 0) {
+          const lines = discrepancies.map(d =>
+            `• ${d.displayName}: was $${(d.previousCents / 100).toFixed(2)}, should be $${(d.newComputedCents / 100).toFixed(2)}`
+          ).join('\n');
+          notifyAllStaff(
+            'Fee Discrepancy — Manual Review Needed',
+            `Session #${sessionId} has ${discrepancies.length} paid participant(s) whose fees changed after payment:\n${lines}`,
+            'billing_update',
+            { relatedId: sessionId, relatedType: 'billing_session', sendPush: false }
+          ).catch(err => {
+            logger.warn('[UnifiedFeeService] Failed to send fee discrepancy staff notification', { extra: { error: getErrorMessage(err) } });
+          });
         }
 
         const safeIds = idsToUpdate.filter(id => !paidIds.has(id));
