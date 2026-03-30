@@ -51,9 +51,17 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
             const hasSelectedSlot = hourGroup.slots.some(s => selectedSlot?.id === s.id);
 
             return (
-              <div key={hourGroup.hour24}>
+              <div key={hourGroup.hour24} className="scroll-mt-20">
                 <button
-                  onClick={() => { haptic.light(); setExpandedHour(isExpanded ? null : hourGroup.hour24); }}
+                  onClick={(e) => {
+                    haptic.light();
+                    const isExpanding = !isExpanded;
+                    setExpandedHour(isExpanding ? hourGroup.hour24 : null);
+                    if (isExpanding) {
+                      const el = e.currentTarget.parentElement;
+                      if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                    }
+                  }}
                   className={`w-full p-4 rounded-xl border text-left transition-transform duration-fast active:scale-[0.99] flex items-center justify-between ${
                     hasSelectedSlot
                       ? (isDark ? 'bg-white/10 border-white/30' : 'bg-primary/5 border-primary/20')

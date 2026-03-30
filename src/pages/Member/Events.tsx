@@ -171,8 +171,12 @@ const MemberEvents: React.FC = () => {
     return userRsvps.some(r => r.event_id === parseInt(eventId, 10) && r.status === 'confirmed');
   };
 
-  const handleCardClick = (eventId: string) => {
-    setExpandedEventId(expandedEventId === eventId ? null : eventId);
+  const handleCardClick = (eventId: string, cardEl?: HTMLElement | null) => {
+    const isExpanding = expandedEventId !== eventId;
+    setExpandedEventId(isExpanding ? eventId : null);
+    if (isExpanding && cardEl) {
+      requestAnimationFrame(() => cardEl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
   };
 
   const submitRSVP = async (event: EventData) => {
@@ -318,7 +322,7 @@ const MemberEvents: React.FC = () => {
                     className={`accordion-item-wrapper rounded-xl overflow-hidden transition-colors duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'}`}
                   >
                     <button 
-                      onClick={() => handleCardClick(event.id)}
+                      onClick={(e) => handleCardClick(event.id, e.currentTarget.closest('.accordion-item-wrapper') as HTMLElement)}
                       aria-expanded={isExpanded}
                       aria-label={`${event.title} on ${event.date} at ${event.time}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
                       className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-colors duration-fast text-left ${isExpanded ? '' : 'tactile-btn'}`}

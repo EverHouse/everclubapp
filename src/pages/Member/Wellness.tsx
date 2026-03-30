@@ -723,7 +723,14 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
     className={`accordion-item-wrapper rounded-xl relative overflow-hidden transition-colors duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'} ${isPending ? 'ring-2 ring-offset-2 ring-offset-transparent animate-pulse' : ''} ${isCancelling ? 'ring-red-500/50' : isRsvping ? (showJoinWaitlist ? 'ring-amber-500/50' : 'ring-green-500/50') : ''}`}
   >
     <button 
-      onClick={onToggle}
+      onClick={(e) => {
+        const wasCollapsed = !isExpanded;
+        onToggle();
+        if (wasCollapsed) {
+          const el = e.currentTarget.closest('.accordion-item-wrapper') as HTMLElement;
+          if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        }
+      }}
       aria-expanded={isExpanded}
       aria-label={`${title} on ${date} at ${formattedTime.time} ${formattedTime.period}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
       className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-transform duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}

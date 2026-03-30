@@ -71,7 +71,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                         return (
                             <div
                                 key={closure.id}
-                                className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
+                                className={`scroll-mt-20 bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
                                     isIncomplete
                                         ? 'border-l-4 border-l-blue-500'
                                         : blocking
@@ -83,7 +83,14 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                     <div className="flex items-start justify-between gap-3">
                                         <div
                                             className="flex-1 min-w-0 cursor-pointer"
-                                            onClick={() => toggleNoticeExpand(closure.id)}
+                                            onClick={(e) => {
+                                                const isExpanding = !expandedNotices.has(closure.id);
+                                                toggleNoticeExpand(closure.id);
+                                                if (isExpanding) {
+                                                    const el = e.currentTarget.closest('.scroll-mt-20') as HTMLElement;
+                                                    if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                                                }
+                                            }}
                                         >
                                             <div className="flex flex-wrap items-center gap-1.5 mb-1">
                                                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isIncomplete ? 'bg-blue-500' : blocking ? 'bg-red-500' : 'bg-amber-500'}`}></span>
@@ -183,7 +190,14 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 <Icon name="edit" className="text-base" />
                                             </button>
                                             <button
-                                                onClick={() => toggleNoticeExpand(closure.id)}
+                                                onClick={(e) => {
+                                                    const isExpanding = !expandedNotices.has(closure.id);
+                                                    toggleNoticeExpand(closure.id);
+                                                    if (isExpanding) {
+                                                        const el = e.currentTarget.closest('.scroll-mt-20') as HTMLElement;
+                                                        if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                                                    }
+                                                }}
                                                 className="p-1"
                                             >
                                                 <Icon name="expand_more" className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -192,42 +206,44 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                     </div>
                                 </div>
 
-                                {isExpanded && (
-                                    <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-4 space-y-3">
-                                        {closure.notes && (
-                                            <div>
-                                                <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-2">Notes</p>
-                                                <div className="text-sm text-gray-600 dark:text-white/70 whitespace-pre-wrap">{stripHtml(closure.notes)}</div>
-                                            </div>
-                                        )}
+                                <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
+                                    <div className="cls-safe-inner">
+                                        <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-4 space-y-3">
+                                            {closure.notes && (
+                                                <div>
+                                                    <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-2">Notes</p>
+                                                    <div className="text-sm text-gray-600 dark:text-white/70 whitespace-pre-wrap">{stripHtml(closure.notes)}</div>
+                                                </div>
+                                            )}
 
-                                        {closure.memberNotice && (
-                                            <div className="bg-white/60 dark:bg-white/5 rounded-lg p-3 text-sm text-gray-600 dark:text-white/70">
-                                                <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-1">Member Notice</p>
-                                                {closure.memberNotice}
-                                            </div>
-                                        )}
+                                            {closure.memberNotice && (
+                                                <div className="bg-white/60 dark:bg-white/5 rounded-lg p-3 text-sm text-gray-600 dark:text-white/70">
+                                                    <p className="text-[10px] font-bold uppercase text-gray-400 dark:text-white/40 mb-1">Member Notice</p>
+                                                    {closure.memberNotice}
+                                                </div>
+                                            )}
 
-                                        <div className="flex gap-2 pt-2">
-                                            <button
-                                                onClick={(e) => handleEditClosure(closure, e)}
-                                                className={`flex-1 py-2 px-4 rounded-xl font-medium transition-colors duration-fast ${
-                                                    blocking
-                                                        ? 'bg-red-500 text-white hover:bg-red-600'
-                                                        : 'bg-amber-500 text-white hover:bg-amber-600'
-                                                }`}
-                                            >
-                                                Edit Notice
-                                            </button>
-                                            <button
-                                                onClick={(e) => handleDeleteClosure(closure.id, e)}
-                                                className="py-2 px-4 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-fast"
-                                            >
-                                                Delete
-                                            </button>
+                                            <div className="flex gap-2 pt-2">
+                                                <button
+                                                    onClick={(e) => handleEditClosure(closure, e)}
+                                                    className={`flex-1 py-2 px-4 rounded-xl font-medium transition-colors duration-fast ${
+                                                        blocking
+                                                            ? 'bg-red-500 text-white hover:bg-red-600'
+                                                            : 'bg-amber-500 text-white hover:bg-amber-600'
+                                                    }`}
+                                                >
+                                                    Edit Notice
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleDeleteClosure(closure.id, e)}
+                                                    className="py-2 px-4 rounded-xl bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-fast"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         );
                     })}
@@ -260,7 +276,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                 return (
                                     <div
                                         key={closure.id}
-                                        className={`bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl overflow-hidden transition-opacity duration-fast opacity-70 hover:opacity-100 hover:shadow-sm group ${
+                                        className={`scroll-mt-20 bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl overflow-hidden transition-opacity duration-fast opacity-70 hover:opacity-100 hover:shadow-sm group ${
                                             blocking
                                                 ? 'border-l-4 border-l-red-500'
                                                 : 'border-l-4 border-l-amber-500'
@@ -270,7 +286,14 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                             <div className="flex items-start justify-between gap-2">
                                                 <div
                                                     className="flex-1 min-w-0 cursor-pointer"
-                                                    onClick={() => toggleNoticeExpand(closure.id)}
+                                                    onClick={(e) => {
+                                                        const isExpanding = !expandedNotices.has(closure.id);
+                                                        toggleNoticeExpand(closure.id);
+                                                        if (isExpanding) {
+                                                            const el = e.currentTarget.closest('.scroll-mt-20') as HTMLElement;
+                                                            if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                                                        }
+                                                    }}
                                                 >
                                                     <div className="flex flex-wrap items-center gap-1.5 mb-1">
                                                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${blocking ? 'bg-red-400' : 'bg-amber-400'}`}></span>
@@ -311,7 +334,14 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                         <Icon name="edit" className="text-base" />
                                                     </button>
                                                     <button
-                                                        onClick={() => toggleNoticeExpand(closure.id)}
+                                                        onClick={(e) => {
+                                                            const isExpanding = !expandedNotices.has(closure.id);
+                                                            toggleNoticeExpand(closure.id);
+                                                            if (isExpanding) {
+                                                                const el = e.currentTarget.closest('.scroll-mt-20') as HTMLElement;
+                                                                if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                                                            }
+                                                        }}
                                                         className="p-1"
                                                     >
                                                         <Icon name="expand_more" className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -320,24 +350,26 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                             </div>
                                         </div>
 
-                                        {isExpanded && (
-                                            <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-3">
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={(e) => handleEditClosure(closure, e)}
-                                                        className="flex-1 py-2 px-3 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition-colors duration-fast"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleDeleteClosure(closure.id, e)}
-                                                        className="py-2 px-3 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 text-sm hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-fast"
-                                                    >
-                                                        Delete
-                                                    </button>
+                                        <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
+                                            <div className="cls-safe-inner">
+                                                <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-3">
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={(e) => handleEditClosure(closure, e)}
+                                                            className="flex-1 py-2 px-3 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 text-sm font-medium hover:bg-gray-300 dark:hover:bg-white/20 transition-colors duration-fast"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDeleteClosure(closure.id, e)}
+                                                            className="py-2 px-3 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 text-sm hover:bg-gray-200 dark:hover:bg-white/10 transition-colors duration-fast"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 );
                             })}
