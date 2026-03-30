@@ -73,35 +73,47 @@ export async function getRefundedPayments(): Promise<RefundablePayment[]> {
 
   const refundedStatuses = ['refunded', 'partially_refunded'];
 
-  const results = await db
-    .select({
-      id: stripePaymentIntents.id,
-      paymentIntentId: stripePaymentIntents.stripePaymentIntentId,
-      userId: stripePaymentIntents.userId,
-      stripeCustomerId: stripePaymentIntents.stripeCustomerId,
-      memberEmail: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      amount: stripePaymentIntents.amountCents,
-      description: stripePaymentIntents.description,
-      status: stripePaymentIntents.status,
-      createdAt: stripePaymentIntents.createdAt,
-    })
-    .from(stripePaymentIntents)
-    .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
-    .where(
-      and(
-        inArray(stripePaymentIntents.status, refundedStatuses),
-        gte(stripePaymentIntents.createdAt, ninetyDaysAgo)
-      )
-    )
-    .orderBy(desc(stripePaymentIntents.createdAt));
+  const results = await db.execute(sql`
+    SELECT
+      spi.id,
+      spi.stripe_payment_intent_id AS "paymentIntentId",
+      spi.user_id AS "userId",
+      spi.stripe_customer_id AS "stripeCustomerId",
+      COALESCE(u.email, u2.email) AS "memberEmail",
+      COALESCE(u.first_name, u2.first_name) AS "firstName",
+      COALESCE(u.last_name, u2.last_name) AS "lastName",
+      spi.amount_cents AS amount,
+      spi.description,
+      spi.status,
+      spi.created_at AS "createdAt",
+      br.user_email AS "bookingOwnerEmail",
+      br_owner.first_name AS "bookingOwnerFirst",
+      br_owner.last_name AS "bookingOwnerLast"
+    FROM stripe_payment_intents spi
+    LEFT JOIN users u ON (u.id::text = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id))
+    LEFT JOIN users u2 ON (u2.stripe_customer_id IS NOT NULL AND u2.stripe_customer_id = spi.stripe_customer_id AND u.id IS NULL)
+    LEFT JOIN booking_requests br ON br.id = spi.booking_id
+    LEFT JOIN users br_owner ON LOWER(br_owner.email) = LOWER(br.user_email) AND u.id IS NULL AND u2.id IS NULL
+    WHERE spi.status IN ('refunded', 'partially_refunded')
+      AND spi.created_at >= ${ninetyDaysAgo}
+    ORDER BY spi.created_at DESC
+  `);
 
-  return results.map(row => ({
+  return (results.rows as Array<{
+    id: number; paymentIntentId: string; userId: string | null; stripeCustomerId: string | null;
+    memberEmail: string | null; firstName: string | null; lastName: string | null;
+    amount: number; description: string | null; status: string; createdAt: Date | null;
+    bookingOwnerEmail: string | null; bookingOwnerFirst: string | null; bookingOwnerLast: string | null;
+  }>).map(row => ({
     id: row.id,
     paymentIntentId: row.paymentIntentId,
-    memberEmail: row.memberEmail || row.userId || null,
-    memberName: formatMemberName(row.firstName, row.lastName, row.memberEmail || row.userId, row.stripeCustomerId),
+    memberEmail: row.memberEmail || row.bookingOwnerEmail || row.userId || null,
+    memberName: formatMemberName(
+      row.firstName || row.bookingOwnerFirst,
+      row.lastName || row.bookingOwnerLast,
+      row.memberEmail || row.bookingOwnerEmail || row.userId,
+      row.stripeCustomerId
+    ),
     amount: row.amount,
     description: row.description,
     status: row.status,
@@ -241,7 +253,16 @@ export async function updatePaymentStatusAndAmount(paymentIntentId: string, stat
     .where(eq(stripePaymentIntents.stripePaymentIntentId, paymentIntentId));
 }
 
+function isHumanReadable(value: string): boolean {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(value)) return false;
+  if (/^(cus_|pi_|seti_|sub_|in_|ch_|re_|pm_|tok_)/.test(value)) return false;
+  if (/^[a-f0-9]{24,}$/i.test(value)) return false;
+  return true;
+}
+
 function formatMemberName(firstName: string | null, lastName: string | null, fallback: string | null, stripeCustomerId?: string | null): string {
   const name = [firstName, lastName].filter(Boolean).join(' ').trim();
-  return name || fallback || stripeCustomerId || 'Unknown';
+  if (name) return name;
+  if (fallback && isHumanReadable(fallback)) return fallback;
+  return 'Unknown';
 }
