@@ -47,7 +47,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
   try {
     const { email } = req.params;
     
-    if (email === 'private-event@resolved' || (email as string).endsWith('@trackman.local') || (email as string).startsWith('unmatched-')) {
+    if (email === 'private-event@resolved' || email.endsWith('@trackman.local') || email.startsWith('unmatched-')) {
       return res.status(200).json({ synthetic: true, email, firstName: 'Private', lastName: 'Event', tier: null, membershipStatus: null });
     }
     
@@ -516,8 +516,9 @@ router.put('/api/members/:email/profile-details', isStaffOrAdmin, async (req, re
 
 router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
-    const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
+    const parseResult = emailParamSchema.safeParse(req.params.email);
+    if (!parseResult.success) return res.status(400).json({ error: 'Invalid email format' });
+    const normalizedEmail = parseResult.data;
     
     const bookingHistory = await db.select({
       id: bookingRequests.id,
@@ -774,7 +775,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
     }));
 
     const combinedVisitHistory = [...visitHistory, ...walkInItems].sort((a, b) =>
-      new Date(b.bookingDate as string).getTime() - new Date(a.bookingDate as string).getTime()
+      new Date(String(b.bookingDate)).getTime() - new Date(String(a.bookingDate)).getTime()
     );
 
     const attendedBookingsCount = visitHistory.length + walkInItems.length;
@@ -808,8 +809,9 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/members/:email/guests', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
-    const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
+    const parseResult = emailParamSchema.safeParse(req.params.email);
+    if (!parseResult.success) return res.status(400).json({ error: 'Invalid email format' });
+    const normalizedEmail = parseResult.data;
     
     const guestHistory = await db.select({
       id: bookingParticipants.id,
@@ -894,8 +896,9 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
 
 router.get('/api/members/:email/cascade-preview', isStaffOrAdmin, async (req, res) => {
   try {
-    const { email } = req.params;
-    const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
+    const parseResult = emailParamSchema.safeParse(req.params.email);
+    if (!parseResult.success) return res.status(400).json({ error: 'Invalid email format' });
+    const normalizedEmail = parseResult.data;
     
     const userResult = await db.select({ id: users.id })
       .from(users)
