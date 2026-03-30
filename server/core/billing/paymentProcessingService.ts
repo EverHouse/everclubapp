@@ -134,7 +134,46 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     const totalCount = parseInt(row.total, 10) || 0;
     const paidCount = parseInt(row.paid_count, 10) || 0;
     const unpaidWithFees = parseInt(row.unpaid_with_fees, 10) || 0;
-    if (totalCount > 0 && unpaidWithFees === 0) {
+    if (totalCount > 0 && unpaidWithFees === 0 && paidCount > 0) {
+      const stalePiCheck = await db.execute(sql`
+        SELECT spi.stripe_payment_intent_id FROM stripe_payment_intents spi
+        WHERE spi.booking_id = ${bookingId} AND spi.status = 'succeeded'
+        AND spi.purpose IN ('prepayment', 'booking_fee')
+        ORDER BY spi.created_at DESC LIMIT 1
+      `);
+      if (stalePiCheck.rows.length > 0) {
+        const piId = (stalePiCheck.rows[0] as { stripe_payment_intent_id: string }).stripe_payment_intent_id;
+        try {
+          const stripeClient = await getStripeClient();
+          const livePi = await stripeClient.paymentIntents.retrieve(piId);
+          if (livePi.status !== 'succeeded') {
+            const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
+            logger.warn(`[${label} Stripe] All participants marked paid but Stripe PI not succeeded — correcting stale data`, {
+              extra: { bookingId, piId, dbStatus: 'succeeded', stripeStatus: livePi.status }
+            });
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
+            await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+               WHERE stripe_payment_intent_id = ${piId} AND payment_status = 'paid'`);
+            await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${piId} AND status IN ('completed', 'paid')`);
+            await applyFeeBreakdownToParticipants(booking.session_id!, breakdown);
+            const retryPending = await db.execute(sql`
+              SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents
+               FROM booking_participants bp
+               WHERE bp.session_id = ${booking.session_id}
+                 AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
+                 AND bp.cached_fee_cents > 0
+            `);
+            if (retryPending.rows.length > 0) {
+              logger.info(`[${label} Stripe] Stale data corrected, re-running with ${retryPending.rows.length} pending participants`, { extra: { bookingId } });
+              return processPayFees(params);
+            }
+          }
+        } catch (verifyErr: unknown) {
+          logger.warn(`[${label} Stripe] Could not verify PI with Stripe during all-paid check`, {
+            extra: { bookingId, piId, error: getErrorMessage(verifyErr) }
+          });
+        }
+      }
       logger.info(`[${label} Stripe] All participants settled (paid or zero-fee)`, { extra: { bookingId, paidCount, totalCount } });
       return {
         status: 200,
