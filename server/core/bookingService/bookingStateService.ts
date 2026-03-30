@@ -99,7 +99,7 @@ export class BookingStateService {
     enforceLateCancel?: boolean;
     expectedVersion?: number;
   }): Promise<CancelResult> {
-    const { bookingId, source, cancelledBy, staffNotes, staffEmail: _staffEmail, enforceLateCancel, expectedVersion } = params;
+    const { bookingId, source, cancelledBy, staffNotes, staffEmail, enforceLateCancel, expectedVersion } = params;
 
     let booking: BookingRecord;
     try {
@@ -174,8 +174,8 @@ export class BookingStateService {
     }
 
     const isTrackmanLinked = !!booking.trackmanBookingId && /^\d+$/.test(booking.trackmanBookingId);
-    const wasApproved = booking.status === 'approved';
-    const needsPendingCancel = isTrackmanLinked && wasApproved && source !== 'trackman_webhook';
+    const wasApprovedOrConfirmed = booking.status === 'approved' || booking.status === 'confirmed';
+    const needsPendingCancel = isTrackmanLinked && wasApprovedOrConfirmed && source !== 'trackman_webhook';
 
     if (needsPendingCancel) {
       return this.handlePendingCancellationFlow(bookingId, booking, source, cancelledBy);
@@ -201,7 +201,7 @@ export class BookingStateService {
 
     const memberCancelled = cancelledBy === booking.userEmail;
     const friendlyDateTime = formatNotificationDateTime(booking.requestDate, booking.startTime || '00:00');
-    const statusLabel = wasApproved ? 'booking' : 'booking request';
+    const statusLabel = wasApprovedOrConfirmed ? 'booking' : 'booking request';
 
     const manifest = await db.transaction(async (tx) => {
       const sideEffects: SideEffectsManifest = {
@@ -1223,6 +1223,130 @@ export class BookingStateService {
         extra: { bookingId, errors, persistError: getErrorMessage(persistErr) }
       });
     }
+  }
+
+  static async cleanupDeclinedBooking(bookingId: number, bookingDetails?: { resourceId?: number | null; requestDate?: string; startTime?: string; durationMinutes?: number | null }): Promise<{ errors: string[] }> {
+    const errors: string[] = [];
+
+    try {
+      await db.execute(sql`DELETE FROM guest_pass_holds WHERE booking_id = ${bookingId}`);
+    } catch (err: unknown) {
+      const msg = `Failed to release guest pass hold: ${getErrorMessage(err)}`;
+      errors.push(msg);
+      logger.warn('[BookingStateService] cleanupDeclinedBooking: guest pass hold release failed', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      await voidBookingInvoice(bookingId);
+    } catch (err: unknown) {
+      const msg = `Failed to void invoice: ${getErrorMessage(err)}`;
+      errors.push(msg);
+      logger.warn('[BookingStateService] cleanupDeclinedBooking: invoice void failed', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      const piIdsToCancel = new Set<string>();
+
+      const pendingIntents = await db.select({ stripePaymentIntentId: stripePaymentIntents.stripePaymentIntentId })
+        .from(stripePaymentIntents)
+        .where(and(
+          eq(stripePaymentIntents.bookingId, bookingId),
+          sql`${stripePaymentIntents.status} IN ('pending', 'requires_payment_method', 'requires_action', 'requires_confirmation', 'requires_capture')`,
+        ));
+
+      for (const row of pendingIntents) {
+        piIdsToCancel.add(row.stripePaymentIntentId);
+      }
+
+      const snapshotPIs = await db.execute(sql`
+        SELECT stripe_payment_intent_id
+        FROM booking_fee_snapshots
+        WHERE booking_id = ${bookingId} AND stripe_payment_intent_id IS NOT NULL AND status IN ('pending', 'requires_action')
+      `);
+
+      for (const row of snapshotPIs.rows) {
+        piIdsToCancel.add(row.stripe_payment_intent_id as string);
+      }
+
+      const cancelledPiIds: string[] = [];
+      for (const piId of piIdsToCancel) {
+        try {
+          const cancelResult = await cancelPaymentIntent(piId);
+          if (cancelResult.success) {
+            cancelledPiIds.push(piId);
+            logger.info('[BookingStateService] Cancelled pending PI for declined booking', { extra: { paymentIntentId: piId, bookingId } });
+          } else {
+            const msg = `Failed to cancel PI ${piId.substring(0, 12)}: ${cancelResult.error}`;
+            errors.push(msg);
+            logger.warn('[BookingStateService] Failed to cancel pending PI for declined booking', { extra: { paymentIntentId: piId, error: cancelResult.error } });
+          }
+        } catch (piErr: unknown) {
+          const msg = `Failed to cancel PI ${piId.substring(0, 12)}: ${getErrorMessage(piErr)}`;
+          errors.push(msg);
+          logger.warn('[BookingStateService] cleanupDeclinedBooking: PI cancellation failed', { extra: { paymentIntentId: piId, error: getErrorMessage(piErr) } });
+        }
+      }
+
+      for (const piId of cancelledPiIds) {
+        try {
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId} AND status IN ('pending', 'requires_action')`);
+        } catch (snapshotErr: unknown) {
+          logger.warn('[BookingStateService] cleanupDeclinedBooking: snapshot status update failed', { extra: { paymentIntentId: piId, error: getErrorMessage(snapshotErr) } });
+        }
+      }
+    } catch (err: unknown) {
+      const msg = `Failed to cancel pending payment intents: ${getErrorMessage(err)}`;
+      errors.push(msg);
+      logger.warn('[BookingStateService] cleanupDeclinedBooking: PI query failed', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    try {
+      await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`);
+    } catch (err: unknown) {
+      const msg = `Failed to clean up remaining fee snapshots: ${getErrorMessage(err)}`;
+      errors.push(msg);
+      logger.warn('[BookingStateService] cleanupDeclinedBooking: fee snapshot cleanup failed', { extra: { bookingId, error: getErrorMessage(err) } });
+    }
+
+    if (bookingDetails?.resourceId && bookingDetails.requestDate && bookingDetails.startTime) {
+      try {
+        const { resourceId, requestDate, startTime, durationMinutes } = bookingDetails;
+        if (durationMinutes) {
+          const [startHour, startMin] = startTime.split(':').map(Number);
+          const startTotalMin = startHour * 60 + startMin;
+          const endTotalMin = startTotalMin + durationMinutes;
+          const endHour = Math.floor(endTotalMin / 60);
+          const endMinute = endTotalMin % 60;
+          const endTime = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+          await db.execute(sql`DELETE FROM trackman_bay_slots
+            WHERE resource_id = ${resourceId} AND slot_date = ${requestDate} AND start_time >= ${startTime} AND start_time < ${endTime}`);
+        } else {
+          await db.execute(sql`DELETE FROM trackman_bay_slots
+            WHERE resource_id = ${resourceId} AND slot_date = ${requestDate} AND start_time = ${startTime}`);
+        }
+      } catch (err: unknown) {
+        const msg = `Failed Trackman slot cleanup: ${getErrorMessage(err)}`;
+        errors.push(msg);
+        logger.warn('[BookingStateService] cleanupDeclinedBooking: Trackman slot cleanup failed', { extra: { bookingId, error: getErrorMessage(err) } });
+      }
+    }
+
+    if (errors.length > 0) {
+      await BookingStateService.persistFailedSideEffects(bookingId, {
+        stripeRefunds: [],
+        stripeSnapshotRefunds: [],
+        balanceRefunds: [],
+        guestPassRefunds: [],
+        invoiceVoid: null,
+        calendarDeletion: null,
+        notifications: {},
+        trackmanSlotCleanup: null,
+        availabilityBroadcast: null,
+        bookingEvent: null,
+      }, errors);
+    }
+
+    return { errors };
   }
 
   private static extractBookingData(booking: BookingRecord): CancelResult['bookingData'] {

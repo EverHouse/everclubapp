@@ -882,15 +882,22 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
 
     if (Number(total) > 0) {
       let cancelledCount = 0;
-      const { cancelBooking } = await import('../bookingService/approvalCancel');
+      const { BookingStateService } = await import('../bookingService/bookingStateService');
       for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
         try {
-          await cancelBooking({
+          const result = await BookingStateService.cancelBooking({
             bookingId: row.id,
-            staff_notes: `Auto-cancelled: member status is ${row.membership_status}`,
-            cancelled_by: 'system_integrity_check',
+            source: 'system',
+            staffNotes: `Auto-cancelled: member status is ${row.membership_status}`,
+            cancelledBy: 'system_integrity_check',
           });
-          cancelledCount++;
+          if (result.success) {
+            cancelledCount++;
+          } else {
+            logger.error('[DataIntegrity] Auto-cancel returned failure for inactive member booking', {
+              extra: { bookingId: row.id, error: result.error, statusCode: result.statusCode }
+            });
+          }
         } catch (cancelErr: unknown) {
           logger.error('[DataIntegrity] Failed to auto-cancel booking for inactive member', {
             extra: { bookingId: row.id, error: getErrorMessage(cancelErr) }

@@ -16,13 +16,11 @@ import { timePeriodsOverlap } from './conflictDetection';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { PaymentStatusService } from '../billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../stripe';
-import { cancelPendingPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
 import Stripe from 'stripe';
 import { getCalendarNameForBayAsync } from '../../routes/bays/helpers';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent } from '../calendar/index';
-import { releaseGuestPassHold } from '../billing/guestPassHoldService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
-import { voidBookingInvoice, finalizeAndPayInvoice, syncBookingInvoice, getBookingInvoiceId } from '../billing/bookingInvoiceService';
+import { finalizeAndPayInvoice, syncBookingInvoice, getBookingInvoiceId } from '../billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { upsertVisitor } from '../visitors/matchingService';
 import { AppError, assertBookingVersion } from '../errors';
@@ -822,24 +820,15 @@ export async function declineBooking(params: DeclineBookingParams) {
     }, { sendPush: true }).catch(err => logger.error('[Approval] Decline notification failed', { extra: { error: getErrorMessage(err) } }));
   }
 
-  await releaseGuestPassHold(bookingId);
-
-  voidBookingInvoice(bookingId).catch(err => {
-    logger.warn('[Decline] Non-blocking: failed to void draft invoice', { extra: { bookingId, error: getErrorMessage(err) } });
+  const { BookingStateService } = await import('./bookingStateService');
+  BookingStateService.cleanupDeclinedBooking(bookingId, {
+    resourceId: updated.resourceId,
+    requestDate: updated.requestDate,
+    startTime: updated.startTime,
+    durationMinutes: updated.durationMinutes,
+  }).catch(err => {
+    logger.error('[Decline] Cleanup failed', { extra: { bookingId, error: getErrorMessage(err) } });
   });
-
-  (async () => {
-    try {
-      await cancelPendingPaymentIntentsForBooking(bookingId);
-    } catch (err: unknown) {
-      logger.warn('[Decline] Non-blocking: failed to cancel pending payment intents', { extra: { bookingId, error: getErrorMessage(err) } });
-    }
-    try {
-      await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ${bookingId} AND status IN ('pending', 'requires_action')`);
-    } catch (err: unknown) {
-      logger.warn('[Decline] Non-blocking: failed to clean up fee snapshots', { extra: { bookingId, error: getErrorMessage(err) } });
-    }
-  })().catch(err => logger.error('[Decline] Unhandled async error in fee snapshot cleanup', { extra: { bookingId, error: getErrorMessage(err) } }));
 
   sendPushNotification(updated.userEmail, {
     title: 'Booking Request Update',
