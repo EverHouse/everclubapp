@@ -353,6 +353,14 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
             extra: { bookingId: resolvedBookingId, piId: existingPayment.stripe_payment_intent_id, dbStatus: existingPayment.status, stripeStatus: livePi.status }
           });
           await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPayment.stripe_payment_intent_id}`);
+          const resetResult = await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+             WHERE stripe_payment_intent_id = ${existingPayment.stripe_payment_intent_id} AND payment_status = 'paid'`);
+          if ((resetResult as { rowCount?: number }).rowCount && (resetResult as { rowCount?: number }).rowCount! > 0) {
+            logger.info('[Stripe] Reset participants linked to stale PI back to pending', {
+              extra: { bookingId: resolvedBookingId, piId: existingPayment.stripe_payment_intent_id, resetCount: (resetResult as { rowCount?: number }).rowCount }
+            });
+          }
+          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${existingPayment.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
         } catch (verifyErr: unknown) {
           logger.warn('[Stripe] Could not verify existing payment with Stripe — allowing charge retry', {
             extra: { bookingId: resolvedBookingId, piId: existingPayment.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }

@@ -196,6 +196,7 @@ export const FEE_SNAPSHOT_STATUS = {
   REQUIRES_ACTION: 'requires_action',
   PAID: 'paid',
   CREDIT_ADJUSTED: 'credit_adjusted',
+  STALE: 'stale',
 } as const;
 
 export type FeeSnapshotStatus = typeof FEE_SNAPSHOT_STATUS[keyof typeof FEE_SNAPSHOT_STATUS];

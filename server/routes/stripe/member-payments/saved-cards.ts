@@ -100,13 +100,33 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     }
 
     const existingPaymentResult = await db.execute(sql`
-      SELECT stripe_payment_intent_id FROM stripe_payment_intents 
+      SELECT stripe_payment_intent_id, status FROM stripe_payment_intents 
       WHERE booking_id = ${bookingId} AND status IN ('succeeded', 'refunding', 'partially_refunded')
       AND purpose IN ('prepayment', 'booking_fee')
       LIMIT 1
     `);
     if (existingPaymentResult.rows.length > 0) {
-      return res.status(409).json({ error: 'Payment has already been collected for this booking.' });
+      const existingPi = existingPaymentResult.rows[0] as { stripe_payment_intent_id: string; status: string };
+      try {
+        const { getStripeClient: getClient } = await import('../../../core/stripe/client');
+        const stripeClient = await getClient();
+        const livePi = await stripeClient.paymentIntents.retrieve(existingPi.stripe_payment_intent_id);
+        if (livePi.status === 'succeeded') {
+          return res.status(409).json({ error: 'Payment has already been collected for this booking.' });
+        }
+        const correctedStatus = livePi.status === 'canceled' ? 'canceled' : livePi.status === 'requires_payment_method' ? 'failed' : livePi.status;
+        logger.warn('[MemberPayments] DB says payment succeeded but Stripe disagrees — correcting and allowing retry', {
+          extra: { bookingId, piId: existingPi.stripe_payment_intent_id, dbStatus: existingPi.status, stripeStatus: livePi.status }
+        });
+        await db.execute(sql`UPDATE stripe_payment_intents SET status = ${correctedStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id}`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+           WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND payment_status = 'paid'`);
+        await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND status IN ('completed', 'paid')`);
+      } catch (verifyErr: unknown) {
+        logger.warn('[MemberPayments] Could not verify existing payment with Stripe — allowing charge retry', {
+          extra: { bookingId, piId: existingPi.stripe_payment_intent_id, error: getErrorMessage(verifyErr) }
+        });
+      }
     }
 
     const feeBreakdown = await computeFeeBreakdown({ bookingId, source: 'stripe' });
