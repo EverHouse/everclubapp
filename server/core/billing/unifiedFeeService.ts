@@ -1153,7 +1153,7 @@ export async function applyFeeBreakdownToParticipants(
         if (zeroPaidResetIds.length > 0) {
           await tx.execute(
             sql`UPDATE booking_participants
-             SET payment_status = 'pending', stripe_payment_intent_id = NULL, updated_at = NOW()
+             SET payment_status = 'pending', stripe_payment_intent_id = NULL
              WHERE id = ANY(${toIntArrayLiteral(zeroPaidResetIds)}::int[])`
           );
         }
