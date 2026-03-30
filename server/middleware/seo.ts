@@ -583,7 +583,7 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
       const nonce = res.locals.cspNonce as string;
 
       res.setHeader('Content-Type', 'text/html');
-      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
       const linkHints = ['</images/hero-lounge-optimized.webp>; rel=preload; as=image; type=image/webp'];
