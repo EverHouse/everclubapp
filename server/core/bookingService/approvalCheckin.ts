@@ -429,6 +429,97 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   const txResult = await db.transaction(async (tx) => {
+    const lockedRow = await tx.execute(sql`
+      SELECT br.status, br.session_id, br.user_email
+      FROM booking_requests br
+      WHERE br.id = ${bookingId}
+      FOR UPDATE
+    `);
+
+    if (lockedRow.rows.length === 0) {
+      return { driftError: 'Booking not found during commit', driftCode: 404 };
+    }
+
+    const locked = lockedRow.rows[0] as unknown as { status: string | null; session_id: number | null; user_email: string | null };
+
+    if (locked.status !== currentStatus) {
+      return { driftError: `Booking status changed from "${currentStatus}" to "${locked.status}" since you loaded this page. Please refresh and try again.`, driftCode: 409 };
+    }
+
+    if (newStatus === 'attended' && !skipPaymentCheck) {
+      const txOwnerStatus = await tx.execute(sql`
+        SELECT membership_status FROM users
+        WHERE LOWER(email) = LOWER(${locked.user_email ?? null})
+        LIMIT 1
+      `);
+      const txMemberStatus = (txOwnerStatus.rows[0] as unknown as { membership_status: string | null })?.membership_status;
+      const blockedStatuses = ['cancelled', 'suspended', 'terminated', 'inactive', 'archived'];
+      if (txMemberStatus && blockedStatuses.includes(txMemberStatus)) {
+        return { driftError: `Member status changed to "${txMemberStatus}" since you loaded this page. Check-in blocked.`, driftCode: 409, membershipBlocked: true };
+      }
+    }
+
+    const txSessionId = locked.session_id ?? existing.session_id;
+
+    if (newStatus === 'attended' && !skipRosterCheck && txSessionId) {
+      const txRoster = await tx.execute(sql`
+        SELECT
+          br.declared_player_count,
+          br.trackman_player_count,
+          br.session_id,
+          (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')) as participant_count
+        FROM booking_requests br
+        WHERE br.id = ${bookingId}
+      `);
+      if (txRoster.rows.length > 0) {
+        const r = txRoster.rows[0] as unknown as { declared_player_count: number | null; trackman_player_count: number | null; session_id: number | null; participant_count: string };
+        const declaredCount = r.declared_player_count || r.trackman_player_count || 1;
+        const participantCount = parseInt(r.participant_count, 10) || 0;
+        if (!(r.session_id && participantCount >= declaredCount) && declaredCount > 1) {
+          return { driftError: `Roster changed since you loaded this page. ${declaredCount - participantCount} player slot(s) now unassigned. Please refresh.`, driftCode: 409, requiresRoster: true };
+        }
+      }
+    }
+
+    if (newStatus === 'attended' && !skipPaymentCheck && txSessionId) {
+      await tx.execute(sql`
+        SELECT bp.id FROM booking_participants bp
+        WHERE bp.session_id = ${txSessionId}
+        FOR SHARE
+      `);
+
+      const txBalance = await tx.execute(sql`
+        SELECT
+          COALESCE(SUM(CASE WHEN bp.payment_status = 'pending' AND COALESCE(bp.cached_fee_cents, 0) > 0
+            THEN COALESCE(bp.cached_fee_cents, 0)::numeric / 100.0 ELSE 0 END), 0) as tx_outstanding
+        FROM booking_participants bp
+        WHERE bp.session_id = ${txSessionId}
+      `);
+      const txOutstanding = parseFloat((txBalance.rows[0] as unknown as { tx_outstanding: string })?.tx_outstanding || '0');
+
+      let txNetOutstanding = txOutstanding;
+      if (txOutstanding > 0) {
+        const txPrepaid = await tx.execute(sql`
+          SELECT COALESCE(SUM(amount_cents), 0)::numeric / 100.0 as prepaid_total
+          FROM conference_prepayments
+          WHERE booking_id = ${bookingId} AND status IN ('succeeded', 'completed')
+        `);
+        const txPrepaidTotal = parseFloat((txPrepaid.rows[0] as unknown as { prepaid_total: string })?.prepaid_total || '0');
+        txNetOutstanding = Math.max(0, txOutstanding - txPrepaidTotal);
+      }
+
+      if (!confirmPayment && txNetOutstanding > 0 && totalOutstanding <= 0) {
+        return { driftError: `Fees were updated since you loaded this page. Outstanding balance is now $${txNetOutstanding.toFixed(2)}. Please refresh.`, driftCode: 409, requiresPayment: true, totalOutstanding: txNetOutstanding };
+      }
+
+      if (txNetOutstanding > 0 && totalOutstanding > 0) {
+        const drift = Math.abs(txNetOutstanding - totalOutstanding);
+        if (drift > 0.01) {
+          return { driftError: `Outstanding balance changed from $${totalOutstanding.toFixed(2)} to $${txNetOutstanding.toFixed(2)} since you loaded this page. Please refresh.`, driftCode: 409, requiresPayment: true, totalOutstanding: txNetOutstanding };
+        }
+      }
+    }
+
     if (skipPaymentCheck) {
       await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
     }
@@ -469,7 +560,15 @@ export async function checkinBooking(params: CheckinBookingParams) {
     return { updated, paidParticipants };
   });
 
-  if (!txResult || txResult.updated.length === 0) {
+  if (txResult && 'driftError' in txResult) {
+    logger.warn('[Checkin] Precondition drift detected during atomic check-in', {
+      extra: { bookingId, drift: txResult.driftError, code: txResult.driftCode }
+    });
+    const { driftError, driftCode, ...rest } = txResult;
+    return { error: driftError, statusCode: driftCode, ...rest };
+  }
+
+  if (!txResult || !('updated' in txResult) || txResult.updated.length === 0) {
     logger.warn('[Checkin] Booking status changed during check-in, possible race condition', { extra: { bookingId, expectedStatus: currentStatus, newStatus } });
     return { error: 'Booking status changed during check-in. Please refresh and try again.', statusCode: 409 };
   }
