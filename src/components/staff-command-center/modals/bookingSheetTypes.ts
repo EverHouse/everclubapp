@@ -42,7 +42,7 @@ export interface FinancialSummary {
   totalOwnerOwes: number;
   totalPlayersOwe: number;
   grandTotal: number;
-  playerBreakdown: Array<{ name: string; tier: string | null; /** Fee amount in cents */ fee: number; feeNote: string; membershipStatus?: string | null }>;
+  playerBreakdown: Array<{ name: string; tier: string | null; /** Fee amount in cents */ fee: number; feeNote: string; membershipStatus?: string | null; participantId?: number; paymentStatus?: string }>;
   allPaid?: boolean;
   timeAllocation?: {
     totalMinutes: number;

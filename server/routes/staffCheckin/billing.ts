@@ -49,8 +49,8 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
     const { participantId, action, reason } = req.body;
 
-    if (!action || !['confirm', 'waive', 'use_guest_pass', 'confirm_all', 'waive_all', 'cancel_all', 'apply_balance'].includes(action)) {
-      return res.status(400).json({ error: 'Invalid action. Must be confirm, waive, use_guest_pass, confirm_all, waive_all, cancel_all, or apply_balance' });
+    if (!action || !['confirm', 'waive', 'use_guest_pass', 'confirm_all', 'waive_all', 'cancel_all', 'apply_balance', 'reset_participant'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action. Must be confirm, waive, use_guest_pass, confirm_all, waive_all, cancel_all, apply_balance, or reset_participant' });
     }
 
     if (action === 'waive' && !reason) {
@@ -99,6 +99,103 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       } catch (calcError: unknown) {
         logger.error('[StaffCheckin] Failed to recalculate fees before payment action', { extra: { error: getErrorMessage(calcError) } });
       }
+    }
+
+    if (action === 'reset_participant') {
+      if (!participantId) {
+        return res.status(400).json({ error: 'participantId required for reset_participant action' });
+      }
+
+      if (!sessionId) {
+        return res.status(400).json({ error: 'No session found for this booking — cannot reset participant' });
+      }
+
+      const participantCheck = await db.execute(sql`
+        SELECT bp.payment_status, bp.display_name, bp.session_id, bp.used_guest_pass, bp.participant_type, bp.refunded_at
+        FROM booking_participants bp
+        WHERE bp.id = ${participantId} AND bp.session_id = ${sessionId}
+      `);
+
+      if (participantCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Participant not found in this booking' });
+      }
+
+      const participant = participantCheck.rows[0] as { payment_status: string; display_name: string; session_id: number | null; used_guest_pass: boolean; participant_type: string; refunded_at: string | null };
+      const previousStatus = participant.payment_status;
+
+      if (!['paid', 'waived', 'refunded'].includes(previousStatus)) {
+        return res.status(400).json({ error: `Cannot reset participant with status: ${previousStatus}` });
+      }
+
+      if (participant.used_guest_pass) {
+        try {
+          await db.execute(sql`
+            UPDATE guest_passes SET passes_used = GREATEST(0, passes_used - 1)
+            WHERE LOWER(member_email) = LOWER(${booking.owner_email})
+          `);
+          await db.execute(sql`
+            UPDATE booking_participants SET used_guest_pass = false WHERE id = ${participantId}
+          `);
+          logger.info('[StaffCheckin] Restored guest pass during participant payment reset', { extra: { participantId, ownerEmail: booking.owner_email } });
+        } catch (gpErr: unknown) {
+          logger.error('[StaffCheckin] Failed to restore guest pass during reset', { extra: { participantId, error: getErrorMessage(gpErr) } });
+        }
+      }
+
+      await db.execute(sql`
+        UPDATE booking_participants
+        SET payment_status = 'pending',
+            paid_at = NULL,
+            stripe_payment_intent_id = NULL,
+            refunded_at = NULL,
+            updated_at = NOW()
+        WHERE id = ${participantId} AND session_id = ${sessionId}
+      `);
+
+      if (sessionId) {
+        try {
+          await recalculateSessionFees(sessionId, 'staff_action');
+          syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
+            logger.warn('[StaffCheckin] Invoice sync failed after participant reset', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
+          });
+        } catch (recalcErr: unknown) {
+          logger.error('[StaffCheckin] Fee recalculation after participant reset failed', { extra: { sessionId, error: getErrorMessage(recalcErr) } });
+        }
+      }
+
+      await logPaymentAudit({
+        bookingId,
+        sessionId,
+        participantId,
+        action: 'payment_reset',
+        staffEmail,
+        staffName,
+        reason: reason || 'Staff reset individual participant payment',
+        previousStatus,
+        newStatus: 'pending',
+      });
+
+      logFromRequest(req, 'reset_participant_payment', 'booking', bookingId.toString(), booking.resource_name || `Booking #${bookingId}`, {
+        participantId,
+        participantName: participant.display_name,
+        previousStatus,
+        newStatus: 'pending',
+      });
+
+      broadcastBookingInvoiceUpdate({
+        bookingId,
+        sessionId: sessionId ?? undefined,
+        action: 'payment_reset',
+        memberEmail: booking.owner_email
+      });
+
+      return res.json({
+        success: true,
+        message: `Payment reset for ${participant.display_name} (was ${previousStatus})`,
+        participantId,
+        previousStatus,
+        newStatus: 'pending'
+      });
     }
 
     if (action === 'confirm' || action === 'waive' || action === 'use_guest_pass') {

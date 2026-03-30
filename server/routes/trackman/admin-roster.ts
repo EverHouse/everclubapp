@@ -883,7 +883,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     let ownerOverageFee = 0;
     let guestFeesWithoutPass = 0;
     let totalPlayersOwe = 0;
-    let playerBreakdownFromSession: Array<{ name: string; tier: string | null; fee: number; feeNote: string; membershipStatus?: string | null }> = [];
+    let playerBreakdownFromSession: Array<{ name: string; tier: string | null; fee: number; feeNote: string; membershipStatus?: string | null; participantId?: number; paymentStatus?: string }> = [];
     
     let hasCompletedFeeSnapshot = false;
     let snapshotTotalCents = 0;
@@ -971,7 +971,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
               tier: participantIsStaff ? 'Staff' : ((p.user_tier as string) || null),
               fee: (isPaid || participantIsStaff || isInactive) ? 0 : participantFee,
               feeNote: isInactive ? `${memberStatus} — $${participantFee} charged to host` : (participantIsStaff ? 'Staff — included' : (isPaid ? paidLabel : (participantFee > 0 ? 'Overage fee' : 'Within allowance'))),
-              membershipStatus: memberStatus as string
+              membershipStatus: memberStatus as string,
+              participantId: p.participant_id as number,
+              paymentStatus: p.payment_status as string,
             });
             if (email) {
               emailToFeeMap.set(email, {
@@ -1071,7 +1073,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           tier: m.tier,
           fee: m.isInactiveMember ? 0 : m.fee,
           feeNote: m.isInactiveMember ? `${m.membershipStatus} — $${m.fee} charged to host` : m.feeNote,
-          membershipStatus: m.membershipStatus
+          membershipStatus: m.membershipStatus,
+          participantId: m.participantId,
         }));
       }
     } else {
@@ -1093,7 +1096,8 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         tier: m.tier,
         fee: m.isInactiveMember ? 0 : m.fee,
         feeNote: m.isInactiveMember ? `${m.membershipStatus} — $${m.fee} charged to host` : m.feeNote,
-        membershipStatus: m.membershipStatus
+        membershipStatus: m.membershipStatus,
+        participantId: m.participantId,
       }));
     }
     

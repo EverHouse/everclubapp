@@ -236,6 +236,20 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
     }
   };
 
+  const handleResetPayment = async (participantId: number) => {
+    setActionInProgress(`reset-${participantId}`);
+    try {
+      await patchWithCredentials(`/api/bookings/${bookingId}/payments`, { participantId, action: 'reset_participant' });
+      showToast('Payment reset to pending', 'success');
+      await fetchContext();
+    } catch (err: unknown) {
+      console.error('Failed to reset payment:', err);
+      showToast('Failed to reset payment', 'error');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
   const handleConfirmAll = async () => {
     if (!context) return;
     
@@ -756,22 +770,33 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
                           </div>
                         )
                       ) : (
-                        <div className="flex items-center gap-2 text-xs flex-wrap">
-                          <div className="flex items-center gap-1">
-                            <Icon name={p.paymentStatus === PAYMENT_STATUS.PAID ? 'check_circle' : 
-                               p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'remove_circle' : 'pending'} className={`text-sm ${ p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-500' : p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : 'text-yellow-500' }`} />
-                            <span className={`capitalize ${
-                              p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-600 dark:text-green-400' : 
-                              p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : ''
-                            }`}>
-                              {p.paymentStatus}
-                            </span>
+                        <div className="flex items-center justify-between text-xs flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-1">
+                              <Icon name={p.paymentStatus === PAYMENT_STATUS.PAID ? 'check_circle' : 
+                                 p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'remove_circle' : 'pending'} className={`text-sm ${ p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-500' : p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : 'text-yellow-500' }`} />
+                              <span className={`capitalize ${
+                                p.paymentStatus === PAYMENT_STATUS.PAID ? 'text-green-600 dark:text-green-400' : 
+                                p.paymentStatus === PAYMENT_STATUS.WAIVED ? 'text-gray-500' : ''
+                              }`}>
+                                {p.paymentStatus}
+                              </span>
+                            </div>
+                            {p.paymentStatus === PAYMENT_STATUS.PAID && p.prepaidOnline && (
+                              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium bg-lavender/20 dark:bg-lavender/20 text-primary dark:text-lavender rounded-full">
+                                <Icon name="credit_card" className="text-xs" />
+                                Prepaid online
+                              </span>
+                            )}
                           </div>
-                          {p.paymentStatus === PAYMENT_STATUS.PAID && p.prepaidOnline && (
-                            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 text-xs font-medium bg-lavender/20 dark:bg-lavender/20 text-primary dark:text-lavender rounded-full">
-                              <Icon name="credit_card" className="text-xs" />
-                              Prepaid online
-                            </span>
+                          {(p.paymentStatus === PAYMENT_STATUS.PAID || p.paymentStatus === PAYMENT_STATUS.WAIVED) && (
+                            <button
+                              onClick={() => handleResetPayment(p.participantId)}
+                              disabled={actionInProgress !== null}
+                              className="tactile-btn px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-600/30 rounded hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50 transition-colors"
+                            >
+                              {actionInProgress === `reset-${p.participantId}` ? 'Resetting...' : 'Reset'}
+                            </button>
                           )}
                         </div>
                       )}

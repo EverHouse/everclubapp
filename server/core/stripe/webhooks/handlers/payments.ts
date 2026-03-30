@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { notifyPaymentFailed, notifyStaffPaymentFailed, notifyAllStaff } from '../../../notificationService';
 import { sendPaymentFailedEmail } from '../../../../emails/paymentEmails';
 import { broadcastBillingUpdate, sendNotificationToUser } from '../../../websocket';
-import { computeFeeBreakdown } from '../../../billing/unifiedFeeService';
+import { computeFeeBreakdown, recalculateSessionFees } from '../../../billing/unifiedFeeService';
 import { logPaymentFailure } from '../../../monitoring';
 import { sendErrorAlert } from '../../../errorAlerts';
 import { logSystemAction, logPaymentAudit } from '../../../auditLog';
@@ -267,6 +267,21 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
           });
         }
       }
+    }
+
+    const refundedSessionIds = new Set<number>();
+    for (const row of participantUpdate.rows) {
+      if (row.session_id) refundedSessionIds.add(row.session_id);
+    }
+    for (const sid of refundedSessionIds) {
+      deferredActions.push(async () => {
+        try {
+          await recalculateSessionFees(sid, 'stripe');
+          logger.info(`[Stripe Webhook] Recalculated session fees after refund for session ${sid}`);
+        } catch (recalcErr: unknown) {
+          logger.error('[Stripe Webhook] Fee recalculation after refund failed', { extra: { sessionId: sid, error: getErrorMessage(recalcErr) } });
+        }
+      });
     }
     } else {
       logger.info(`[Stripe Webhook] Partial refund of $${(amount_refunded / 100).toFixed(2)} for PI ${paymentIntentId} - skipping auto-participant update to preserve ledger`);

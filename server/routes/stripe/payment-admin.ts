@@ -28,6 +28,7 @@ import {
   capturePaymentSchema,
   voidAuthorizationSchema,
 } from '../../../shared/validators/paymentAdmin';
+import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 
 interface DbLedgerRow {
   id: number;
@@ -611,6 +612,15 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
         performedByName: staffName
       });
     });
+
+    if (payment.sessionId) {
+      try {
+        await recalculateSessionFees(payment.sessionId, 'staff_action');
+        logger.info('[Payments] Recalculated session fees after refund', { extra: { sessionId: payment.sessionId, paymentIntentId } });
+      } catch (recalcErr: unknown) {
+        logger.error('[Payments] Fee recalculation after refund failed', { extra: { sessionId: payment.sessionId, error: getErrorMessage(recalcErr) } });
+      }
+    }
 
     logger.info('[Payments] Refund created for : $', { extra: { refundId: refund.id, paymentIntentId, refundedAmount_100_ToFixed_2: (refundedAmount / 100).toFixed(2) } });
 
