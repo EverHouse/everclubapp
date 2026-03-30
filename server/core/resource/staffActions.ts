@@ -142,13 +142,17 @@ export async function assignWithPlayers(
       return { type: 'member' as const, email: p.email, name: p.name, userId: p.member_id };
     });
 
+    const statusesAlreadyBeyondApproved = ['approved', 'confirmed', 'checked_in', 'attended', 'completed', 'no_show'];
+    const keepCurrentStatus = statusesAlreadyBeyondApproved.includes(existingBooking.status);
+    const targetStatus = keepCurrentStatus ? existingBooking.status : 'approved';
+
     const [updated] = await tx.update(bookingRequests)
       .set({
         userEmail: owner.email.toLowerCase(),
         userName: owner.name,
         userId: resolvedOwnerId,
         isUnmatched: false,
-        status: 'approved',
+        status: targetStatus,
         declaredPlayerCount: totalPlayerCount,
         guestCount: guestCount,
         requestParticipants: participantsJson.length > 0 ? participantsJson : undefined,
