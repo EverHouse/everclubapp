@@ -716,7 +716,7 @@ router.get('/api/payments/future-bookings-with-fees', isStaffOrAdmin, async (req
         u.first_name,
         u.last_name,
         COALESCE(
-          (SELECT SUM(COALESCE(bp.cached_fee_cents, 0)) FROM booking_participants bp WHERE bp.session_id = br.session_id AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)),
+          (SELECT SUM(COALESCE(bp.cached_fee_cents, 0)) FROM booking_participants bp WHERE bp.session_id = br.session_id AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)),
           0
         ) as pending_fee_cents,
         (SELECT COUNT(*) FROM stripe_payment_intents spi WHERE spi.booking_id = br.id AND spi.status NOT IN ('succeeded', 'canceled')) as pending_intent_count,

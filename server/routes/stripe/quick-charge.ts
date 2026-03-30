@@ -832,7 +832,7 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
          AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email))
        WHERE LOWER(bp.user_id) = ${memberEmail}
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND bp.participant_type IN ('owner', 'member')
        ORDER BY bs.session_date DESC`);
 
@@ -848,7 +848,7 @@ router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Reque
        JOIN booking_participants owner_bp ON owner_bp.session_id = bp.session_id 
          AND owner_bp.participant_type = 'owner'
        WHERE bp.participant_type = 'guest'
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND LOWER(owner_bp.user_id) = ${memberEmail}
          AND bp.cached_fee_cents > 0`);
 

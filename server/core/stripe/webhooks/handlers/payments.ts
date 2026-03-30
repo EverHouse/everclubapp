@@ -1329,7 +1329,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     const fallbackResult = await client.query(
       `SELECT bp.id, bp.cached_fee_cents FROM booking_participants bp
        WHERE bp.session_id = (SELECT session_id FROM booking_requests WHERE id = $1)
-       AND bp.payment_status = 'pending' AND bp.cached_fee_cents > 0
+       AND bp.payment_status IN ('pending', 'refunded') AND bp.cached_fee_cents > 0
        AND bp.stripe_payment_intent_id IS NULL
        ORDER BY bp.id ASC
        FOR UPDATE`,

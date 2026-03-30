@@ -90,7 +90,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           for (const adj of adjustedFees) {
             await db.execute(sql`
               UPDATE booking_participants SET cached_fee_cents = ${adj.adjustedCents}
-              WHERE id = ${adj.id} AND payment_status = 'pending'
+              WHERE id = ${adj.id} AND payment_status IN ('pending', 'refunded')
             `);
           }
         }
@@ -260,7 +260,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           WHERE session_id = ${sessionId}
             AND stripe_payment_intent_id IS NOT NULL
             AND stripe_payment_intent_id != ''
-            AND payment_status = 'pending'
+            AND payment_status IN ('pending', 'refunded')
             AND stripe_payment_intent_id NOT LIKE 'balance-%'
         `);
         for (const row of bpResult.rows as unknown as PaymentIntentIdRow[]) {
@@ -296,7 +296,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       if (sessionId) {
         await db.execute(sql`
           UPDATE booking_participants SET payment_status = 'waived'
-          WHERE session_id = ${sessionId} AND payment_status = 'pending'
+          WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')
         `);
       }
 
@@ -403,7 +403,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           FROM booking_participants bp
           LEFT JOIN booking_sessions bs ON bp.session_id = bs.id
           WHERE bp.session_id = ${sessionId}
-            AND bp.payment_status = 'pending'
+            AND bp.payment_status IN ('pending', 'refunded')
             AND bp.participant_type = 'guest'
             AND bp.used_guest_pass IS NOT TRUE
         `);
@@ -447,7 +447,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       }
 
       const pendingParticipants = await db.execute(sql`SELECT id, payment_status FROM booking_participants 
-         WHERE session_id = ${sessionId} AND payment_status = 'pending'`);
+         WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
 
       const typedPending = pendingParticipants.rows as unknown as PendingParticipantRow[];
       const pendingIds = typedPending.map(p => p.id);
@@ -588,7 +588,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const pendingParticipants = await db.execute(sql`
         SELECT id, cached_fee_cents, display_name, participant_type, payment_status
         FROM booking_participants
-        WHERE session_id = ${sessionId} AND payment_status = 'pending' AND COALESCE(cached_fee_cents, 0) > 0
+        WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded') AND COALESCE(cached_fee_cents, 0) > 0
       `);
 
       if (pendingParticipants.rows.length === 0) {
@@ -834,7 +834,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
           COUNT(DISTINCT bp.id) FILTER (WHERE bp.id IS NOT NULL) as filled_participant_count,
           COALESCE(SUM(
             CASE 
-              WHEN bp.payment_status = 'pending'
+              WHEN bp.payment_status IN ('pending', 'refunded')
               THEN COALESCE(bp.cached_fee_cents, 0) / 100.0
               ELSE 0 
             END
@@ -856,7 +856,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
         GROUP BY br.id, br.session_id, br.user_email, br.user_name, 
                  br.request_date, br.start_time, br.end_time, r.name, br.declared_player_count
         HAVING SUM(
-          CASE WHEN bp.payment_status = 'pending' 
+          CASE WHEN bp.payment_status IN ('pending', 'refunded') 
                AND COALESCE(bp.cached_fee_cents, 0) > 0
           THEN 1 ELSE 0 END
         ) > 0

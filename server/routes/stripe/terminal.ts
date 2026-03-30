@@ -259,7 +259,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
     if (isBookingFee && metadata?.sessionId) {
       try {
         const pendingParticipants = await db.execute(sql`SELECT id, cached_fee_cents FROM booking_participants
-           WHERE session_id = ${parseInt(metadata.sessionId, 10)} AND payment_status = 'pending' AND cached_fee_cents > 0`);
+           WHERE session_id = ${parseInt(metadata.sessionId, 10)} AND payment_status IN ('pending', 'refunded') AND cached_fee_cents > 0`);
         if (pendingParticipants.rows.length > 0) {
           const fees = (pendingParticipants.rows as Array<{ id: number; cached_fee_cents: number }>).map((r) => ({
             id: r.id,
@@ -350,7 +350,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
 
             const participantRows = await db.execute(sql`SELECT id, display_name, participant_type, cached_fee_cents
                FROM booking_participants
-               WHERE session_id = ${sessionIdVal} AND payment_status = 'pending' AND cached_fee_cents > 0`);
+               WHERE session_id = ${sessionIdVal} AND payment_status IN ('pending', 'refunded') AND cached_fee_cents > 0`);
 
             if (participantRows.rows.length > 0) {
               const feeLineItems: BookingFeeLineItem[] = (participantRows.rows as Array<{ id: number; display_name: string; participant_type: string; cached_fee_cents: number }>).map((r) => {

@@ -92,7 +92,7 @@ export class PaymentStatusService {
             if (resolvedSessionId) {
               const pendingResult = await tx.execute(
                 sql`SELECT id, cached_fee_cents FROM booking_participants
-                 WHERE session_id = ${resolvedSessionId} AND payment_status = 'pending' AND cached_fee_cents > 0
+                 WHERE session_id = ${resolvedSessionId} AND payment_status IN ('pending', 'refunded') AND cached_fee_cents > 0
                  AND stripe_payment_intent_id IS NULL
                  ORDER BY id ASC
                  FOR UPDATE`
@@ -180,7 +180,7 @@ export class PaymentStatusService {
             await tx.execute(
               sql`UPDATE booking_participants 
                SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = ${paymentIntentId}, cached_fee_cents = 0 
-               WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[]) AND payment_status = 'pending'`
+               WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[]) AND payment_status IN ('pending', 'refunded')`
             );
             participantsUpdated = participantIds.length;
             

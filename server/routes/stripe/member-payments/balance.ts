@@ -75,7 +75,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
          AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email))
        WHERE LOWER(pu.email) = ${memberEmail}
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND bp.participant_type IN ('owner', 'member')
          AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))
          AND bs.session_date >= CURRENT_DATE - INTERVAL '90 days'
@@ -112,7 +112,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
          AND owner_bp.participant_type = 'owner'
        JOIN users owner_u ON owner_u.id = owner_bp.user_id
        WHERE bp.participant_type = 'guest'
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND LOWER(owner_u.email) = ${memberEmail}
          AND bp.cached_fee_cents > 0
          AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))
@@ -183,7 +183,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
          JOIN users pu ON pu.id = bp.user_id
          WHERE LOWER(pu.email) = ${memberEmail}
            AND bp.participant_type = 'owner'
-           AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+           AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
            AND COALESCE(bp.cached_fee_cents, 0) = 0
            AND bs.session_date >= CURRENT_DATE - INTERVAL '90 days'
            AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))
@@ -283,7 +283,7 @@ router.get('/api/member/balance', isAuthenticated, validateQuery(balanceQuerySch
        LEFT JOIN resources r ON r.id = bs.resource_id
        WHERE LOWER(pu.email) = ${memberEmail}
          AND bp.participant_type = 'owner'
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND COALESCE(br.declared_player_count, 1) > 1
          AND (bs.session_date AT TIME ZONE 'America/Los_Angeles')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
          AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))
@@ -359,7 +359,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
        LEFT JOIN usage_ledger ul ON ul.session_id = bp.session_id 
          AND (ul.member_id = bp.user_id OR LOWER(ul.member_id) = LOWER(pu.email))
        WHERE LOWER(pu.email) = ${memberEmail}
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND bp.participant_type IN ('owner', 'member')
          AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))
     `);
@@ -377,7 +377,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
          AND owner_bp.participant_type = 'owner'
        JOIN users owner_u ON owner_u.id = owner_bp.user_id
        WHERE bp.participant_type = 'guest'
-         AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+         AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
          AND LOWER(owner_u.email) = ${memberEmail}
          AND bp.cached_fee_cents > 0
          AND (bs.source IS NULL OR bs.source::text NOT IN ('trackman_import', 'trackman_webhook'))

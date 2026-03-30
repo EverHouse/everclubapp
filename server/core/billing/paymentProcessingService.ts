@@ -118,7 +118,7 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     SELECT bp.id, bp.participant_type, bp.display_name, bp.cached_fee_cents
      FROM booking_participants bp
      WHERE bp.session_id = ${booking.session_id} 
-       AND (bp.payment_status = 'pending' OR bp.payment_status IS NULL)
+       AND (bp.payment_status IN ('pending', 'refunded') OR bp.payment_status IS NULL)
        AND bp.cached_fee_cents > 0
   `);
 
@@ -836,7 +836,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
       WHERE session_id = ${sessionId}
         AND id = ANY(${toIntArrayLiteral(requestedIds)}::int[])
         AND cached_fee_cents > 0
-        AND (payment_status = 'pending' OR payment_status IS NULL)
+        AND (payment_status IN ('pending', 'refunded') OR payment_status IS NULL)
     `);
     const dbPending = dbPendingResult.rows as unknown as ParticipantRow[];
 

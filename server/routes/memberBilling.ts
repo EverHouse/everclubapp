@@ -279,7 +279,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
                OR (bp.participant_type = 'owner' AND LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${email})))
                OR (bp.participant_type = 'owner' AND LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${email}))))
           AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending')
-          AND bp.payment_status = 'pending'
+          AND bp.payment_status IN ('pending', 'refunded')
           AND COALESCE(bp.cached_fee_cents, 0) > 0
       `);
       const totalCents = parseInt(String((outstandingResult.rows[0] as unknown as OutstandingTotalRow)?.total_cents) || '0', 10);

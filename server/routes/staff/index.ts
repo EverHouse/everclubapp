@@ -291,7 +291,7 @@ router.get('/api/admin/financials/summary', isStaffOrAdmin, async (req, res) => 
           AND EXISTS (
             SELECT 1 FROM booking_participants bp
             WHERE bp.session_id = br.session_id
-              AND bp.payment_status = 'pending'
+              AND bp.payment_status IN ('pending', 'refunded')
               AND COALESCE(bp.cached_fee_cents, 0) > 0
           )
       `);

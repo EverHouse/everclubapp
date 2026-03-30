@@ -166,7 +166,7 @@ router.get('/api/fee-estimate', isAuthenticated, validateQuery(feeEstimateQueryS
         try {
           await db.execute(sql`UPDATE booking_participants 
              SET cached_fee_cents = 0 
-             WHERE session_id = ${request.sessionId} AND payment_status = 'pending' AND cached_fee_cents > 0`);
+             WHERE session_id = ${request.sessionId} AND payment_status IN ('pending', 'refunded') AND cached_fee_cents > 0`);
         } catch (syncErr: unknown) {
           logger.error('[Fee Estimate] Failed to sync cached fee cents', { extra: { error: getErrorMessage(syncErr), bookingId } });
         }
