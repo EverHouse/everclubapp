@@ -1488,7 +1488,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
       const localAmount = amount;
       const localId = id;
       
-      const userResult = await client.query('SELECT first_name, last_name FROM users WHERE email = $1', [email]);
+      const userResult = await client.query('SELECT first_name, last_name FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
       const memberName = userResult.rows[0] 
         ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
         : email;
