@@ -192,6 +192,12 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
           `);
           for (const snapshot of allSnapshots.rows as unknown as Array<{ id: number; stripe_payment_intent_id: string; total_cents: number }>) {
             try {
+              if (!snapshot.stripe_payment_intent_id.startsWith('pi_')) {
+                logger.info('[ApprovalTypes] Skipping synthetic PI in snapshot cleanup', { extra: { snapshotId: snapshot.id, piId: snapshot.stripe_payment_intent_id } });
+                await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale', updated_at = NOW() WHERE id = ${snapshot.id}`);
+                await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${snapshot.stripe_payment_intent_id} AND status != 'canceled'`);
+                continue;
+              }
               const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
               if (pi.status === 'succeeded') {
                 const refund = await stripe.refunds.create({

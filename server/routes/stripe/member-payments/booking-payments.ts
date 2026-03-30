@@ -166,21 +166,25 @@ router.post('/api/member/bookings/:bookingId/cancel-payment', isAuthenticated, v
       logger.info('[Member Payment] User cancelled abandoned PI for booking', { extra: { sessionUserEmail: sessionUser.email, paymentIntentId, bookingId } });
 
       try {
-        const stripe = await getStripeClient();
-        const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
-        const balanceTxnId = pi.metadata?.balanceTransactionId;
-        if (balanceTxnId) {
-          const custId = pi.customer as string;
-          if (custId) {
-            const balanceTxn = await stripe.customers.retrieveBalanceTransaction(custId, balanceTxnId);
-            const refundAmount = balanceTxn.amount;
-            if (refundAmount > 0) {
-              await stripe.customers.createBalanceTransaction(custId, {
-                amount: -refundAmount,
-                currency: 'usd',
-                description: `Refund of account credit — cancelled payment for Booking #${bookingId}`,
-              });
-              logger.info('[Member Payment] Restored account credit after cancelled payment', { extra: { bookingId, refundAmount, balanceTxnId } });
+        if (!paymentIntentId.startsWith('pi_')) {
+          logger.info('[Member Payment] Skipping credit restore for synthetic PI', { extra: { paymentIntentId, bookingId } });
+        } else {
+          const stripe = await getStripeClient();
+          const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+          const balanceTxnId = pi.metadata?.balanceTransactionId;
+          if (balanceTxnId) {
+            const custId = pi.customer as string;
+            if (custId) {
+              const balanceTxn = await stripe.customers.retrieveBalanceTransaction(custId, balanceTxnId);
+              const refundAmount = balanceTxn.amount;
+              if (refundAmount > 0) {
+                await stripe.customers.createBalanceTransaction(custId, {
+                  amount: -refundAmount,
+                  currency: 'usd',
+                  description: `Refund of account credit — cancelled payment for Booking #${bookingId}`,
+                });
+                logger.info('[Member Payment] Restored account credit after cancelled payment', { extra: { bookingId, refundAmount, balanceTxnId } });
+              }
             }
           }
         }

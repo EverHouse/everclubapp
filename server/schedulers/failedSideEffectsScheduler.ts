@@ -53,6 +53,11 @@ async function retryFailedSideEffect(record: FailedSideEffectRow): Promise<boole
           return true;
         }
         if (currentStatus === 'refund_succeeded_sync_failed') {
+          if (!stripePaymentIntentId.startsWith('pi_')) {
+            logger.info('[FailedSideEffects] Synthetic PI with refund_succeeded_sync_failed — marking canceled', { extra: { id, stripePaymentIntentId } });
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${stripePaymentIntentId}`);
+            return true;
+          }
           const { getStripeClient } = await import('../core/stripe/client');
           const stripe = await getStripeClient();
           const piObj = await stripe.paymentIntents.retrieve(stripePaymentIntentId, { expand: ['latest_charge.refunds'] });
@@ -67,6 +72,11 @@ async function retryFailedSideEffect(record: FailedSideEffectRow): Promise<boole
           return true;
         }
         if (currentStatus === 'succeeded') {
+          if (!stripePaymentIntentId.startsWith('pi_')) {
+            logger.info('[FailedSideEffects] Synthetic PI with succeeded status — marking canceled', { extra: { id, stripePaymentIntentId } });
+            await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${stripePaymentIntentId}`);
+            return true;
+          }
           const { getStripeClient } = await import('../core/stripe/client');
           const stripe = await getStripeClient();
           const refund = await stripe.refunds.create({

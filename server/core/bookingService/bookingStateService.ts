@@ -885,6 +885,11 @@ export class BookingStateService {
     amountCents?: number;
     idempotencyKey?: string;
   }): Promise<{ success: boolean; refundId?: string; error?: string }> {
+    if (!params.paymentIntentId.startsWith('pi_')) {
+      logger.info('[BookingStateService] Skipping refund for synthetic PI — marking canceled', { extra: { paymentIntentId: params.paymentIntentId } });
+      await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${params.paymentIntentId}`);
+      return { success: true };
+    }
     const stripe = await getStripeClient();
     try {
       const refundCreateParams: { payment_intent: string; reason: 'duplicate' | 'fraudulent' | 'requested_by_customer'; metadata: Record<string, string>; amount?: number } = {

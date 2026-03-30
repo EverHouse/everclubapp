@@ -262,6 +262,12 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
       });
     }
 
+    if (!paymentIntentId.startsWith('pi_')) {
+      logger.warn('[Payments] Retry called with synthetic PI — marking as canceled', { extra: { paymentIntentId } });
+      await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+      return res.status(400).json({ error: 'This payment record has an invalid payment ID and cannot be retried. Please create a new charge.' });
+    }
+
     const stripe = await getStripeClient();
 
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['invoice'] });

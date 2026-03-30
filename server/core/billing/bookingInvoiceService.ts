@@ -623,6 +623,12 @@ export async function finalizeAndPayInvoice(params: {
 
   if (existingPiResult.rows.length > 0) {
     const existingPi = (existingPiResult.rows as unknown as PaymentIntentLookupRow[])[0];
+    if (!existingPi.stripe_payment_intent_id.startsWith('pi_')) {
+      logger.warn('[BookingInvoice] Synthetic PI found as succeeded — marking canceled', { extra: { bookingId, piId: existingPi.stripe_payment_intent_id } });
+      await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id}`);
+      await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+         WHERE stripe_payment_intent_id = ${existingPi.stripe_payment_intent_id} AND payment_status = 'paid'`);
+    } else {
     try {
       const stripePi = await stripe.paymentIntents.retrieve(existingPi.stripe_payment_intent_id);
       const pmTypes = stripePi.payment_method_types || [];
@@ -664,6 +670,7 @@ export async function finalizeAndPayInvoice(params: {
       logger.warn('[BookingInvoice] Could not verify existing PI for terminal detection', {
         extra: { bookingId, piId: existingPi.stripe_payment_intent_id, error: getErrorMessage(piCheckErr) }
       });
+    }
     }
   }
 

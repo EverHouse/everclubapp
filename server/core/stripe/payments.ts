@@ -125,26 +125,36 @@ export async function createPaymentIntent(
 
     if (existingIntentResult.rows.length > 0) {
       const existingIntent = existingIntentResult.rows[0] as unknown as ExistingIntentRow;
-      const stripeClient = await getStripeClient();
 
-      if (existingIntent.amount_cents !== amountCents) {
-        await stripeClient.paymentIntents.update(existingIntent.stripe_payment_intent_id, {
-          amount: amountCents,
+      if (!existingIntent.stripe_payment_intent_id.startsWith('pi_')) {
+        logger.info('[Stripe] Synthetic/non-Stripe PI ID found when creating booking PI — marking as canceled', {
+          extra: { bookingId, piId: existingIntent.stripe_payment_intent_id }
         });
-        await db.execute(sql`UPDATE stripe_payment_intents 
-           SET amount_cents = ${amountCents}, updated_at = NOW() 
-           WHERE stripe_payment_intent_id = ${existingIntent.stripe_payment_intent_id}`);
-        logger.info(`[Stripe] Updated existing PaymentIntent ${existingIntent.stripe_payment_intent_id} amount from $${(existingIntent.amount_cents / 100).toFixed(2)} to $${(amountCents / 100).toFixed(2)} for booking #${bookingId}`);
-      }
+        await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${existingIntent.stripe_payment_intent_id}`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+           WHERE stripe_payment_intent_id = ${existingIntent.stripe_payment_intent_id} AND payment_status = 'paid'`);
+      } else {
+        const stripeClient = await getStripeClient();
 
-      const existingPI = await stripeClient.paymentIntents.retrieve(existingIntent.stripe_payment_intent_id);
-      logger.info(`[Stripe] Reusing existing PaymentIntent ${existingPI.id} for booking #${bookingId}`);
-      return {
-        paymentIntentId: existingPI.id,
-        clientSecret: existingPI.client_secret!,
-        customerId,
-        status: existingPI.status
-      };
+        if (existingIntent.amount_cents !== amountCents) {
+          await stripeClient.paymentIntents.update(existingIntent.stripe_payment_intent_id, {
+            amount: amountCents,
+          });
+          await db.execute(sql`UPDATE stripe_payment_intents 
+             SET amount_cents = ${amountCents}, updated_at = NOW() 
+             WHERE stripe_payment_intent_id = ${existingIntent.stripe_payment_intent_id}`);
+          logger.info(`[Stripe] Updated existing PaymentIntent ${existingIntent.stripe_payment_intent_id} amount from $${(existingIntent.amount_cents / 100).toFixed(2)} to $${(amountCents / 100).toFixed(2)} for booking #${bookingId}`);
+        }
+
+        const existingPI = await stripeClient.paymentIntents.retrieve(existingIntent.stripe_payment_intent_id);
+        logger.info(`[Stripe] Reusing existing PaymentIntent ${existingPI.id} for booking #${bookingId}`);
+        return {
+          paymentIntentId: existingPI.id,
+          clientSecret: existingPI.client_secret!,
+          customerId,
+          status: existingPI.status
+        };
+      }
     }
   }
 
@@ -377,6 +387,13 @@ export async function confirmPaymentSuccess(
   txClient?: { query: (text: string, values?: unknown[]) => Promise<unknown> }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!paymentIntentId.startsWith('pi_')) {
+      logger.warn('[Stripe] confirmPaymentSuccess called with synthetic PI — marking as canceled', { extra: { paymentIntentId } });
+      await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+      await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+         WHERE stripe_payment_intent_id = ${paymentIntentId} AND payment_status = 'paid'`);
+      return { success: false, error: 'Synthetic payment intent ID — not a real Stripe payment' };
+    }
     const stripe = await getStripeClient();
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
@@ -467,6 +484,13 @@ export async function cancelPaymentIntent(
   paymentIntentId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!paymentIntentId.startsWith('pi_')) {
+      logger.info('[Stripe] cancelPaymentIntent called with synthetic PI — marking as canceled locally', { extra: { paymentIntentId } });
+      await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+      await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
+         WHERE stripe_payment_intent_id = ${paymentIntentId} AND payment_status IN ('paid', 'pending')`);
+      return { success: true };
+    }
     const stripe = await getStripeClient();
 
     const pi = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['invoice'] }) as Stripe.PaymentIntent;
