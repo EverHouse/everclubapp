@@ -28,7 +28,7 @@ import { validateBody } from '../../middleware/validate';
 import { quickChargeSchema, confirmQuickChargeSchema, attachEmailSchema, chargeSavedCardPosSchema, sendReceiptSchema, chargeSubscriptionInvoiceSchema } from '../../../shared/validators/payments';
 import { z } from 'zod';
 
-const emailParamSchema = z.object({ email: z.string().min(1) });
+const emailParamSchema = z.object({ email: z.string().email() });
 
 interface DbMemberRow {
   id: string;

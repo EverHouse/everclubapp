@@ -22,7 +22,7 @@ import { logFromRequest } from '../../core/auditLog';
 import { getStaffInfo } from './helpers';
 import { z } from 'zod';
 
-const emailParamSchema = z.object({ email: z.string().min(1) });
+const emailParamSchema = z.object({ email: z.string().email() });
 
 interface _DbMemberRow {
   id: string;

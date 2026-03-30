@@ -146,14 +146,16 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
     
     try {
       if (memberLookup.length > 0) {
-        const memberEmail = memberLookup[0].email ?? '';
-        sendNotificationToUser(memberEmail, {
-          type: 'billing_update',
-          title: 'Subscription Cancelled',
-          message: 'Your membership subscription has been cancelled.',
-          data: { subscriptionId }
-        });
-        broadcastBillingUpdate({ action: 'subscription_cancelled', memberEmail });
+        const memberEmail = memberLookup[0].email;
+        if (memberEmail) {
+          sendNotificationToUser(memberEmail, {
+            type: 'billing_update',
+            title: 'Subscription Cancelled',
+            message: 'Your membership subscription has been cancelled.',
+            data: { subscriptionId }
+          });
+          broadcastBillingUpdate({ action: 'subscription_cancelled', memberEmail });
+        }
       }
     } catch (notifyError) {
       logger.error('[Stripe] Failed to send subscription cancellation notification', { extra: { error: getErrorMessage(notifyError) } });
