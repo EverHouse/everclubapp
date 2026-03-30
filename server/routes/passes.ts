@@ -389,7 +389,7 @@ router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Requ
       });
     }
 
-    // Only update database status AFTER Stripe refund succeeds
+    try {
     await db
       .update(dayPassPurchases)
       .set({
@@ -397,6 +397,20 @@ router.post('/api/staff/passes/:passId/refund', isStaffOrAdmin, async (req: Requ
         updatedAt: new Date(),
       })
       .where(eq(dayPassPurchases.id, passId as string));
+    } catch (dbError: unknown) {
+      logger.error('[Passes] Stripe refund succeeded but DB sync failed for pass', {
+        extra: { passId, stripePaymentIntentId: pass.stripePaymentIntentId, error: getErrorMessage(dbError) }
+      });
+      try {
+        if (pass.stripePaymentIntentId) {
+          await db.execute(sql`UPDATE stripe_payment_intents SET status = 'refund_succeeded_sync_failed', updated_at = NOW() WHERE stripe_payment_intent_id = ${pass.stripePaymentIntentId}`);
+        }
+      } catch { /* best effort */ }
+      return res.status(500).json({
+        error: 'Stripe refund succeeded but failed to update pass status. Contact support.',
+        errorCode: 'REFUND_SYNC_FAILED',
+      });
+    }
 
     const guestName = [pass.purchaserFirstName, pass.purchaserLastName]
       .filter(Boolean)

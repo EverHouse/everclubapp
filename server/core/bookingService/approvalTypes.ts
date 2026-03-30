@@ -200,12 +200,21 @@ export async function validateTrackmanId(trackmanBookingId: string, bookingId: n
                 }, {
                   idempotencyKey: `refund_trackman_relink_snapshot_${duplicateId}_${snapshot.stripe_payment_intent_id}`
                 });
-                await PaymentStatusService.markPaymentRefunded({
-                  paymentIntentId: snapshot.stripe_payment_intent_id,
-                  bookingId: duplicateId,
-                  refundId: refund.id,
-                  amountCents: pi.amount
-                });
+                try {
+                  await PaymentStatusService.markPaymentRefunded({
+                    paymentIntentId: snapshot.stripe_payment_intent_id,
+                    bookingId: duplicateId,
+                    refundId: refund.id,
+                    amountCents: pi.amount
+                  });
+                } catch (syncErr: unknown) {
+                  logger.error('[ValidateTrackmanId] Stripe refund succeeded but DB sync failed — marking refund_succeeded_sync_failed', {
+                    extra: { paymentIntentId: snapshot.stripe_payment_intent_id, refundId: refund.id, error: getErrorMessage(syncErr) }
+                  });
+                  try {
+                    await db.execute(sql`UPDATE stripe_payment_intents SET status = 'refund_succeeded_sync_failed', updated_at = NOW() WHERE stripe_payment_intent_id = ${snapshot.stripe_payment_intent_id}`);
+                  } catch { /* best effort */ }
+                }
                 logger.info('[ValidateTrackmanId] Refunded fee snapshot for orphaned booking', {
                   extra: { paymentIntentId: snapshot.stripe_payment_intent_id, refundId: refund.id, declinedBookingId: duplicateId }
                 });

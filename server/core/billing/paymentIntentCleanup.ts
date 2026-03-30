@@ -137,7 +137,10 @@ export async function refundSucceededPaymentIntentsForBooking(bookingId: number)
               amountCents: row.amount_cents as number | undefined,
             });
           } catch (statusErr: unknown) {
-            logger.warn('[PI Cleanup] Non-blocking: failed to mark payment refunded', { extra: { paymentIntentId: row.stripe_payment_intent_id, error: getErrorMessage(statusErr) } });
+            logger.warn('[PI Cleanup] Stripe refund succeeded but DB sync failed — marking refund_succeeded_sync_failed', { extra: { paymentIntentId: row.stripe_payment_intent_id, error: getErrorMessage(statusErr) } });
+            try {
+              await db.execute(sql`UPDATE stripe_payment_intents SET status = 'refund_succeeded_sync_failed', updated_at = NOW() WHERE stripe_payment_intent_id = ${row.stripe_payment_intent_id}`);
+            } catch { /* best effort */ }
           }
         }
 

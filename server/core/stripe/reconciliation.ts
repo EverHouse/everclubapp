@@ -81,12 +81,13 @@ export async function reconcileSubscriptions() {
   try {
     const stripe = await getStripeClient();
     
-    const activeMembers = await db.execute(sql`SELECT stripe_customer_id, email, tier, membership_status 
+    const activeMembers = await db.execute(sql`SELECT id, stripe_customer_id, email, tier, membership_status 
        FROM users 
        WHERE stripe_customer_id IS NOT NULL 
        AND (membership_status IN ('active', 'trialing', 'past_due') OR stripe_subscription_id IS NOT NULL)`);
 
     let mismatches = 0;
+    let tierMismatchesHealed = 0;
     
     for (const member of (activeMembers.rows as Array<{ id: string; email: string; stripe_customer_id: string | null; stripe_subscription_id: string | null; tier: string | null; membership_status: string | null }>)) {
       if (!member.stripe_customer_id) continue;
@@ -104,6 +105,28 @@ export async function reconcileSubscriptions() {
         if (!hasActiveSubscription) {
           logger.warn(`[Reconcile] Member ${member.email} (status: ${member.membership_status}) has no active Stripe subscription`);
           mismatches++;
+        } else {
+          const activeSub = subscriptions.data.find(s => ['active', 'trialing', 'past_due'].includes(s.status));
+          if (activeSub) {
+            try {
+              const subItem = activeSub.items?.data?.[0];
+              const priceId = subItem?.price?.id;
+              if (priceId && member.tier) {
+                const tierResult = await db.execute(sql`SELECT slug, name FROM membership_tiers WHERE stripe_price_id = ${priceId} OR founding_price_id = ${priceId}`);
+                if (tierResult.rows.length > 0) {
+                  const stripeTierSlug = (tierResult.rows[0] as { slug: string; name: string }).slug;
+                  const dbTier = (member.tier as string || '').toLowerCase();
+                  if (stripeTierSlug && dbTier !== stripeTierSlug.toLowerCase()) {
+                    logger.warn(`[Reconcile] Tier mismatch for ${member.email}: DB tier="${member.tier}", Stripe product tier="${stripeTierSlug}" — healing to match Stripe`);
+                    await db.execute(sql`UPDATE users SET tier = ${stripeTierSlug}, updated_at = NOW() WHERE id = ${member.id}`);
+                    tierMismatchesHealed++;
+                  }
+                }
+              }
+            } catch (tierErr: unknown) {
+              logger.warn(`[Reconcile] Error checking tier for ${member.email}:`, { extra: { detail: getErrorMessage(tierErr) } });
+            }
+          }
         }
       } catch (err: unknown) {
         if (!isStripeResourceMissing(err)) {
@@ -112,7 +135,7 @@ export async function reconcileSubscriptions() {
       }
     }
 
-    logger.info(`[Reconcile] Phase 1 complete - ${activeMembers.rows.length} members checked, ${mismatches} mismatches found`);
+    logger.info(`[Reconcile] Phase 1 complete - ${activeMembers.rows.length} members checked, ${mismatches} status mismatches found, ${tierMismatchesHealed} tier mismatches healed`);
     
     logger.info('[Reconcile] Phase 2: Checking for Stripe subscriptions missing DB users...');
     
@@ -302,6 +325,7 @@ export async function reconcileSubscriptions() {
     return { 
       membersChecked: activeMembers.rows.length, 
       mismatches,
+      tierMismatchesHealed,
       subscriptionsChecked,
       usersCreated,
       duplicateCustomerAlerts,
@@ -325,6 +349,8 @@ export async function reconcileDailyRefunds() {
     let totalChecked = 0;
     let missingRefunds = 0;
     let participantsHealed = 0;
+    let downstreamCleanups = 0;
+    let guestPassesRestored = 0;
 
     while (hasMore) {
       const params: Stripe.RefundListParams = {
@@ -378,7 +404,7 @@ export async function reconcileDailyRefunds() {
           const participantResult = await db.execute(sql`UPDATE booking_participants
              SET payment_status = 'refunded', refunded_at = NOW()
              WHERE stripe_payment_intent_id = ${paymentIntentId} AND payment_status = 'paid'
-             RETURNING id, user_id`);
+             RETURNING id, user_id, session_id, participant_type, used_guest_pass, display_name`);
           
           if (participantResult.rowCount && participantResult.rowCount > 0) {
             participantsHealed += participantResult.rowCount;
@@ -392,6 +418,53 @@ export async function reconcileDailyRefunds() {
               emailInfo = ': ' + (emailResult.rows as Array<{ email: string }>).map(r => r.email).join(', ');
             }
             logger.warn(`[Reconcile] Healed ${participantResult.rowCount} participant(s) marked refunded for PI ${paymentIntentId}${emailInfo}`);
+
+            for (const participant of participantResult.rows as Array<{ id: number; user_id: string | null; session_id: number | null; participant_type: string | null; used_guest_pass: boolean | null; display_name: string | null }>) {
+              if (participant.session_id) {
+                try {
+                  const ledgerDeleted = await db.execute(sql`
+                    DELETE FROM usage_ledger
+                    WHERE session_id = ${participant.session_id}
+                    AND stripe_payment_intent_id = ${paymentIntentId}
+                  `);
+                  if (ledgerDeleted.rowCount && ledgerDeleted.rowCount > 0) {
+                    downstreamCleanups += ledgerDeleted.rowCount;
+                    logger.info(`[Reconcile] Cleaned up ${ledgerDeleted.rowCount} usage ledger entries for refunded PI`, {
+                      extra: { paymentIntentId, sessionId: participant.session_id }
+                    });
+                  }
+                } catch (ledgerErr: unknown) {
+                  logger.warn(`[Reconcile] Failed to clean up usage ledger for session ${participant.session_id}:`, { extra: { error: getErrorMessage(ledgerErr) } });
+                }
+              }
+
+              if (participant.used_guest_pass && participant.participant_type === 'guest' && participant.session_id) {
+                try {
+                  const bookingOwnerResult = await db.execute(sql`
+                    SELECT u.email
+                    FROM booking_participants bp_owner
+                    JOIN users u ON u.id = bp_owner.user_id
+                    WHERE bp_owner.session_id = ${participant.session_id}
+                      AND bp_owner.participant_type = 'member'
+                      AND bp_owner.user_id IS NOT NULL
+                    LIMIT 1
+                  `);
+                  const ownerEmail = (bookingOwnerResult.rows[0] as { email: string } | undefined)?.email;
+                  if (ownerEmail) {
+                    const { refundGuestPass } = await import('../../routes/guestPasses');
+                    const guestRefundResult = await refundGuestPass(ownerEmail, participant.display_name || undefined, false);
+                    if (guestRefundResult.success) {
+                      guestPassesRestored++;
+                      logger.info(`[Reconcile] Restored guest pass for ${ownerEmail} (guest: ${participant.display_name})`, { extra: { paymentIntentId } });
+                    } else {
+                      logger.warn(`[Reconcile] Guest pass restoration failed for ${ownerEmail}:`, { extra: { error: guestRefundResult.error } });
+                    }
+                  }
+                } catch (guestErr: unknown) {
+                  logger.warn(`[Reconcile] Failed to restore guest pass:`, { extra: { participantId: participant.id, error: getErrorMessage(guestErr) } });
+                }
+              }
+            }
           }
         }
       }
@@ -402,12 +475,14 @@ export async function reconcileDailyRefunds() {
       }
     }
 
-    logger.info(`[Reconcile] Refund reconciliation complete - Checked: ${totalChecked}, Missing/mismatched: ${missingRefunds}, Participants healed: ${participantsHealed}`);
+    logger.info(`[Reconcile] Refund reconciliation complete - Checked: ${totalChecked}, Missing/mismatched: ${missingRefunds}, Participants healed: ${participantsHealed}, Downstream cleanups: ${downstreamCleanups}, Guest passes restored: ${guestPassesRestored}`);
     
     return {
       totalChecked,
       missingRefunds,
-      participantsHealed
+      participantsHealed,
+      downstreamCleanups,
+      guestPassesRestored,
     };
   } catch (error: unknown) {
     logger.error('[Reconcile] Error during refund reconciliation:', { extra: { error: getErrorMessage(error) } });

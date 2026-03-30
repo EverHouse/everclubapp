@@ -993,3 +993,126 @@ export async function checkOrphanedBookingInvoices(): Promise<IntegrityCheckResu
     lastRun: new Date()
   };
 }
+
+export async function checkUnresolvedFailedSideEffects(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const totalCountResult = await db.execute(sql`
+      SELECT 
+        COUNT(*) FILTER (WHERE retry_count >= 5) as exhausted_count,
+        COUNT(*) FILTER (WHERE retry_count < 5) as pending_count
+      FROM failed_side_effects
+      WHERE resolved = false
+    `);
+    const totalExhausted = Number((totalCountResult.rows[0] as { exhausted_count: string })?.exhausted_count || 0);
+    const totalPending = Number((totalCountResult.rows[0] as { pending_count: string })?.pending_count || 0);
+
+    const unresolvedResult = await db.execute(sql`
+      SELECT fse.id, fse.booking_id, fse.action_type, fse.stripe_payment_intent_id,
+             fse.error_message, fse.retry_count, fse.created_at,
+             br.user_email, br.request_date, br.start_time
+      FROM failed_side_effects fse
+      LEFT JOIN booking_requests br ON br.id = fse.booking_id
+      WHERE fse.resolved = false
+      ORDER BY fse.retry_count DESC, fse.created_at ASC
+      LIMIT 100
+    `);
+
+    interface UnresolvedRow {
+      id: number;
+      booking_id: number;
+      action_type: string;
+      stripe_payment_intent_id: string | null;
+      error_message: string;
+      retry_count: number;
+      created_at: string;
+      user_email: string | null;
+      request_date: string | null;
+      start_time: string | null;
+    }
+
+    const rows = unresolvedResult.rows as unknown as UnresolvedRow[];
+    const exceededRetries = rows.filter(r => r.retry_count >= 5);
+    const pendingRetries = rows.filter(r => r.retry_count < 5);
+
+    for (const row of exceededRetries) {
+      issues.push({
+        category: 'billing_issue',
+        severity: 'error',
+        table: 'failed_side_effects',
+        recordId: row.id,
+        description: `Failed side effect "${row.action_type}" for booking #${row.booking_id} (${row.user_email || 'unknown'}) exceeded max retries (${row.retry_count}). Error: ${row.error_message.substring(0, 120)}`,
+        suggestion: 'Manually resolve this failed side effect — auto-retry has been exhausted',
+        context: {
+          bookingIds: [row.booking_id],
+          stripePaymentIntentId: row.stripe_payment_intent_id || undefined,
+          memberEmail: row.user_email || undefined,
+          bookingDate: row.request_date || undefined,
+          startTime: row.start_time || undefined,
+          issueType: 'max_retries_exceeded',
+        }
+      });
+    }
+
+    for (const row of pendingRetries) {
+      issues.push({
+        category: 'billing_issue',
+        severity: 'warning',
+        table: 'failed_side_effects',
+        recordId: row.id,
+        description: `Failed side effect "${row.action_type}" for booking #${row.booking_id} (${row.user_email || 'unknown'}) — retry ${row.retry_count}/5 pending. Error: ${row.error_message.substring(0, 120)}`,
+        suggestion: 'Auto-retry scheduler will attempt to resolve this. Monitor for resolution.',
+        context: {
+          bookingIds: [row.booking_id],
+          stripePaymentIntentId: row.stripe_payment_intent_id || undefined,
+          memberEmail: row.user_email || undefined,
+          bookingDate: row.request_date || undefined,
+          startTime: row.start_time || undefined,
+          issueType: 'pending_retry',
+        }
+      });
+    }
+
+    if (totalExhausted >= 3) {
+      try {
+        await notifyAllStaff(
+          'Unresolved Failed Side Effects',
+          `${totalExhausted} failed side effect(s) have exceeded the maximum retry limit and require manual resolution. Check the Data Integrity dashboard.`,
+          'system_alert',
+          { sendPush: false }
+        );
+      } catch {
+      }
+    }
+
+    if (totalExhausted > exceededRetries.length) {
+      issues.push({
+        category: 'billing_issue',
+        severity: 'error',
+        table: 'failed_side_effects',
+        recordId: 'summary',
+        description: `${totalExhausted} total exhausted-retry side effects (showing first ${exceededRetries.length}). ${totalPending} pending retries.`,
+        suggestion: 'Check the failed_side_effects table directly for the full list'
+      });
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Failed to check unresolved side effects:', { extra: { error: getErrorMessage(error) } });
+    issues.push({
+      category: 'system_error',
+      severity: 'warning',
+      table: 'failed_side_effects',
+      recordId: 'check_error',
+      description: `Failed to check unresolved side effects: ${getErrorMessage(error)}`,
+      suggestion: 'Review server logs for details'
+    });
+  }
+
+  return {
+    checkName: 'Unresolved Failed Side Effects',
+    status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}

@@ -519,6 +519,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
     const isPartialRefund = refundedAmount < payment.amountCents;
     const newStatus = isPartialRefund ? 'partially_refunded' : 'refunded';
 
+    try {
     await db.transaction(async (tx) => {
       await tx.execute(sql`UPDATE stripe_payment_intents SET status = ${newStatus}, updated_at = NOW() WHERE stripe_payment_intent_id = ${paymentIntentId}`);
 
@@ -642,6 +643,25 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
         performedByName: staffName
       });
     });
+    } catch (dbError: unknown) {
+      logger.error('[Payments] Stripe refund succeeded but DB sync failed — marking refund_succeeded_sync_failed', {
+        extra: { paymentIntentId, refundId: refund.id, error: getErrorMessage(dbError) }
+      });
+      try {
+        await db.execute(sql`UPDATE stripe_payment_intents SET status = 'refund_succeeded_sync_failed', updated_at = NOW() WHERE stripe_payment_intent_id = ${paymentIntentId}`);
+      } catch {
+      }
+      try {
+        await db.execute(sql`INSERT INTO failed_side_effects (booking_id, action_type, stripe_payment_intent_id, error_message, context, resolved, retry_count, created_at, updated_at) VALUES (0, 'stripe_refund', ${paymentIntentId}, ${getErrorMessage(dbError)}, ${JSON.stringify({ source: 'payment_admin_refund' })}, false, 0, NOW(), NOW())`);
+      } catch { /* best effort */ }
+      return res.status(207).json({
+        success: true,
+        warning: 'Stripe refund succeeded but local records could not be updated. This will be auto-retried.',
+        refundId: refund.id,
+        amount: refundedAmount,
+        syncFailed: true,
+      });
+    }
 
     if (payment.sessionId) {
       try {
