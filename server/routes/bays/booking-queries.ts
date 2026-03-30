@@ -11,13 +11,16 @@ import { normalizeToISODate } from '../../utils/dateNormalize';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 const router = Router();
 
 router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     
     if (isNaN(bookingId)) {

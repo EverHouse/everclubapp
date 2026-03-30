@@ -16,6 +16,7 @@ import {
 } from '../../core/bookingService/approvalService';
 import { BookingStateService } from '../../core/bookingService';
 import { refreshBookingPass, voidBookingPass } from '../../walletPass/bookingPassService';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 const router = Router();
 
@@ -23,10 +24,11 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync } = req.body;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     if (trackman_booking_id !== undefined && trackman_booking_id !== null && trackman_booking_id !== '') {
       const validation = await validateTrackmanId(trackman_booking_id, bookingId);
@@ -144,10 +146,11 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status: targetStatus, confirmPayment, skipPaymentCheck, skipRosterCheck } = req.body;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
     const sessionUser = getSessionUser(req);
     const staffEmail = sessionUser?.email || 'unknown';
     const staffName = sessionUser?.name || null;
@@ -175,10 +178,11 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
 
 router.post('/api/admin/bookings/:id/dev-confirm', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const result = await devConfirmBooking({
       bookingId,
@@ -218,10 +222,11 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
     const staffEmail = getSessionUser(req)?.email;
     if (!staffEmail) return res.status(401).json({ error: 'Authentication required' });
 
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const result = await BookingStateService.completePendingCancellation({ bookingId, staffEmail, source: 'staff_manual' });
 
@@ -229,7 +234,7 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
       return res.status(result.statusCode || 500).json({ error: result.error });
     }
 
-    logFromRequest(req, 'complete_cancellation', 'booking', req.params.id as string, staffEmail, {
+    logFromRequest(req, 'complete_cancellation', 'booking', bookingId.toString(), staffEmail, {
       member_email: result.bookingData.userEmail,
       trackman_booking_id: result.bookingData.trackmanBookingId,
       completed_manually: true,
@@ -251,10 +256,11 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
 
 router.put('/api/bookings/:id/revert-to-approved', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const staffEmail = getSessionUser(req)?.email || 'unknown';
     const result = await revertToApproved({ bookingId, staffEmail });
@@ -267,7 +273,7 @@ router.put('/api/bookings/:id/revert-to-approved', isStaffOrAdmin, async (req, r
       logger.error('[Approval] Wallet pass refresh failed after revert to approved', { extra: { bookingId, error: getErrorMessage(err) } })
     );
 
-    logFromRequest(req, 'revert_to_approved', 'booking', req.params.id as string, staffEmail, {
+    logFromRequest(req, 'revert_to_approved', 'booking', bookingId.toString(), staffEmail, {
       previous_status: result.previousStatus
     });
 

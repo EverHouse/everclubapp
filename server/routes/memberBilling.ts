@@ -11,6 +11,7 @@ import { getBillingGroupByMemberEmail } from '../core/stripe/groupBilling';
 import { listCustomerInvoices, getCustomerPaymentHistory } from '../core/stripe/invoices';
 import { listCustomerSubscriptions } from '../core/stripe/subscriptions';
 import { logFromRequest } from '../core/auditLog';
+import { requiredStringParam } from '../middleware/paramSchemas';
 import { getErrorMessage, safeErrorDetail, isStripeResourceMissing } from '../utils/errorUtils';
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
@@ -150,7 +151,9 @@ async function getMemberByEmail(email: string): Promise<MemberBillingRow | null>
 
 router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -258,7 +261,7 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       }
     } else if (member.billing_provider === 'family_addon') {
       try {
-        const familyGroup = await getBillingGroupByMemberEmail(email as string);
+        const familyGroup = await getBillingGroupByMemberEmail(email);
         billingInfo.familyGroup = familyGroup;
       } catch (familyError: unknown) {
         logger.error('[MemberBilling] Family group error', { extra: { familyError: getErrorMessage(familyError) } });
@@ -301,7 +304,9 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
 
     const result = await db.execute(sql`
       SELECT 
@@ -425,7 +430,9 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
 
 router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { billingProvider } = req.body;
 
     const validProviders = ['stripe', 'manual', 'family_addon', 'comped', null];
@@ -481,7 +488,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       }
     }
 
-    await db.execute(sql`UPDATE users SET billing_provider = ${billingProvider}, updated_at = NOW() WHERE LOWER(email) = ${(email as string).toLowerCase()}`);
+    await db.execute(sql`UPDATE users SET billing_provider = ${billingProvider}, updated_at = NOW() WHERE LOWER(email) = ${email.toLowerCase()}`);
 
     logger.info('[MemberBilling] Updated billing provider for to', { extra: { email, billingProvider } });
     
@@ -491,7 +498,7 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
       const { syncMemberToHubSpot } = await import('../core/hubspot/stages');
       // Include current membership status so HubSpot uses app as source of truth
       await syncMemberToHubSpot({ 
-        email: email as string, 
+        email: email, 
         billingProvider: billingProvider || 'manual',
         status: member.membership_status || 'active'
       });
@@ -509,7 +516,9 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
 
 router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { durationDays } = req.body;
 
     if (!durationDays || (durationDays !== 30 && durationDays !== 60)) {
@@ -549,7 +558,7 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
 
     logger.info('[MemberBilling] Paused subscription for until ( days)', { extra: { subscriptionId: subscription.id, email, resumeDateToISOString: resumeDate.toISOString(), durationDays } });
     
-    logFromRequest(req, 'pause_subscription', 'subscription', subscription.id, email as string, {
+    logFromRequest(req, 'pause_subscription', 'subscription', subscription.id, email, {
       pause_until: resumeDate.toISOString()
     });
     
@@ -568,7 +577,9 @@ router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res)
 
 router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -596,7 +607,7 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
 
     logger.info('[MemberBilling] Resumed subscription for', { extra: { subscriptionId: subscription.id, email } });
     
-    logFromRequest(req, 'resume_subscription', 'subscription', subscription.id, email as string, {});
+    logFromRequest(req, 'resume_subscription', 'subscription', subscription.id, email, {});
     
     res.json({ success: true, subscriptionId: subscription.id, status: 'active' });
   } catch (error: unknown) {
@@ -607,7 +618,9 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
 
 router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { reason, immediate } = req.body;
     const member = await getMemberByEmail(email);
 
@@ -653,11 +666,11 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
         cancellation_effective_date = ${effectiveDate.toISOString()},
         cancellation_reason = ${reason || null},
         updated_at = NOW()
-       WHERE LOWER(email) = ${(email as string).toLowerCase()}`);
+       WHERE LOWER(email) = ${email.toLowerCase()}`);
 
     logger.info('[MemberBilling] Set cancel_at for subscription , email , effective', { extra: { subscriptionId: subscription.id, email, effectiveDateToISOString: effectiveDate.toISOString() } });
     
-    logFromRequest(req, 'cancel_subscription', 'subscription', subscription.id, email as string, {
+    logFromRequest(req, 'cancel_subscription', 'subscription', subscription.id, email, {
       reason: reason || 'Not specified',
       effective_date: effectiveDate.toISOString(),
       immediate: !!immediate
@@ -679,7 +692,9 @@ router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res
 
 router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -718,11 +733,11 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
         cancellation_effective_date = NULL,
         cancellation_reason = NULL,
         updated_at = NOW()
-       WHERE LOWER(email) = ${(email as string).toLowerCase()}`);
+       WHERE LOWER(email) = ${email.toLowerCase()}`);
 
     logger.info('[MemberBilling] Undid cancellation for subscription , email', { extra: { pendingCancelSubId: pendingCancelSub.id, email } });
     
-    logFromRequest(req, 'undo_cancel_subscription', 'subscription', pendingCancelSub.id, email as string, {});
+    logFromRequest(req, 'undo_cancel_subscription', 'subscription', pendingCancelSub.id, email, {});
     
     res.json({
       success: true,
@@ -737,7 +752,9 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
 
 router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { amountCents, description } = req.body;
 
     if (typeof amountCents !== 'number' || amountCents <= 0) {
@@ -755,7 +772,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
     }
     
     // Prevent operations on placeholder emails
-    if (isPlaceholderEmail(email as string)) {
+    if (isPlaceholderEmail(email)) {
       return res.status(400).json({ error: 'Cannot add credits to placeholder accounts' });
     }
 
@@ -787,7 +804,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
     logger.info('[MemberBilling] Applied credit of cents to', { extra: { amountCents, email } });
     
     // Audit log the credit application
-    await logFromRequest(req, 'apply_credit', 'member', email as string, email as string, {
+    await logFromRequest(req, 'apply_credit', 'member', email, email, {
       amountCents,
       amountDollars: (amountCents / 100).toFixed(2),
       description,
@@ -809,7 +826,9 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
 
 router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { couponId, percentOff, duration = 'once' } = req.body;
 
     if (!couponId && !percentOff) {
@@ -890,7 +909,9 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
 
 router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -921,7 +942,9 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
 
 router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { limit = '50' } = req.query;
     const member = await getMemberByEmail(email);
 
@@ -935,7 +958,7 @@ router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (
 
     const result = await getCustomerPaymentHistory(
       member.stripe_customer_id, 
-      Math.min(parseInt(limit as string, 10) || 50, 200)
+      Math.min(parseInt(String(limit), 10) || 50, 200)
     );
 
     if (!result.success) {
@@ -951,7 +974,9 @@ router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (
 
 router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -976,7 +1001,7 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
 
     logger.info('[MemberBilling] Created billing portal session for', { extra: { email } });
     
-    logFromRequest(req, 'send_payment_link', 'member', member.id?.toString() || null, email as string, {});
+    logFromRequest(req, 'send_payment_link', 'member', member.id?.toString() || null, email, {});
     
     res.json({
       success: true,
@@ -990,7 +1015,9 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
 
 router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const { billingStartDate, confirmedMindBodyCancelled } = req.body;
 
     if (!billingStartDate || typeof billingStartDate !== 'string') {
@@ -1107,7 +1134,9 @@ router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, asyn
 
 router.post('/api/member-billing/:email/cancel-migration', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {
@@ -1145,7 +1174,9 @@ router.post('/api/member-billing/:email/cancel-migration', isStaffOrAdmin, async
 
 router.get('/api/member-billing/:email/migration-status', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const member = await getMemberByEmail(email);
 
     if (!member) {

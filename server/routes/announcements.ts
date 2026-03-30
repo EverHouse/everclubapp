@@ -9,6 +9,7 @@ import { sendPushNotificationToAllMembers } from './push';
 import { broadcastAnnouncementUpdate } from '../core/websocket';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
+import { numericIdParam } from '../middleware/paramSchemas';
 import {
   createAnnouncementSheet,
   getLinkedSheetId,
@@ -303,7 +304,9 @@ router.post('/api/announcements', isStaffOrAdmin, validateBody(announcementSchem
 router.put('/api/announcements/:id', isStaffOrAdmin, validateBody(announcementSchema), async (req, res) => {
   try {
     const { id } = req.params;
-    const announcementId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid announcement ID' });
+    const announcementId = parseInt(idParse.data, 10);
     if (isNaN(announcementId)) return res.status(400).json({ error: 'Invalid announcement ID' });
     const { title, description, startDate, endDate, linkType, linkTarget, notifyMembers, showAsBanner } = req.body;
     
@@ -394,7 +397,9 @@ router.put('/api/announcements/:id', isStaffOrAdmin, validateBody(announcementSc
 router.delete('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const announcementId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid announcement ID' });
+    const announcementId = parseInt(idParse.data, 10);
     if (isNaN(announcementId)) return res.status(400).json({ error: 'Invalid announcement ID' });
     
     const [deleted] = await db.delete(announcements)
@@ -415,7 +420,7 @@ router.delete('/api/announcements/:id', isStaffOrAdmin, async (req, res) => {
     
     getLinkedSheetId().then(sheetId => {
       if (sheetId) {
-        deleteFromSheet(sheetId, id as string).catch(err => {
+        deleteFromSheet(sheetId, idParse.data).catch(err => {
           logger.error('Failed to delete announcement from Google Sheet', { extra: { error: getErrorMessage(err) } });
         });
       }

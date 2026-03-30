@@ -12,13 +12,16 @@ import { logFromRequest } from '../../core/auditLog';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { numericIdParam, requiredStringParam } from '../../middleware/paramSchemas';
 
 const router = Router();
 
 router.get('/api/members/:email/communications', isStaffOrAdmin, async (req, res) => {
   try {
     const { email } = req.params;
-    const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const normalizedEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const logs = await db.select()
       .from(communicationLogs)
@@ -43,7 +46,9 @@ router.post('/api/members/:email/communications', isStaffOrAdmin, async (req, re
       return res.status(400).json({ error: 'Communication type is required' });
     }
     
-    const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const normalizedEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const result = await db.insert(communicationLogs)
       .values({
@@ -72,9 +77,12 @@ router.post('/api/members/:email/communications', isStaffOrAdmin, async (req, re
 router.delete('/api/members/:email/communications/:logId', isStaffOrAdmin, async (req, res) => {
   try {
     const { email, logId } = req.params;
-    const parsedLogId = parseInt(logId as string, 10);
-    if (isNaN(parsedLogId)) return res.status(400).json({ error: 'Invalid log ID' });
-    const normalizedEmail = decodeURIComponent(email as string).trim().toLowerCase();
+    const logIdParse = numericIdParam.safeParse(logId);
+    if (!logIdParse.success) return res.status(400).json({ error: 'Invalid log ID' });
+    const parsedLogId = parseInt(logIdParse.data, 10);
+    const emailParse = requiredStringParam.safeParse(email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const normalizedEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const result = await db.delete(communicationLogs)
       .where(and(
@@ -87,7 +95,7 @@ router.delete('/api/members/:email/communications/:logId', isStaffOrAdmin, async
       return res.status(404).json({ error: 'Communication log not found for this member' });
     }
     
-    logFromRequest(req, 'delete_communication', 'communication', logId as string, normalizedEmail);
+    logFromRequest(req, 'delete_communication', 'communication', logIdParse.data, normalizedEmail);
     res.json({ success: true });
   } catch (error: unknown) {
     logger.error('Delete communication log error', { extra: { error: getErrorMessage(error) } });

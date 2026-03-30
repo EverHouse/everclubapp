@@ -12,6 +12,7 @@ import { cancelPaymentIntent, createBalanceAwarePayment, getOrCreateStripeCustom
 import { resolveUserByEmail } from '../../core/stripe/customers';
 import { logFromRequest, logPaymentAudit } from '../../core/auditLog';
 import { PRICING } from '../../core/billing/pricingConfig';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { broadcastMemberStatsUpdated, broadcastBookingInvoiceUpdate, broadcastBillingUpdate } from '../../core/websocket';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -32,10 +33,11 @@ const router = Router();
 
 router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {

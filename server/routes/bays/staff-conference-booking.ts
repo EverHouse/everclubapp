@@ -32,7 +32,7 @@ router.get('/api/staff/conference-room/available-slots', isStaffOrAdmin, async (
       return res.status(400).json({ error: 'Missing required parameter: date (YYYY-MM-DD)' });
     }
 
-    const durationMinutes = duration ? parseInt(duration as string, 10) : 60;
+    const durationMinutes = duration ? parseInt(String(duration), 10) : 60;
     if (isNaN(durationMinutes) || durationMinutes < 30 || durationMinutes > 240) {
       return res.status(400).json({ error: 'Invalid duration. Must be between 30 and 240 minutes.' });
     }
@@ -117,7 +117,7 @@ router.get('/api/staff/conference-room/fee-estimate', isStaffOrAdmin, async (req
       return res.status(400).json({ error: 'Missing required parameter: date' });
     }
     
-    const durationMinutes = duration ? parseInt(duration as string, 10) : 60;
+    const durationMinutes = duration ? parseInt(String(duration), 10) : 60;
     if (isNaN(durationMinutes) || durationMinutes < 30 || durationMinutes > 240) {
       return res.status(400).json({ error: 'Invalid duration' });
     }

@@ -8,6 +8,7 @@ import { sendOutstandingBalanceEmail } from '../emails/paymentEmails';
 import { getPacificMidnightUTC, addDaysToPacificDate } from '../utils/dateUtils';
 import { upsertTransactionCache } from '../core/stripe/webhooks';
 import Stripe from 'stripe';
+import { requiredStringParam } from '../middleware/paramSchemas';
 
 interface StripeInvoiceExpanded extends Stripe.Invoice {
   payment_intent: string | Stripe.PaymentIntent | null;
@@ -39,7 +40,7 @@ interface _RecentTransaction {
 router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { date, cursor, limit: limitParam } = req.query;
-    const limit = Math.min(Math.max(parseInt(limitParam as string, 10) || 100, 1), 500);
+    const limit = Math.min(Math.max(parseInt(String(limitParam), 10) || 100, 1), 500);
     
     let startOfDay: number | undefined;
     let endOfDay: number | undefined;
@@ -617,7 +618,7 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
       ? status as Stripe.Subscription.Status
       : 'all';
     
-    const pageLimit = Math.min(Math.max(parseInt(limit as string, 10) || 50, 1), 100);
+    const pageLimit = Math.min(Math.max(parseInt(String(limit), 10) || 50, 1), 100);
     
     const listParams: Stripe.SubscriptionListParams = {
       limit: pageLimit,
@@ -788,7 +789,9 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
     const { subscriptionId } = req.params;
     const stripe = await getStripeClient();
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId as string, {
+    const subIdParse = requiredStringParam.safeParse(subscriptionId);
+    if (!subIdParse.success) return res.status(400).json({ error: 'Invalid subscription ID' });
+    const subscription = await stripe.subscriptions.retrieve(subIdParse.data, {
       expand: ['customer', 'items.data.price.product'],
     });
 
@@ -860,7 +863,7 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
     const stripe = await getStripeClient();
     const { status, startDate, endDate, limit, starting_after } = req.query;
     
-    const pageLimit = Math.min(Math.max(parseInt(limit as string, 10) || 50, 1), 100);
+    const pageLimit = Math.min(Math.max(parseInt(String(limit), 10) || 50, 1), 100);
     
     const listParams: Stripe.InvoiceListParams = {
       limit: pageLimit,

@@ -8,6 +8,7 @@ import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { TRAINING_SEED_DATA } from '../data/trainingSeedData';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -156,8 +157,9 @@ router.post('/api/admin/training-sections', isAdmin, async (req, res) => {
 router.put('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const sectionId = parseInt(id as string, 10);
-    if (isNaN(sectionId)) return res.status(400).json({ error: 'Invalid section ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid section ID' });
+    const sectionId = parseInt(idParse.data, 10);
     const { icon, title, description, steps, isAdminOnly, sortOrder } = req.body;
     
     const [updated] = await db.update(trainingSections)
@@ -188,8 +190,9 @@ router.put('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
 router.delete('/api/admin/training-sections/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const sectionId = parseInt(id as string, 10);
-    if (isNaN(sectionId)) return res.status(400).json({ error: 'Invalid section ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid section ID' });
+    const sectionId = parseInt(idParse.data, 10);
     
     const [deleted] = await db.delete(trainingSections)
       .where(eq(trainingSections.id, sectionId))

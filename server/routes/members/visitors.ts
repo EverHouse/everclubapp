@@ -346,7 +346,7 @@ router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
       membershipStatus: users.membershipStatus
     })
       .from(users)
-      .where(eq(users.id, id as string));
+      .where(eq(users.id, id));
     
     if (visitorResult.length === 0) {
       return res.status(404).json({ error: 'Visitor not found' });
@@ -655,7 +655,7 @@ router.get('/api/visitors/search', isStaffOrAdmin, async (req, res) => {
     }
     
     const searchTerm = `%${query.trim().toLowerCase()}%`;
-    const maxResults = Math.min(parseInt(limit as string, 10) || 10, 50);
+    const maxResults = Math.min(parseInt(String(limit), 10) || 10, 50);
     const shouldIncludeStaff = includeStaff === 'true';
     const shouldIncludeMembers = includeMembers === 'true';
     
@@ -843,7 +843,7 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
       hubspotId: users.hubspotId
     })
       .from(users)
-      .where(eq(users.id, id as string));
+      .where(eq(users.id, id));
     
     if (userResult.length === 0) {
       return res.status(404).json({ error: 'Visitor not found' });
@@ -1025,7 +1025,7 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
     await logFromRequest(req, {
       action: 'delete_visitor',
       resourceType: 'user',
-      resourceId: id as string,
+      resourceId: id,
       resourceName: visitorName || undefined,
       details: {
         email: visitor.email,

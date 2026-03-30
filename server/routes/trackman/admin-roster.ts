@@ -5,6 +5,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { notifyMember } from '../../core/notificationService';
 import { getGuestPassesRemaining, useGuestPass, ensureGuestPassRecord } from '../guestPasses';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { getAvailableGuestPasses } from '../../core/billing/guestPassHoldService';
 import { getMemberTierByEmail, getTierLimits } from '../../core/tierService';
 import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
@@ -84,7 +85,9 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     const _targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
     const isUnmatchedOwner = !ownerEmail || String(ownerEmail).includes('unmatched@') || String(ownerEmail).includes('@trackman.import');
     const bookingData = bookingResult.rows[0] as DbRow;
-    const bookingId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }

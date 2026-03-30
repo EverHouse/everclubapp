@@ -12,6 +12,7 @@ import { ensureSessionForBooking } from '../../core/bookingService/sessionManage
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { formatTime12Hour } from '../../utils/dateUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 interface WebhookEventRetryRow {
   id: number;
@@ -92,12 +93,9 @@ router.get('/api/admin/trackman-webhook/failed', isStaffOrAdmin, async (req: Req
 
 router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const eventId = parseInt(req.params.eventId as string, 10);
-    if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
-    
-    if (isNaN(eventId)) {
-      return res.status(400).json({ error: 'Invalid event ID' });
-    }
+    const eventIdParse = numericIdParam.safeParse(req.params.eventId);
+    if (!eventIdParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(eventIdParse.data, 10);
     
     const eventResult = await db.execute(sql`SELECT id, event_type, payload, trackman_booking_id, retry_count
        FROM trackman_webhook_events 
@@ -169,12 +167,9 @@ router.post('/api/admin/trackman-webhook/:eventId/retry', isStaffOrAdmin, async 
 
 router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const eventId = parseInt(req.params.eventId as string, 10);
-    if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
-    
-    if (isNaN(eventId)) {
-      return res.status(400).json({ error: 'Invalid event ID' });
-    }
+    const eventIdParse = numericIdParam.safeParse(req.params.eventId);
+    if (!eventIdParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(eventIdParse.data, 10);
     
     const eventResult = await db.execute(sql`SELECT id, event_type, payload, trackman_booking_id, matched_booking_id
        FROM trackman_webhook_events 

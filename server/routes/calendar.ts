@@ -53,14 +53,14 @@ router.get('/api/calendar-availability/conference', async (req, res) => {
       return res.status(400).json({ error: 'date is required (YYYY-MM-DD format)' });
     }
     
-    const durationMinutes = duration ? parseInt(duration as string, 10) : undefined;
-    const result = await getCalendarAvailability('conference', date as string, durationMinutes);
+    const durationMinutes = duration ? parseInt(String(duration), 10) : undefined;
+    const result = await getCalendarAvailability('conference', String(date), durationMinutes);
     
     if (result.error) {
       return res.status(404).json({ error: result.error });
     }
     
-    const conferenceConfig = await getResourceConfig('conference', date as string);
+    const conferenceConfig = await getResourceConfig('conference', String(date));
     res.json({
       date,
       calendarName: CALENDAR_CONFIG.conference.name,
@@ -104,9 +104,9 @@ router.get('/api/calendar/availability', async (req, res) => {
     
     const calendar = await getGoogleCalendarClient();
     
-    const startTime = getPacificMidnightUTC(start_date as string);
+    const startTime = getPacificMidnightUTC(String(start_date));
     
-    const nextDay = addDaysToPacificDate(end_date as string, 1);
+    const nextDay = addDaysToPacificDate(String(end_date), 1);
     const endTime = new Date(getPacificMidnightUTC(nextDay).getTime() - 1);
     
     const response = await calendar.freebusy.query({

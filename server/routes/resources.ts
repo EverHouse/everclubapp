@@ -6,6 +6,7 @@ import { logAndRespond, logger } from '../core/logger';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 import { processBookingDayPassRedemptions } from '../core/billing/dayPassRedemption';
 import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
 import { memberCancelSchema } from '../../shared/validators/roster';
@@ -172,12 +173,13 @@ router.get('/api/pending-bookings', isStaffOrAdmin, async (req, res) => {
 router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     
     const result = await approveBooking(bookingId);
     
-    logFromRequest(req, 'approve_booking', 'booking', id as string, result.userEmail, {
+    logFromRequest(req, 'approve_booking', 'booking', idParse.data, result.userEmail, {
       bay: result.resourceId,
       time: result.startTime
     });
@@ -198,12 +200,13 @@ router.put('/api/bookings/:id/approve', isStaffOrAdmin, async (req, res) => {
 router.put('/api/bookings/:id/decline', isStaffOrAdmin, validateBody(declineBookingSchema), async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     
     const result = await declineBooking(bookingId, req.body.reason);
     
-    logFromRequest(req, 'decline_booking', 'booking', id as string, result.userEmail, {
+    logFromRequest(req, 'decline_booking', 'booking', idParse.data, result.userEmail, {
       member_email: result.userEmail,
       reason: req.body.reason || 'Not specified'
     });
@@ -221,13 +224,14 @@ router.put('/api/bookings/:id/decline', isStaffOrAdmin, validateBody(declineBook
 router.post('/api/bookings/:id/assign-member', isStaffOrAdmin, validateBody(assignMemberSchema), async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     const { member_email, member_name, member_id } = req.body;
     
     const result = await assignMemberToBooking(bookingId, member_email, member_name, member_id);
     
-    logFromRequest(req, 'assign_member_to_booking', 'booking', id as string, member_email, {
+    logFromRequest(req, 'assign_member_to_booking', 'booking', idParse.data, member_email, {
       member_email,
       member_name,
       was_unmatched: true
@@ -344,7 +348,9 @@ router.get('/api/resources/overlapping-notices', isStaffOrAdmin, async (req, res
 
 router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody(assignWithPlayersSchema), async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     const { owner, additional_players, rememberEmail, originalEmail, dayPassRedemptions } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
@@ -420,7 +426,9 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
 
 router.put('/api/bookings/:id/change-owner', isStaffOrAdmin, validateBody(changeOwnerSchema), async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     const { new_email, new_name, member_id } = req.body;
     
     if (!bookingId || isNaN(bookingId)) {
@@ -504,8 +512,9 @@ router.post('/api/bookings', bookingRateLimiter, validateBody(createBookingSchem
 router.get('/api/bookings/:id/cascade-preview', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     
     const result = await getCascadePreview(bookingId);
     res.json(result);
@@ -521,8 +530,9 @@ router.get('/api/bookings/:id/cascade-preview', isStaffOrAdmin, async (req, res)
 router.delete('/api/bookings/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     const sessionUser = getSessionUser(req);
     const archivedBy = sessionUser?.email || 'unknown';
     const hardDelete = req.query.hard_delete === 'true';
@@ -554,13 +564,14 @@ router.put('/api/bookings/:id/member-cancel', isAuthenticated, validateBody(memb
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const bookingId = parseInt(id as string, 10);
-    if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     
     const result = await memberCancelBooking(bookingId, userEmail, sessionUserRole, actingAsEmail);
     
     if (result.isPending) {
-      logFromRequest(req, 'cancellation_requested', 'booking', id as string, undefined, {
+      logFromRequest(req, 'cancellation_requested', 'booking', idParse.data, undefined, {
         member_email: result.existing.userEmail,
         trackman_booking_id: result.existing.trackmanBookingId
       });
@@ -572,7 +583,7 @@ router.put('/api/bookings/:id/member-cancel', isAuthenticated, validateBody(memb
       });
     }
     
-    logFromRequest(req, 'cancel_booking', 'booking', id as string, result.existing.userEmail, {
+    logFromRequest(req, 'cancel_booking', 'booking', idParse.data, result.existing.userEmail, {
       member_email: result.existing.userEmail,
       cancelled_by: 'member',
       cascade_participants: result.cascadeResult?.participantsNotified,

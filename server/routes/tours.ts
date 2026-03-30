@@ -13,6 +13,7 @@ import { getTodayPacific } from '../utils/dateUtils';
 import { getSessionUser } from '../types/session';
 import { logFromRequest, AuditAction } from '../core/auditLog';
 import { broadcastToStaff } from '../core/websocket';
+import { numericIdParam } from '../middleware/paramSchemas';
 import { getErrorMessage } from '../utils/errorUtils';
 import { checkoutRateLimiter } from '../middleware/rateLimiting';
 import { getSettingValue } from '../core/settingsHelper';
@@ -166,7 +167,9 @@ router.get('/api/tours/today', isStaffOrAdmin, async (req, res) => {
 router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const tourId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid tour ID' });
+    const tourId = parseInt(idParse.data, 10);
     if (isNaN(tourId)) return res.status(400).json({ error: 'Invalid tour ID' });
     const staffEmail = getSessionUser(req)?.email || req.body.staffEmail;
     
@@ -219,7 +222,9 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
     
-    const tourId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid tour ID' });
+    const tourId = parseInt(idParse.data, 10);
     if (isNaN(tourId)) return res.status(400).json({ error: 'Invalid tour ID' });
     
     const [existingTour] = await db.select().from(tours).where(eq(tours.id, tourId));

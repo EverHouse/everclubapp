@@ -13,6 +13,7 @@ import { getSessionUser } from '../types/session';
 import { getSettingValue, getSettingBoolean } from '../core/settingsHelper';
 import { isStaffOrAdmin } from '../core/middleware';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -216,10 +217,11 @@ router.get('/api/member/booking-wallet-pass/:bookingId', isAuthenticated, async 
       return res.status(404).json({ error: 'Apple Wallet passes are not enabled' });
     }
 
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    if (isNaN(bookingId)) {
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    if (!bookingIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
 
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {

@@ -10,6 +10,7 @@ import {
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 const router = Router();
 
@@ -71,7 +72,9 @@ router.put('/api/admin/trackman/reconciliation/:id', isStaffOrAdmin, async (req,
       });
     }
     
-    const reconciliationId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid reconciliation ID' });
+    const reconciliationId = parseInt(idParse.data, 10);
     if (isNaN(reconciliationId)) {
       return res.status(400).json({ error: 'Invalid ID' });
     }

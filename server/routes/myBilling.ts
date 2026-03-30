@@ -18,6 +18,7 @@ import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils
 import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific } from '../utils/dateUtils';
 import { isStaffOrAdmin } from '../replit_integrations/auth';
+import { requiredStringParam } from '../middleware/paramSchemas';
 import { validateQuery, validateBody } from '../middleware/validate';
 import { z } from 'zod';
 import { paymentRateLimiter, sensitiveActionRateLimiter } from '../middleware/rateLimiting';
@@ -600,7 +601,9 @@ router.get('/api/my-billing/account-balance', requireAuth, validateQuery(billing
 // Sync member to Stripe - create or find customer by email
 router.post('/api/member-billing/:email/sync-stripe', requireStaffAuth, async (req: Request, res: Response) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const targetEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id, tier FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     
@@ -629,7 +632,9 @@ router.post('/api/member-billing/:email/sync-stripe', requireStaffAuth, async (r
 // Sync customer metadata to Stripe
 router.post('/api/member-billing/:email/sync-metadata', requireStaffAuth, async (req: Request, res: Response) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const targetEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id, tier FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     
@@ -664,7 +669,9 @@ router.post('/api/member-billing/:email/sync-metadata', requireStaffAuth, async 
 // Sync tier from Stripe subscription - fetches active subscription and updates tier based on product name
 router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth, async (req: Request, res: Response) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const targetEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, first_name, last_name, stripe_customer_id, tier FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     
@@ -789,7 +796,9 @@ router.post('/api/member-billing/:email/sync-tier-from-stripe', requireStaffAuth
 // Backfill transaction cache for individual member
 router.post('/api/member-billing/:email/backfill-cache', requireStaffAuth, async (req: Request, res: Response) => {
   try {
-    const targetEmail = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const targetEmail = decodeURIComponent(emailParse.data).trim().toLowerCase();
     
     const result = await db.execute(sql`SELECT id, email, stripe_customer_id FROM users WHERE LOWER(email) = ${targetEmail.toLowerCase()}`);
     

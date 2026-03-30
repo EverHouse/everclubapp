@@ -13,6 +13,7 @@ import { ensureSessionForBooking } from '../../core/bookingService/sessionManage
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
 import { voidBookingPass } from '../../walletPass/bookingPassService';
 import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../../core/billing/paymentIntentCleanup';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 
 function runReprocessConflictSideEffects(bookingId: number, userEmail: string, reason: string): void {
@@ -121,10 +122,11 @@ const router = Router();
 
 router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const bookingResult = await db.execute(sql`SELECT br.*, u.stripe_customer_id, u.tier
        FROM booking_requests br

@@ -10,6 +10,7 @@ import { logFromRequest, type AuditAction } from '../../core/auditLog';
 import { logger } from '../../core/logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { createEventAvailabilityBlocks } from './shared';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 const router = Router();
 
@@ -245,7 +246,9 @@ router.post('/api/eventbrite/sync', isStaffOrAdmin, async (req, res) => {
 router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     
     const eventResult = await db.select({
@@ -447,7 +450,9 @@ router.post('/api/events/:id/sync-eventbrite-attendees', isStaffOrAdmin, async (
 router.get('/api/events/:id/eventbrite-attendees', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     
     const result = await db.select({

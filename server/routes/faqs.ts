@@ -6,6 +6,7 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -76,8 +77,9 @@ router.post('/api/admin/faqs', isStaffOrAdmin, async (req, res) => {
 router.put('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const faqId = parseInt(id as string, 10);
-    if (isNaN(faqId)) return res.status(400).json({ error: 'Invalid FAQ ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid FAQ ID' });
+    const faqId = parseInt(idParse.data, 10);
     const { question, answer, category, sortOrder, isActive } = req.body;
     
     const [updated] = await db.update(faqs)
@@ -96,7 +98,7 @@ router.put('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'FAQ not found' });
     }
     
-    logFromRequest(req, 'update_faq', 'faq', id as string);
+    logFromRequest(req, 'update_faq', 'faq', idParse.data);
     
     res.json(updated);
   } catch (error: unknown) {
@@ -108,8 +110,9 @@ router.put('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const faqId = parseInt(id as string, 10);
-    if (isNaN(faqId)) return res.status(400).json({ error: 'Invalid FAQ ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid FAQ ID' });
+    const faqId = parseInt(idParse.data, 10);
     
     const [deleted] = await db.delete(faqs)
       .where(eq(faqs.id, faqId))
@@ -119,7 +122,7 @@ router.delete('/api/admin/faqs/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'FAQ not found' });
     }
     
-    logFromRequest(req, 'delete_faq', 'faq', id as string);
+    logFromRequest(req, 'delete_faq', 'faq', idParse.data);
     
     res.json({ success: true, deleted });
   } catch (error: unknown) {

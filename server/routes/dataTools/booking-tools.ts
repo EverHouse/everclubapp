@@ -49,8 +49,8 @@ router.get('/api/data-tools/unlinked-guest-fees', isAdmin, async (req: Request, 
       .where(and(
         sql`item_category IN ('guest_pass', 'guest_sim_fee')`,
         isNull(legacyPurchases.linkedBookingSessionId),
-        gte(legacyPurchases.saleDate, new Date(startDate as string)),
-        lte(legacyPurchases.saleDate, new Date(endDate as string))
+        gte(legacyPurchases.saleDate, new Date(String(startDate))),
+        lte(legacyPurchases.saleDate, new Date(String(endDate)))
       ))
       .orderBy(desc(legacyPurchases.saleDate))
       .limit(100);
@@ -93,7 +93,7 @@ router.get('/api/data-tools/available-sessions', isAdmin, async (req: Request, r
     `;
     
     if (memberEmail) {
-      queryBuilder.append(sql` AND LOWER(br.user_email) = ${(memberEmail as string).trim().toLowerCase()}`);
+      queryBuilder.append(sql` AND LOWER(br.user_email) = ${String(memberEmail).trim().toLowerCase()}`);
     }
     
     queryBuilder.append(sql` ORDER BY br.start_time ASC LIMIT 50`);
@@ -211,10 +211,10 @@ router.get('/api/data-tools/bookings-search', isStaffOrAdmin, async (req: Reques
     }
     
     if (memberEmail) {
-      queryBuilder.append(sql` AND LOWER(br.user_email) = ${(memberEmail as string).trim().toLowerCase()}`);
+      queryBuilder.append(sql` AND LOWER(br.user_email) = ${String(memberEmail).trim().toLowerCase()}`);
     }
     
-    queryBuilder.append(sql` ORDER BY br.request_date DESC, br.start_time ASC LIMIT ${parseInt(limit as string, 10) || 50}`);
+    queryBuilder.append(sql` ORDER BY br.request_date DESC, br.start_time ASC LIMIT ${parseInt(String(limit), 10) || 50}`);
     
     const result = await db.execute(queryBuilder);
     

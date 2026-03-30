@@ -8,6 +8,7 @@ import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { invalidateSettingsCache } from '../core/settingsHelper';
 import { getCached, setCache, invalidateCache as invalidateQueryCache } from '../core/queryCache';
+import { requiredStringParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -196,9 +197,11 @@ router.get('/api/settings', isAuthenticated, async (req, res) => {
 
 router.get('/api/settings/:key', isAuthenticated, async (req, res) => {
   try {
-    const key = req.params.key as string;
+    const keyParse = requiredStringParam.safeParse(req.params.key);
+    if (!keyParse.success) return res.status(400).json({ error: 'Invalid setting key' });
+    const key = keyParse.data;
     
-    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key as string));
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
     
     if (setting) {
       res.json(setting);
@@ -219,7 +222,9 @@ router.get('/api/settings/:key', isAuthenticated, async (req, res) => {
 
 router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
   try {
-    const key = req.params.key as string;
+    const keyParse = requiredStringParam.safeParse(req.params.key);
+    if (!keyParse.success) return res.status(400).json({ error: 'Invalid setting key' });
+    const key = keyParse.data;
     const { value } = req.body;
     const userEmail = getSessionUser(req)?.email;
     
@@ -232,7 +237,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
     const [result] = await db
       .insert(systemSettings)
       .values({
-        key: key as string,
+        key,
         value: String(value),
         category,
         updatedBy: userEmail,
@@ -251,7 +256,7 @@ router.put('/api/admin/settings/:key', isAdmin, async (req, res) => {
     
     invalidateSettingsCache(key);
     invalidateQueryCache(PUBLIC_SETTINGS_CACHE_KEY);
-    logFromRequest(req, 'update_setting', 'setting', req.params.key as string, req.params.key as string, { value: req.body.value });
+    logFromRequest(req, 'update_setting', 'setting', key, key, { value: req.body.value });
     res.json(result);
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update setting', error, 'SETTING_UPDATE_ERROR');

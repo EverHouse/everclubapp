@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { logAndRespond, createErrorResponse, logger } from '../core/logger';
 import { isAuthenticated, isAdminEmail } from '../core/middleware';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 import { getSessionUser } from '../types/session';
 
 const router = Router();
@@ -169,8 +170,9 @@ router.delete('/api/notifications/dismiss-all', isAuthenticated, async (req, res
 router.delete('/api/notifications/:id', isAuthenticated, async (req, res) => {
   try {
     const { id } = req.params;
-    const notificationId = parseInt(id as string, 10);
-    if (isNaN(notificationId)) return res.status(400).json(createErrorResponse(req, 'Invalid notification ID', 'INVALID_INPUT'));
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json(createErrorResponse(req, 'Invalid notification ID', 'INVALID_INPUT'));
+    const notificationId = parseInt(idParse.data, 10);
     const { user_email: raw_user_email } = req.body;
     const user_email = (raw_user_email as string | undefined)?.trim()?.toLowerCase();
     

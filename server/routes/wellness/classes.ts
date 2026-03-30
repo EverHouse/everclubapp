@@ -12,6 +12,7 @@ import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger, logAndRespond } from '../../core/logger';
+import { numericIdParam, requiredStringParam } from '../../middleware/paramSchemas';
 import {
   WellnessClassRow,
   WellnessRecurringRow,
@@ -174,7 +175,9 @@ router.get('/api/wellness-classes/needs-review', isStaffOrAdmin, async (req, res
 router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const numId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
+    const numId = parseInt(idParse.data, 10);
     if (isNaN(numId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     const { applyToAll } = req.body;
     const sessionUser = getSessionUser(req);
@@ -454,7 +457,9 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     const finalSpots = spots || (capacity ? `${capacity} spots` : null);
     const finalCapacity = capacity || (spots ? parseInt(spots.toString().replace(/[^0-9]/g, ''), 10) || null : null);
     
-    const wellnessId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
+    const wellnessId = parseInt(idParse.data, 10);
     if (isNaN(wellnessId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     
     const existing = await db.execute(sql`SELECT google_calendar_id, title, time, instructor, duration, category, date, block_bookings, block_simulators, block_conference_room, recurring_event_id FROM wellness_classes WHERE id = ${wellnessId}`);
@@ -702,7 +707,9 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
     }
     
     updated.recurringUpdated = recurringUpdated;
-    const wellnessClassId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
+    const wellnessClassId = parseInt(idParse.data, 10);
     if (isNaN(wellnessClassId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     const userEmail = getSessionUser(req)?.email || 'system';
     
@@ -932,11 +939,14 @@ router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
 router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated, async (req, res) => {
   try {
     const { class_id: rawClassId, user_email: rawUserEmail } = req.params;
-    const class_id = parseInt(rawClassId as string, 10);
-    if (isNaN(class_id)) {
+    const classIdParse = numericIdParam.safeParse(rawClassId);
+    if (!classIdParse.success) {
       return res.status(400).json({ error: 'Invalid class_id' });
     }
-    const user_email = decodeURIComponent(rawUserEmail as string).trim().toLowerCase();
+    const class_id = parseInt(classIdParse.data, 10);
+    const userEmailParse = requiredStringParam.safeParse(rawUserEmail);
+    if (!userEmailParse.success) return res.status(400).json({ error: 'Invalid user email parameter' });
+    const user_email = decodeURIComponent(userEmailParse.data).trim().toLowerCase();
     const enrollmentEmail = user_email;
     
     const rawSessionEmail = getSessionUser(req)?.email;
@@ -1109,7 +1119,9 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
 router.delete('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const wellnessClassId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
+    const wellnessClassId = parseInt(idParse.data, 10);
     if (isNaN(wellnessClassId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     
     const existing = await db.execute(sql`SELECT google_calendar_id FROM wellness_classes WHERE id = ${wellnessClassId}`);
@@ -1156,7 +1168,9 @@ router.delete('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
 router.get('/api/wellness-classes/:id/enrollments', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const classId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
+    const classId = parseInt(idParse.data, 10);
     if (isNaN(classId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     
     const result = await db.select({
@@ -1186,7 +1200,9 @@ router.get('/api/wellness-classes/:id/enrollments', isStaffOrAdmin, async (req, 
 router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const classId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid class ID' });
+    const classId = parseInt(idParse.data, 10);
     if (isNaN(classId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     const { email: rawEmail } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();

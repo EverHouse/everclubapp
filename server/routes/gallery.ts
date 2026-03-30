@@ -4,6 +4,7 @@ import { galleryImages } from '../../shared/schema';
 import { eq, asc } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../core/middleware';
 import { logAndRespond } from '../core/logger';
+import { numericIdParam } from '../middleware/paramSchemas';
 import { logFromRequest } from '../core/auditLog';
 
 const router = Router();
@@ -62,8 +63,9 @@ router.post('/api/admin/gallery', isStaffOrAdmin, async (req, res) => {
 router.put('/api/admin/gallery/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const imageId = parseInt(id as string, 10);
-    if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid gallery image ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid gallery image ID' });
+    const imageId = parseInt(idParse.data, 10);
     const { title, imageUrl, category, sortOrder, isActive } = req.body;
     
     const [updated] = await db.update(galleryImages)
@@ -91,8 +93,9 @@ router.put('/api/admin/gallery/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/admin/gallery/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const imageId = parseInt(id as string, 10);
-    if (isNaN(imageId)) return res.status(400).json({ error: 'Invalid gallery image ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid gallery image ID' });
+    const imageId = parseInt(idParse.data, 10);
     
     const [updated] = await db.update(galleryImages)
       .set({ isActive: false })

@@ -6,13 +6,14 @@ import { isStaffOrAdmin } from '../core/middleware';
 import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
 router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
   try {
     const { status, formType, limit: limitParam } = req.query;
-    const queryLimit = Math.min(Math.max(parseInt(limitParam as string, 10) || 500, 1), 1000);
+    const queryLimit = Math.min(Math.max(parseInt(String(limitParam), 10) || 500, 1), 1000);
     
     const conditions: SQL[] = [
       ne(formSubmissions.formType, 'membership'),
@@ -43,7 +44,9 @@ router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
 router.get('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid inquiry ID' });
+    const parsedId = parseInt(idParse.data, 10);
     if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid ID' });
     
     const [inquiry] = await db.select().from(formSubmissions)
@@ -63,7 +66,9 @@ router.get('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
 router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid inquiry ID' });
+    const parsedId = parseInt(idParse.data, 10);
     if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid ID' });
     const { status, notes } = req.body;
     
@@ -80,7 +85,7 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    logFromRequest(req, 'update_inquiry', 'inquiry', id as string);
+    logFromRequest(req, 'update_inquiry', 'inquiry', idParse.data);
     
     res.json(updated);
   } catch (error: unknown) {
@@ -92,7 +97,9 @@ router.put('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid inquiry ID' });
+    const parsedId = parseInt(idParse.data, 10);
     if (isNaN(parsedId)) return res.status(400).json({ error: 'Invalid ID' });
     const { archive } = req.query;
     
@@ -117,7 +124,7 @@ router.delete('/api/admin/inquiries/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Inquiry not found' });
     }
     
-    logFromRequest(req, 'delete_inquiry', 'inquiry', id as string);
+    logFromRequest(req, 'delete_inquiry', 'inquiry', idParse.data);
     
     res.json({ success: true, deleted });
   } catch (error: unknown) {

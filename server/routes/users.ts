@@ -8,13 +8,16 @@ import { getErrorCode } from '../utils/errorUtils';
 import { logFromRequest } from '../core/auditLog';
 import { logger, logAndRespond } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam, requiredStringParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
 router.get('/api/staff-users/by-email/:email', isStaffOrAdmin, async (req, res) => {
   try {
     const { email } = req.params;
-    const normalizedEmail = normalizeEmail(decodeURIComponent(email as string));
+    const emailParse = requiredStringParam.safeParse(email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const normalizedEmail = normalizeEmail(decodeURIComponent(emailParse.data));
     const alternateEmail = getAlternateDomainEmail(normalizedEmail);
     const emailsToCheck = alternateEmail ? [normalizedEmail, alternateEmail] : [normalizedEmail];
     
@@ -124,7 +127,9 @@ router.post('/api/staff-users', isAdmin, async (req, res) => {
 router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    if (isNaN(parseInt(id as string, 10))) return res.status(400).json({ error: 'Invalid staff user ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid staff user ID' });
+    const parsedId = parseInt(idParse.data, 10);
     const { email: rawEmail, name, first_name, last_name, phone, job_title, role, is_active } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     
@@ -141,7 +146,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
     if (is_active === false || (role !== undefined && role !== 'admin')) {
       const currentUser = await db.select({ role: staffUsers.role, isActive: staffUsers.isActive })
         .from(staffUsers)
-        .where(eq(staffUsers.id, parseInt(id as string, 10)));
+        .where(eq(staffUsers.id, parsedId));
       
       if (currentUser.length > 0 && currentUser[0].role === 'admin' && currentUser[0].isActive) {
         const adminCount = await db.select({ count: sql<number>`count(*)::int` })
@@ -156,7 +161,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
 
     const result = await db.update(staffUsers)
       .set(updateData)
-      .where(eq(staffUsers.id, parseInt(id as string, 10)))
+      .where(eq(staffUsers.id, parsedId))
       .returning();
     
     if (result.length === 0) {
@@ -170,7 +175,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
         .where(and(
           eq(sql`LOWER(${staffUsers.email})`, staffEmail),
           eq(staffUsers.isActive, true),
-          sql`${staffUsers.id} != ${parseInt(id as string, 10)}`
+          sql`${staffUsers.id} != ${parsedId}`
         ))
         .limit(1);
 
@@ -196,7 +201,7 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
       }
     }
 
-    logFromRequest(req, 'update_staff_user', 'staff_user', req.params.id as string, '', { changes: req.body });
+    logFromRequest(req, 'update_staff_user', 'staff_user', idParse.data, '', { changes: req.body });
     res.json({
       id: result[0].id,
       email: result[0].email,
@@ -219,11 +224,13 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
 router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    if (isNaN(parseInt(id as string, 10))) return res.status(400).json({ error: 'Invalid staff user ID' });
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid staff user ID' });
+    const parsedId = parseInt(idParse.data, 10);
     
     const targetUser = await db.select({ role: staffUsers.role, isActive: staffUsers.isActive })
       .from(staffUsers)
-      .where(eq(staffUsers.id, parseInt(id as string, 10)));
+      .where(eq(staffUsers.id, parsedId));
     
     if (targetUser.length > 0 && targetUser[0].role === 'admin' && targetUser[0].isActive) {
       const adminCount = await db.select({ count: sql<number>`count(*)::int` })
@@ -236,7 +243,7 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
     }
     
     const result = await db.delete(staffUsers)
-      .where(eq(staffUsers.id, parseInt(id as string, 10)))
+      .where(eq(staffUsers.id, parsedId))
       .returning();
     
     if (result.length === 0) {
@@ -272,7 +279,7 @@ router.delete('/api/staff-users/:id', isAdmin, async (req, res) => {
       logger.info(`[Staff] Cleaned up user_linked_emails for ${deletedEmail} after staff removal`);
     }
     
-    logFromRequest(req, 'delete_staff_user', 'staff_user', req.params.id as string, '', {});
+    logFromRequest(req, 'delete_staff_user', 'staff_user', idParse.data, '', {});
     res.json({ 
       message: 'Staff user removed', 
       staff: {
@@ -362,10 +369,11 @@ router.post('/api/admin-users', isAdmin, async (req, res) => {
 router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
-    if (isNaN(parsedId)) {
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid admin user ID' });
     }
+    const parsedId = parseInt(idParse.data, 10);
     const { email: rawEmail, name, first_name, last_name, phone, job_title, is_active } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     
@@ -404,7 +412,7 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
         .where(and(
           eq(sql`LOWER(${staffUsers.email})`, adminEmail),
           eq(staffUsers.isActive, true),
-          sql`${staffUsers.id} != ${parseInt(id as string, 10)}`
+          sql`${staffUsers.id} != ${parsedId}`
         ))
         .limit(1);
 
@@ -429,7 +437,7 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
       }
     }
     
-    logFromRequest(req, 'update_admin_user', 'staff_user', req.params.id as string, '', { changes: req.body });
+    logFromRequest(req, 'update_admin_user', 'staff_user', idParse.data, '', { changes: req.body });
     res.json({
       id: result[0].id,
       email: result[0].email,
@@ -451,10 +459,11 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
 router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
-    if (isNaN(parsedId)) {
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid admin user ID' });
     }
+    const parsedId = parseInt(idParse.data, 10);
     
     const targetAdmin = await db.select({ isActive: staffUsers.isActive })
       .from(staffUsers)
@@ -511,7 +520,7 @@ router.delete('/api/admin-users/:id', isAdmin, async (req, res) => {
       logger.info(`[Staff] Cleaned up user_linked_emails for ${deletedAdminEmail} after admin removal`);
     }
     
-    logFromRequest(req, 'delete_admin_user', 'staff_user', req.params.id as string, '', {});
+    logFromRequest(req, 'delete_admin_user', 'staff_user', idParse.data, '', {});
     res.json({ 
       message: 'Admin user removed', 
       admin: {

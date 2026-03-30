@@ -7,6 +7,7 @@ import { clearStaleStripeCustomerId } from '../../core/stripe/customers';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getSessionUser } from '../../types/session';
+import { requiredStringParam } from '../../middleware/paramSchemas';
 import {
   createInvoice,
   previewInvoice,
@@ -55,7 +56,9 @@ router.get('/api/stripe/invoices/:customerId', isStaffOrAdmin, async (req: Reque
   try {
     const { customerId } = req.params;
     
-    const result = await listCustomerInvoices(customerId as string);
+    const customerIdParse = requiredStringParam.safeParse(customerId);
+    if (!customerIdParse.success) return res.status(400).json({ error: 'Invalid customer ID' });
+    const result = await listCustomerInvoices(customerIdParse.data);
     
     if (!result.success) {
       if (result.isCustomerMissing) {
@@ -124,7 +127,9 @@ router.post('/api/stripe/invoices/:invoiceId/finalize', isStaffOrAdmin, async (r
   try {
     const { invoiceId } = req.params;
     
-    const result = await finalizeAndSendInvoice(invoiceId as string);
+    const invoiceIdParse = requiredStringParam.safeParse(invoiceId);
+    if (!invoiceIdParse.success) return res.status(400).json({ error: 'Invalid invoice ID' });
+    const result = await finalizeAndSendInvoice(invoiceIdParse.data);
     
     if (!result.success) {
       return res.status(500).json({ error: result.error || 'Failed to finalize invoice' });
@@ -165,7 +170,9 @@ router.get('/api/stripe/invoice/:invoiceId', isStaffOrAdmin, async (req: Request
   try {
     const { invoiceId } = req.params;
     
-    const result = await getInvoice(invoiceId as string);
+    const invoiceIdParse = requiredStringParam.safeParse(invoiceId);
+    if (!invoiceIdParse.success) return res.status(400).json({ error: 'Invalid invoice ID' });
+    const result = await getInvoice(invoiceIdParse.data);
     
     if (!result.success) {
       return res.status(404).json({ error: result.error || 'Invoice not found' });
@@ -182,10 +189,12 @@ router.post('/api/stripe/invoices/:invoiceId/void', isStaffOrAdmin, async (req: 
   try {
     const { invoiceId } = req.params;
     
-    const invoiceResult = await getInvoice(invoiceId as string);
+    const invoiceIdParse = requiredStringParam.safeParse(invoiceId);
+    if (!invoiceIdParse.success) return res.status(400).json({ error: 'Invalid invoice ID' });
+    const invoiceResult = await getInvoice(invoiceIdParse.data);
     const customerId = invoiceResult.invoice?.customerId || null;
     
-    const result = await voidInvoice(invoiceId as string);
+    const result = await voidInvoice(invoiceIdParse.data);
     
     if (!result.success) {
       return res.status(500).json({ error: result.error || 'Failed to void invoice' });

@@ -31,7 +31,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
     }
 
     const { invoiceId } = req.params;
-    if (!invoiceId || !(invoiceId as string).startsWith('in_')) {
+    if (!invoiceId || !invoiceId.startsWith('in_')) {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
 
@@ -50,7 +50,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       return res.status(400).json({ error: 'No billing account found. Please contact support.' });
     }
 
-    const invoiceResult = await getInvoice(invoiceId as string);
+    const invoiceResult = await getInvoice(invoiceId);
 
     if (!invoiceResult.success || !invoiceResult.invoice) {
       return res.status(404).json({ error: 'Invoice not found' });
@@ -60,7 +60,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
 
     const { getStripeClient } = await import('../../../core/stripe/client');
     const stripe = await getStripeClient();
-    const stripeInvoice = await stripe.invoices.retrieve(invoiceId as string);
+    const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
 
     if (stripeInvoice.customer !== stripeCustomerId) {
       return res.status(403).json({ error: 'You do not have permission to pay this invoice' });
@@ -83,13 +83,13 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
     let invoicePiSecret: string;
 
     if (stripeInvoice.status === 'draft') {
-      await stripe.invoices.update(invoiceId as string, {
+      await stripe.invoices.update(invoiceId, {
         collection_method: 'charge_automatically',
         payment_settings: {
           payment_method_types: ['card', 'link'],
         },
       });
-      const piResult = await finalizeInvoiceWithPi(stripe, invoiceId as string);
+      const piResult = await finalizeInvoiceWithPi(stripe, invoiceId);
       if (piResult.paidInFull) {
         logger.info('[Stripe] Invoice auto-paid after finalization', { extra: { invoiceId } });
         const metaBookingId = stripeInvoice.metadata?.bookingId ? parseInt(stripeInvoice.metadata.bookingId, 10) : 0;
@@ -123,7 +123,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       logger.info('[Stripe] Finalized draft invoice as charge_automatically for interactive member payment', { extra: { invoiceId, paymentIntentId: invoicePiId } });
     } else if (stripeInvoice.status === 'open') {
       if (stripeInvoice.collection_method === 'send_invoice') {
-        await stripe.invoices.update(invoiceId as string, {
+        await stripe.invoices.update(invoiceId, {
           collection_method: 'charge_automatically',
           payment_settings: {
             payment_method_types: ['card', 'link'],
@@ -131,7 +131,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
         });
         logger.info('[Stripe] Switched open invoice from send_invoice to charge_automatically', { extra: { invoiceId } });
       }
-      const piResult = await retrieveInvoicePaymentIntent(stripe, invoiceId as string);
+      const piResult = await retrieveInvoicePaymentIntent(stripe, invoiceId);
       invoicePiId = piResult.piId;
       invoicePiSecret = piResult.clientSecret;
       logger.info('[Stripe] Invoice already open — using existing PI', { extra: { invoiceId, paymentIntentId: invoicePiId } });
@@ -206,7 +206,7 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
     }
 
     const { invoiceId } = req.params;
-    if (!invoiceId || !(invoiceId as string).startsWith('in_')) {
+    if (!invoiceId || !invoiceId.startsWith('in_')) {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
 
@@ -235,7 +235,7 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
 
     const { getStripeClient } = await import('../../../core/stripe/client');
     const stripe = await getStripeClient();
-    const stripeInvoice = await stripe.invoices.retrieve(invoiceId as string);
+    const stripeInvoice = await stripe.invoices.retrieve(invoiceId);
 
     if (stripeInvoice.customer !== user.stripe_customer_id) {
       return res.status(403).json({ error: 'You do not have permission to pay this invoice' });
@@ -255,15 +255,15 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
     }
 
     if (stripeInvoice.status === 'draft') {
-      await stripe.invoices.update(invoiceId as string, {
+      await stripe.invoices.update(invoiceId, {
         collection_method: 'charge_automatically',
         payment_settings: {
           payment_method_types: ['card', 'link'],
         },
       });
-      await stripe.invoices.finalizeInvoice(invoiceId as string);
+      await stripe.invoices.finalizeInvoice(invoiceId);
     } else if (stripeInvoice.collection_method === 'send_invoice') {
-      await stripe.invoices.update(invoiceId as string, {
+      await stripe.invoices.update(invoiceId, {
         collection_method: 'charge_automatically',
         payment_settings: {
           payment_method_types: ['card', 'link'],
@@ -271,7 +271,7 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
       });
     }
 
-    const paidInvoice = await stripe.invoices.pay(invoiceId as string, {
+    const paidInvoice = await stripe.invoices.pay(invoiceId, {
       payment_method: selectedMethod.id,
     });
 
@@ -361,7 +361,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
       return res.status(400).json({ error: 'Payment has not succeeded' });
     }
 
-    const invId = invoiceId as string;
+    const invId = invoiceId;
     const invoice = await stripe.invoices.retrieve(invId, { expand: ['payment_intent'] });
 
     if (invoice.customer !== stripeCustomerId) {

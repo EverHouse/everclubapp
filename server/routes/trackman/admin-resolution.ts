@@ -12,6 +12,7 @@ import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 
 import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/sessionManager';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { updateVisitorTypeByUserId } from '../../core/visitors';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
@@ -318,7 +319,9 @@ router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async 
 router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const numericId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const numericId = parseInt(idParse.data, 10);
     if (isNaN(numericId)) return res.status(400).json({ error: 'Invalid booking ID' });
     const { email: rawEmail, memberEmail: rawMemberEmail, rememberEmail, additional_players, dayPassRedemptions: rawDayPassRedemptions } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
@@ -918,7 +921,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     await logFromRequest(req, {
       action: 'link_trackman_to_member',
       resourceType: 'booking',
-      resourceId: id as string,
+      resourceId: idParse.data,
       resourceName: `Trackman ${booking.trackman_booking_id || id}`,
       details: { 
         linkedEmail: member.email, 
@@ -1322,6 +1325,8 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
   const client = await pool.connect();
   try {
     const { id } = req.params;
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
     const { newMemberEmail: rawNewMemberEmail } = req.body;
     const newMemberEmail = rawNewMemberEmail?.trim()?.toLowerCase();
     
@@ -1431,7 +1436,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       }
       try {
         const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
-        await syncBookingInvoice(parseInt(id as string, 10), sessionId as number);
+        await syncBookingInvoice(parseInt(idParse.data, 10), sessionId as number);
       } catch (invoiceErr: unknown) {
         logger.warn('[Reassign] Invoice sync failed after fee recalculation', { extra: { sessionId, bookingId: id, invoiceErr } });
       }
@@ -1441,7 +1446,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       const { broadcastToStaff } = await import('../../core/websocket');
       broadcastToStaff({
         type: 'booking_updated',
-        bookingId: parseInt(id as string, 10),
+        bookingId: parseInt(idParse.data, 10),
         action: 'owner_changed',
         previousOwner: oldEmail,
         newOwnerEmail: newMemberEmail.toLowerCase(),
@@ -1454,7 +1459,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     await logFromRequest(req, {
       action: 'reassign_booking',
       resourceType: 'booking',
-      resourceId: id as string,
+      resourceId: idParse.data,
       resourceName: `Reassigned booking to ${newMemberName}`,
       details: {
         oldEmail,

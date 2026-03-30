@@ -12,6 +12,7 @@ import { enforceSocialTierRules } from '../../core/bookingService/tierRules';
 import { broadcastBookingRosterUpdate } from '../../core/websocket';
 import { ensureSessionForBooking, createOrFindGuest } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { processWalkInCheckin } from '../../core/walkInCheckinService';
@@ -30,10 +31,11 @@ const router = Router();
 
 router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.email) {

@@ -19,8 +19,8 @@ const router = Router();
 router.get('/api/admin/trackman/needs-players', isStaffOrAdmin, async (req, res) => {
   try {
     const { limit = '20', offset = '0', search = '' } = req.query;
-    const limitNum = Math.min(parseInt(limit as string, 10) || 20, 100);
-    const offsetNum = parseInt(offset as string, 10) || 0;
+    const limitNum = Math.min(parseInt(String(limit), 10) || 20, 100);
+    const offsetNum = parseInt(String(offset), 10) || 0;
 
     const sqlConditions: ReturnType<typeof sql>[] = [
       sql`br.status = 'approved'`,

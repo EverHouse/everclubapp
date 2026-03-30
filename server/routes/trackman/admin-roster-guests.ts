@@ -17,6 +17,7 @@ import { broadcastBookingRosterUpdate } from '../../core/websocket';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { invalidateCachedFees } from '../../core/billing/unifiedFeeService';
 import { findConflictingBookings } from '../../core/bookingService/conflictDetection';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 interface DbRow {
   [key: string]: unknown;
@@ -26,10 +27,11 @@ const router = Router();
 
 router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
     const { guestEmail: rawGuestEmail, guestPhone: _guestPhone, slotId, forceAddAsGuest, quickAdd } = req.body;
     const guestEmail = rawGuestEmail?.trim()?.toLowerCase();
     let { guestName } = req.body;
@@ -157,14 +159,16 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
 
 router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (req, res) => {
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
-    const guestId = parseInt(req.params.guestId as string, 10);
-    if (isNaN(guestId)) {
+    const bookingId = parseInt(idParse.data, 10);
+    const guestIdParse = numericIdParam.safeParse(req.params.guestId);
+    if (!guestIdParse.success) {
       return res.status(400).json({ error: 'Invalid guest ID' });
     }
+    const guestId = parseInt(guestIdParse.data, 10);
     const staffEmail = req.session?.user?.email || 'admin';
 
     const bookingResult = await db.execute(sql`SELECT br.id, br.session_id, br.guest_count, br.user_email as owner_email
@@ -250,6 +254,10 @@ router.delete('/api/admin/booking/:id/guests/:guestId', isStaffOrAdmin, async (r
 router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin, async (req, res) => {
   try {
     const { bookingId, slotId } = req.params;
+    const bookingIdParse = numericIdParam.safeParse(bookingId);
+    if (!bookingIdParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const slotIdParse = numericIdParam.safeParse(slotId);
+    if (!slotIdParse.success) return res.status(400).json({ error: 'Invalid slot ID' });
     const { memberEmail: rawMemberEmail } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
     const linkedBy = req.session?.user?.email || 'admin';
@@ -271,7 +279,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
         String(bookingRow.request_date),
         String(bookingRow.start_time),
         String(bookingRow.end_time),
-        parseInt(bookingId as string, 10)
+        parseInt(bookingIdParse.data, 10)
       );
       if (conflictResult.hasConflict) {
         const conflict = conflictResult.conflicts[0];
@@ -299,7 +307,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       if (bk.resource_id && bk.request_date && bk.start_time && bk.end_time) {
         try {
           const sessionResult = await ensureSessionForBooking({
-            bookingId: parseInt(bookingId as string, 10),
+            bookingId: parseInt(bookingIdParse.data, 10),
             resourceId: bk.resource_id as number,
             sessionDate: String(bk.request_date),
             startTime: String(bk.start_time),
@@ -482,7 +490,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
     });
 
     broadcastBookingRosterUpdate({
-      bookingId: parseInt(bookingId as string, 10),
+      bookingId: parseInt(bookingIdParse.data, 10),
       sessionId: sessionId as number,
       action: 'participant_added',
       memberEmail: memberEmail.toLowerCase(),
@@ -501,6 +509,10 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
 router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmin, async (req, res) => {
   try {
     const { bookingId, slotId } = req.params;
+    const bookingIdParse = numericIdParam.safeParse(bookingId);
+    if (!bookingIdParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const slotIdParse = numericIdParam.safeParse(slotId);
+    if (!slotIdParse.success) return res.status(400).json({ error: 'Invalid slot ID' });
     
     const bookingResult = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${bookingId}`);
     
@@ -544,7 +556,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/unlink', isStaffOrAdmi
     });
 
     broadcastBookingRosterUpdate({
-      bookingId: parseInt(bookingId as string, 10),
+      bookingId: parseInt(bookingIdParse.data, 10),
       sessionId: sessionId as number,
       action: 'participant_removed',
       memberEmail: String(memberEmail).toLowerCase(),

@@ -12,6 +12,7 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { getSessionUser } from '../../types/session';
 import Stripe from 'stripe';
+import { requiredStringParam } from '../../middleware/paramSchemas';
 
 async function simulatedPresentCard(stripe: Stripe, readerId: string, maxRetries = 3): Promise<void> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -460,14 +461,17 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
 router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const { paymentIntentId } = req.params;
-    if ((paymentIntentId as string).startsWith('seti_') || (paymentIntentId as string).startsWith('free_')) {
+    const piParse = requiredStringParam.safeParse(paymentIntentId);
+    if (!piParse.success) return res.status(400).json({ error: 'Invalid payment intent ID' });
+    const validPaymentIntentId = piParse.data;
+    if (validPaymentIntentId.startsWith('seti_') || validPaymentIntentId.startsWith('free_')) {
       return res.json({ status: 'succeeded', freeActivation: true });
     }
     const stripe = await getStripeClient();
     
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId as string);
+    const paymentIntent = await stripe.paymentIntents.retrieve(validPaymentIntentId);
 
-    const piIdStr = paymentIntentId as string;
+    const piIdStr = validPaymentIntentId;
     const alreadyReconciled = isReconciled(piIdStr);
 
     const draftInvoiceId = paymentIntent.metadata?.draftInvoiceId || paymentIntent.metadata?.invoice_id;

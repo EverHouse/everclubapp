@@ -12,6 +12,7 @@ import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 
 import { getErrorMessage } from '../../utils/errorUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 
 import adminResolutionRouter from './admin-resolution';
@@ -185,7 +186,9 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const bookingId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingId = parseInt(idParse.data, 10);
     if (isNaN(bookingId)) return res.status(400).json({ error: 'Invalid booking ID' });
     const { newMemberEmail: rawNewMemberEmail } = req.body;
     const newMemberEmail = rawNewMemberEmail?.trim()?.toLowerCase();
@@ -302,7 +305,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       }
       try {
         const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
-        await syncBookingInvoice(parseInt(id as string, 10), sessionId as number);
+        await syncBookingInvoice(parseInt(idParse.data, 10), sessionId as number);
       } catch (invoiceErr: unknown) {
         logger.warn('[Reassign] Invoice sync failed after fee recalculation', { extra: { sessionId, bookingId: id, invoiceErr } });
       }
@@ -311,7 +314,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     await logFromRequest(req, {
       action: 'reassign_booking',
       resourceType: 'booking',
-      resourceId: id as string,
+      resourceId: idParse.data,
       resourceName: `Reassigned booking to ${newMemberName}`,
       details: {
         oldEmail,

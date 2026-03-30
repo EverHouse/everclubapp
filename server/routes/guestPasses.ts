@@ -13,6 +13,7 @@ import { withRetry } from '../core/retry';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { sendPassUpdateForMemberByEmail } from '../walletPass/apnPushService';
+import { requiredStringParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -37,7 +38,9 @@ router.get('/api/guest-passes/:email', isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const email = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = decodeURIComponent(emailParse.data).trim().toLowerCase();
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
     const requestedEmail = email.toLowerCase();
     
@@ -155,7 +158,9 @@ router.post('/api/guest-passes/:email/use', isAuthenticated, async (req, res) =>
       return res.status(401).json({ error: 'Authentication required' });
     }
     
-    const email = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = decodeURIComponent(emailParse.data).trim().toLowerCase();
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
     const requestedEmail = email.toLowerCase();
     
@@ -229,7 +234,9 @@ router.put('/api/guest-passes/:email', isStaffOrAdmin, async (req, res) => {
       return res.status(403).json({ error: 'Staff access required to modify guest passes' });
     }
     
-    const email = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = decodeURIComponent(emailParse.data).trim().toLowerCase();
     const normalizedEmail = email.toLowerCase();
     const { passes_total } = req.body;
     

@@ -3,6 +3,7 @@ import { Router, Request } from 'express';
 import { isStaffOrAdmin } from '../core/middleware';
 import { validateQuery } from '../middleware/validate';
 import { z } from 'zod';
+import { requiredStringParam } from '../middleware/paramSchemas';
 import { logFromRequest } from '../core/auditLog';
 import { getSessionUser } from '../types/session';
 import {
@@ -71,7 +72,9 @@ router.post('/api/family-billing/products/sync', isStaffOrAdmin, async (req, res
 
 router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, res) => {
   try {
-    const tierName = req.params.tierName as string;
+    const tierParse = requiredStringParam.safeParse(req.params.tierName);
+    if (!tierParse.success) return res.status(400).json({ error: 'Invalid tier name' });
+    const tierName = tierParse.data;
     const { priceCents } = req.body;
     
     if (typeof priceCents !== 'number' || priceCents < 0) {
@@ -93,7 +96,9 @@ router.put('/api/group-billing/products/:tierName', isStaffOrAdmin, async (req, 
 
 router.put('/api/family-billing/products/:tierName', isStaffOrAdmin, async (req, res) => {
   try {
-    const tierName = req.params.tierName as string;
+    const tierParse = requiredStringParam.safeParse(req.params.tierName);
+    if (!tierParse.success) return res.status(400).json({ error: 'Invalid tier name' });
+    const tierName = tierParse.data;
     const { priceCents } = req.body;
     
     if (typeof priceCents !== 'number' || priceCents < 0) {
@@ -135,7 +140,9 @@ router.get('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 
 router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const group = await getBillingGroupByMemberEmail(email);
     
     if (!group) {
@@ -151,7 +158,9 @@ router.get('/api/group-billing/group/:email', isStaffOrAdmin, async (req, res) =
 
 router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) => {
   try {
-    const email = (req.params.email as string).trim().toLowerCase();
+    const emailParse = requiredStringParam.safeParse(req.params.email);
+    if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = emailParse.data.trim().toLowerCase();
     const group = await getBillingGroupByMemberEmail(email);
     
     if (!group) {
@@ -167,7 +176,9 @@ router.get('/api/family-billing/group/:email', isStaffOrAdmin, async (req, res) 
 
 router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     let { groupName } = req.body;
     
     // Normalize empty strings to null
@@ -202,7 +213,9 @@ router.put('/api/group-billing/group/:groupId/name', isStaffOrAdmin, async (req,
 
 router.delete('/api/group-billing/group/:groupId', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     const parsedGroupId = parseInt(groupId, 10);
     if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     
@@ -277,7 +290,9 @@ router.post('/api/family-billing/groups', isStaffOrAdmin, async (req, res) => {
 
 router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     const parsedGroupId = parseInt(groupId, 10);
     if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { memberEmail: rawMemberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode, discountCode } = req.body;
@@ -319,7 +334,9 @@ router.post('/api/group-billing/groups/:groupId/members', isStaffOrAdmin, async 
 
 router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     const { email: rawEmail, firstName, lastName, phone, dob } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     const user = getSessionUser(req);
@@ -387,7 +404,9 @@ router.post('/api/group-billing/groups/:groupId/corporate-members', isStaffOrAdm
 
 router.post('/api/family-billing/groups/:groupId/members', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     const parsedGroupId = parseInt(groupId, 10);
     if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { memberEmail: rawMemberEmail, memberTier, relationship, firstName, lastName, phone, dob, streetAddress, city, state, zipCode, discountCode } = req.body;
@@ -450,7 +469,9 @@ router.get('/api/group-billing/corporate-pricing', isStaffOrAdmin, validateQuery
 
 router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
   try {
-    const memberId = req.params.memberId as string;
+    const memberIdParse = requiredStringParam.safeParse(req.params.memberId);
+    if (!memberIdParse.success) return res.status(400).json({ error: 'Invalid member ID' });
+    const memberId = memberIdParse.data;
     const user = getSessionUser(req);
     const memberIdInt = parseInt(memberId, 10);
     if (isNaN(memberIdInt)) return res.status(400).json({ error: 'Invalid member ID' });
@@ -505,7 +526,9 @@ router.delete('/api/group-billing/members/:memberId', isStaffOrAdmin, async (req
 
 router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (req, res) => {
   try {
-    const memberId = req.params.memberId as string;
+    const memberIdParse = requiredStringParam.safeParse(req.params.memberId);
+    if (!memberIdParse.success) return res.status(400).json({ error: 'Invalid member ID' });
+    const memberId = memberIdParse.data;
     const user = getSessionUser(req);
     
     const parsedMemberId = parseInt(memberId, 10);
@@ -532,7 +555,9 @@ router.delete('/api/family-billing/members/:memberId', isStaffOrAdmin, async (re
 
 router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     const parsedGroupId = parseInt(groupId, 10);
     if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { stripeSubscriptionId } = req.body;
@@ -563,7 +588,9 @@ router.post('/api/group-billing/groups/:groupId/link-subscription', isStaffOrAdm
 
 router.post('/api/family-billing/groups/:groupId/link-subscription', isStaffOrAdmin, async (req, res) => {
   try {
-    const groupId = req.params.groupId as string;
+    const groupIdParse = requiredStringParam.safeParse(req.params.groupId);
+    if (!groupIdParse.success) return res.status(400).json({ error: 'Invalid group ID' });
+    const groupId = groupIdParse.data;
     const parsedGroupId = parseInt(groupId, 10);
     if (isNaN(parsedGroupId)) return res.status(400).json({ error: 'Invalid group ID' });
     const { stripeSubscriptionId } = req.body;

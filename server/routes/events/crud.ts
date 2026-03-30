@@ -10,6 +10,7 @@ import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger, logAndRespond } from '../../core/logger';
 import { createEventAvailabilityBlocks, removeEventAvailabilityBlocks, updateEventAvailabilityBlocks } from './shared';
+import { numericIdParam } from '../../middleware/paramSchemas';
 
 const router = Router();
 
@@ -44,7 +45,9 @@ router.get('/api/events/needs-review', isStaffOrAdmin, async (req, res) => {
 router.post('/api/events/:id/mark-reviewed', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     const sessionUser = getSessionUser(req);
     const reviewedBy = sessionUser?.email || 'unknown';
@@ -291,7 +294,9 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid date/time combination' });
     }
     
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     
     const existing = await db.select({ 
@@ -358,7 +363,7 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
           const eventDescription = description || '';
           const extendedProps: Record<string, string> = {
             'ehApp_type': 'event',
-            'ehApp_id': id as string,
+            'ehApp_id': idParse.data,
           };
           if (image_url) extendedProps['ehApp_imageUrl'] = image_url;
           if (external_url) extendedProps['ehApp_externalUrl'] = external_url;
@@ -439,7 +444,9 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
 router.get('/api/events/:id/cascade-preview', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     
     const [event] = await db.select({ id: events.id }).from(events).where(eq(events.id, eventId));
@@ -467,7 +474,9 @@ router.get('/api/events/:id/cascade-preview', isStaffOrAdmin, async (req, res) =
 router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     const sessionUser = getSessionUser(req);
     const archivedBy = sessionUser?.email || 'unknown';

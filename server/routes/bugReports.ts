@@ -7,6 +7,7 @@ import { notifyAllStaff, notifyMember } from '../core/notificationService';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { logAndRespond } from '../core/logger';
+import { numericIdParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -52,7 +53,7 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
 router.get('/api/admin/bug-reports', isStaffOrAdmin, async (req, res) => {
   try {
     const { status, limit: limitParam } = req.query;
-    const queryLimit = Math.min(Math.max(parseInt(limitParam as string, 10) || 200, 1), 2000);
+    const queryLimit = Math.min(Math.max(parseInt(String(limitParam), 10) || 200, 1), 2000);
     
     const conditions: SQL[] = [];
     
@@ -76,7 +77,9 @@ router.get('/api/admin/bug-reports', isStaffOrAdmin, async (req, res) => {
 router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid bug report ID' });
+    const parsedId = parseInt(idParse.data, 10);
     if (isNaN(parsedId)) return logAndRespond(req, res, 400, 'Invalid bug report ID');
     
     const [report] = await db.select().from(bugReports)
@@ -95,7 +98,9 @@ router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
 router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid bug report ID' });
+    const parsedId = parseInt(idParse.data, 10);
     if (isNaN(parsedId)) return logAndRespond(req, res, 400, 'Invalid bug report ID');
     const { status, staffNotes } = req.body;
     const user = getSessionUser(req);
@@ -150,7 +155,9 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid bug report ID' });
+    const parsedId = parseInt(idParse.data, 10);
     if (isNaN(parsedId)) return logAndRespond(req, res, 400, 'Invalid bug report ID');
     
     const [deleted] = await db.delete(bugReports)

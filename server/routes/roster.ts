@@ -21,6 +21,7 @@ import { syncBookingInvoice } from '../core/billing/bookingInvoiceService';
 import { validateBody } from '../middleware/validate';
 import { addParticipantSchema, batchRosterSchema, previewFeesSchema, playerCountSchema, removeParticipantSchema } from '../../shared/validators/roster';
 import { getErrorMessage } from '../utils/errorUtils';
+import { numericIdParam } from '../middleware/paramSchemas';
 
 interface OwnerRow {
   id: string;
@@ -100,7 +101,7 @@ router.get('/api/bookings/conflicts', isAuthenticated, async (req: Request, res:
       return res.status(403).json({ error: 'You can only check conflicts for yourself unless you are staff' });
     }
 
-    const excludeId = excludeBookingId ? parseInt(excludeBookingId as string, 10) : undefined;
+    const excludeId = excludeBookingId ? parseInt(String(excludeBookingId), 10) : undefined;
 
     const result = await checkMemberAvailability(
       memberEmail.trim().toLowerCase(),
@@ -131,10 +132,11 @@ router.get('/api/bookings/:bookingId/participants', isAuthenticated, async (req:
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    if (isNaN(bookingId)) {
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    if (!bookingIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
 
     const result = await getBookingParticipantsService(bookingId, sessionUser);
     res.json(result);
@@ -153,10 +155,11 @@ router.post('/api/bookings/:bookingId/participants', isAuthenticated, validateBo
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    if (isNaN(bookingId)) {
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    if (!bookingIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
 
     const { type, userId, guest, rosterVersion } = req.body;
 
@@ -190,13 +193,15 @@ router.delete('/api/bookings/:bookingId/participants/:participantId', isAuthenti
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    const participantId = parseInt(req.params.participantId as string, 10);
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    const participantIdParse = numericIdParam.safeParse(req.params.participantId);
     const rosterVersion = req.body?.rosterVersion;
 
-    if (isNaN(bookingId) || isNaN(participantId)) {
+    if (!bookingIdParse.success || !participantIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID or participant ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
+    const participantId = parseInt(participantIdParse.data, 10);
 
     const userEmail = sessionUser.email?.toLowerCase() || '';
     const result = await removeParticipant({
@@ -221,10 +226,11 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', isAuthenticate
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    if (isNaN(bookingId)) {
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    if (!bookingIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
 
     const { provisionalParticipants = [] } = req.body || {};
 
@@ -240,10 +246,11 @@ router.post('/api/bookings/:bookingId/participants/preview-fees', isAuthenticate
 
 router.patch('/api/admin/booking/:bookingId/player-count', isStaffOrAdmin, validateBody(playerCountSchema), async (req: Request, res: Response) => {
   try {
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    if (isNaN(bookingId)) {
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    if (!bookingIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
 
     const { playerCount } = req.body;
     const sessionUser = getSessionUser(req);
@@ -284,10 +291,11 @@ router.post('/api/admin/booking/:bookingId/roster/batch', isStaffOrAdmin, valida
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const bookingId = parseInt(req.params.bookingId as string, 10);
-    if (isNaN(bookingId)) {
+    const bookingIdParse = numericIdParam.safeParse(req.params.bookingId);
+    if (!bookingIdParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(bookingIdParse.data, 10);
 
     const { rosterVersion, operations } = req.body;
 

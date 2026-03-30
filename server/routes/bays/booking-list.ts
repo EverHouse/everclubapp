@@ -31,7 +31,7 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     }
     
     const sessionEmail = sessionUser.email?.toLowerCase() || '';
-    const requestedEmail = (user_email as string)?.trim()?.toLowerCase();
+    const requestedEmail = (user_email ? String(user_email) : '')?.trim()?.toLowerCase();
     
     const isStaffRequest = include_all === 'true';
     
@@ -61,16 +61,16 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     );
     
     if (user_email && !include_all) {
-      conditions.push(buildUserEmailConditions((user_email as string).toLowerCase()));
+      conditions.push(buildUserEmailConditions(String(user_email).toLowerCase()));
     }
     
     if (status) {
-      conditions.push(eq(bookingRequests.status, status as string));
+      conditions.push(eq(bookingRequests.status, String(status)));
     }
     
     let limit: number | undefined;
     if (limitParam) {
-      limit = parseInt(limitParam as string, 10);
+      limit = parseInt(String(limitParam), 10);
       if (isNaN(limit)) return res.status(400).json({ error: 'Invalid limit parameter' });
       limit = Math.min(limit, 500);
     } else {
@@ -79,14 +79,14 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     
     let page: number | undefined;
     if (pageParam) {
-      page = parseInt(pageParam as string, 10);
+      page = parseInt(String(pageParam), 10);
       if (isNaN(page)) return res.status(400).json({ error: 'Invalid page parameter' });
       page = Math.max(1, page);
     }
     
     let offset: number | undefined;
     if (offsetParam) {
-      offset = parseInt(offsetParam as string, 10);
+      offset = parseInt(String(offsetParam), 10);
       if (isNaN(offset)) return res.status(400).json({ error: 'Invalid offset parameter' });
     }
     if (page && limit) {
@@ -176,7 +176,7 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     
     const _bookingIds = result.map(b => b.id);
     const sessionIds = result.filter(b => b.session_id).map(b => b.session_id!);
-    const requestingUserEmail = (user_email as string)?.toLowerCase();
+    const requestingUserEmail = user_email ? String(user_email).toLowerCase() : undefined;
     
     const allParticipants = sessionIds.length > 0 ? await db.select({
       sessionId: bookingParticipants.sessionId,

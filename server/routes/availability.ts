@@ -204,7 +204,7 @@ router.get('/api/availability', async (req, res) => {
       return res.status(400).json({ error: 'resource_id and date are required' });
     }
     
-    const durationMinutes = parseInt(duration as string, 10) || 60;
+    const durationMinutes = parseInt(String(duration), 10) || 60;
     
     // Get resource type to determine business hours
     const resourceResult = await db.execute(sql`SELECT type FROM resources WHERE id = ${resource_id}`);
@@ -215,7 +215,7 @@ router.get('/api/availability', async (req, res) => {
     const resourceType = rawType || 'simulator';
     
     // When rescheduling, ignore the original booking so its slot shows as available
-    const ignoreId = ignore_booking_id ? parseInt(ignore_booking_id as string, 10) : null;
+    const ignoreId = ignore_booking_id ? parseInt(String(ignore_booking_id), 10) : null;
     
     const sessionUser = getSessionUser(req);
     const requestingEmail = (sessionUser?.email || '').trim().toLowerCase();
@@ -270,7 +270,7 @@ router.get('/api/availability', async (req, res) => {
       try {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.conference.name);
         if (calendarId) {
-          const busyPeriods = await getCalendarBusyTimes(calendarId, date as string);
+          const busyPeriods = await getCalendarBusyTimes(calendarId, String(date));
           // Convert busy periods to time strings with seconds for consistent comparison
           calendarBusySlots = busyPeriods.map(period => {
             const startStr = period.start.toLocaleTimeString('en-US', { 
@@ -302,7 +302,7 @@ router.get('/api/availability', async (req, res) => {
     const pacificParts = getPacificDateParts();
     const currentMinutes = isToday ? pacificParts.hour * 60 + pacificParts.minute : 0;
     
-    const hours = await getBusinessHoursFromSettings(date as string);
+    const hours = await getBusinessHoursFromSettings(String(date));
     
     // Return empty slots if closed (Monday or invalid day)
     if (!hours) {
@@ -424,7 +424,7 @@ router.put('/api/availability-blocks/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Block not found' });
     }
     
-    logFromRequest(req, 'update_availability_block', 'availability', id as string, undefined, { resource_id, block_date, start_time, end_time });
+    logFromRequest(req, 'update_availability_block', 'availability', String(id), undefined, { resource_id, block_date, start_time, end_time });
     res.json(result.rows[0]);
   } catch (error: unknown) {
     logger.error('Update block error', { extra: { error: getErrorMessage(error) } });
@@ -436,7 +436,7 @@ router.delete('/api/availability-blocks/:id', isStaffOrAdmin, async (req, res) =
   try {
     const { id } = req.params;
     await db.execute(sql`DELETE FROM availability_blocks WHERE id = ${id}`);
-    logFromRequest(req, 'delete_availability_block', 'availability', id as string);
+    logFromRequest(req, 'delete_availability_block', 'availability', String(id));
     res.json({ success: true });
   } catch (error: unknown) {
     logger.error('Delete block error', { extra: { error: getErrorMessage(error) } });

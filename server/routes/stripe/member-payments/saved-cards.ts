@@ -3,6 +3,7 @@ import { isAuthenticated } from '../../../core/middleware';
 import { paymentRateLimiter } from '../../../middleware/rateLimiting';
 import { validateBody } from '../../../middleware/validate';
 import { z } from 'zod';
+import { numericIdParam } from '../../../middleware/paramSchemas';
 import { db } from '../../../db';
 import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../../../types/session';
@@ -53,10 +54,11 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const { paymentMethodId } = req.body;
     if (!paymentMethodId || typeof paymentMethodId !== 'string') {
@@ -308,8 +310,9 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
     const stripeCode = (error as { code?: string })?.code;
     const stripeType = (error as { type?: string })?.type;
     const stripeDeclineCode = (error as { decline_code?: string })?.decline_code;
-    const bookingIdForLog = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingIdForLog)) return res.status(400).json({ error: 'Invalid booking ID' });
+    const idParseLog = numericIdParam.safeParse(req.params.id);
+    if (!idParseLog.success) return res.status(400).json({ error: 'Invalid booking ID' });
+    const bookingIdForLog = parseInt(idParseLog.data, 10);
     logger.error('[MemberPayments] Error processing saved card payment', {
       extra: {
         error: getErrorMessage(error),

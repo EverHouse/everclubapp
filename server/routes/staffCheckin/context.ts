@@ -7,6 +7,7 @@ import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { toTextArrayLiteral, toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../../core/logger';
 import { getStripeClient } from '../../core/stripe/client';
@@ -27,10 +28,11 @@ const router = Router();
 router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   try {
-    const bookingId = parseInt(req.params.id as string, 10);
-    if (isNaN(bookingId)) {
+    const idParse = numericIdParam.safeParse(req.params.id);
+    if (!idParse.success) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
+    const bookingId = parseInt(idParse.data, 10);
 
     const result = await db.execute(sql`
       SELECT 

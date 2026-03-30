@@ -7,6 +7,7 @@ import { logger } from '../core/logger';
 import { validateQuery } from '../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../utils/errorUtils';
+import { requiredStringParam } from '../middleware/paramSchemas';
 
 const router = Router();
 
@@ -93,8 +94,12 @@ const passesQuerySchema = z.object({
 // if device has no registrations; validates auth token when registrations exist
 router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQuery(passesQuerySchema), async (req, res) => {
   try {
-    const deviceLibraryId = req.params.deviceLibraryId as string;
-    const passTypeId = req.params.passTypeId as string;
+    const deviceLibraryIdParse = requiredStringParam.safeParse(req.params.deviceLibraryId);
+    if (!deviceLibraryIdParse.success) return res.status(400).send('Invalid device library ID');
+    const deviceLibraryId = deviceLibraryIdParse.data;
+    const passTypeIdParse = requiredStringParam.safeParse(req.params.passTypeId);
+    if (!passTypeIdParse.success) return res.status(400).send('Invalid pass type ID');
+    const passTypeId = passTypeIdParse.data;
     const vq = (req as unknown as { validatedQuery: z.infer<typeof passesQuerySchema> }).validatedQuery;
     const passesUpdatedSince = vq.passesUpdatedSince;
 

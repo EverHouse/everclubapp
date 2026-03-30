@@ -10,6 +10,7 @@ import { broadcastClosureUpdate } from '../../core/websocket';
 import { notifyAllStaff } from '../../core/notificationService';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { numericIdParam } from '../../middleware/paramSchemas';
 import { getTodayPacific, createPacificDate } from '../../utils/dateUtils';
 import { getCached, setCache, invalidateCache } from '../../core/queryCache';
 import {
@@ -78,7 +79,9 @@ router.post('/api/notice-types', isStaffOrAdmin, async (req, res) => {
 router.put('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const noticeTypeId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid ID' });
+    const noticeTypeId = parseInt(idParse.data, 10);
     if (isNaN(noticeTypeId)) return res.status(400).json({ error: 'Invalid notice type ID' });
     const { name, sort_order } = req.body;
     
@@ -123,7 +126,9 @@ router.put('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/notice-types/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const noticeTypeId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid ID' });
+    const noticeTypeId = parseInt(idParse.data, 10);
     if (isNaN(noticeTypeId)) return res.status(400).json({ error: 'Invalid notice type ID' });
     
     const [existing] = await db
@@ -209,7 +214,9 @@ router.post('/api/closure-reasons', isStaffOrAdmin, async (req, res) => {
 router.put('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const reasonId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid ID' });
+    const reasonId = parseInt(idParse.data, 10);
     if (isNaN(reasonId)) return res.status(400).json({ error: 'Invalid closure reason ID' });
     const { label, sort_order, is_active } = req.body;
     
@@ -246,7 +253,9 @@ router.put('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/closure-reasons/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const reasonId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid ID' });
+    const reasonId = parseInt(idParse.data, 10);
     if (isNaN(reasonId)) return res.status(400).json({ error: 'Invalid closure reason ID' });
     
     const [result] = await db
@@ -485,7 +494,9 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const closureId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid closure ID' });
+    const closureId = parseInt(idParse.data, 10);
     if (isNaN(closureId)) return res.status(400).json({ error: 'Invalid closure ID' });
     
     const [closure] = await db
@@ -552,7 +563,9 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
 router.put('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const closureId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid closure ID' });
+    const closureId = parseInt(idParse.data, 10);
     if (isNaN(closureId)) return res.status(400).json({ error: 'Invalid closure ID' });
     const { 
       title, 

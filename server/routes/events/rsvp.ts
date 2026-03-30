@@ -13,6 +13,7 @@ import { logger, logAndRespond } from '../../core/logger';
 import { getMemberDisplayName } from './shared';
 import { validateBody } from '../../middleware/validate';
 import { z } from 'zod';
+import { numericIdParam, requiredStringParam } from '../../middleware/paramSchemas';
 import { bookingRateLimiter } from '../../middleware/rateLimiting';
 import { createEventRsvp } from '../../core/registrationService';
 
@@ -157,9 +158,13 @@ router.post('/api/rsvps', isAuthenticated, bookingRateLimiter, validateBody(rsvp
 router.delete('/api/rsvps/:event_id/:user_email', isAuthenticated, async (req, res) => {
   try {
     const { event_id, user_email: rawUserEmail } = req.params;
-    const parsedEventId = parseInt(event_id as string, 10);
+    const eventIdParse = numericIdParam.safeParse(event_id);
+    if (!eventIdParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const parsedEventId = parseInt(eventIdParse.data, 10);
     if (isNaN(parsedEventId)) return res.status(400).json({ error: 'Invalid event ID' });
-    const user_email = decodeURIComponent(rawUserEmail as string).trim().toLowerCase();
+    const userEmailParse = requiredStringParam.safeParse(rawUserEmail);
+    if (!userEmailParse.success) return res.status(400).json({ error: 'Invalid user email parameter' });
+    const user_email = decodeURIComponent(userEmailParse.data).trim().toLowerCase();
     
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -219,7 +224,7 @@ router.delete('/api/rsvps/:event_id/:user_email', isAuthenticated, async (req, r
       memberEmail: user_email
     });
     
-    logFromRequest(req, 'cancel_event_rsvp', 'event', event_id as string, undefined, {
+    logFromRequest(req, 'cancel_event_rsvp', 'event', eventIdParse.data, undefined, {
       member_email: user_email,
       event_title: evt.title,
       event_date: evt.eventDate
@@ -235,7 +240,9 @@ router.delete('/api/rsvps/:event_id/:user_email', isAuthenticated, async (req, r
 router.get('/api/events/:id/rsvps', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const eventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const eventId = parseInt(idParse.data, 10);
     if (isNaN(eventId)) return res.status(400).json({ error: 'Invalid event ID' });
     
     const result = await db.select({
@@ -275,8 +282,12 @@ router.get('/api/events/:id/rsvps', isStaffOrAdmin, async (req, res) => {
 router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, res) => {
   try {
     const { eventId, rsvpId } = req.params;
-    const parsedEventId = parseInt(eventId as string, 10);
-    const parsedRsvpId = parseInt(rsvpId as string, 10);
+    const eventIdParse = numericIdParam.safeParse(eventId);
+    if (!eventIdParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const parsedEventId = parseInt(eventIdParse.data, 10);
+    const rsvpIdParse = numericIdParam.safeParse(rsvpId);
+    if (!rsvpIdParse.success) return res.status(400).json({ error: 'Invalid RSVP ID' });
+    const parsedRsvpId = parseInt(rsvpIdParse.data, 10);
     if (isNaN(parsedEventId) || isNaN(parsedRsvpId)) return res.status(400).json({ error: 'Invalid event or RSVP ID' });
     
     const existingRsvp = await db.select()
@@ -301,7 +312,7 @@ router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, 
       .where(eq(eventRsvps.id, parsedRsvpId));
     
     const event = eventData[0] || { title: 'Unknown', eventDate: '' };
-    logFromRequest(req, 'remove_rsvp', 'event', eventId as string, event.title, {
+    logFromRequest(req, 'remove_rsvp', 'event', eventIdParse.data, event.title, {
       rsvp_email: rsvp.userEmail,
       attendee_name: rsvp.attendeeName,
       event_date: event.eventDate
@@ -317,7 +328,9 @@ router.delete('/api/events/:eventId/rsvps/:rsvpId', isStaffOrAdmin, async (req, 
 router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const parsedEventId = parseInt(id as string, 10);
+    const idParse = numericIdParam.safeParse(id);
+    if (!idParse.success) return res.status(400).json({ error: 'Invalid event ID' });
+    const parsedEventId = parseInt(idParse.data, 10);
     if (isNaN(parsedEventId)) return res.status(400).json({ error: 'Invalid event ID' });
     const { email: rawEmail } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
@@ -352,7 +365,7 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
     }).from(events).where(eq(events.id, parsedEventId));
     
     const event = eventData[0] || { title: 'Unknown', eventDate: '' };
-    logFromRequest(req, 'manual_rsvp', 'event', id as string, event.title, {
+    logFromRequest(req, 'manual_rsvp', 'event', idParse.data, event.title, {
       attendee_email: email,
       event_date: event.eventDate
     });
