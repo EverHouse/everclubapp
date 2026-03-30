@@ -8,7 +8,7 @@
     "frontend": "vite",
     "server": "tsx server/index.ts",
     "check:ghost-columns": "bash scripts/check-ghost-columns.sh",
-    "build": "tsx scripts/sync-migration-tracking.ts && bash scripts/check-ghost-columns.sh && vite build",
+    "build": "tsx scripts/sync-migration-tracking.ts && bash scripts/check-ghost-columns.sh && tsx scripts/validate-raw-sql.ts && vite build",
     "preview": "vite preview",
     "start": "NODE_ENV=production tsx server/index.ts",
     "db:push": "tsx scripts/safe-db-push.ts",

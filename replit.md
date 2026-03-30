@@ -128,7 +128,9 @@ The following large files have been split into sub-modules with barrel re-export
 - **Route Index**: Auto-generated route-to-file lookup at `docs/ROUTE_INDEX.md`.
 - **Editor Config**: `.editorconfig` for consistent indentation.
 - **Env Template**: `.env.example` documents environment variables.
-- **Ghost Column Guard**: Custom script `scripts/check-ghost-columns.sh` prevents invalid DB column references.
+- **Ghost Column Guard**: Two-layer protection against raw SQL referencing non-existent DB columns:
+  1. `scripts/check-ghost-columns.sh` — legacy check for 3 hardcoded column names.
+  2. `scripts/validate-raw-sql.ts` — comprehensive validator that parses all Drizzle schema definitions + db-init columns, extracts multi-line SQL blocks from `sql` tagged templates, and validates every UPDATE SET, INSERT INTO, and qualified table.column reference against the schema. Baseline of pre-existing ghost columns documented in KNOWN_SAFE set. Both run as part of the build pipeline (`npm run build`).
 - **Input Validation**: Shared Zod schemas in `shared/validators/` with `validateBody` middleware for request bodies and `validateQuery` middleware for query parameters. Routes using `validateQuery` access parsed values via `req.validatedQuery` (v8.86.0 — 37 route handlers). Remaining `req.query` usages are on authenticated staff routes with simple string destructuring (no `parseInt` on raw query params). Validator files: `payments.ts` (payment intents, quick charge, saved card, receipts), `paymentAdmin.ts` (guest passes, notes, retry/cancel/refund/capture/void), `subscriptions.ts` (create subscription, new member subscription), `dataIntegrity.ts` (resolve/ignore/sync issues, merge, billing provider, tour status, clear stripe ID), `resources.ts` (assign member, link Trackman, bookings, events), `booking.ts` (booking requests), `roster.ts` (participants, batch), `members.ts` (create member, tier change).
 - **API Documentation**: Comprehensive endpoint reference at `docs/API.md`.
 

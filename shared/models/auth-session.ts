@@ -99,6 +99,7 @@ export const users = pgTable("users", {
   firstBookingAt: timestamp("first_booking_at"),
   profileCompletedAt: timestamp("profile_completed_at"),
   appInstalledAt: timestamp("app_installed_at"),
+  conciergeSavedAt: timestamp("concierge_saved_at"),
   onboardingNudgeCount: integer("onboarding_nudge_count").default(0),
   onboardingLastNudgeAt: timestamp("onboarding_last_nudge_at"),
   migrationBillingStartDate: timestamp("migration_billing_start_date"),

@@ -576,6 +576,7 @@ export async function ensureDatabaseConstraints() {
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS migration_status TEXT`); } catch { logger.debug('[DB Init] migration_status column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_tier_change JSONB DEFAULT NULL`); } catch { logger.debug('[DB Init] pending_tier_change column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS mindbody_cancellation_detected_at TIMESTAMP`); } catch { logger.debug('[DB Init] mindbody_cancellation_detected_at column already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS concierge_saved_at TIMESTAMP`); } catch { logger.debug('[DB Init] concierge_saved_at column already exists or failed'); }
     logger.info('[DB Init] Billing migration columns verified');
 
     try {
