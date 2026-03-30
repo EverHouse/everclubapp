@@ -336,8 +336,7 @@ async function autoCompletePastBookings(): Promise<void> {
             [booking.id]
           );
           resolvedSessionId = sessionLookup.rows[0]?.session_id ?? null;
-        } catch {
-          // ignore lookup failure
+        } catch { /* intentional: session lookup failure is non-critical — skip this booking */
         }
       }
       if (!resolvedSessionId) continue;

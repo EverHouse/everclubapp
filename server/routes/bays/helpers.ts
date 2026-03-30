@@ -23,8 +23,7 @@ export async function getCalendarNameForBayAsync(bayId: number | null): Promise<
   return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function getCalendarNameForBay(bayId: number | null): string | null {
+export function getCalendarNameForBay(_bayId: number | null): string | null {
   return null;
 }
 

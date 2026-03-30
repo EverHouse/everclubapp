@@ -15,20 +15,12 @@ import {
   isTrackmanV2Payload,
   parseTrackmanV2Payload,
   mapBayNameToResourceId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  redactPII,
 } from './webhook-helpers';
 import { validateTrackmanWebhookSignature, logWebhookEvent, findMemberByEmail } from './webhook-validation';
 import { 
   handleBookingUpdate, 
   handleBookingModification,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  tryAutoApproveBooking, 
   cancelBookingByTrackmanId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  saveToUnmatchedBookings,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  createUnmatchedBookingRequest,
 } from './webhook-handlers';
 import type { ExistingBookingData } from './webhook-handlers';
 import { availabilityBlocks } from '../../../shared/models/scheduling';
@@ -38,8 +30,6 @@ import { ensureSessionForBooking } from '../../core/bookingService/sessionManage
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
 import {
   updateBaySlotCache, 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  createBookingForMember,
   tryMatchByBayDateTime,
 } from './webhook-billing';
 import { getErrorMessage } from '../../utils/errorUtils';

@@ -137,8 +137,7 @@ export async function findMatchingUser(criteria: MatchCriteria): Promise<User | 
  * New users are created with role='visitor' and membershipStatus='visitor'
  * Also ensures a Stripe customer is created for billing purposes
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function upsertVisitor(data: VisitorData, createStripeCustomer: boolean = true): Promise<User> {
+export async function upsertVisitor(data: VisitorData, _createStripeCustomer: boolean = true): Promise<User> {
   // Try to find existing user
   const existingUser = await findMatchingUser(data);
 

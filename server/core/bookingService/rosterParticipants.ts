@@ -180,7 +180,6 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
 
       if (matchingGuest) {
         matchingGuestId = matchingGuest.id;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         matchingGuestName = matchingGuest.displayName;
       }
 

@@ -3,6 +3,7 @@ import { users } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { queueTierSync } from './hubspot';
 import { notifyMember, isNotifiableEmail } from './notificationService';
+import { getErrorMessage } from '../utils/errorUtils';
 
 import { logger } from './logger';
 import { sendPassUpdateForMemberByEmail } from '../walletPass/apnPushService';
@@ -164,7 +165,8 @@ async function getTierIdFromTierName(tierName: string): Promise<number | null> {
       .where(eq(membershipTiers.name, tierName))
       .limit(1);
     return result[0]?.id ?? null;
-  } catch {
+  } catch (err: unknown) {
+    logger.debug(`[TierUpdateProcessor] Failed to look up tier ID for "${tierName}"`, { extra: { error: getErrorMessage(err) } });
     return null;
   }
 }

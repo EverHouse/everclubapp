@@ -841,7 +841,9 @@ router.get('/api/members/:email/guests', isStaffOrAdmin, async (req, res) => {
 
 router.put('/api/members/:id/role', isAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const idParsed = z.object({ id: z.string().uuid() }).safeParse(req.params);
+    if (!idParsed.success) return res.status(400).json({ error: 'Invalid member ID' });
+    const { id } = idParsed.data;
     const { role, tags } = req.body;
     
     if (role && !['member', 'staff', 'admin'].includes(role)) {
@@ -858,13 +860,13 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
     
     const result = await db.update(users)
       .set(updateData)
-      .where(eq(users.id, id as string))
+      .where(eq(users.id, id))
       .returning();
     
     if (result.length === 0) {
       const insertResult = await db.insert(users)
         .values({
-          id: id as string,
+          id,
           role: role || 'member',
           tags: tags || []
         } as typeof users.$inferInsert)
@@ -877,12 +879,12 @@ router.put('/api/members/:id/role', isAdmin, async (req, res) => {
           }
         })
         .returning();
-      logFromRequest(req, 'change_member_role', 'user', req.params.id as string, '', { newRole: req.body.role, tags: req.body.tags });
+      logFromRequest(req, 'change_member_role', 'user', id, '', { newRole: req.body.role, tags: req.body.tags });
       return res.json(insertResult[0]);
     }
     
     invalidateCache('members_directory');
-    logFromRequest(req, 'change_member_role', 'user', req.params.id as string, '', { newRole: req.body.role, tags: req.body.tags });
+    logFromRequest(req, 'change_member_role', 'user', id, '', { newRole: req.body.role, tags: req.body.tags });
     res.json(result[0]);
   } catch (error: unknown) {
     logger.error('API error updating member', { extra: { error: getErrorMessage(error) } });

@@ -130,8 +130,11 @@ export async function createAnnouncementSheet(): Promise<string> {
     }
   });
 
-  const spreadsheetId = spreadsheet.data.spreadsheetId!;
-  const sheetId = spreadsheet.data.sheets![0].properties!.sheetId!;
+  const spreadsheetId = spreadsheet.data.spreadsheetId;
+  const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId;
+  if (!spreadsheetId || sheetId === undefined || sheetId === null) {
+    throw new Error('Google Sheets API returned incomplete spreadsheet data: missing spreadsheetId or sheetId');
+  }
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,

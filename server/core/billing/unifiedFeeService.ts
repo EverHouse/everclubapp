@@ -663,14 +663,14 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     if (userId) {
       const key = userId.toLowerCase();
       if (usageMap.has(key)) {
-        total += usageMap.get(key)!;
+        total += usageMap.get(key) ?? 0;
         countedKeys.add(key);
       }
     }
     if (email) {
       const key = email.toLowerCase();
       if (!countedKeys.has(key) && usageMap.has(key)) {
-        total += usageMap.get(key)!;
+        total += usageMap.get(key) ?? 0;
       }
     }
     return total;

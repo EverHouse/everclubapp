@@ -383,8 +383,7 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
 }
 
 export async function handleChargeDisputeCreated(client: PoolClient, dispute: Stripe.Dispute): Promise<DeferredAction[]> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { id, amount, currency: _currency, charge, payment_intent, reason, status } = dispute;
+  const { id, amount, charge, payment_intent, reason, status } = dispute;
   const deferredActions: DeferredAction[] = [];
   
   logger.info(`[Stripe Webhook] Dispute created: ${id}, amount: $${(amount / 100).toFixed(2)}, reason: ${reason}`);

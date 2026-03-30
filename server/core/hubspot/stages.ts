@@ -22,16 +22,8 @@ async function isLiveStripeEnvironment(): Promise<boolean> {
 }
 
 import { 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  MINDBODY_TO_CONTACT_STATUS_MAP,
-  ContactMembershipStatus,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  BillingProvider,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DB_STATUS_TO_HUBSPOT_STATUS,
+  type ContactMembershipStatus,
   DB_BILLING_PROVIDER_TO_HUBSPOT,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  DB_TIER_TO_HUBSPOT,
   getDbStatusToHubSpotMapping
 } from './constants';
 

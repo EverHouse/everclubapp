@@ -223,8 +223,7 @@ export class PaymentStatusService {
   static async markPaymentRefunded(params: PaymentStatusUpdate): Promise<PaymentStatusResult> {
     try {
       const result = await db.transaction(async (tx) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { paymentIntentId, refundId: _refundId, staffEmail, staffName, amountCents } = params;
+        const { paymentIntentId, staffEmail, staffName, amountCents } = params;
         
         const snapshotResult = await tx.execute(
           sql`SELECT bfs.id, bfs.session_id, bfs.booking_id, bfs.participant_fees, bfs.total_cents, bfs.status

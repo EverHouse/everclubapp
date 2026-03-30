@@ -209,7 +209,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
               p => p.metadata?.app_category === 'cafe'
             );
             stripeHasZeroCafeProducts = cafeProducts.length === 0;
-          } catch {
+          } catch { /* intentional: Stripe product list check failure — assume products exist */
             stripeHasZeroCafeProducts = false;
           }
         }

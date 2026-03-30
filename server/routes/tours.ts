@@ -34,7 +34,7 @@ function parseHubSpotMeetingLink(meetingUrl: string): { slug: string; hublet: st
     if (match) hublet = match[1];
     else if (hostname.includes('meetings.hubspot.com')) hublet = '';
     return { slug: path, hublet };
-  } catch {
+  } catch { /* intentional: malformed HubSpot meeting URL — return null */
     return null;
   }
 }

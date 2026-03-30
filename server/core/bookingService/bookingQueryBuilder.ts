@@ -3,17 +3,18 @@ import { or, sql, SQL } from 'drizzle-orm';
 
 export function buildUserEmailConditions(userEmail: string): SQL {
   const userEmailLower = userEmail.toLowerCase();
-  return or(
+  const condition = or(
     sql`LOWER(${bookingRequests.userEmail}) = ${userEmailLower}`,
     sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = ${userEmailLower})`,
     sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${userEmailLower})`,
     sql`${bookingRequests.sessionId} IN (SELECT bp.session_id FROM booking_participants bp JOIN users u ON bp.user_id = u.id WHERE LOWER(u.email) = ${userEmailLower})`
-  )!;
+  );
+  return condition ?? sql`FALSE`;
 }
 
 export function buildUserEmailConditionsExtended(userEmail: string): SQL {
   const userEmailLower = userEmail.toLowerCase();
-  return or(
+  const condition = or(
     sql`LOWER(${bookingRequests.userEmail}) = ${userEmailLower}`,
     sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = ${userEmailLower})`,
     sql`LOWER(${bookingRequests.userEmail}) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${userEmailLower})`,
@@ -25,7 +26,8 @@ export function buildUserEmailConditionsExtended(userEmail: string): SQL {
       JOIN users u ON u.id = bp.user_id
       WHERE LOWER(u.email) = ${userEmailLower}
     )`
-  )!;
+  );
+  return condition ?? sql`FALSE`;
 }
 
 export function calculateTotalPlayerCount(opts: {

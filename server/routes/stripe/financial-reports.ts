@@ -20,6 +20,9 @@ import {
 } from '../../core/stripe/paymentRepository';
 import { logFromRequest } from '../../core/auditLog';
 import { getStaffInfo } from './helpers';
+import { z } from 'zod';
+
+const emailParamSchema = z.object({ email: z.string().min(1) });
 
 interface _DbMemberRow {
   id: string;
@@ -46,7 +49,9 @@ const router = Router();
 
 router.get('/api/stripe/payments/:email', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const email = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const parsed = emailParamSchema.safeParse(req.params);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const email = decodeURIComponent(parsed.data.email).trim().toLowerCase();
 
     const { staffEmail } = getStaffInfo(req);
     logFromRequest(req, {

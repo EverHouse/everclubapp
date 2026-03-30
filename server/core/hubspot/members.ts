@@ -367,7 +367,7 @@ export async function syncTierToHubSpot(params: {
         hubspot.crm.contacts.basicApi.getById(hubspotContactId, ['lifecyclestage'])
       );
       previousLifecycle = searchResponse.properties?.lifecyclestage?.toLowerCase() || undefined;
-    } catch {
+    } catch { /* intentional: lifecycle stage lookup failure is non-blocking — proceed without previous stage */
       previousLifecycle = undefined;
     }
 

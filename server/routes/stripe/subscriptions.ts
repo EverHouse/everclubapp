@@ -137,7 +137,7 @@ router.delete('/api/stripe/subscriptions/:subscriptionId', isStaffOrAdmin, async
     
     try {
       if (memberLookup.length > 0) {
-        const memberEmail = memberLookup[0].email!;
+        const memberEmail = memberLookup[0].email ?? '';
         sendNotificationToUser(memberEmail, {
           type: 'billing_update',
           title: 'Subscription Cancelled',

@@ -8,8 +8,6 @@ import { getSessionUser } from '../types/session';
 import {
   syncGroupAddOnProductsToStripe,
   getGroupAddOnProducts,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getBillingGroupByPrimaryEmail,
   getBillingGroupByMemberEmail,
   createBillingGroup,
   addGroupMember,

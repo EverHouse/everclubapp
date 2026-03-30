@@ -304,7 +304,6 @@ export async function linkAndNotifyParticipants(
       const participantCountResult = await db.select({ count: sql<number>`COUNT(*)` })
         .from(bookingParticipants)
         .where(eq(bookingParticipants.sessionId, bpSessionId));
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       nextSlot = (participantCountResult[0]?.count || 1) + 1;
     }
     

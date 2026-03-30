@@ -30,7 +30,6 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
     if (isNaN(bookingId)) {
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { guestEmail: rawGuestEmail, guestPhone: _guestPhone, slotId, forceAddAsGuest, quickAdd } = req.body;
     const guestEmail = rawGuestEmail?.trim()?.toLowerCase();
     let { guestName } = req.body;

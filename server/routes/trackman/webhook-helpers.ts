@@ -176,7 +176,10 @@ export function parseTrackmanV2Payload(payload: TrackmanV2WebhookPayload): {
   externalBookingId: string | undefined;
   bayRef: string | undefined;
 } {
-  const booking = payload.booking!;
+  const booking = payload.booking;
+  if (!booking || !booking.start || !booking.end) {
+    throw new Error('Invalid V2 payload: missing booking, start, or end fields');
+  }
   
   const startParsed = parseISOToPacific(booking.start);
   const endParsed = parseISOToPacific(booking.end);

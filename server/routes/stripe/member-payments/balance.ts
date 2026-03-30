@@ -427,7 +427,7 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
         let parsedFees: Record<string, unknown>;
         try {
           parsedFees = typeof existing.participant_fees === 'string' ? JSON.parse(existing.participant_fees) : (existing.participant_fees || {});
-        } catch {
+        } catch { /* intentional: malformed JSON in snapshot — reset to empty */
           parsedFees = {};
         }
         const existingApplyCredit = parsedFees.applyCredit !== false;

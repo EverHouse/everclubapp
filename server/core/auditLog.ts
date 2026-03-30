@@ -624,7 +624,7 @@ export function logFromRequest(
     finalDetails = actionOrParams.details;
   } else {
     finalAction = actionOrParams as AuditAction;
-    finalResourceType = resourceType!;
+    finalResourceType = resourceType ?? 'system' as ResourceType;
     finalResourceId = resourceId ?? undefined;
     finalResourceName = resourceName ?? undefined;
     finalDetails = details;

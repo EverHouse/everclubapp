@@ -11,7 +11,7 @@ export function stripSslMode(url: string | undefined): string | undefined {
     const u = new URL(url);
     u.searchParams.delete('sslmode');
     return u.toString();
-  } catch {
+  } catch { /* intentional: malformed URL — fall back to regex-based sslmode removal */
     return url.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '');
   }
 }
@@ -26,7 +26,7 @@ function isLocalDatabase(url: string | undefined): boolean {
   try {
     const u = new URL(url);
     return ['localhost', '127.0.0.1', 'helium'].includes(u.hostname);
-  } catch {
+  } catch { /* intentional: malformed URL — treat as non-local */
     return false;
   }
 }
@@ -70,7 +70,7 @@ function appendSearchPath(connString: string | undefined): string | undefined {
       u.searchParams.set('options', (existing ? existing + ' ' : '') + '-c search_path=public');
     }
     return u.toString();
-  } catch {
+  } catch { /* intentional: malformed URL — fall back to string concatenation */
     const sep = connString.includes('?') ? '&' : '?';
     return connString + sep + 'options=-c%20search_path%3Dpublic';
   }

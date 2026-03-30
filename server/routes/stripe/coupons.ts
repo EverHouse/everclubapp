@@ -4,6 +4,9 @@ import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 import { logFromRequest } from '../../core/auditLog';
 import { createHash } from 'crypto';
+import { z } from 'zod';
+
+const idParamSchema = z.object({ id: z.string().min(1) });
 
 const router = Router();
 
@@ -168,22 +171,20 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
 
 router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const paramsParsed = idParamSchema.safeParse(req.params);
+    if (!paramsParsed.success) return res.status(400).json({ error: 'Coupon ID is required.' });
+    const { id } = paramsParsed.data;
     const { name } = req.body;
-    
-    if (!id) {
-      return res.status(400).json({ error: 'Coupon ID is required.' });
-    }
     
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
     
-    const coupon = await stripe.coupons.update(id as string, {
+    const coupon = await stripe.coupons.update(id, {
       name: name || undefined,
     });
     
     logger.info('[Stripe] Updated coupon - name: ""', { extra: { id, name } });
-    logFromRequest(req, 'update_coupon', 'coupon', req.params.id as string, '', {});
+    logFromRequest(req, 'update_coupon', 'coupon', id, '', {});
     
     res.json({
       success: true,
@@ -209,19 +210,17 @@ router.put('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Respons
 
 router.delete('/api/stripe/coupons/:id', isAdmin, async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    
-    if (!id) {
-      return res.status(400).json({ error: 'Coupon ID is required.' });
-    }
+    const paramsParsed = idParamSchema.safeParse(req.params);
+    if (!paramsParsed.success) return res.status(400).json({ error: 'Coupon ID is required.' });
+    const { id } = paramsParsed.data;
     
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
     
-    await stripe.coupons.del(id as string);
+    await stripe.coupons.del(id);
     
     logger.info('[Stripe] Deleted coupon', { extra: { id } });
-    logFromRequest(req, 'delete_coupon', 'coupon', req.params.id as string, '', {});
+    logFromRequest(req, 'delete_coupon', 'coupon', id, '', {});
     
     res.json({ success: true });
   } catch (error: unknown) {

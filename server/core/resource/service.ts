@@ -323,8 +323,7 @@ export async function approveBooking(bookingId: number) {
   return result;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function declineBooking(bookingId: number, reason?: string) {
+export async function declineBooking(bookingId: number, _reason?: string) {
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     

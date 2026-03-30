@@ -676,8 +676,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
     const fixed: Array<{ bookingId: number; sessionId: number; userEmail: string }> = [];
     const errors: string[] = [];
     
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { createSession: _createSession, recordUsage, linkParticipants, ensureSessionForBooking } = await import('../../core/bookingService/sessionManager');
+    const { recordUsage, linkParticipants, ensureSessionForBooking } = await import('../../core/bookingService/sessionManager');
     const { getMemberTierByEmail } = await import('../../core/tierService');
     const { calculateFullSessionBilling } = await import('../../core/bookingService/usageCalculator');
     const { recalculateSessionFees } = await import('../../core/billing/unifiedFeeService');
@@ -950,7 +949,7 @@ router.get('/api/data-tools/archive-stale-visitors/status', isAdmin, async (req:
         error: job.error,
       },
     });
-  } catch {
+  } catch { /* intentional: job not found — return hasJob: false */
     res.json({ hasJob: false });
   }
 });

@@ -11,7 +11,7 @@ const cachedAllowedHostnames: string[] = (process.env.ALLOWED_ORIGINS || '')
     if (!trimmed) return '';
     try {
       return new URL(trimmed).hostname;
-    } catch {
+    } catch { /* intentional: malformed URL — extract hostname with regex fallback */
       return trimmed.replace(/^https?:\/\//, '');
     }
   })
@@ -36,7 +36,7 @@ function isAllowedOrigin(origin: string): boolean {
     if (replitDomain && hostname === replitDomain) return true;
     if (hostname === 'everclub.app' || hostname.endsWith('.everclub.app')) return true;
     return false;
-  } catch {
+  } catch { /* intentional: malformed origin URL — reject as not allowed */
     return false;
   }
 }

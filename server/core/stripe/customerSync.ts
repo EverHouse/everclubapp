@@ -146,7 +146,7 @@ export async function syncStripeCustomersForMindBodyMembers(): Promise<CustomerS
       const stripe = await getStripeClient();
       const balance = await stripe.balance.retrieve();
       stripeMode = balance.livemode ? 'live' : 'test';
-    } catch {
+    } catch { /* intentional: mode detection is best-effort — defaults to 'unknown' */
       stripeMode = 'unknown';
     }
 
@@ -232,7 +232,7 @@ export async function getCachedOrphanedStripeCustomers(): Promise<{
       .limit(1);
     if (result.length === 0 || !result[0].value) return null;
     return JSON.parse(result[0].value);
-  } catch {
+  } catch { /* intentional: cache read failure — return null to indicate no cached data */
     return null;
   }
 }

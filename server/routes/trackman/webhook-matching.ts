@@ -71,7 +71,6 @@ export async function tryAutoApproveBooking(
     
     const pendingBooking = pendingRows[0];
     const bookingId = pendingBooking.id;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     matchedBookingId = bookingId;
     const resourceId = pendingBooking.resource_id;
     

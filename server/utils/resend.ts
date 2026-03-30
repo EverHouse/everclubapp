@@ -180,7 +180,7 @@ async function checkEmailSuppression(emails: string[]): Promise<string[]> {
         AND email_delivery_status IN ('bounced', 'complained')
     `);
     return (result.rows as Array<{ email: string }>).map(r => r.email);
-  } catch {
+  } catch { /* intentional: suppression check failure — return empty to avoid blocking sends */
     return [];
   }
 }

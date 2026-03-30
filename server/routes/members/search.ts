@@ -215,7 +215,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
           OR LOWER(COALESCE(${users.email}, '')) LIKE ${pattern}
         )`;
       });
-      searchCondition = and(...searchConditions)!;
+      searchCondition = and(...searchConditions) ?? sql`TRUE`;
     }
     
     const whereClause = and(

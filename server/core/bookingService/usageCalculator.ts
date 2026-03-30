@@ -285,7 +285,7 @@ export async function calculateSessionBilling(
   
   for (let idx = 0; idx < participants.length; idx++) {
     const participant = participants[idx];
-    const allocation = allocationMap.get(idx)!;
+    const allocation = allocationMap.get(idx) ?? allocations[idx];
     let billing: ParticipantBilling;
     
     if (participant.participantType === 'guest') {
@@ -442,7 +442,7 @@ export async function calculateFullSessionBilling(
   
   for (let idx = 0; idx < participants.length; idx++) {
     const participant = participants[idx];
-    const allocation = allocationMap.get(idx)!;
+    const allocation = allocationMap.get(idx) ?? allocations[idx];
     let billing: ParticipantBilling;
     
     if (participant.participantType === 'guest') {

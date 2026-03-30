@@ -91,8 +91,7 @@ export async function syncSmsPreferencesToHubSpot(
               }
             }
           }
-        } catch {
-          // noop
+        } catch { /* intentional: best-effort parsing of HubSpot error body for property names */
         }
         if (missingProps.size === 0) {
           for (const entry of Object.values(smsPropertyMap)) {
@@ -375,7 +374,6 @@ export async function syncDayPassPurchaseToHubSpot(
         );
 
         contactId = createResponse.id;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         isNewContact = true;
 
         if (!isProduction) {

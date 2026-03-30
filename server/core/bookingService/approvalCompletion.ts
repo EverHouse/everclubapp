@@ -563,8 +563,7 @@ export async function completeCancellation(params: CompleteCancellationParams) {
           try {
             const pi = await stripe.paymentIntents.retrieve(participant.stripePaymentIntentId!);
             if (pi.status === 'succeeded' && pi.latest_charge) {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const refund = await stripe.refunds.create({
+              await stripe.refunds.create({
                 charge: typeof pi.latest_charge === 'string' ? pi.latest_charge : (pi.latest_charge as Stripe.Charge).id,
                 reason: 'requested_by_customer',
                 metadata: {

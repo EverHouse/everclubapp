@@ -835,10 +835,6 @@ export async function deductGuestPassesWithClient(
 // Import tier rules for orchestration
 import { enforceSocialTierRules, getMemberTier, type ParticipantForValidation } from './tierRules';
 import { 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  computeUsageAllocation, 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  assignGuestTimeToHost, 
   calculateFullSessionBilling,
   type Participant as UsageParticipant 
 } from './usageCalculator';

@@ -388,7 +388,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         const existingMember = membersByEmail.get(noteEmail);
         if (existingMember) {
           matchedEmail = existingMember;
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           matchReason = 'Matched via M: tag in notes';
           logger.info(`[Trackman Import] Notes fallback match: ${noteEmail} -> ${existingMember} for "${row.userName}"`);
         }

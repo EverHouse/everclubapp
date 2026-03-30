@@ -327,7 +327,6 @@ export async function getOrCreateStripeCustomer(
         const selectedCustomer = primaryEmailMatch || sortedCustomers[0];
         
         foundCustomerId = selectedCustomer.id;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         foundViaEmail = searchEmail;
         logger.info(`[Stripe] Found existing customer ${foundCustomerId} in Stripe via email ${searchEmail} (preferred: ${primaryEmailMatch ? 'primary match' : 'most recent'})`);
         

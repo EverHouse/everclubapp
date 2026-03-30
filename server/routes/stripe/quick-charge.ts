@@ -11,8 +11,6 @@ import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import {
   createPaymentIntent,
   confirmPaymentSuccess,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getOrCreateStripeCustomer,
   createInvoiceWithLineItems,
   type CartLineItem,
 } from '../../core/stripe';
@@ -28,6 +26,9 @@ import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
 import { normalizeTierName } from '../../utils/tierUtils';
 import { validateBody } from '../../middleware/validate';
 import { quickChargeSchema, confirmQuickChargeSchema, attachEmailSchema, chargeSavedCardPosSchema, sendReceiptSchema, chargeSubscriptionInvoiceSchema } from '../../../shared/validators/payments';
+import { z } from 'zod';
+
+const emailParamSchema = z.object({ email: z.string().min(1) });
 
 interface DbMemberRow {
   id: string;
@@ -764,7 +765,9 @@ router.post('/api/stripe/staff/charge-saved-card-pos', isStaffOrAdmin, validateB
 
 router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const memberEmail = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const parsed = emailParamSchema.safeParse(req.params);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const memberEmail = decodeURIComponent(parsed.data.email).trim().toLowerCase();
 
     const { staffEmail } = getStaffInfo(req);
     logFromRequest(req, {
@@ -806,7 +809,9 @@ router.get('/api/stripe/staff/check-saved-card/:email', isStaffOrAdmin, async (r
 
 router.get('/api/staff/member-balance/:email', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const memberEmail = decodeURIComponent(req.params.email as string).trim().toLowerCase();
+    const parsed = emailParamSchema.safeParse(req.params);
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid email parameter' });
+    const memberEmail = decodeURIComponent(parsed.data.email).trim().toLowerCase();
 
     const { staffEmail } = getStaffInfo(req);
     logFromRequest(req, {

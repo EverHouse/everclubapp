@@ -287,7 +287,8 @@ async function getDbPoolStats(): Promise<{ totalConnections: number | null; idle
       idleConnections: row ? Number(row.idle_connections) : null,
       activeConnections: row ? Number(row.active_connections) : null,
     };
-  } catch {
+  } catch (err: unknown) {
+    logger.debug('[HealthCheck] Failed to get DB pool stats', { extra: { error: getErrorMessage(err) } });
     return { totalConnections: null, idleConnections: null, activeConnections: null };
   }
 }
@@ -311,7 +312,8 @@ async function getEmailHealthStats(): Promise<{ bounceRate7d: number | null; sup
     const suppressedCount = Number((suppressedResult.rows[0] as Record<string, string>)?.cnt) || 0;
 
     return { bounceRate7d: Math.round(bounceRate * 100) / 100, suppressedCount };
-  } catch {
+  } catch (err: unknown) {
+    logger.debug('[HealthCheck] Failed to get email health stats', { extra: { error: getErrorMessage(err) } });
     return { bounceRate7d: null, suppressedCount: null };
   }
 }
@@ -369,7 +371,7 @@ export async function getExternalSystemsHealth(): Promise<ExternalSystemHealth> 
   try {
     const { getCalendarSyncHealth } = await import('../schedulers/backgroundSyncScheduler');
     calendarSync = getCalendarSyncHealth();
-  } catch {
+  } catch { /* intentional: calendar sync module may not be loaded yet */
     calendarSync = null;
   }
 

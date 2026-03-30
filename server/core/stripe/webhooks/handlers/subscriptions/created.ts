@@ -299,7 +299,6 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
       email = userResult.rows[0].email;
       first_name = userResult.rows[0].first_name;
       last_name = userResult.rows[0].last_name;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       currentTier = userResult.rows[0].tier;
       currentStatus = userResult.rows[0].membership_status;
 

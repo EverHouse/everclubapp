@@ -911,8 +911,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           purchaserLastName: String(r.purchaser_last_name),
           purchasedAt: String(r.purchased_at)
         }));
-      } catch {
-        // non-critical
+      } catch { /* intentional: day pass enrichment is non-critical — skip on failure */
       }
     }
 

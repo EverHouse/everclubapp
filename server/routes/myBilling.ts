@@ -47,7 +47,8 @@ const optionalEmailSchema = z.object({
 
 router.get('/api/my/billing', requireAuth, validateQuery(optionalEmailSchema), async (req, res) => {
   try {
-    const sessionUser = req.session.user!;
+    const sessionUser = req.session?.user;
+    if (!sessionUser) return res.status(401).json({ error: 'Not authenticated' });
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
     const vq = (req as Request & { validatedQuery: z.infer<typeof optionalEmailSchema> }).validatedQuery;
     const targetEmail = (vq.email && isStaff) ? vq.email.trim().toLowerCase() : sessionUser.email;
@@ -165,7 +166,8 @@ router.get('/api/my/billing', requireAuth, validateQuery(optionalEmailSchema), a
 
 router.get('/api/my/billing/invoices', requireAuth, validateQuery(optionalEmailSchema), async (req, res) => {
   try {
-    const sessionUser = req.session.user!;
+    const sessionUser = req.session?.user;
+    if (!sessionUser) return res.status(401).json({ error: 'Not authenticated' });
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
     const vq = (req as Request & { validatedQuery: z.infer<typeof optionalEmailSchema> }).validatedQuery;
     const email = (vq.email && isStaff) ? vq.email.trim().toLowerCase() : sessionUser.email;
@@ -214,7 +216,8 @@ router.get('/api/my/billing/invoices', requireAuth, validateQuery(optionalEmailS
 
 router.post('/api/my/billing/update-payment-method', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     
     const result = await db.execute(sql`SELECT stripe_customer_id, billing_provider, migration_status FROM users WHERE LOWER(email) = ${email.toLowerCase()}`);
     
@@ -252,7 +255,8 @@ const billingPortalSchema = z.object({
 
 router.post('/api/my/billing/portal', requireAuth, sensitiveActionRateLimiter, validateBody(billingPortalSchema), async (req, res) => {
   try {
-    const sessionUser = req.session.user!;
+    const sessionUser = req.session?.user;
+    if (!sessionUser) return res.status(401).json({ error: 'Not authenticated' });
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
     const targetEmail = (req.body.email && isStaff) ? String(req.body.email).trim().toLowerCase() : sessionUser.email;
     
@@ -312,7 +316,8 @@ router.post('/api/my/billing/portal', requireAuth, sensitiveActionRateLimiter, v
 // MindBody members use this to add a card for overage fees without requesting migration
 router.post('/api/my/billing/add-payment-method-for-extras', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     
     if (await isDbVerifiedStaff(email)) {
       return res.status(400).json({ error: 'Staff accounts do not use billing' });
@@ -356,7 +361,8 @@ router.post('/api/my/billing/add-payment-method-for-extras', requireAuth, async 
 
 router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     
     if (await isDbVerifiedStaff(email)) {
       return res.status(400).json({ error: 'Staff accounts do not use billing' });
@@ -423,7 +429,8 @@ router.post('/api/my/billing/migrate-to-stripe', requireAuth, async (req, res) =
 
 router.get('/api/my/balance', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     
     if (await isDbVerifiedStaff(email)) {
       return res.json({ balanceCents: 0, balanceDollars: 0, isStaff: true });
@@ -472,7 +479,8 @@ const addFundsSchema = z.object({
 
 router.post('/api/my/add-funds', requireAuth, paymentRateLimiter, validateBody(addFundsSchema), async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     const { amountCents } = req.body;
     
     if (await isDbVerifiedStaff(email)) {
@@ -534,7 +542,8 @@ const billingEmailQuerySchema = z.object({
 
 router.get('/api/my-billing/account-balance', requireAuth, validateQuery(billingEmailQuerySchema), async (req, res) => {
   try {
-    const sessionEmail = req.session.user!.email;
+    const sessionEmail = req.session?.user?.email;
+    if (!sessionEmail) return res.status(401).json({ error: 'Not authenticated' });
     const isStaffUser = await isDbVerifiedStaff(sessionEmail);
     
     const vq = (req as Request & { validatedQuery: z.infer<typeof billingEmailQuerySchema> }).validatedQuery;
@@ -833,7 +842,8 @@ router.post('/api/member-billing/:email/backfill-cache', requireStaffAuth, async
 
 router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     const { reason } = req.body;
     
     const result = await db.execute(sql`SELECT id, email, billing_provider, stripe_customer_id, cancellation_requested_at 
@@ -911,7 +921,8 @@ router.post('/api/my/billing/request-cancellation', requireAuth, async (req, res
 
 router.get('/api/my/billing/cancellation-status', requireAuth, async (req, res) => {
   try {
-    const email = req.session.user!.email;
+    const email = req.session?.user?.email;
+    if (!email) return res.status(401).json({ error: 'Not authenticated' });
     
     const result = await db.execute(sql`SELECT cancellation_requested_at, cancellation_effective_date, cancellation_reason
        FROM users WHERE LOWER(email) = ${email.toLowerCase()}`);
@@ -936,7 +947,8 @@ router.get('/api/my/billing/cancellation-status', requireAuth, async (req, res) 
 router.get('/api/my-billing/receipt/:paymentIntentId', requireAuth, async (req, res) => {
   try {
     const { paymentIntentId } = req.params;
-    const sessionEmail = req.session.user!.email;
+    const sessionEmail = req.session?.user?.email;
+    if (!sessionEmail) return res.status(401).json({ error: 'Not authenticated' });
     
     if (!paymentIntentId || !(paymentIntentId as string).startsWith('pi_')) {
       return res.status(400).json({ error: 'Invalid payment intent ID' });
@@ -979,7 +991,8 @@ router.get('/api/my-billing/receipt/:paymentIntentId', requireAuth, async (req, 
 
 router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optionalEmailSchema), async (req, res) => {
   try {
-    const sessionUser = req.session.user!;
+    const sessionUser = req.session?.user;
+    if (!sessionUser) return res.status(401).json({ error: 'Not authenticated' });
     const isStaff = await isDbVerifiedStaff(sessionUser.email);
     const vq = (req as Request & { validatedQuery: z.infer<typeof optionalEmailSchema> }).validatedQuery;
     const userEmail = (vq.email && isStaff) ? vq.email.trim().toLowerCase() : sessionUser.email.toLowerCase();

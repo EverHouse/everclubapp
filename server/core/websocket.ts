@@ -228,7 +228,7 @@ function verifyWsAuthToken(token: string): { email: string; role: string; isStaf
       role,
       isStaff: role === 'staff' || role === 'admin',
     };
-  } catch {
+  } catch { /* intentional: invalid/expired token — return null to reject auth */
     return null;
   }
 }

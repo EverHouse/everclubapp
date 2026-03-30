@@ -975,7 +975,7 @@ router.get('/api/data-tools/cleanup-stripe-customers/status', isAdmin, async (re
         error: job.error,
       },
     });
-  } catch {
+  } catch { /* intentional: job not found — return hasJob: false */
     res.json({ hasJob: false });
   }
 });

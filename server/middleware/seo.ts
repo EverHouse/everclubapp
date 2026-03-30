@@ -573,7 +573,7 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
           const nonce = res.locals.cspNonce as string;
           res.setHeader('Content-Type', 'text/html');
           return res.send(injectCspNonce(rawHtml, nonce));
-        } catch {
+        } catch { /* intentional: CSP nonce injection failed — fall back to raw file */
           return res.sendFile(indexPath);
         }
       }

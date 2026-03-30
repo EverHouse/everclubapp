@@ -345,7 +345,6 @@ export async function addCorporateMember(params: {
     let needsStripeSync = false;
     let newMemberCount = 0;
     let hasPrePaidSeats = false;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     let maxSeats: unknown = null;
     
     try {

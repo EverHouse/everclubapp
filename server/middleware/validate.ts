@@ -7,7 +7,7 @@ export function validateBody<T>(schema: ZodSchema<T>) {
     if (typeof body === 'string') {
       try {
         body = JSON.parse(body);
-      } catch {
+      } catch { /* intentional: malformed JSON body — return 400 */
         return res.status(400).json({ error: 'Invalid JSON in request body' });
       }
     }
