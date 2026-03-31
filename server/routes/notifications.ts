@@ -56,8 +56,8 @@ router.get('/api/notifications', isAuthenticated, async (req, res) => {
     }
     
     const result = unread_only === 'true'
-      ? await db.execute(sql`SELECT id, user_email, title, message, type, related_id, related_type, url, is_read, created_at FROM notifications WHERE LOWER(user_email) = LOWER(${effective.email}) AND is_read = false ORDER BY created_at DESC LIMIT 50`)
-      : await db.execute(sql`SELECT id, user_email, title, message, type, related_id, related_type, url, is_read, created_at FROM notifications WHERE LOWER(user_email) = LOWER(${effective.email}) ORDER BY created_at DESC LIMIT 50`);
+      ? await db.execute(sql`SELECT id, user_email, title, message, type, related_id, related_type, url, is_read, created_at FROM notifications WHERE LOWER(user_email) = LOWER(${effective.email}) AND is_read = false AND type IS DISTINCT FROM 'announcement' ORDER BY created_at DESC LIMIT 50`)
+      : await db.execute(sql`SELECT id, user_email, title, message, type, related_id, related_type, url, is_read, created_at FROM notifications WHERE LOWER(user_email) = LOWER(${effective.email}) AND type IS DISTINCT FROM 'announcement' ORDER BY created_at DESC LIMIT 50`);
     
     // Convert timestamps to proper ISO format for UTC interpretation
     // Database stores 'timestamp without time zone' in UTC, but pg driver returns it without 'Z' suffix
@@ -91,7 +91,7 @@ router.get('/api/notifications/count', isAuthenticated, async (req, res) => {
     }
     
     const result = await db.execute(
-      sql`SELECT COUNT(*) as count FROM notifications WHERE LOWER(user_email) = LOWER(${effective.email}) AND is_read = false`
+      sql`SELECT COUNT(*) as count FROM notifications WHERE LOWER(user_email) = LOWER(${effective.email}) AND is_read = false AND type IS DISTINCT FROM 'announcement'`
     );
     
     res.json({ count: parseInt(result.rows[0].count as string, 10) });
