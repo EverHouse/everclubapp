@@ -70,6 +70,7 @@ const AvailabilityBlocksContent: React.FC = () => {
     });
     const [isSaving, setIsSaving] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const saveLockRef = useRef(false);
     
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [blockToDelete, setBlockToDelete] = useState<AvailabilityBlock | null>(null);
@@ -196,6 +197,12 @@ const AvailabilityBlocksContent: React.FC = () => {
         return () => window.removeEventListener('openBlockCreate', handleOpenCreate);
     }, [openCreate]);
 
+    useEffect(() => {
+        if (showPastAccordion && !pastLoaded) {
+            fetchPastBlocks();
+        }
+    }, [showPastAccordion, pastLoaded]);
+
     const openEdit = (block: AvailabilityBlock) => {
         setFormData({
             resource_id: block.resource_id,
@@ -211,11 +218,13 @@ const AvailabilityBlocksContent: React.FC = () => {
     };
 
     const handleSave = async () => {
+        if (saveLockRef.current) return;
         if (!formData.resource_id || !formData.block_date || !formData.start_time || !formData.end_time || !formData.block_type) {
             setFormError('Please fill in all required fields');
             return;
         }
 
+        saveLockRef.current = true;
         try {
             setIsSaving(true);
             setFormError(null);
@@ -231,28 +240,24 @@ const AvailabilityBlocksContent: React.FC = () => {
 
             const url = editId ? `/api/availability-blocks/${editId}` : '/api/availability-blocks';
 
-            const savedItem = editId
+            editId
                 ? await putWithCredentials<AvailabilityBlock>(url, payload)
                 : await postWithCredentials<AvailabilityBlock>(url, payload);
-            const today = getTodayPacific();
-            const savedDate = savedItem.block_date?.includes('T') ? savedItem.block_date.split('T')[0] : savedItem.block_date;
-            const isPast = savedDate < today;
-            
-            if (editId) {
-                setUpcomingBlocks(prev => prev.map(b => b.id === editId ? savedItem : b));
-                setPastBlocks(prev => prev.map(b => b.id === editId ? savedItem : b));
-            } else if (isPast) {
-                setPastBlocks(prev => [savedItem, ...prev]);
-            } else {
-                setUpcomingBlocks(prev => [savedItem, ...prev]);
-            }
             
             showToast(editId ? 'Block updated' : 'Block created', 'success');
             setIsEditing(false);
+            setPastLoaded(false);
+            setPastBlocks([]);
+            try {
+                await fetchUpcomingBlocks();
+            } catch {
+                showToast('Saved, but failed to refresh list', 'warning');
+            }
         } catch (_err: unknown) {
             setFormError('Failed to save block');
         } finally {
             setIsSaving(false);
+            saveLockRef.current = false;
         }
     };
 
@@ -512,11 +517,7 @@ const AvailabilityBlocksContent: React.FC = () => {
             <div className="mt-6 rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden">
                     <button
                         onClick={() => {
-                            const willOpen = !showPastAccordion;
-                            setShowPastAccordion(willOpen);
-                            if (willOpen && !pastLoaded) {
-                                fetchPastBlocks();
-                            }
+                            setShowPastAccordion(prev => !prev);
                         }}
                         className="tactile-row w-full flex items-center justify-between p-4 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
