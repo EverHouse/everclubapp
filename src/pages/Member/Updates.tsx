@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthData, useAnnouncementData, Announcement } from '../../contexts/DataContext';
+import { AnnouncementFormDrawer } from '../../components/admin/AnnouncementFormDrawer';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SwipeablePage from '../../components/SwipeablePage';
@@ -13,7 +14,6 @@ import { haptic } from '../../utils/haptics';
 import { fetchWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
-import AnnouncementFormDrawer from '../../components/admin/AnnouncementFormDrawer';
 
 
 interface Closure {
@@ -155,6 +155,8 @@ const MemberUpdates: React.FC = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const canManageAnnouncements = isStaffOrAdmin && !isViewingAsMember;
+
   useEffect(() => {
     if (!isLoading && !closuresLoading && !notificationsLoading) {
       setPageReady(true);
@@ -248,6 +250,7 @@ const MemberUpdates: React.FC = () => {
       showToast('Failed to delete announcement', 'error');
     }
   };
+
 
   const markNotificationRead = async (notificationId: number) => {
     const wasAlreadyRead = notifications.find(n => n.id === notificationId)?.read;
@@ -440,6 +443,24 @@ const MemberUpdates: React.FC = () => {
                     <span className={`text-[10px] ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
                       {formatAnnouncementDate(item)}
                     </span>
+                    {canManageAnnouncements && (
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEditAnnouncement(item); }}
+                          className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-white/50 hover:text-white/80' : 'hover:bg-primary/10 text-primary/40 hover:text-primary/70'}`}
+                          title="Edit announcement"
+                        >
+                          <Icon name="edit" className="text-[16px]" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteAnnouncement(item.id); }}
+                          className={`p-1 rounded-lg transition-colors ${isDark ? 'hover:bg-red-500/20 text-white/50 hover:text-red-400' : 'hover:bg-red-50 text-primary/40 hover:text-red-500'}`}
+                          title="Delete announcement"
+                        >
+                          <Icon name="delete" className="text-[16px]" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   
                   <h3 className={`text-lg font-bold mb-2 leading-snug ${isDark ? 'text-white' : 'text-primary'}`}>
