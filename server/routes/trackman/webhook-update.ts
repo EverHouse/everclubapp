@@ -2,7 +2,7 @@ import { logger } from '../../core/logger';
 import { broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
-import { formatTime12Hour } from '../../utils/dateUtils';
+import { formatTime12Hour, getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 import { bookingRequests } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
@@ -202,15 +202,15 @@ async function notifyMemberBookingConfirmed(
 
 function formatNotifDateTime(slotDate: string, time24: string): string {
   try {
-    const [year, month, day] = slotDate.split('-').map(Number);
+    const [, month, day] = slotDate.split('-').map(Number);
     const [h, m] = time24.split(':').map(Number);
-    const d = new Date(year, month - 1, day);
+    const dow = getDayOfWeekFromDateStr(slotDate);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const period = h >= 12 ? 'PM' : 'AM';
     const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
     const timeStr = m === 0 ? `${h12} ${period}` : `${h12}:${String(m).padStart(2, '0')} ${period}`;
-    return `${dayNames[d.getDay()]}, ${monthNames[month - 1]} ${day} at ${timeStr}`;
+    return `${dayNames[dow]}, ${monthNames[month - 1]} ${day} at ${timeStr}`;
   } catch (err) {
     logger.debug('Failed to format friendly date/time, using raw values', { extra: { error: getErrorMessage(err) } });
     return `${slotDate} at ${time24}`;
