@@ -16,26 +16,3 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const invalidateBookings = () => {
-  queryClient.invalidateQueries({ queryKey: ['bookings'] });
-};
-
-export const invalidateMembers = () => {
-  queryClient.invalidateQueries({ queryKey: ['members'] });
-};
-
-export const invalidateEvents = () => {
-  queryClient.invalidateQueries({ queryKey: ['events'] });
-};
-
-export const invalidateFinancials = () => {
-  queryClient.invalidateQueries({ queryKey: ['financials'] });
-};
-
-export const invalidateSettings = () => {
-  queryClient.invalidateQueries({ queryKey: ['settings'] });
-};
-
-export const invalidateAll = () => {
-  queryClient.invalidateQueries();
-};

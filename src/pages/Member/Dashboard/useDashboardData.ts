@@ -32,13 +32,6 @@ export function useDashboardData() {
   const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
 
-  const [_selectedBooking, setSelectedBooking] = useState<DBBooking | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_newDate, setNewDate] = useState<string>('');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_newTime, setNewTime] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(null);
   const [showGuestCheckin, setShowGuestCheckin] = useState(false);
   const [isCardOpen, setIsCardOpen] = useState(false);
@@ -481,7 +474,6 @@ export function useDashboardData() {
     },
     onMutate: async ({ bookingId }) => {
       setOptimisticCancelledIds(prev => new Set(prev).add(bookingId));
-      setSelectedBooking(null);
     },
     onSuccess: ({ bookingId, data }) => {
       if (data.status === 'cancellation_pending') {
