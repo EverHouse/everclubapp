@@ -486,7 +486,23 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   const excludeId = params.excludeSessionFromUsage ? sessionId : undefined;
   const isPreviewMode = !sessionId && params.source === 'preview';
   
+  let currentBookingCreatedAt: string | undefined;
   if (allIdentifiers.length > 0) {
+    let fetchedStartTime: string | undefined;
+    if (currentBookingId) {
+      const bookingMetaResult = await db.execute(
+        sql`SELECT start_time, created_at FROM booking_requests WHERE id = ${currentBookingId}`
+      );
+      if (bookingMetaResult.rows.length > 0) {
+        if (bookingMetaResult.rows[0].created_at) {
+          currentBookingCreatedAt = String(bookingMetaResult.rows[0].created_at);
+        }
+        if (bookingMetaResult.rows[0].start_time) {
+          fetchedStartTime = String(bookingMetaResult.rows[0].start_time);
+        }
+      }
+    }
+
     if (isPreviewMode) {
       // For preview mode, query booking_requests directly (includes pending/approved/attended)
       // IMPORTANT: Only count bookings that START EARLIER than the current booking
@@ -495,16 +511,7 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       // when a member has multiple bookings on the same day.
       // Note: We use UNION (not UNION ALL) and deduplicate by booking_id to prevent double-counting
       
-      // If we have a bookingId but no startTime, fetch it from the database
-      let effectiveStartTime = startTime;
-      if (!startTime && currentBookingId) {
-        const startTimeResult = await db.execute(
-          sql`SELECT start_time FROM booking_requests WHERE id = ${currentBookingId}`
-        );
-        if (startTimeResult.rows.length > 0 && startTimeResult.rows[0].start_time) {
-          effectiveStartTime = String(startTimeResult.rows[0].start_time);
-        }
-      }
+      const effectiveStartTime = startTime || fetchedStartTime;
       
       // Build the time filter - only count usage from earlier bookings
       const hasTimeFilter = effectiveStartTime !== undefined;
@@ -519,7 +526,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const timeFilterFrag = hasTimeFilter
         ? sql`AND (
              COALESCE(br.start_time, '00:00:00') < ${effectiveStartTime} 
-             OR (COALESCE(br.start_time, '00:00:00') = ${effectiveStartTime} AND br.id < COALESCE(${currentBookingId || 0}, 0))
+             OR (COALESCE(br.start_time, '00:00:00') = ${effectiveStartTime} AND (
+               br.created_at < ${currentBookingCreatedAt || '1970-01-01'}::timestamptz
+               OR (br.created_at = ${currentBookingCreatedAt || '1970-01-01'}::timestamptz AND br.id < COALESCE(${currentBookingId || 0}, 0))
+             ))
            )`
         : hasBookingIdFilter
           ? sql`AND br.id != ${currentBookingId}`
@@ -595,7 +605,13 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
                  COALESCE((SELECT MIN(br2.start_time) FROM booking_requests br2 WHERE br2.session_id = bs.id), '00:00:00') < ${startTime}
                  OR (
                    COALESCE((SELECT MIN(br2.start_time) FROM booking_requests br2 WHERE br2.session_id = bs.id), '00:00:00') = ${startTime}
-                   AND COALESCE((SELECT MIN(br2.id) FROM booking_requests br2 WHERE br2.session_id = bs.id), 0) < ${currentBookingId || 0}
+                   AND (
+                     COALESCE((SELECT MIN(br2.created_at) FROM booking_requests br2 WHERE br2.session_id = bs.id), '1970-01-01'::timestamptz) < ${currentBookingCreatedAt || '1970-01-01'}::timestamptz
+                     OR (
+                       COALESCE((SELECT MIN(br2.created_at) FROM booking_requests br2 WHERE br2.session_id = bs.id), '1970-01-01'::timestamptz) = ${currentBookingCreatedAt || '1970-01-01'}::timestamptz
+                       AND COALESCE((SELECT MIN(br2.id) FROM booking_requests br2 WHERE br2.session_id = bs.id), 0) < ${currentBookingId || 0}
+                     )
+                   )
                  )
                )`
         : sql``;
@@ -603,7 +619,10 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
       const timeFilterGhostFrag = hasTimeFilter
         ? sql`AND (
                  COALESCE(br.start_time, '00:00:00') < ${startTime}
-                 OR (COALESCE(br.start_time, '00:00:00') = ${startTime} AND br.id < ${currentBookingId || 0})
+                 OR (COALESCE(br.start_time, '00:00:00') = ${startTime} AND (
+                   br.created_at < ${currentBookingCreatedAt || '1970-01-01'}::timestamptz
+                   OR (br.created_at = ${currentBookingCreatedAt || '1970-01-01'}::timestamptz AND br.id < ${currentBookingId || 0})
+                 ))
                )`
         : sql``;
       
