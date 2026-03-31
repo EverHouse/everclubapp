@@ -49,7 +49,7 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   const internalHeader = req.headers['x-internal-request'] as string | undefined;
   if (internalHeader) {
     const internalSecret = process.env.INTERNAL_API_SECRET;
-    if (internalSecret) {
+    if (internalSecret && internalHeader.length === internalSecret.length) {
       const headerBuf = Buffer.from(internalHeader, 'utf8');
       const secretBuf = Buffer.from(internalSecret, 'utf8');
       if (headerBuf.length === secretBuf.length && timingSafeEqual(headerBuf, secretBuf)) {
@@ -93,7 +93,8 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   const nonce = randomBytes(16).toString('base64');
   res.locals.cspNonce = nonce;
 
-  const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/.test(req.path);
+  const isStaticAsset = !req.path.startsWith('/api/') &&
+    /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path);
   if (!isStaticAsset) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   }
