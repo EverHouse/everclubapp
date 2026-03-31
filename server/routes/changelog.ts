@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../core/middleware';
+import { logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
 
@@ -23,7 +25,7 @@ router.get('/api/changelog', isStaffOrAdmin, async (_req, res) => {
     const data = await loadChangelog();
     res.json({ entries: data });
   } catch (err) {
-    console.error('[Changelog] Failed to load changelog data:', err);
+    logger.error('[Changelog] Failed to load changelog data', { error: getErrorMessage(err) });
     res.status(500).json({ error: 'Failed to load changelog' });
   }
 });
