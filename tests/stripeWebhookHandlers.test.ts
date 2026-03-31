@@ -1451,6 +1451,8 @@ describe('Catalog Handlers — handlePriceDeleted', () => {
 });
 
 describe('processStripeWebhook — signature verification', () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const expectedLivemode = isProduction;
   const makePayload = (obj: Record<string, unknown>) => Buffer.from(JSON.stringify(obj));
 
   it('throws when payload is not a Buffer', async () => {
@@ -1462,7 +1464,7 @@ describe('processStripeWebhook — signature verification', () => {
     const mockSync = { processWebhook: vi.fn().mockRejectedValue(new Error('bad sig')) };
     mockGetStripeSync.mockResolvedValueOnce(mockSync);
 
-    const payload = makePayload({ id: 'evt_test', livemode: false, type: 'payment_intent.created', data: { object: { id: 'pi_1' } } });
+    const payload = makePayload({ id: 'evt_test', livemode: expectedLivemode, type: 'payment_intent.created', data: { object: { id: 'pi_1' } } });
 
     await expect(processStripeWebhook(payload, 'sig_bad'))
       .rejects.toThrow('Webhook signature verification failed');
@@ -1470,17 +1472,14 @@ describe('processStripeWebhook — signature verification', () => {
   });
 
   it('skips events where livemode does not match environment', async () => {
-    const origEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'development';
+    const mismatchedLivemode = !expectedLivemode;
 
-    const payload = makePayload({ id: 'evt_live', livemode: true, type: 'payment_intent.succeeded' });
+    const payload = makePayload({ id: 'evt_mismatch', livemode: mismatchedLivemode, type: 'payment_intent.succeeded' });
     await processStripeWebhook(payload, 'sig_test');
 
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('livemode=true does not match environment')
+      expect.stringContaining(`livemode=${mismatchedLivemode} does not match environment`)
     );
-
-    process.env.NODE_ENV = origEnv;
   });
 
   it('processes verified event through full pipeline (claim, dispatch, commit)', async () => {
@@ -1490,7 +1489,7 @@ describe('processStripeWebhook — signature verification', () => {
     const eventObj = {
       id: 'evt_full_test',
       type: 'payment_intent.created',
-      livemode: false,
+      livemode: expectedLivemode,
       created: 1234567890,
       data: { object: { id: 'pi_created_1' } },
     };
@@ -1528,7 +1527,7 @@ describe('processStripeWebhook — signature verification', () => {
     const eventObj = {
       id: 'evt_dup',
       type: 'invoice.created',
-      livemode: false,
+      livemode: expectedLivemode,
       created: 1234567890,
       data: { object: { id: 'in_dup1' } },
     };
@@ -1560,10 +1559,11 @@ describe('processStripeWebhook — unknown event type handling', () => {
     const mockSync = { processWebhook: vi.fn().mockResolvedValue(undefined) };
     mockGetStripeSync.mockResolvedValueOnce(mockSync);
 
+    const isProduction = process.env.NODE_ENV === 'production';
     const eventObj = {
       id: 'evt_unknown',
       type: 'totally.unknown.event',
-      livemode: false,
+      livemode: isProduction,
       created: 1234567890,
       data: { object: { id: 'obj_unknown' } },
     };
