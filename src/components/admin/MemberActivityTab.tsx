@@ -359,12 +359,21 @@ const MemberActivityTab: React.FC<MemberActivityTabProps> = ({
     </div>
   );
 
-  const renderVisitItem = (visit: VisitHistoryItem & { isWalkIn?: boolean; resource_name?: string; check_in_time?: string; role?: string; resourceName?: string; date?: string; bookingDate?: string; startTime?: string; endTime?: string; checkedInBy?: string; hostName?: string; instructor?: string; location?: string }) => (
+  const renderVisitItem = (visit: VisitHistoryItem & { isWalkIn?: boolean; isWellhub?: boolean; wellhubValidationStatus?: string; resource_name?: string; check_in_time?: string; role?: string; resourceName?: string; date?: string; bookingDate?: string; startTime?: string; endTime?: string; checkedInBy?: string; hostName?: string; instructor?: string; location?: string }) => (
     <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2 mb-1">
-        <Icon name={visit.isWalkIn ? 'qr_code_scanner' : getRoleIcon(visit.role || '')} className="text-green-500 text-lg" />
+        <Icon name={visit.isWellhub ? 'fitness_center' : visit.isWalkIn ? 'qr_code_scanner' : getRoleIcon(visit.role || '')} className={`text-lg ${visit.isWellhub && visit.wellhubValidationStatus && visit.wellhubValidationStatus !== 'validated' ? 'text-red-500' : 'text-green-500'}`} />
         <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>{visit.resourceName || 'Visit'}</span>
-        {visit.role && (
+        {visit.isWellhub && (
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+            visit.wellhubValidationStatus && visit.wellhubValidationStatus !== 'validated'
+              ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+              : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
+          }`}>
+            Wellhub{visit.wellhubValidationStatus && visit.wellhubValidationStatus !== 'validated' ? ` · ${visit.wellhubValidationStatus}` : ''}
+          </span>
+        )}
+        {visit.role && !visit.isWellhub && (
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${visit.isWalkIn ? 'bg-emerald-500 text-white' : getRoleBadgeColor(visit.role)}`}>
             {visit.role}
           </span>

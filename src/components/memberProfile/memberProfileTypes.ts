@@ -71,6 +71,8 @@ export interface VisitHistoryItem {
   check_in_time?: string;
   status: string;
   resource_name?: string;
+  isWellhub?: boolean;
+  wellhubValidationStatus?: string;
 }
 
 export interface MemberHistory {

@@ -216,3 +216,26 @@ export const backgroundJobs = pgTable("background_jobs", {
 
 export type BackgroundJob = typeof backgroundJobs.$inferSelect;
 export type InsertBackgroundJob = typeof backgroundJobs.$inferInsert;
+
+export const wellhubCheckins = pgTable("wellhub_checkins", {
+  id: serial("id").primaryKey(),
+  wellhubUserId: varchar("wellhub_user_id", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }),
+  gymId: varchar("gym_id", { length: 100 }).notNull(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  bookingNumber: varchar("booking_number", { length: 255 }),
+  eventTimestamp: timestamp("event_timestamp"),
+  expiresAt: timestamp("expires_at"),
+  validationStatus: varchar("validation_status", { length: 50 }).notNull().default('pending'),
+  validatedAt: timestamp("validated_at"),
+  errorDetail: text("error_detail"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  wellhubUserIdIdx: index("wellhub_checkins_wellhub_user_id_idx").on(table.wellhubUserId),
+  userIdIdx: index("wellhub_checkins_user_id_idx").on(table.userId),
+  validationStatusIdx: index("wellhub_checkins_validation_status_idx").on(table.validationStatus),
+  createdAtIdx: index("wellhub_checkins_created_at_idx").on(table.createdAt),
+}));
+
+export type WellhubCheckin = typeof wellhubCheckins.$inferSelect;
+export type InsertWellhubCheckin = typeof wellhubCheckins.$inferInsert;

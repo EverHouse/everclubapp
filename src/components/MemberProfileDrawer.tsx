@@ -694,6 +694,11 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     {getMemberStatusLabel(enrichedMember.status)}
                   </span>
                 )}
+                {enrichedMember.visitorType === 'wellhub' && (
+                  <span className="w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
+                    Wellhub
+                  </span>
+                )}
               </div>
             </div>
             <button

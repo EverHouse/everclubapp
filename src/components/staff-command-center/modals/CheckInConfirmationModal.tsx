@@ -24,6 +24,7 @@ interface CheckInConfirmationModalProps {
   tier?: string | null;
   membershipStatus?: string | null;
   bookingDetails?: BookingDetails | null;
+  isWellhub?: boolean;
 }
 
 function formatTime(time: string): string {
@@ -50,7 +51,8 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   pinnedNotes,
   tier,
   membershipStatus,
-  bookingDetails
+  bookingDetails,
+  isWellhub
 }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const soundPlayedRef = useRef(false);
@@ -144,6 +146,13 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
 
           <h2 className="text-xl font-bold text-white mb-1">{memberName}</h2>
           <p className="text-white/80 text-sm font-medium">Checked In</p>
+
+          {isWellhub && (
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/40 text-orange-200 text-xs font-semibold uppercase tracking-wider">
+              <Icon name="fitness_center" className="text-sm" />
+              Wellhub
+            </div>
+          )}
 
           {tier && (
             <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-white/15 text-white/90 text-xs font-semibold uppercase tracking-wider">

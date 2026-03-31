@@ -65,6 +65,7 @@ import mapkitRouter from '../routes/mapkit';
 import directorySyncRouter from '../routes/directorySync';
 import publicMembershipCheckoutRouter from '../routes/public/membershipCheckout';
 import changelogRouter from '../routes/changelog';
+import wellhubRouter from '../routes/wellhub';
 import { registerObjectStorageRoutes } from '../replit_integrations/object_storage';
 import { registerImageRoutes } from '../replit_integrations/image';
 
@@ -134,6 +135,7 @@ export function registerRoutes(app: Express): void {
   app.use(directorySyncRouter);
   app.use(publicMembershipCheckoutRouter);
   app.use(changelogRouter);
+  app.use(wellhubRouter);
   registerObjectStorageRoutes(app);
   registerImageRoutes(app);
 }

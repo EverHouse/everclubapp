@@ -116,6 +116,7 @@ export interface MemberProfile {
     createdAt: string;
     source: string;
   } | null;
+  visitorType?: string | null;
 }
 
 export interface Booking {

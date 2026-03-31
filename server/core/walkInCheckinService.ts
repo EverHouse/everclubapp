@@ -36,7 +36,8 @@ export interface WalkInCheckinParams {
   memberId: string;
   checkedInBy: string;
   checkedInByName: string | null;
-  source: 'qr' | 'nfc' | 'kiosk';
+  source: 'qr' | 'nfc' | 'kiosk' | 'wellhub';
+  isWellhub?: boolean;
 }
 
 export interface WalkInCheckinResult {
@@ -125,7 +126,8 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
         lifetimeVisits: newVisitCount,
         pinnedNotes,
         membershipStatus: member.membership_status,
-        source: params.source
+        source: params.source,
+        isWellhub: params.isWellhub || false
       }
     });
 

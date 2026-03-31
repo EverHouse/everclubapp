@@ -58,6 +58,21 @@ const MobileVisitorRow: React.FC<VisitorRowProps> = React.memo(({ v, index, open
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
                         {activity.label}
                     </span>
+                    {v.type === 'wellhub' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400">
+                            Wellhub
+                        </span>
+                    )}
+                    {v.type === 'day_pass' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                            Day Pass
+                        </span>
+                    )}
+                    {v.type === 'guest' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                            Guest
+                        </span>
+                    )}
                     {v.totalSpentCents > 0 && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                             ${(v.totalSpentCents / 100).toFixed(2)} spent
@@ -90,9 +105,26 @@ const DesktopVisitorRow: React.FC<VisitorRowProps> = React.memo(({ v, index, ope
             </td>
             <td style={{ width: '30%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate max-w-0">{v.email || '-'}</td>
             <td style={{ width: '14%' }} className="p-3">
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
-                    {activity.label}
-                </span>
+                <div className="flex items-center gap-1 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
+                        {activity.label}
+                    </span>
+                    {v.type === 'wellhub' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400">
+                            Wellhub
+                        </span>
+                    )}
+                    {v.type === 'day_pass' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                            Day Pass
+                        </span>
+                    )}
+                    {v.type === 'guest' && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400">
+                            Guest
+                        </span>
+                    )}
+                </div>
             </td>
             <td style={{ width: '16%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400">{v.purchaseCount || 0}</td>
             <td style={{ width: '18%' }} className="p-3 text-sm text-gray-500 dark:text-gray-400">{formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</td>

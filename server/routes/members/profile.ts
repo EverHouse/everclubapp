@@ -106,6 +106,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       waiverSignedAt: users.waiverSignedAt,
       lastModifiedAt: users.lastModifiedAt,
       pendingTierChange: users.pendingTierChange,
+      visitorType: users.visitorType,
     })
       .from(users)
       .where(sql`LOWER(${users.email}) = ${normalizedEmail}`);
@@ -199,6 +200,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
       waiverSignedAt: user.waiverSignedAt || null,
       lastModifiedAt: user.lastModifiedAt || null,
       pendingTierChange: user.pendingTierChange || null,
+      visitorType: user.visitorType || null,
     });
   } catch (error: unknown) {
     logger.error('API error fetching member details', { extra: { error: getErrorMessage(error) } });
@@ -754,31 +756,81 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       ))
       .orderBy(desc(bookingRequests.requestDate));
     
-    const walkInResult = await db.execute(sql`
-      SELECT id, member_email, checked_in_by_name, created_at
-      FROM walk_in_visits
-      WHERE LOWER(member_email) = ${normalizedEmail}
-      ORDER BY created_at DESC
-    `);
+    const [walkInResult, wellhubResult] = await Promise.all([
+      db.execute(sql`
+        SELECT id, member_email, checked_in_by_name, source, created_at
+        FROM walk_in_visits
+        WHERE LOWER(member_email) = ${normalizedEmail}
+        ORDER BY created_at DESC
+      `),
+      db.execute(sql`
+        SELECT id, event_type, validation_status, booking_number, created_at
+        FROM wellhub_checkins
+        WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = ${normalizedEmail})
+        ORDER BY created_at DESC
+      `),
+    ]);
 
-    interface WalkInRow { id: number; member_email: string; checked_in_by_name: string | null; created_at: string }
+    interface WalkInRow { id: number; member_email: string; checked_in_by_name: string | null; source: string | null; created_at: string }
     const walkInItems = (walkInResult.rows as unknown as WalkInRow[]).map((v) => ({
       id: `walkin-${v.id}`,
       bookingDate: v.created_at,
       startTime: null,
       endTime: null,
-      resourceName: 'Walk-in Visit',
+      resourceName: v.source === 'wellhub' ? 'Wellhub Check-in' : 'Walk-in Visit',
       resourceType: 'walk_in',
       guestCount: 0,
       checkedInBy: v.checked_in_by_name,
       isWalkIn: true,
+      isWellhub: v.source === 'wellhub',
     }));
 
-    const combinedVisitHistory = [...visitHistory, ...walkInItems].sort((a, b) =>
+    interface WellhubRow { id: number; event_type: string; validation_status: string; booking_number: string | null; created_at: string }
+    const allWellhubRows = wellhubResult.rows as unknown as WellhubRow[];
+    const validatedWellhubItems = allWellhubRows
+      .filter(w => w.validation_status === 'validated')
+      .filter(w => !walkInItems.some(wi => {
+        const wiDate = new Date(wi.bookingDate).getTime();
+        const whDate = new Date(w.created_at).getTime();
+        return Math.abs(wiDate - whDate) < 120000;
+      }))
+      .map((w) => ({
+        id: `wellhub-${w.id}`,
+        bookingDate: w.created_at,
+        startTime: null,
+        endTime: null,
+        resourceName: 'Wellhub Check-in',
+        resourceType: 'walk_in',
+        guestCount: 0,
+        checkedInBy: 'Wellhub',
+        isWalkIn: true,
+        isWellhub: true,
+        wellhubValidationStatus: 'validated' as string,
+      }));
+
+    const failedWellhubItems = allWellhubRows
+      .filter(w => w.validation_status !== 'validated' && w.validation_status !== 'pending')
+      .map((w) => ({
+        id: `wellhub-${w.id}`,
+        bookingDate: w.created_at,
+        startTime: null,
+        endTime: null,
+        resourceName: `Wellhub Check-in (${w.validation_status})`,
+        resourceType: 'walk_in',
+        guestCount: 0,
+        checkedInBy: 'Wellhub',
+        isWalkIn: true,
+        isWellhub: true,
+        wellhubValidationStatus: w.validation_status,
+      }));
+
+    const wellhubItems = [...validatedWellhubItems, ...failedWellhubItems];
+
+    const combinedVisitHistory = [...visitHistory, ...walkInItems, ...wellhubItems].sort((a, b) =>
       new Date(String(b.bookingDate)).getTime() - new Date(String(a.bookingDate)).getTime()
     );
 
-    const attendedBookingsCount = visitHistory.length + walkInItems.length;
+    const attendedBookingsCount = visitHistory.length + walkInItems.length + validatedWellhubItems.length;
     const todayPacific = getTodayPacific();
     const attendedEventsCount = eventRsvpHistory.filter((e) => {
       if (!e.eventDate) return false;

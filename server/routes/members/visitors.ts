@@ -269,8 +269,9 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
     `);
     
     
-    type VisitorTypeValue = 'NEW' | 'day_pass' | 'guest';
+    type VisitorTypeValue = 'NEW' | 'day_pass' | 'guest' | 'wellhub';
     const getType = (row: VisitorRow): VisitorTypeValue => {
+      if (row.visitor_type === 'wellhub') return 'wellhub';
       if (row.effective_type) {
         const et = row.effective_type as string;
         if (et === 'day_pass_buyer' || et === 'day_pass') return 'day_pass';

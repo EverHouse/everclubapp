@@ -1,0 +1,387 @@
+import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
+import { db } from '../../db';
+import { sql } from 'drizzle-orm';
+import { logger } from '../../core/logger';
+import { broadcastToStaff } from '../../core/websocket';
+import { processWalkInCheckin } from '../../core/walkInCheckinService';
+import { getErrorMessage } from '../../utils/errorUtils';
+
+const router = Router();
+
+interface WellhubEventData {
+  unique_token: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
+}
+
+interface WellhubWebhookPayload {
+  event_type: string;
+  gym_id: string | number;
+  event_timestamp?: string;
+  expires_at?: string;
+  booking_number?: string;
+  event_data: {
+    user: WellhubEventData;
+  };
+}
+
+function verifyWellhubSignature(req: Request): boolean {
+  const webhookSecret = process.env.WELLHUB_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    logger.warn('[Wellhub Webhook] No WELLHUB_WEBHOOK_SECRET configured');
+    return false;
+  }
+
+  const signature = req.headers['x-gympass-signature'] as string | undefined;
+  if (!signature) {
+    logger.warn('[Wellhub Webhook] No X-Gympass-Signature header found');
+    return false;
+  }
+
+  const rawBody = (req as Request & { rawBody?: string }).rawBody;
+  if (!rawBody) {
+    logger.warn('[Wellhub Webhook] No raw body available for signature validation');
+    return false;
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha1', webhookSecret)
+    .update(rawBody)
+    .digest('hex')
+    .toUpperCase();
+
+  try {
+    const providedBuffer = Buffer.from(signature.toUpperCase());
+    const expectedBuffer = Buffer.from(expectedSignature);
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+      logger.warn('[Wellhub Webhook] Signature length mismatch');
+      return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch (err: unknown) {
+    logger.error('[Wellhub Webhook] Signature verification error', { extra: { error: getErrorMessage(err) } });
+    return false;
+  }
+}
+
+async function tryClaimEvent(eventId: string, eventType: string): Promise<'claimed' | 'duplicate' | 'error'> {
+  try {
+    const result = await db.execute(sql`
+      INSERT INTO webhook_processed_events (event_id, event_type, processed_at)
+      VALUES (${eventId}, ${eventType}, NOW())
+      ON CONFLICT (event_id) DO NOTHING
+      RETURNING id
+    `);
+    return (result.rows?.length ?? 0) > 0 ? 'claimed' : 'duplicate';
+  } catch (err: unknown) {
+    logger.error('[Wellhub Webhook] DB error claiming event', { extra: { error: getErrorMessage(err), eventId } });
+    return 'error';
+  }
+}
+
+async function findOrCreateWellhubUser(userData: WellhubEventData): Promise<{ userId: string; email: string; displayName: string }> {
+  const wellhubId = userData.unique_token;
+  const email = userData.email?.toLowerCase().trim();
+  const firstName = userData.first_name?.trim() || null;
+  const lastName = userData.last_name?.trim() || null;
+  const phone = userData.phone_number?.trim() || null;
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || email || wellhubId;
+
+  const existingByWellhubId = await db.execute(sql`
+    SELECT id, email, first_name, last_name, role FROM users WHERE wellhub_id = ${wellhubId} LIMIT 1
+  `);
+
+  if (existingByWellhubId.rows.length > 0) {
+    const user = existingByWellhubId.rows[0] as { id: string; email: string; first_name: string | null; last_name: string | null; role: string };
+    const updates: string[] = [];
+    if (phone) updates.push('phone');
+    if (firstName && !user.first_name) updates.push('first_name');
+    if (lastName && !user.last_name) updates.push('last_name');
+
+    if (updates.length > 0) {
+      await db.execute(sql`
+        UPDATE users SET
+          phone = COALESCE(NULLIF(phone, ''), ${phone}, phone),
+          first_name = COALESCE(NULLIF(first_name, ''), ${firstName}),
+          last_name = COALESCE(NULLIF(last_name, ''), ${lastName}),
+          updated_at = NOW()
+        WHERE id = ${user.id}
+      `);
+    }
+
+    return { userId: String(user.id), email: user.email, displayName };
+  }
+
+  if (email) {
+    const existingByEmail = await db.execute(sql`
+      SELECT id, email, role, wellhub_id FROM users WHERE LOWER(email) = ${email} LIMIT 1
+    `);
+
+    if (existingByEmail.rows.length > 0) {
+      const user = existingByEmail.rows[0] as { id: string; email: string; role: string; wellhub_id: string | null };
+      await db.execute(sql`
+        UPDATE users SET
+          wellhub_id = ${wellhubId},
+          phone = COALESCE(NULLIF(phone, ''), ${phone}, phone),
+          first_name = COALESCE(NULLIF(first_name, ''), ${firstName}, first_name),
+          last_name = COALESCE(NULLIF(last_name, ''), ${lastName}, last_name),
+          updated_at = NOW()
+        WHERE id = ${user.id}
+      `);
+
+      if (user.role === 'visitor') {
+        await db.execute(sql`
+          UPDATE users SET visitor_type = 'wellhub' WHERE id = ${user.id} AND (visitor_type IS NULL OR visitor_type NOT IN ('day_pass'))
+        `);
+      }
+
+      return { userId: String(user.id), email: user.email, displayName };
+    }
+  }
+
+  const visitorEmail = email || `wellhub-${wellhubId}@visitors.everclub.co`;
+  try {
+    const newUserResult = await db.execute(sql`
+      INSERT INTO users (id, email, first_name, last_name, phone, role, membership_status, visitor_type, wellhub_id, created_at, updated_at)
+      VALUES (gen_random_uuid(), ${visitorEmail}, ${firstName}, ${lastName}, ${phone}, 'visitor', 'visitor', 'wellhub', ${wellhubId}, NOW(), NOW())
+      ON CONFLICT (email) DO UPDATE SET
+        wellhub_id = COALESCE(users.wellhub_id, EXCLUDED.wellhub_id),
+        first_name = COALESCE(NULLIF(users.first_name, ''), EXCLUDED.first_name),
+        last_name = COALESCE(NULLIF(users.last_name, ''), EXCLUDED.last_name),
+        updated_at = NOW()
+      RETURNING id, email
+    `);
+
+    const newUser = newUserResult.rows[0] as { id: string; email: string };
+    logger.info('[Wellhub Webhook] Auto-registered new Wellhub visitor', { extra: { email: visitorEmail, wellhubId } });
+
+    return { userId: String(newUser.id), email: newUser.email, displayName };
+  } catch (insertErr: unknown) {
+    const retryByWellhubId = await db.execute(sql`
+      SELECT id, email FROM users WHERE wellhub_id = ${wellhubId} LIMIT 1
+    `);
+    if (retryByWellhubId.rows.length > 0) {
+      const user = retryByWellhubId.rows[0] as { id: string; email: string };
+      return { userId: String(user.id), email: user.email, displayName };
+    }
+    throw insertErr;
+  }
+}
+
+async function logCheckin(
+  wellhubUserId: string,
+  userId: string | null,
+  gymId: string,
+  eventType: string,
+  bookingNumber: string | null,
+  eventTimestamp: string | null,
+  expiresAt: string | null,
+  validationStatus: string,
+  errorDetail: string | null
+): Promise<void> {
+  try {
+    await db.execute(sql`
+      INSERT INTO wellhub_checkins (wellhub_user_id, user_id, gym_id, event_type, booking_number, event_timestamp, expires_at, validation_status, validated_at, error_detail, created_at)
+      VALUES (
+        ${wellhubUserId},
+        ${userId},
+        ${gymId},
+        ${eventType},
+        ${bookingNumber},
+        ${eventTimestamp ? new Date(eventTimestamp) : null},
+        ${expiresAt ? new Date(expiresAt) : null},
+        ${validationStatus},
+        ${validationStatus === 'validated' ? new Date() : null},
+        ${errorDetail},
+        NOW()
+      )
+    `);
+  } catch (err: unknown) {
+    logger.error('[Wellhub Webhook] Failed to log check-in', { extra: { error: getErrorMessage(err) } });
+  }
+}
+
+async function validateWithWellhub(uniqueToken: string): Promise<{ status: string; errorDetail?: string }> {
+  const bearerToken = process.env.WELLHUB_BEARER_TOKEN;
+  const gymId = process.env.WELLHUB_GYM_ID;
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+  const defaultBaseUrl = isProduction
+    ? 'https://api.partners.gympass.com'
+    : 'https://apitesting.partners.gympass.com';
+  const baseUrl = process.env.WELLHUB_API_BASE_URL || defaultBaseUrl;
+
+  if (!bearerToken || !gymId) {
+    return { status: 'error', errorDetail: 'Missing WELLHUB_BEARER_TOKEN or WELLHUB_GYM_ID configuration' };
+  }
+
+  logger.debug('[Wellhub Webhook] Validating against Wellhub API', { extra: { baseUrl, isProduction } });
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const response = await fetch(`${baseUrl}/access/v1/validate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${bearerToken}`,
+        'X-Gym-Id': gymId,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ gympass_id: uniqueToken }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (response.ok) {
+      return { status: 'validated' };
+    }
+
+    if (response.status === 400) {
+      const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+      const reason = String(body?.message || body?.error || '').toLowerCase();
+
+      let status = 'error';
+      if (reason.includes('cancel')) {
+        status = 'cancelled';
+      } else if (reason.includes('already') || reason.includes('validated')) {
+        status = 'already_validated';
+      } else if (reason.includes('expir')) {
+        status = 'expired';
+      }
+
+      return { status, errorDetail: String(body?.message || body?.error || 'rejected_by_wellhub') };
+    }
+
+    if (response.status === 404) {
+      return { status: 'not_found', errorDetail: 'Check-in not found in Wellhub system' };
+    }
+
+    return { status: 'error', errorDetail: `Unexpected response: ${response.status}` };
+  } catch (err: unknown) {
+    return { status: 'error', errorDetail: getErrorMessage(err) };
+  }
+}
+
+async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<void> {
+  const userData = payload.event_data?.user;
+  if (!userData?.unique_token) {
+    logger.warn('[Wellhub Webhook] Missing user data in payload');
+    return;
+  }
+
+  const wellhubUserId = userData.unique_token;
+  const gymId = String(payload.gym_id);
+  const eventType = payload.event_type;
+  const bookingNumber = payload.booking_number || null;
+  const eventTimestamp = payload.event_timestamp || null;
+  const expiresAt = payload.expires_at || null;
+
+  try {
+    const { userId, email, displayName } = await findOrCreateWellhubUser(userData);
+
+    if (expiresAt) {
+      const expiryDate = new Date(expiresAt);
+      if (expiryDate.getTime() < Date.now()) {
+        await logCheckin(wellhubUserId, userId, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, 'expired', 'Check-in expired before validation');
+
+        broadcastToStaff({
+          type: 'wellhub_validation_failed',
+          title: 'Wellhub Check-in Expired',
+          message: `Wellhub check-in expired for ${displayName} — please verify manually`,
+          data: { memberName: displayName, memberEmail: email, reason: 'expired', wellhubUserId }
+        });
+
+        logger.info('[Wellhub Webhook] Check-in expired before validation', { extra: { wellhubUserId, expiresAt } });
+        return;
+      }
+    }
+
+    const validationResult = await validateWithWellhub(wellhubUserId);
+
+    await logCheckin(wellhubUserId, userId, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, validationResult.status, validationResult.errorDetail || null);
+
+    if (validationResult.status === 'validated') {
+      const checkinResult = await processWalkInCheckin({
+        memberId: userId,
+        checkedInBy: 'wellhub',
+        checkedInByName: 'Wellhub',
+        source: 'wellhub',
+        isWellhub: true,
+      });
+
+      if (checkinResult.success) {
+        logger.info('[Wellhub Webhook] Check-in validated and walk-in recorded', { extra: { wellhubUserId, userId, displayName } });
+      } else if (checkinResult.alreadyCheckedIn) {
+        logger.info('[Wellhub Webhook] Check-in validated but duplicate walk-in (already checked in recently)', { extra: { wellhubUserId, userId } });
+      } else {
+        logger.warn('[Wellhub Webhook] Check-in validated but walk-in recording failed', { extra: { wellhubUserId, userId, error: checkinResult.error } });
+      }
+    } else {
+      broadcastToStaff({
+        type: 'wellhub_validation_failed',
+        title: 'Wellhub Check-in Failed',
+        message: `Wellhub check-in ${validationResult.status} for ${displayName} — please verify manually`,
+        data: { memberName: displayName, memberEmail: email, reason: validationResult.status, detail: validationResult.errorDetail, wellhubUserId }
+      });
+
+      logger.warn('[Wellhub Webhook] Check-in validation failed', { extra: { wellhubUserId, status: validationResult.status, detail: validationResult.errorDetail } });
+    }
+  } catch (err: unknown) {
+    logger.error('[Wellhub Webhook] Error processing check-in', { extra: { wellhubUserId, error: getErrorMessage(err) } });
+
+    await logCheckin(wellhubUserId, null, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, 'error', getErrorMessage(err));
+  }
+}
+
+router.post('/api/webhooks/wellhub', async (req: Request, res: Response) => {
+  if (!verifyWellhubSignature(req)) {
+    logger.warn('[Wellhub Webhook] Signature verification failed');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  const payload = req.body as WellhubWebhookPayload;
+
+  if (!payload?.event_type || !payload?.event_data?.user?.unique_token) {
+    logger.warn('[Wellhub Webhook] Invalid payload structure');
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
+  const supportedEvents = ['checkin', 'checkin-booking-occurred'];
+  if (!supportedEvents.includes(payload.event_type)) {
+    logger.info('[Wellhub Webhook] Unsupported event type, acknowledging', { extra: { eventType: payload.event_type } });
+    return res.status(200).json({ status: 'acknowledged' });
+  }
+
+  const configuredGymId = process.env.WELLHUB_GYM_ID;
+  if (configuredGymId && String(payload.gym_id) !== String(configuredGymId)) {
+    logger.warn('[Wellhub Webhook] Gym ID mismatch, rejecting', { extra: { received: payload.gym_id, expected: configuredGymId } });
+    return res.status(403).json({ error: 'Gym ID mismatch' });
+  }
+
+  const eventTimestampKey = payload.event_timestamp || crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 16);
+  const eventId = `wellhub_${payload.event_type}_${payload.event_data.user.unique_token}_${eventTimestampKey}`;
+
+  const claimResult = await tryClaimEvent(eventId, payload.event_type);
+  if (claimResult === 'duplicate') {
+    logger.info('[Wellhub Webhook] Duplicate event, skipping', { extra: { eventId } });
+    return res.status(200).json({ status: 'duplicate' });
+  }
+  if (claimResult === 'error') {
+    logger.error('[Wellhub Webhook] Could not claim event due to DB error, returning 500 for retry', { extra: { eventId } });
+    return res.status(500).json({ error: 'Internal error, please retry' });
+  }
+
+  res.status(200).json({ status: 'received' });
+
+  setImmediate(() => {
+    processWellhubCheckin(payload).catch(err => {
+      logger.error('[Wellhub Webhook] Async processing error', { extra: { error: getErrorMessage(err) } });
+    });
+  });
+});
+
+export default router;

@@ -4,8 +4,8 @@ import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 
-export type VisitorType = 'guest' | 'day_pass';
-export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'trackman_auto_match';
+export type VisitorType = 'guest' | 'day_pass' | 'wellhub';
+export type ActivitySource = 'day_pass_purchase' | 'guest_booking' | 'booking_participant' | 'trackman_auto_match' | 'wellhub_checkin';
 
 interface UpdateVisitorTypeParams {
   email: string;
@@ -39,6 +39,21 @@ export async function updateVisitorType({
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
+        RETURNING id
+      `);
+    } else if (type === 'wellhub') {
+      result = await db.execute(sql`
+        UPDATE users
+        SET 
+          visitor_type = 'wellhub',
+          last_activity_at = ${activityDate},
+          last_activity_source = ${activitySource},
+          updated_at = NOW()
+        WHERE LOWER(email) = ${normalizedEmail}
+          AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
+          AND role NOT IN ('admin', 'staff', 'member')
+          AND tier IS NULL
+          AND (visitor_type IS NULL OR visitor_type IN ('lead', 'NEW'))
         RETURNING id
       `);
     } else {
@@ -91,6 +106,21 @@ export async function updateVisitorTypeByUserId(
           AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
           AND role NOT IN ('admin', 'staff', 'member')
           AND tier IS NULL
+        RETURNING id
+      `);
+    } else if (type === 'wellhub') {
+      result = await db.execute(sql`
+        UPDATE users
+        SET 
+          visitor_type = 'wellhub',
+          last_activity_at = ${activityDate},
+          last_activity_source = ${activitySource},
+          updated_at = NOW()
+        WHERE id = ${userId}
+          AND (role = 'visitor' OR membership_status IN ('visitor', 'non-member'))
+          AND role NOT IN ('admin', 'staff', 'member')
+          AND tier IS NULL
+          AND (visitor_type IS NULL OR visitor_type IN ('lead', 'NEW'))
         RETURNING id
       `);
     } else {

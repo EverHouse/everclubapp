@@ -283,6 +283,12 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             window.dispatchEvent(new CustomEvent('walkin-checkin', { detail: message }));
           }
 
+          if (message.type === 'wellhub_validation_failed') {
+            // eslint-disable-next-line no-console
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received wellhub_validation_failed:', message.data?.memberName);
+            window.dispatchEvent(new CustomEvent('wellhub-validation-failed', { detail: message }));
+          }
+
           if (message.type === 'directory_update') {
             // eslint-disable-next-line no-console
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received directory_update:', message.action);

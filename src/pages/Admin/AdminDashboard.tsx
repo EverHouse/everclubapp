@@ -64,6 +64,7 @@ const AdminDashboard: React.FC = () => {
     tier?: string | null;
     membershipStatus?: string | null;
     bookingDetails?: { bayName: string; startTime: string; endTime: string; resourceType: string } | null;
+    isWellhub?: boolean;
   }>({ isOpen: false, memberName: '', pinnedNotes: [] });
 
   const handleCheckinClose = useCallback(() => {
@@ -103,7 +104,8 @@ const AdminDashboard: React.FC = () => {
           pinnedNotes: detail.pinnedNotes || [],
           tier: detail.tier,
           membershipStatus: detail.membershipStatus,
-          bookingDetails: detail.bookingDetails || null
+          bookingDetails: detail.bookingDetails || null,
+          isWellhub: detail.isWellhub || false,
         });
         adminQueryClient.invalidateQueries();
       }
@@ -114,6 +116,17 @@ const AdminDashboard: React.FC = () => {
       window.removeEventListener('walkin-checkin', handleWalkinCheckin as EventListener);
     };
   }, [adminQueryClient]);
+
+  useEffect(() => {
+    const handleWellhubFailed = (event: CustomEvent) => {
+      const detail = event.detail;
+      if (detail?.message) {
+        dashboardShowToast(detail.message, 'error');
+      }
+    };
+    window.addEventListener('wellhub-validation-failed', handleWellhubFailed as EventListener);
+    return () => window.removeEventListener('wellhub-validation-failed', handleWellhubFailed as EventListener);
+  }, [dashboardShowToast]);
 
   const handleGlobalBookingEvent = useCallback(() => {
     refetchPendingCounts();
@@ -309,6 +322,7 @@ const AdminDashboard: React.FC = () => {
         tier={checkinConfirmation.tier}
         membershipStatus={checkinConfirmation.membershipStatus}
         bookingDetails={checkinConfirmation.bookingDetails}
+        isWellhub={checkinConfirmation.isWellhub}
       />
     </div>
   );
