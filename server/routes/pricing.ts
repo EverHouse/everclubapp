@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { PRICING, getCorporateVolumeTiers, getCorporateBasePrice, updateGuestFee, updateOverageRate } from '../core/billing/pricingConfig';
 import { db } from '../db';
 import { membershipTiers, feeProducts } from '../../shared/schema';
@@ -9,6 +10,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { autoPushFeeToStripe } from '../core/stripe/autoPush';
 import { logFromRequest } from '../core/auditLog';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
+import { validateBody } from '../middleware/validate';
 
 const router = Router();
 
@@ -80,26 +82,22 @@ router.get('/api/pricing', async (req, res) => {
   }
 });
 
-router.put('/api/pricing', isStaffOrAdmin, async (req, res) => {
+const strictNumeric = z.union([
+  z.number(),
+  z.string().regex(/^\d+(\.\d+)?$/, 'Must be a numeric value'),
+]).transform(Number).pipe(z.number().min(0, 'Must be zero or positive'));
+
+const pricingUpdateSchema = z.object({
+  guestFeeDollars: strictNumeric.optional(),
+  overageRatePerBlockDollars: strictNumeric.optional(),
+});
+
+router.put('/api/pricing', isStaffOrAdmin, validateBody(pricingUpdateSchema), async (req, res) => {
   try {
     const { guestFeeDollars, overageRatePerBlockDollars } = req.body;
 
-    let guestFeeCents: number | undefined;
-    let overageRateCents: number | undefined;
-
-    if (guestFeeDollars !== undefined) {
-      guestFeeCents = Math.round(Number(guestFeeDollars) * 100);
-      if (isNaN(guestFeeCents) || guestFeeCents < 0) {
-        return res.status(400).json({ error: 'Invalid guest fee amount' });
-      }
-    }
-
-    if (overageRatePerBlockDollars !== undefined) {
-      overageRateCents = Math.round(Number(overageRatePerBlockDollars) * 100);
-      if (isNaN(overageRateCents) || overageRateCents < 0) {
-        return res.status(400).json({ error: 'Invalid overage rate amount' });
-      }
-    }
+    const guestFeeCents = guestFeeDollars !== undefined ? Math.round(guestFeeDollars * 100) : undefined;
+    const overageRateCents = overageRatePerBlockDollars !== undefined ? Math.round(overageRatePerBlockDollars * 100) : undefined;
 
     const syncErrors: string[] = [];
 
