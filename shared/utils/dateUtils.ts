@@ -64,6 +64,14 @@ export function getDayOfWeekFromDateStr(dateStr: string): number {
 }
 
 export function formatDateFromDb(date: Date | string): string {
-  if (typeof date === 'string') return date.substring(0, 10);
-  return date.toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
+  if (date instanceof Date) {
+    return date.toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
+  }
+  if (typeof date === 'string') {
+    if (date.includes('Z') || date.includes('+') || /T\d{2}:\d{2}/.test(date)) {
+      return new Date(date).toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
+    }
+    return date.substring(0, 10);
+  }
+  return new Date(date as unknown as number).toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
 }
