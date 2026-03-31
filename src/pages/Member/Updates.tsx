@@ -13,6 +13,7 @@ import { haptic } from '../../utils/haptics';
 import { fetchWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
+import AnnouncementFormDrawer from '../../components/admin/AnnouncementFormDrawer';
 
 
 interface Closure {
@@ -69,7 +70,20 @@ const formatDate = (dateStr: string): string => {
   if (dateStr.includes('T') || dateStr.includes('Z')) {
     return formatDateTimePacific(dateStr);
   }
-  return formatDateDisplayWithDay(dateStr);
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    return formatDateDisplayWithDay(dateStr);
+  }
+  return dateStr;
+};
+
+const formatAnnouncementDate = (item: { createdAt?: string; startDate?: string; date: string }): string => {
+  if (item.startDate && /^\d{4}-\d{2}-\d{2}/.test(item.startDate)) {
+    return formatDateDisplayWithDay(item.startDate);
+  }
+  if (item.createdAt) {
+    return formatDateTimePacific(item.createdAt);
+  }
+  return item.date || 'Just now';
 };
 
 const isActiveAnnouncement = (item: Announcement): boolean => {
@@ -117,11 +131,14 @@ const MemberUpdates: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isLoading, user, actualUser } = useAuthData();
-  const { announcements } = useAnnouncementData();
+  const { announcements, deleteAnnouncement } = useAnnouncementData();
+  const { showToast } = useToast();
   const { effectiveTheme } = useTheme();
   const { setPageReady } = usePageReady();
   const isDark = effectiveTheme === 'dark';
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   
   const isStaffOrAdmin = actualUser?.role === 'admin' || actualUser?.role === 'staff';
   // When "View As" mode is active (user differs from actualUser), show member perspective
@@ -217,7 +234,20 @@ const MemberUpdates: React.FC = () => {
     setSearchParams({ tab });
   };
 
-  const { showToast } = useToast();
+  const handleEditAnnouncement = (item: Announcement) => {
+    setEditingAnnouncement(item);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!window.confirm('Delete this announcement?')) return;
+    try {
+      await deleteAnnouncement(id);
+      showToast('Announcement deleted', 'success');
+    } catch {
+      showToast('Failed to delete announcement', 'error');
+    }
+  };
 
   const markNotificationRead = async (notificationId: number) => {
     const wasAlreadyRead = notifications.find(n => n.id === notificationId)?.read;
@@ -408,7 +438,7 @@ const MemberUpdates: React.FC = () => {
                     </span>
                     <span className={`text-[10px] ${isDark ? 'text-white/30' : 'text-primary/30'}`}>•</span>
                     <span className={`text-[10px] ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-                      {formatDate(item.startDate || item.date)}
+                      {formatAnnouncementDate(item)}
                     </span>
                   </div>
                   
@@ -451,6 +481,25 @@ const MemberUpdates: React.FC = () => {
                       <span>{linkLabel}</span>
                       <Icon name="arrow_forward" className="text-sm" />
                     </button>
+                  )}
+                  
+                  {isStaffOrAdmin && !isViewingAsMember && (
+                    <div className={`mt-3 pt-3 flex items-center gap-2 border-t ${isDark ? 'border-white/10' : 'border-primary/10'}`}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleEditAnnouncement(item); }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDark ? 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white' : 'bg-primary/5 text-primary/60 hover:bg-primary/10 hover:text-primary'}`}
+                      >
+                        <Icon name="edit" className="text-[14px]" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteAnnouncement(item.id); }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${isDark ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
+                      >
+                        <Icon name="delete" className="text-[14px]" />
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </div>
               </MotionListItem>
@@ -769,6 +818,13 @@ const MemberUpdates: React.FC = () => {
         {activeTab === 'announcements' ? renderAnnouncementsTab() : activeTab === 'notices' ? renderNoticesTab() : renderActivityTab()}
       </div>
     </SwipeablePage>
+    {isStaffOrAdmin && !isViewingAsMember && (
+      <AnnouncementFormDrawer
+        isOpen={isFormOpen}
+        onClose={() => { setIsFormOpen(false); setEditingAnnouncement(null); }}
+        editItem={editingAnnouncement}
+      />
+    )}
     </AnimatedPage>
   );
 };

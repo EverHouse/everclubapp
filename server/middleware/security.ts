@@ -10,33 +10,31 @@ const cachedAllowedHostnames: string[] = (process.env.ALLOWED_ORIGINS || '')
     const trimmed = o.trim();
     if (!trimmed) return '';
     try {
-      return new URL(trimmed).hostname;
-    } catch { /* intentional: malformed URL — extract hostname with regex fallback */
-      return trimmed.replace(/^https?:\/\//, '');
+      const urlString = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+      return new URL(urlString).hostname;
+    } catch {
+      return '';
     }
   })
   .filter(Boolean);
-
-function isReplitDomain(hostname: string): boolean {
-  return hostname.endsWith('.replit.dev') || hostname.endsWith('.replit.app') ||
-         hostname.endsWith('.repl.co') || hostname.endsWith('.replit.com');
-}
 
 function isAllowedOrigin(origin: string): boolean {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
   try {
     const url = new URL(origin);
     const hostname = url.hostname;
-    if (!isProduction) {
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
-      if (isReplitDomain(hostname)) return true;
-    }
-    if (cachedAllowedHostnames.includes(hostname)) return true;
+
     const replitDomain = process.env.REPLIT_DEV_DOMAIN;
     if (replitDomain && hostname === replitDomain) return true;
+
+    if (!isProduction) {
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+    }
+
+    if (cachedAllowedHostnames.includes(hostname)) return true;
     if (hostname === 'everclub.app' || hostname.endsWith('.everclub.app')) return true;
     return false;
-  } catch { /* intentional: malformed origin URL — reject as not allowed */
+  } catch {
     return false;
   }
 }
@@ -46,7 +44,7 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (!req.path.startsWith('/api/')) return next();
   if (req.path.startsWith('/api/webhooks/') || req.path.startsWith('/api/stripe-webhook') || req.path.startsWith('/api/stripe/webhook')) return next();
   if (req.path.startsWith('/api/hubspot/webhooks')) return next();
-  if (req.path.startsWith('/api/wallet/v1/')) return next();
+  if (req.path.startsWith('/api/wallet/v1/') && req.headers.authorization?.startsWith('ApplePass ')) return next();
 
   const internalHeader = req.headers['x-internal-request'] as string | undefined;
   if (internalHeader) {
@@ -138,7 +136,7 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
 
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://js.stripe.com https://accounts.google.com https://appleid.cdn-apple.com https://cdn.apple-mapkit.com https://*.hs-scripts.com https://*.hsforms.net https://*.hscollectedforms.net https://*.hs-banner.com https://*.hs-analytics.net https://*.hsadspixel.net https://*.hubspot.com https://*.usemessages.com https://connect.facebook.net`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://js.stripe.com https://accounts.google.com https://appleid.cdn-apple.com https://cdn.apple-mapkit.com`,
     `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com https://cdn.apple-mapkit.com https://*.hsforms.net`,
     "img-src 'self' data: blob: https://*.stripe.com https://accounts.google.com https://*.gstatic.com https://*.googleusercontent.com https://appleid.cdn-apple.com https://*.hubspot.com https://*.hsforms.net https://*.hs-analytics.net https://*.hsadspixel.net https://www.facebook.com https://images.unsplash.com https://api.qrserver.com https://my.matterport.com",
     "connect-src 'self' https://api.stripe.com https://accounts.google.com https://appleid.apple.com https://*.apple-mapkit.com https://*.hubspot.com https://*.hubapi.com https://*.hscollectedforms.net https://*.hsforms.net https://*.hs-analytics.net https://www.facebook.com https://connect.facebook.net wss: ws:",
