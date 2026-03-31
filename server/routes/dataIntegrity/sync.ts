@@ -5,11 +5,13 @@ import { mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { syncPush, syncPull, runDataCleanup } from '../../core/dataIntegrity';
 import { syncAllCustomerMetadata } from '../../core/stripe/customers';
 import { getSystemHealth } from '../../core/healthCheck';
-import { logger, isAdmin, validateBody, broadcastDataIntegrityUpdate, logFromRequest, getErrorMessage } from './shared';
+import { logger, isAdmin, validateBody, broadcastDataIntegrityUpdate, logFromRequest, getErrorMessage, db, sql } from './shared';
 import { logAndRespond } from '../../core/logger';
 import { parseConstraintError } from '../../utils/errorUtils';
 import type { Request } from 'express';
 import { syncPushPullSchema } from '../../../shared/validators/dataIntegrity';
+import { systemSettings } from '../../../shared/models/system';
+import { eq } from 'drizzle-orm';
 
 const execFileAsync = promisify(execFile);
 
@@ -71,44 +73,124 @@ router.post('/api/data-integrity/sync-pull', isAdmin, validateBody(syncPushPullS
   }
 });
 
-let stripeSyncStatus: { running: boolean; startedAt?: Date; result?: { synced: number; failed: number }; error?: string } = { running: false };
+const STRIPE_SYNC_STATUS_KEY = 'stripe_metadata_sync_status';
+const STALE_SYNC_TIMEOUT_MS = 10 * 60 * 1000;
+
+interface StripeSyncStatusData {
+  status: 'running' | 'complete' | 'error' | 'idle';
+  startedAt?: string;
+  completedAt?: string;
+  synced?: number;
+  failed?: number;
+  error?: string;
+}
+
+async function getStripeSyncStatus(): Promise<StripeSyncStatusData> {
+  const [row] = await db.select().from(systemSettings).where(eq(systemSettings.key, STRIPE_SYNC_STATUS_KEY));
+  if (!row?.value) return { status: 'idle' };
+  let data: StripeSyncStatusData;
+  try {
+    data = JSON.parse(row.value);
+  } catch {
+    logger.warn('[DataIntegrity] Corrupt stripe sync status in DB, resetting to idle');
+    return { status: 'idle' };
+  }
+  if (!data || typeof data.status !== 'string') return { status: 'idle' };
+  if (data.status === 'running') {
+    const startMs = data.startedAt ? new Date(data.startedAt).getTime() : NaN;
+    const elapsed = Number.isFinite(startMs) ? Date.now() - startMs : Infinity;
+    if (elapsed > STALE_SYNC_TIMEOUT_MS) {
+      const staleData: StripeSyncStatusData = {
+        status: 'error',
+        startedAt: data.startedAt,
+        completedAt: new Date().toISOString(),
+        error: 'Sync timed out (exceeded 10 minutes) — likely interrupted by a server restart',
+      };
+      await setStripeSyncStatus(staleData);
+      return staleData;
+    }
+  }
+  return data;
+}
+
+async function setStripeSyncStatus(data: StripeSyncStatusData): Promise<void> {
+  await db.insert(systemSettings)
+    .values({
+      key: STRIPE_SYNC_STATUS_KEY,
+      value: JSON.stringify(data),
+      category: 'sync',
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: systemSettings.key,
+      set: {
+        value: JSON.stringify(data),
+        category: 'sync',
+        updatedAt: new Date(),
+      },
+    });
+}
+
+async function tryAcquireStripeSyncLock(startedAt: string): Promise<boolean> {
+  const now = new Date();
+  const runningValue = JSON.stringify({ status: 'running', startedAt } satisfies StripeSyncStatusData);
+  const result = await db.execute(sql`
+    INSERT INTO system_settings (key, value, category, updated_at)
+    VALUES (${STRIPE_SYNC_STATUS_KEY}, ${runningValue}, 'sync', ${now})
+    ON CONFLICT (key) DO UPDATE
+      SET value = ${runningValue}, category = 'sync', updated_at = ${now}
+      WHERE system_settings.value::jsonb->>'status' IS DISTINCT FROM 'running'
+         OR system_settings.value::jsonb->>'startedAt' IS NULL
+         OR NOT (system_settings.value::jsonb->>'startedAt' ~ '^\d{4}-\d{2}-\d{2}T')
+         OR CASE
+              WHEN system_settings.value::jsonb->>'startedAt' ~ '^\d{4}-\d{2}-\d{2}T'
+              THEN (system_settings.value::jsonb->>'startedAt')::timestamptz < NOW() - INTERVAL '10 minutes'
+              ELSE true
+            END
+    RETURNING key
+  `);
+  const rows = Array.isArray(result) ? result : (result as Record<string, unknown>).rows;
+  return Array.isArray(rows) && rows.length > 0;
+}
 
 router.post('/api/data-integrity/sync-stripe-metadata', isAdmin, async (req, res) => {
-  if (stripeSyncStatus.running) {
-    return res.status(409).json({ success: false, error: 'Stripe metadata sync is already running', startedAt: stripeSyncStatus.startedAt });
+  const startedAt = new Date().toISOString();
+  const acquired = await tryAcquireStripeSyncLock(startedAt);
+  if (!acquired) {
+    const current = await getStripeSyncStatus();
+    return res.status(409).json({ success: false, error: 'Stripe metadata sync is already running', startedAt: current.startedAt });
   }
 
-  stripeSyncStatus = { running: true, startedAt: new Date() };
   res.json({ success: true, message: 'Stripe metadata sync started in background.' });
 
   try {
     logger.info('[DataIntegrity] Starting Stripe customer metadata sync (background)...');
     const result = await syncAllCustomerMetadata();
-    stripeSyncStatus = { running: false, startedAt: stripeSyncStatus.startedAt, result };
+    await setStripeSyncStatus({ status: 'complete', startedAt, completedAt: new Date().toISOString(), synced: result.synced, failed: result.failed });
     logger.info(`[DataIntegrity] Stripe metadata sync complete: ${result.synced} synced, ${result.failed} failed`);
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    stripeSyncStatus = { running: false, startedAt: stripeSyncStatus.startedAt, error: msg };
+    await setStripeSyncStatus({ status: 'error', startedAt, completedAt: new Date().toISOString(), error: msg });
     logger.error('[DataIntegrity] Stripe metadata sync error', { extra: { detail: msg } });
   }
 });
 
-router.get('/api/data-integrity/sync-stripe-metadata/status', isAdmin, (_req, res) => {
-  if (stripeSyncStatus.running) {
-    return res.json({ status: 'running', startedAt: stripeSyncStatus.startedAt });
+router.get('/api/data-integrity/sync-stripe-metadata/status', isAdmin, async (_req, res) => {
+  const data = await getStripeSyncStatus();
+  if (data.status === 'running') {
+    return res.json({ status: 'running', startedAt: data.startedAt });
   }
-  if (stripeSyncStatus.result) {
-    const r = stripeSyncStatus.result;
+  if (data.status === 'complete') {
     return res.json({
       status: 'complete',
-      startedAt: stripeSyncStatus.startedAt,
-      message: `Synced ${r.synced} customers to Stripe. ${r.failed} failed.`,
-      synced: r.synced,
-      failed: r.failed,
+      startedAt: data.startedAt,
+      message: `Synced ${data.synced} customers to Stripe. ${data.failed} failed.`,
+      synced: data.synced,
+      failed: data.failed,
     });
   }
-  if (stripeSyncStatus.error) {
-    return res.json({ status: 'error', startedAt: stripeSyncStatus.startedAt, error: stripeSyncStatus.error });
+  if (data.status === 'error') {
+    return res.json({ status: 'error', startedAt: data.startedAt, error: data.error });
   }
   res.json({ status: 'idle' });
 });
