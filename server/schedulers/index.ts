@@ -26,6 +26,7 @@ import { startSupabaseHeartbeatScheduler, stopSupabaseHeartbeatScheduler } from 
 import { startNotificationCleanupScheduler, stopNotificationCleanupScheduler } from './notificationCleanupScheduler';
 import { startInvoiceAutoFinalizeScheduler, stopInvoiceAutoFinalizeScheduler } from './invoiceAutoFinalizeScheduler';
 import { startFailedSideEffectsScheduler, stopFailedSideEffectsScheduler } from './failedSideEffectsScheduler';
+import { startVisitorReconciliationScheduler, stopVisitorReconciliationScheduler } from './visitorReconciliationScheduler';
 import { stopRealtimeRecovery } from '../core/supabase/client';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
 import { stopBookingValidationPruner } from '../core/bookingValidation';
@@ -88,9 +89,10 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Notification Cleanup', 24 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Invoice Auto-Finalize', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Failed Side Effects', 30 * 60 * 1000);
+  schedulerTracker.registerScheduler('Visitor Reconciliation', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Job Queue Processor', 30000);
 
-  logger.info(`[Schedulers] Staggering scheduler startup over ~${26 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
+  logger.info(`[Schedulers] Staggering scheduler startup over ~${27 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
 
   let slot = 0;
 
@@ -195,6 +197,11 @@ export function initSchedulers(): void {
   slot++;
 
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Notification Cleanup', () => startNotificationCleanupScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Visitor Reconciliation', () => {
+    intervalIds.push(startVisitorReconciliationScheduler());
+  });
   // eslint-disable-next-line no-useless-assignment
   slot++;
 }
@@ -232,6 +239,7 @@ export function stopSchedulers(): void {
   stopBackgroundSyncScheduler();
   stopSupabaseHeartbeatScheduler();
   stopNotificationCleanupScheduler();
+  stopVisitorReconciliationScheduler();
   stopInvoiceAutoFinalizeScheduler();
   stopFailedSideEffectsScheduler();
   stopRealtimeRecovery();

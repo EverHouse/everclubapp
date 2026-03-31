@@ -9,6 +9,7 @@ import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { validateQuery } from '../../middleware/validate';
+import { reconcileOrphanedDayPassPurchases } from '../../schedulers/visitorReconciliationScheduler';
 import { z } from 'zod';
 
 const PLACEHOLDER_EMAIL_PATTERNS = [
@@ -41,8 +42,21 @@ const visitorsQuerySchema = z.object({
   archived: z.enum(['true', 'false']).optional(),
 }).passthrough();
 
+let lastReconciliationTime = 0;
+const RECONCILIATION_COOLDOWN_MS = 5 * 60 * 1000;
+
 router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), async (req, res) => {
   try {
+    const now = Date.now();
+    if (now - lastReconciliationTime > RECONCILIATION_COOLDOWN_MS) {
+      lastReconciliationTime = now;
+      try {
+        await reconcileOrphanedDayPassPurchases();
+      } catch (reconcileErr: unknown) {
+        logger.warn('[Visitors] Inline orphan reconciliation failed (non-fatal)', { extra: { error: getErrorMessage(reconcileErr) } });
+      }
+    }
+
     const vq = (req as Request & { validatedQuery: z.infer<typeof visitorsQuerySchema> }).validatedQuery;
     const { sortBy = 'lastPurchase', order = 'desc', limit = '100', offset = '0', activityFilter, search = '' } = vq;
     const pageLimit = Math.min(parseInt(limit, 10) || 100, 500);
