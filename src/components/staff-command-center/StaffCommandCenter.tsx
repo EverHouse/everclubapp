@@ -414,39 +414,8 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
     }
   };
 
-  const handleCompleteCancellation = async (request: BookingRequest) => {
-    const apiId = typeof request.id === 'string' ? parseInt(String(request.id).replace('cal_', ''), 10) : request.id;
-    setActionInProgress(`complete-cancel-${request.id}`);
-    
-    const previousPendingRequests = [...data.pendingRequests];
-    updatePendingRequests(prev => prev.filter(r => r.id !== request.id));
-    
-    const newActivity: RecentActivity = {
-      id: `cancel-${apiId}-${Date.now()}`,
-      type: 'cancellation',
-      timestamp: new Date().toISOString(),
-      primary_text: request.user_name || 'Member',
-      secondary_text: request.bay_name || 'Bay',
-      icon: 'cancel'
-    };
-    updateRecentActivity(prev => [newActivity, ...prev]);
-    
-    try {
-      const result = await putWithCredentials<{ alreadyCancelled?: boolean }>(`/api/booking-requests/${apiId}/complete-cancellation`, {});
-      if (result.alreadyCancelled) {
-        showToast('Booking was already cancelled', 'info');
-      } else {
-        showToast('Cancellation completed', 'success');
-      }
-      window.dispatchEvent(new CustomEvent('booking-action-completed'));
-      refresh();
-    } catch (err: unknown) {
-      updatePendingRequests(() => previousPendingRequests);
-      updateRecentActivity(prev => prev.filter(a => a.id !== newActivity.id));
-      showToast(err instanceof Error ? err.message : 'Failed to complete cancellation', 'error');
-    } finally {
-      setActionInProgress(null);
-    }
+  const handleCompleteCancellation = async (_request: BookingRequest) => {
+    showToast('Manual cancellation completion is disabled. Please cancel in Trackman — it will auto-complete via webhook.', 'error');
   };
 
   const handleCheckIn = async (booking: BookingRequest, targetStatus?: 'attended' | 'no_show' | 'approved') => {

@@ -252,26 +252,11 @@ router.put('/api/booking-requests/:id/complete-cancellation', isStaffOrAdmin, as
     }
     const bookingId = parseInt(idParse.data, 10);
 
-    const result = await BookingStateService.completePendingCancellation({ bookingId, staffEmail, source: 'staff_manual' });
-
-    if (!result.success) {
-      return res.status(result.statusCode || 500).json({ error: result.error });
-    }
-
-    logFromRequest(req, 'complete_cancellation', 'booking', bookingId.toString(), staffEmail, {
-      member_email: result.bookingData.userEmail,
-      trackman_booking_id: result.bookingData.trackmanBookingId,
-      completed_manually: true,
-      cleanup_errors: result.sideEffectErrors
+    logFromRequest(req, 'complete_cancellation_blocked', 'booking', bookingId.toString(), staffEmail, {
+      reason: 'Manual cancellation completion blocked — requires Trackman webhook'
     });
 
-    return res.json({
-      success: result.success,
-      status: result.status,
-      message: result.alreadyCancelled ? 'Booking was already cancelled' : 'Cancellation completed successfully',
-      alreadyCancelled: result.alreadyCancelled || false,
-      cleanup_errors: result.sideEffectErrors
-    });
+    return res.status(403).json({ error: 'Manual cancellation completion is not allowed. Cancellations must be confirmed via Trackman webhook. Please cancel the booking in Trackman first.' });
   } catch (err: unknown) {
     logger.error('[Complete Cancellation] Error', { extra: { error: getErrorMessage(err) } });
     return res.status(500).json({ error: 'Failed to complete cancellation' });

@@ -159,18 +159,17 @@ export class BookingStateService {
     }
 
     if (booking.status === 'cancellation_pending' && source !== 'trackman_webhook') {
-      if (source === 'staff') {
-        logger.warn('[BookingStateService] Staff force-cancelling booking stuck in cancellation_pending', {
-          extra: { bookingId, source, cancelledBy }
-        });
-      } else {
-        return {
-          success: true,
-          status: 'cancellation_pending',
-          bookingId,
-          bookingData: this.extractBookingData(booking),
-        };
-      }
+      logger.warn('[BookingStateService] Blocked non-webhook cancellation completion for cancellation_pending booking', {
+        extra: { bookingId, source, cancelledBy }
+      });
+      return {
+        success: false,
+        status: 'cancellation_pending',
+        bookingId,
+        bookingData: this.extractBookingData(booking),
+        error: 'Booking is awaiting Trackman cancellation confirmation. Please cancel in Trackman first.',
+        statusCode: 403,
+      };
     }
 
     const isTrackmanLinked = !!booking.trackmanBookingId && /^\d+$/.test(booking.trackmanBookingId);
@@ -461,7 +460,7 @@ export class BookingStateService {
   static async completePendingCancellation(params: {
     bookingId: number;
     staffEmail: string;
-    source: 'trackman_webhook' | 'staff_manual';
+    source: 'trackman_webhook';
   }): Promise<CancelResult> {
     const { bookingId, staffEmail, source } = params;
 
@@ -748,9 +747,7 @@ export class BookingStateService {
           AND status IN ('pending', 'requires_action')
       `);
 
-      const noteAppend = source === 'trackman_webhook'
-        ? '\n[Cancellation completed via Trackman webhook]'
-        : `\n[Cancellation completed manually by ${staffEmail}]`;
+      const noteAppend = '\n[Cancellation completed via Trackman webhook]';
 
       const updateResult = await tx.execute(sql`
         UPDATE booking_requests

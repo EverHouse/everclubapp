@@ -110,15 +110,10 @@ const PendingRequestsCard = memo<PendingRequestsCardProps>(({
                       </div>
                     )}
                     <div className="flex gap-2 ml-[56px]">
-                      {onCompleteCancellation && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onCompleteCancellation(request); }}
-                          className="tactile-btn flex-1 py-1.5 px-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors flex items-center justify-center gap-1.5"
-                        >
-                          <Icon name="check_circle" className="text-sm" />
-                          Complete Cancellation
-                        </button>
-                      )}
+                      <div className="flex-1 py-1.5 px-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-medium rounded-lg flex items-center justify-center gap-1.5">
+                        <Icon name="info" className="text-sm" />
+                        Awaiting Trackman webhook
+                      </div>
                     </div>
                   </>
                 ) : (

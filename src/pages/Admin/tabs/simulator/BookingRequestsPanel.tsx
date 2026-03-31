@@ -203,67 +203,10 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                     Requested {formatRelativeTime(item.created_at)}
                                                 </p>
                                             )}
-                                            {(() => {
-                                                const cancelActionKey = `${item.source || 'booking'}-${item.id}`;
-                                                const cancelActionState = actionInProgress[cancelActionKey];
-                                                const isCancelActionPending = !!cancelActionState;
-                                                return (
-                                                    <>
-                                                        {isCancelActionPending && (
-                                                            <div className="flex items-center gap-2 mt-2 text-sm text-red-600/70 dark:text-red-400/70">
-                                                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                                                </svg>
-                                                                <span className="capitalize">{cancelActionState}...</span>
-                                                            </div>
-                                                        )}
-                                                        <button
-                                                            disabled={isCancelActionPending}
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                const confirmed = await confirm({
-                                                                    title: 'Complete Cancellation',
-                                                                    message: `Complete cancellation for ${displayName}? This will cancel the billing session and refund any charges.`,
-                                                                    confirmText: 'Complete Cancellation',
-                                                                    variant: 'warning'
-                                                                });
-                                                                if (!confirmed) return;
-                                                                
-                                                                const bookingKey = `${item.source || 'booking'}-${item.id}`;
-                                                                setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
-                                                                
-                                                                let previousRequests: BookingRequest[] | undefined;
-                                                                queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => {
-                                                                    previousRequests = old ? [...old] : undefined;
-                                                                    return (old || []).filter((r: BookingRequest) => r.id !== item.id);
-                                                                });
-                                                                
-                                                                try {
-                                                                    await putWithCredentials(`/api/booking-requests/${item.id}/complete-cancellation`, {});
-                                                                    
-                                                                    showToast('Cancellation completed successfully', 'success');
-                                                                    queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
-                                                                    queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
-                                                                } catch (err: unknown) {
-                                                                    if (previousRequests !== undefined) queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-                                                                    showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
-                                                                } finally {
-                                                                    setActionInProgress(prev => {
-                                                                        const next = { ...prev };
-                                                                        delete next[bookingKey];
-                                                                        return next;
-                                                                    });
-                                                                }
-                                                            }}
-                                                            className="w-full mt-3 py-2 px-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 hover:shadow-md active:scale-95 transition-interactive duration-fast focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
-                                                        >
-                                                            <Icon name="check_circle" className="text-sm" />
-                                                            Complete Cancellation
-                                                        </button>
-                                                    </>
-                                                );
-                                            })()}
+                                            <div className="mt-3 py-2 px-3 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-lg text-sm text-orange-700 dark:text-orange-400 flex items-center gap-1.5">
+                                                <Icon name="info" className="text-sm" />
+                                                Please cancel in Trackman — will auto-complete via webhook
+                                            </div>
                                         </div>
                                     );
                                 }
@@ -524,47 +467,10 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                         )}
                                                         <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                                                             {booking.status === 'cancellation_pending' ? (
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        const confirmed = await confirm({
-                                                                            title: 'Complete Cancellation',
-                                                                            message: 'Complete this cancellation? This will cancel the billing session and refund any charges.',
-                                                                            confirmText: 'Complete Cancellation',
-                                                                            variant: 'warning'
-                                                                        });
-                                                                        if (!confirmed) return;
-                                                                        
-                                                                        const bookingKey = `${booking.source || 'booking'}-${booking.id}`;
-                                                                        setActionInProgress(prev => ({ ...prev, [bookingKey]: 'completing cancellation' }));
-                                                                        
-                                                                        let previousRequests: BookingRequest[] | undefined;
-                                                                        queryClient.setQueryData(simulatorKeys.allRequests(), (old: BookingRequest[] | undefined) => {
-                                                                            previousRequests = old ? [...old] : undefined;
-                                                                            return (old || []).filter((r: BookingRequest) => r.id !== booking.id);
-                                                                        });
-                                                                        
-                                                                        try {
-                                                                            await putWithCredentials(`/api/booking-requests/${booking.id}/complete-cancellation`, {});
-                                                                            
-                                                                            showToast('Cancellation completed successfully', 'success');
-                                                                            queryClient.invalidateQueries({ queryKey: simulatorKeys.approvedBookings(startDate, endDate) });
-                                                                            queryClient.invalidateQueries({ queryKey: simulatorKeys.allRequests() });
-                                                                        } catch (err: unknown) {
-                                                                            if (previousRequests !== undefined) queryClient.setQueryData(simulatorKeys.allRequests(), previousRequests);
-                                                                            showToast((err instanceof Error ? err.message : String(err)) || 'Failed to complete cancellation', 'error');
-                                                                        } finally {
-                                                                            setActionInProgress(prev => {
-                                                                                const next = { ...prev };
-                                                                                delete next[bookingKey];
-                                                                                return next;
-                                                                            });
-                                                                        }
-                                                                    }}
-                                                                    className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:shadow-md active:scale-95 transition-interactive duration-fast"
-                                                                >
-                                                                    <Icon name="check_circle" className="text-lg" />
-                                                                    Complete Cancellation
-                                                                </button>
+                                                                <div className="flex-1 py-2.5 bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-xl text-sm text-orange-700 dark:text-orange-400 flex items-center justify-center gap-2">
+                                                                    <Icon name="info" className="text-lg" />
+                                                                    Cancel in Trackman — auto-completes via webhook
+                                                                </div>
                                                             ) : isUnmatched ? (
                                                                 <button
                                                                     onClick={() => setBookingSheet({

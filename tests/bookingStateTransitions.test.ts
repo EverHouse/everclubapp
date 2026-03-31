@@ -456,7 +456,7 @@ describe('BookingStateService — State Transitions', () => {
       const result = await BookingStateService.completePendingCancellation({
         bookingId: 999,
         staffEmail: 'staff@example.com',
-        source: 'staff_manual',
+        source: 'trackman_webhook',
       });
 
       expect(result.success).toBe(false);
@@ -470,7 +470,7 @@ describe('BookingStateService — State Transitions', () => {
       const result = await BookingStateService.completePendingCancellation({
         bookingId: 1,
         staffEmail: 'staff@example.com',
-        source: 'staff_manual',
+        source: 'trackman_webhook',
       });
 
       expect(result.success).toBe(false);
@@ -484,7 +484,7 @@ describe('BookingStateService — State Transitions', () => {
       const result = await BookingStateService.completePendingCancellation({
         bookingId: 1,
         staffEmail: 'staff@example.com',
-        source: 'staff_manual',
+        source: 'trackman_webhook',
       });
 
       expect(result.success).toBe(false);
