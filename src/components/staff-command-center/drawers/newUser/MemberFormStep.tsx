@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatPhoneInput } from '../../../../utils/formatting';
 import Icon from '../../../icons/Icon';
+import { getTodayPacific, addDaysToPacificDate } from '../../../../utils/dateUtils';
 import {
   MemberFormData,
   MembershipTier,
@@ -51,16 +52,7 @@ function getTrialEndDatePacific(trialDays: number): string {
 }
 
 function getTomorrowPacific(): string {
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const parts = fmt.formatToParts(new Date());
-  const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value || '0', 10);
-  const tomorrow = new Date(Date.UTC(get('year'), get('month') - 1, get('day') + 1));
-  return tomorrow.toISOString().split('T')[0];
+  return addDaysToPacificDate(getTodayPacific(), 1);
 }
 
 export function MemberFormStep({

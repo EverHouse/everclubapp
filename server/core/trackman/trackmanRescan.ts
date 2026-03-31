@@ -4,7 +4,7 @@ import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, 
 import { eq, sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getTodayPacific, formatNotificationDateTime } from '../../utils/dateUtils';
+import { getTodayPacific, formatNotificationDateTime, formatDateFromDb } from '../../utils/dateUtils';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
@@ -109,7 +109,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
       if (isInstructorEmail || containsLessonKeyword) {
         const resourceId = parseInt(booking.bayNumber || '', 10) || null;
         const bookingDate = booking.bookingDate ? 
-          ((booking.bookingDate as string | Date) instanceof Date ? (booking.bookingDate as unknown as Date).toISOString().split('T')[0] : booking.bookingDate) : null;
+          formatDateFromDb(booking.bookingDate as Date | string) : null;
         const startTime = booking.startTime?.toString() || null;
         const endTime = booking.endTime?.toString() || startTime;
         
@@ -212,7 +212,7 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
         logger.info(`[Trackman Rescan] Resolved: ${booking.userName} (${originalEmail}) -> ${matchedEmail} (${matchReason})`);
         
         try {
-          const bookingDate = booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '';
+          const bookingDate = booking.bookingDate ? formatDateFromDb(booking.bookingDate) : '';
           const startTime = booking.startTime?.toString() || '';
           const endTime = booking.endTime?.toString() || '';
           const bayId = parseInt(booking.bayNumber || '', 10) || null;

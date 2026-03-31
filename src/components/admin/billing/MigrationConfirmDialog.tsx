@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ModalShell } from '../../ModalShell';
 import Icon from '../../icons/Icon';
+import { getTodayPacific, addDaysToPacificDate } from '../../../utils/dateUtils';
 
 interface MigrationConfirmDialogProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export const MigrationConfirmDialog: React.FC<MigrationConfirmDialogProps> = ({
   isLoading,
 }) => {
   // eslint-disable-next-line react-hooks/purity
-  const defaultDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const defaultDate = addDaysToPacificDate(getTodayPacific(), 30);
   const [confirmedMindBodyCancelled, setConfirmedMindBodyCancelled] = useState(false);
   const [billingStartDate, setBillingStartDate] = useState(defaultDate);
 

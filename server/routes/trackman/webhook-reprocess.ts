@@ -6,7 +6,7 @@ import { sendNotificationToUser, broadcastToStaff } from '../../core/websocket';
 import { notifyMember, isNotifiableEmail } from '../../core/notificationService';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
-import { formatDatePacific, formatTimePacific, formatTime12Hour } from '../../utils/dateUtils';
+import { formatDatePacific, formatTimePacific, formatTime12Hour, formatDateFromDb } from '../../utils/dateUtils';
 import { calculateDurationMinutes } from './webhook-helpers';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
@@ -151,9 +151,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
     const bayIdMap: Record<string, number> = { '1': 7410, '2': 7411, '3': 7412, '4': 7413 };
     const trackmanBayId = bayIdMap[bayRef] || 7410;
     
-    const bookingDate = typeof booking.request_date === 'string' 
-      ? booking.request_date 
-      : new Date(booking.request_date as string | number | Date).toISOString().split('T')[0];
+    const bookingDate = formatDateFromDb(booking.request_date as Date | string);
     const startISO = `${bookingDate}T${booking.start_time}.000Z`;
     const endISO = `${bookingDate}T${booking.end_time}.000Z`;
     

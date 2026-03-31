@@ -4,6 +4,7 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
 import { useToast } from '../../../../components/Toast';
 import Icon from '../../../../components/icons/Icon';
+import { getTodayPacific } from '../../../../utils/dateUtils';
 
 interface AuditContact {
   hubspotId: string;
@@ -213,7 +214,7 @@ const MarketingContactsAuditPanel: React.FC<MarketingContactsAuditPanelProps> = 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `hubspot-marketing-audit-${activeTab}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `hubspot-marketing-audit-${activeTab}-${getTodayPacific()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -2,7 +2,7 @@ import { db } from '../../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
 import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../../routes/push';
-import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
+import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb } from '../../utils/dateUtils';
 import { logger } from '../logger';
 import { notifyAllStaff, notifyMember, isSyntheticEmail } from '../notificationService';
 import { checkClosureConflict, checkAvailabilityBlockConflict } from '../bookingValidation';
@@ -642,7 +642,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       try { broadcastMemberStatsUpdated(booking.userEmail, { lifetimeVisits: updatedUser.lifetime_visits }); } catch (err: unknown) { logger.error('[Broadcast] Stats update error', { extra: { error: getErrorMessage(err) } }); }
     }
 
-    const dateStr = String(booking.requestDate).split('T')[0];
+    const dateStr = formatDateFromDb(booking.requestDate as Date | string);
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const formattedTime = formatTime12Hour(booking.startTime);
 
@@ -684,7 +684,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   if (newStatus === 'no_show' && booking.userEmail && !isSyntheticEmail(booking.userEmail)) {
-    const noShowDateStr = String(booking.requestDate).split('T')[0];
+    const noShowDateStr = formatDateFromDb(booking.requestDate as Date | string);
     const formattedDate = formatDateDisplayWithDay(noShowDateStr);
     const formattedTime = formatTime12Hour(booking.startTime);
 

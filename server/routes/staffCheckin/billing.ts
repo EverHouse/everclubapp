@@ -8,6 +8,7 @@ import { notifyMember } from '../../core/notificationService';
 import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { canUseGuestPass } from '../../core/billing/guestPassConsumer';
 import { processGuestPass } from '../../core/billing/guestPassProcessor';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import { cancelPaymentIntent, createBalanceAwarePayment, getOrCreateStripeCustomer, getStripeClient } from '../../core/stripe';
 import { resolveUserByEmail } from '../../core/stripe/customers';
 import { logFromRequest, logPaymentAudit } from '../../core/auditLog';
@@ -1020,9 +1021,7 @@ router.get('/api/bookings/overdue-payments', isStaffOrAdmin, async (req: Request
     `);
 
     const overduePayments: OverduePayment[] = result.rows.map((row: Record<string, unknown>) => {
-      const bookingDate = row.booking_date instanceof Date 
-        ? row.booking_date.toISOString().split('T')[0]
-        : String(row.booking_date || '').split('T')[0];
+      const bookingDate = formatDateFromDb(row.booking_date as Date | string);
       const declaredPlayers = parseInt(String(row.declared_player_count), 10) || 1;
       const filledPlayers = parseInt(String(row.filled_participant_count), 10) || 0;
       const unfilledGuests = Math.max(0, declaredPlayers - filledPlayers);

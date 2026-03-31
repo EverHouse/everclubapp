@@ -7,7 +7,9 @@ export {
   parseLocalDate,
   formatDateDisplay,
   formatDateDisplayWithDay,
-  formatTime12Hour
+  formatTime12Hour,
+  getDayOfWeekFromDateStr,
+  formatDateFromDb
 } from '../../shared/utils/dateUtils';
 
 import {

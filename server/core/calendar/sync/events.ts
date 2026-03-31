@@ -8,7 +8,7 @@ import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { alertOnSyncFailure } from '../../dataAlerts';
 import { getErrorMessage } from '../../../utils/errorUtils';
-import { getPacificMidnightUTC } from '../../../utils/dateUtils';
+import { getPacificMidnightUTC, addDaysToPacificDate } from '../../../utils/dateUtils';
 import { getAllActiveBayIds, getConferenceRoomId } from '../../affectedAreas';
 import { availabilityBlocks } from '../../../../shared/models/scheduling';
 import { findCoveringBlock } from '../../availabilityBlockService';
@@ -257,9 +257,7 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
                 const startMinutes = startParts[0] * 60 + (startParts[1] || 0);
                 const endMinutes = endParts[0] * 60 + (endParts[1] || 0);
                 if (endMinutes < startMinutes) {
-                  const nextDay = new Date(dbRow.event_date as string);
-                  nextDay.setDate(nextDay.getDate() + 1);
-                  endDate = nextDay.toISOString().split('T')[0];
+                  endDate = addDaysToPacificDate(dbRow.event_date as string, 1);
                 }
               }
               

@@ -1,9 +1,8 @@
+import { formatDateFromDb } from './dateUtils';
+
 export function ensureDateString(value: unknown): string {
-  if (value instanceof Date) {
-    return value.toISOString().split('T')[0];
-  }
-  if (typeof value === 'string') {
-    return value.split('T')[0];
+  if (value instanceof Date || typeof value === 'string') {
+    return formatDateFromDb(value as Date | string);
   }
   return String(value ?? '');
 }

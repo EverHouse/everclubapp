@@ -8,6 +8,7 @@ import { logger } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
 import { redactEmail } from './helpers';
 import { getCached, setCache } from '../../core/queryCache';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -362,9 +363,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
         const r = row as { email: string; booking_count: number | string; last_date: Date | string | null };
         bookingCounts[r.email] = Number(r.booking_count);
         if (r.last_date) {
-          const dateVal = r.last_date instanceof Date 
-            ? r.last_date.toISOString().split('T')[0]
-            : String(r.last_date).split('T')[0];
+          const dateVal = formatDateFromDb(r.last_date as Date | string);
           lastActivityMap[r.email] = dateVal;
         }
       }

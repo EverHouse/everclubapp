@@ -6,6 +6,7 @@ import { logFromRequest } from '../core/auditLog';
 import { isAuthenticated } from '../core/middleware';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { getTodayPacific } from '../utils/dateUtils';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/api/account/my-data', isAuthenticated, async (req: Request, res: Re
     logFromRequest(req, 'export_member_data', 'member', userEmail, undefined, { self_export: true });
     
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="my-data-${new Date().toISOString().split('T')[0]}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="my-data-${getTodayPacific()}.json"`);
     
     return res.json(exportData);
   } catch (error: unknown) {

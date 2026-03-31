@@ -4,7 +4,7 @@ import { calendar_v3 } from 'googleapis';
 import { getGoogleCalendarClient } from '../../integrations';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName, discoverCalendarIds } from '../cache';
-import { getPacificMidnightUTC } from '../../../utils/dateUtils';
+import { getPacificMidnightUTC, addDaysToPacificDate, formatDateFromDb } from '../../../utils/dateUtils';
 
 import { toIntArrayLiteral } from '../../../utils/sqlArrayLiteral';
 import { logger } from '../../logger';
@@ -102,11 +102,10 @@ interface ResourceIdRow { id: number }
 
 function getDayDatesBetween(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
-  const current = new Date(startDate + 'T12:00:00');
-  const end = new Date(endDate + 'T12:00:00');
-  while (current <= end) {
-    dates.push(current.toISOString().split('T')[0]);
-    current.setDate(current.getDate() + 1);
+  let current = startDate;
+  while (current <= endDate) {
+    dates.push(current);
+    current = addDaysToPacificDate(current, 1);
   }
   if (dates.length === 0) dates.push(startDate);
   return dates;
@@ -214,11 +213,10 @@ async function getResourceIdsForAffectedAreas(affectedAreas: string | null | und
 
 function getDatesBetween(start: string, end: string): string[] {
   const dates: string[] = [];
-  const current = new Date(start + 'T12:00:00');
-  const endDate = new Date(end + 'T12:00:00');
-  while (current <= endDate) {
-    dates.push(current.toISOString().split('T')[0]);
-    current.setDate(current.getDate() + 1);
+  let current = start;
+  while (current <= end) {
+    dates.push(current);
+    current = addDaysToPacificDate(current, 1);
   }
   return dates;
 }
@@ -328,7 +326,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
     const pushedClosureIds = new Set<number>();
     let skippedTrackman = 0;
     
-    const todayStr = pacificMidnight.toISOString().split('T')[0];
+    const todayStr = formatDateFromDb(pacificMidnight);
     const trackmanBookingsResult = await db.execute(sql`
       SELECT request_date, start_time, end_time
       FROM booking_requests 
@@ -404,9 +402,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         startDate = event.start.date;
         startTime = null;
         if (event.end?.date) {
-          const endDt = new Date(event.end.date);
-          endDt.setDate(endDt.getDate() - 1);
-          endDate = endDt.toISOString().split('T')[0];
+          endDate = addDaysToPacificDate(event.end.date, -1);
         } else {
           endDate = startDate;
         }
@@ -514,9 +510,7 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
                   if (patchRes.data.updated) lastPatchUpdated = new Date(patchRes.data.updated);
                 }
               } else {
-                const endDt = new Date(dbEndDate + 'T12:00:00');
-                endDt.setDate(endDt.getDate() + 1);
-                const gcEndDate = endDt.toISOString().split('T')[0];
+                const gcEndDate = addDaysToPacificDate(dbEndDate, 1);
                 const patchRes = await withCalendarRetry(() => calendar.events.patch({
                   calendarId,
                   eventId: allEventIds[0],

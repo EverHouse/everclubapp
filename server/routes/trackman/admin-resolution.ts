@@ -15,7 +15,7 @@ import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/
 import { numericIdParam } from '../../middleware/paramSchemas';
 import { updateVisitorTypeByUserId } from '../../core/visitors';
 import { getErrorMessage, safeErrorDetail } from '../../utils/errorUtils';
-import { getTodayPacific } from '../../utils/dateUtils';
+import { getTodayPacific, formatDateFromDb } from '../../utils/dateUtils';
 import { processBookingDayPassRedemptions } from '../../core/billing/dayPassRedemption';
 
 function pacificNow(): string {
@@ -545,8 +545,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                 }
                 
                 if (!otherSessionId && otherBD && otherBD.resource_id) {
-                  const otherDateStr = typeof otherBD.request_date === 'string' ? otherBD.request_date :
-                    new Date(otherBD.request_date as string | number | Date).toISOString().split('T')[0];
+                  const otherDateStr = formatDateFromDb(otherBD.request_date as Date | string);
                   const otherSessionResult = await ensureSessionForBooking({
                     bookingId: otherBooking.id as number,
                     resourceId: otherBD.resource_id as number,
@@ -614,8 +613,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     if (isVisitor) {
       try {
         const bookingDate = booking.request_date;
-        const bookingDateStr = typeof bookingDate === 'string' ? bookingDate : 
-          new Date(bookingDate as string | number | Date).toISOString().split('T')[0];
+        const bookingDateStr = formatDateFromDb(bookingDate as Date | string);
         
         const existingDayPass = await db.execute(sql`SELECT id, stripe_payment_intent_id FROM day_pass_purchases 
            WHERE user_id = ${member.id} 
@@ -790,8 +788,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     
     if (!isVisitor) {
       try {
-        const bookingDateStr = typeof booking.request_date === 'string' ? booking.request_date : 
-          new Date(booking.request_date as string | number | Date).toISOString().split('T')[0];
+        const bookingDateStr = formatDateFromDb(booking.request_date as Date | string);
         
         let sessionId = booking.session_id;
         if (!sessionId) {
@@ -1020,8 +1017,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
             }
             
             if (!sameEmailSessionId && sameEmailBD && sameEmailBD.resource_id) {
-              const sameEmailDateStr = typeof sameEmailBD.request_date === 'string' ? sameEmailBD.request_date :
-                new Date(sameEmailBD.request_date as string | number | Date).toISOString().split('T')[0];
+              const sameEmailDateStr = formatDateFromDb(sameEmailBD.request_date as Date | string);
               const sameEmailSessionResult = await ensureSessionForBooking({
                 bookingId: booking.id as number,
                 resourceId: sameEmailBD.resource_id as number,

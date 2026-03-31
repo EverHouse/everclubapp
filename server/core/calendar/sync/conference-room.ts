@@ -3,7 +3,7 @@ import { db } from '../../../db';
 import { bookingRequests, users } from '../../../../shared/models/auth';
 import { bookingSessions } from '../../../../shared/models/scheduling';
 import { eq, and, ilike, or, sql } from 'drizzle-orm';
-import { getTodayPacific, getPacificMidnightUTC } from '../../../utils/dateUtils';
+import { getTodayPacific, getPacificMidnightUTC, formatDateFromDb } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG, ConferenceRoomBooking, MemberMatchResult, CalendarEventData } from '../config';
 import { getCalendarIdByName } from '../cache';
 import { getConferenceRoomId } from '../../affectedAreas';
@@ -408,9 +408,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
             if (existingBookings.length > 0) {
               const booking = existingBookings[0];
               cancelBookingId = booking.id;
-              const bookingDate = typeof booking.requestDate === 'string'
-                ? booking.requestDate
-                : (booking.requestDate as Date).toISOString().split('T')[0];
+              const bookingDate = formatDateFromDb(booking.requestDate as Date | string);
 
               await db.transaction(async (tx) => {
                 if (booking.sessionId) {
@@ -512,9 +510,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           const existingBooking = existingByCalendarEventId[0];
           const existingStartTime = (existingBooking.startTime as string)?.substring(0, 5);
           const existingEndTime = (existingBooking.endTime as string)?.substring(0, 5);
-          const existingDate = typeof existingBooking.requestDate === 'string'
-            ? existingBooking.requestDate
-            : (existingBooking.requestDate as Date).toISOString().split('T')[0];
+          const existingDate = formatDateFromDb(existingBooking.requestDate as Date | string);
 
           const timeChanged = existingStartTime !== startTime || existingEndTime !== endTime || existingDate !== eventDate;
 

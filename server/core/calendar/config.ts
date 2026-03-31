@@ -1,4 +1,5 @@
 import { getSettingValue } from '../settingsHelper';
+import { getDayOfWeekFromDateStr } from '../../utils/dateUtils';
 
 export const CALENDAR_CONFIG = {
   golf: {
@@ -50,8 +51,7 @@ function parseDisplayHours(displayStr: string): { startMinutes: number; endMinut
 }
 
 async function getDisplayHoursForDate(date: string): Promise<{ startMinutes: number; endMinutes: number } | null> {
-  const d = new Date(date + 'T12:00:00');
-  const dayOfWeek = d.getDay();
+  const dayOfWeek = getDayOfWeekFromDateStr(date);
 
   let settingKey: string;
   let fallback: string;

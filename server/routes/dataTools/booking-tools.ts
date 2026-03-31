@@ -8,6 +8,7 @@ import { isAdmin, isStaffOrAdmin } from '../../core/middleware';
 import { logBillingAudit } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
 import { safeErrorDetail } from '../../utils/errorUtils';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import { getErrorMessage } from '../../utils/errorUtils';
 
 interface DbBookingSearchRow {
@@ -58,7 +59,7 @@ router.get('/api/data-tools/unlinked-guest-fees', isAdmin, async (req: Request, 
     const formatted = unlinkedFees.map(fee => ({
       ...fee,
       itemTotal: ((fee.itemTotalCents || 0) / 100).toFixed(2),
-      saleDate: fee.saleDate?.toISOString().split('T')[0]
+      saleDate: fee.saleDate ? formatDateFromDb(fee.saleDate) : undefined
     }));
     
     res.json(formatted);

@@ -1,6 +1,6 @@
 import { CLUB_TIMEZONE } from '../constants/timezone';
 
-function getDayOfWeek(year: number, month: number, day: number): number {
+export function getDayOfWeek(year: number, month: number, day: number): number {
   let m = month;
   let y = year;
   if (m < 3) {
@@ -56,4 +56,14 @@ export function formatTime12Hour(timeStr: string): string {
   const period = hours >= 12 ? 'PM' : 'AM';
   const hour12 = hours % 12 || 12;
   return `${hour12}:${String(minutes ?? 0).padStart(2, '0')} ${period}`;
+}
+
+export function getDayOfWeekFromDateStr(dateStr: string): number {
+  const [year, month, day] = dateStr.substring(0, 10).split('-').map(Number);
+  return getDayOfWeek(year, month, day);
+}
+
+export function formatDateFromDb(date: Date | string): string {
+  if (typeof date === 'string') return date.substring(0, 10);
+  return date.toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
 }

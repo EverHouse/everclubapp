@@ -14,7 +14,7 @@ import { logFromRequest } from '../core/auditLog';
 import { requiredStringParam } from '../middleware/paramSchemas';
 import { getErrorMessage, safeErrorDetail, isStripeResourceMissing } from '../utils/errorUtils';
 import { getAppBaseUrl } from '../utils/urlUtils';
-import { formatDatePacific } from '../utils/dateUtils';
+import { formatDatePacific, formatDateFromDb } from '../utils/dateUtils';
 import { notifyMember, notifyAllStaff } from '../core/notificationService';
 import { PRICING } from '../core/billing/pricingConfig';
 
@@ -339,9 +339,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
     const items = (result.rows as unknown as OutstandingItemRow[]).map(row => {
       const feeCents = Number(row.cached_fee_cents) || 0;
       const feeLabel = row.participant_type === 'guest' ? 'Guest Fee' : 'Overage Fee';
-      const bookingDate = row.booking_date instanceof Date
-        ? formatDatePacific(row.booking_date)
-        : String(row.booking_date || '').split('T')[0];
+      const bookingDate = formatDateFromDb(row.booking_date as Date | string);
       return {
         bookingId: row.booking_id,
         trackmanBookingId: row.trackman_booking_id || null,
@@ -394,9 +392,7 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
       if (unfilled <= 0) continue;
       const alreadyHasItem = items.some(i => i.bookingId === row.booking_id);
       if (alreadyHasItem) continue;
-      const bookingDate = row.booking_date instanceof Date
-        ? formatDatePacific(row.booking_date)
-        : String(row.booking_date || '').split('T')[0];
+      const bookingDate = formatDateFromDb(row.booking_date as Date | string);
       for (let g = 0; g < unfilled; g++) {
         items.push({
           bookingId: row.booking_id,

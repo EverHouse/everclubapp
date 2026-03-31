@@ -1,6 +1,6 @@
 import { schedulerTracker } from '../core/schedulerTracker';
 import { queryWithRetry } from '../core/db';
-import { getTodayPacific, formatTimePacific } from '../utils/dateUtils';
+import { getTodayPacific, formatTimePacific, formatDateFromDb } from '../utils/dateUtils';
 import { notifyAllStaff } from '../core/notificationService';
 import { ensureSessionForBooking } from '../core/bookingService/sessionManager';
 import { recalculateSessionFees } from '../core/bookingService/usageCalculator';
@@ -269,9 +269,7 @@ async function autoCompletePastBookings(): Promise<void> {
           const result = await ensureSessionForBooking({
             bookingId: booking.id,
             resourceId: booking.resourceId,
-            sessionDate: typeof booking.requestDate === 'object' 
-              ? (booking.requestDate as Date).toISOString().split('T')[0] 
-              : String(booking.requestDate),
+            sessionDate: formatDateFromDb(booking.requestDate as Date | string),
             startTime: booking.startTime,
             endTime: booking.endTime,
             ownerEmail: booking.userEmail,
@@ -550,9 +548,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
         const sessionResult = await ensureSessionForBooking({
           bookingId: booking.id,
           resourceId: booking.resourceId,
-          sessionDate: typeof booking.requestDate === 'object'
-            ? (booking.requestDate as Date).toISOString().split('T')[0]
-            : String(booking.requestDate),
+          sessionDate: formatDateFromDb(booking.requestDate as Date | string),
           startTime: booking.startTime,
           endTime: booking.endTime,
           ownerEmail: booking.userEmail,

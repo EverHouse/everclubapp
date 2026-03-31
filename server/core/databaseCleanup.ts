@@ -3,6 +3,7 @@ import { bookingRequests, notifications, users, eventRsvps } from '../../shared/
 import { sql, eq, like, or, and, inArray } from 'drizzle-orm';
 import { logger } from './logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { formatDateFromDb } from '../utils/dateUtils';
 
 interface DrizzleExecuteResult {
   rowCount?: number;
@@ -120,7 +121,7 @@ export async function cleanupOldBookings(daysOld: number = 90): Promise<number> 
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-    const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+    const cutoffDateStr = formatDateFromDb(cutoffDate);
     
     const oldBookings = await db
       .delete(bookingRequests)

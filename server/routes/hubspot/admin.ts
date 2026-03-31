@@ -6,6 +6,7 @@ import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
 import { getSessionUser } from '../../types/session';
 import { getErrorMessage, getErrorStatusCode, safeErrorDetail } from '../../utils/errorUtils';
 import { getHubSpotClient, getHubSpotClientWithFallback } from '../../core/integrations';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import {
   HubSpotApiObject,
   LastActivityRow,
@@ -277,7 +278,7 @@ router.get('/api/admin/hubspot/marketing-contacts-audit', isAdmin, async (_req: 
         for (const row of activityResult.rows) {
           const r = row as unknown as LastActivityRow;
           if (r.last_activity) {
-            lastActivityMap[r.email] = String(r.last_activity).split('T')[0];
+            lastActivityMap[r.email] = formatDateFromDb(r.last_activity as Date | string);
           }
         }
       }

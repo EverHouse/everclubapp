@@ -1,5 +1,6 @@
 import type { IntegrityCheckResult, IntegrityIssue, ActiveIssue, HistoryData } from './dataIntegrityTypes';
 import { getCheckMetadata } from '../../../../data/integrityCheckMetadata';
+import { getTodayPacific } from '../../../../utils/dateUtils';
 
 export const formatTimeAgo = (date: Date | string) => {
   const now = new Date();
@@ -74,7 +75,7 @@ export const downloadCSV = (results: IntegrityCheckResult[]) => {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const date = new Date().toISOString().split('T')[0];
+  const date = getTodayPacific();
   link.href = url;
   link.download = `data-integrity-export-${date}.csv`;
   document.body.appendChild(link);

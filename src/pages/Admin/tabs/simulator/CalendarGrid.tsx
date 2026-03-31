@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { formatTime12Hour, getTodayPacific } from '../../../../utils/dateUtils';
+import { formatTime12Hour, getTodayPacific, addDaysToPacificDate } from '../../../../utils/dateUtils';
 import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } from './simulatorTypes';
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
 import { prefetchBookingDetail } from '../../../../lib/prefetch-actions';
@@ -220,9 +220,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
     prefetchDate,
 }) => {
     const getAdjacentDate = (offset: number) => {
-        const d = new Date(calendarDate);
-        d.setDate(d.getDate() + offset);
-        return d.toISOString().split('T')[0];
+        return addDaysToPacificDate(calendarDate, offset);
     };
 
     const timeSlots = useMemo(() => {

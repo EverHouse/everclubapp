@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns } from '../../../shared/schema';
 import { eq, or, ilike, and, sql } from 'drizzle-orm';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import { bookingEvents } from '../bookingEvents';
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
@@ -237,7 +238,7 @@ export async function resolveUnmatchedBooking(
     `);
     
     if (existingSession.rows.length === 0 || !(existingSession.rows[0] as unknown as SessionCheckRow)?.session_id) {
-      const bookingDate = booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '';
+      const bookingDate = booking.bookingDate ? formatDateFromDb(booking.bookingDate) : '';
       const startTime = booking.startTime?.toString() || '';
       const endTime = booking.endTime?.toString() || '';
       
@@ -343,7 +344,7 @@ export async function resolveUnmatchedBooking(
         `);
         
         if (otherExistingSession.rows.length === 0 || !(otherExistingSession.rows[0] as unknown as SessionCheckRow)?.session_id) {
-          const otherBookingDate = other.bookingDate ? new Date(other.bookingDate).toISOString().split('T')[0] : '';
+          const otherBookingDate = other.bookingDate ? formatDateFromDb(other.bookingDate) : '';
           const otherStartTime = other.startTime?.toString() || '';
           const otherEndTime = other.endTime?.toString() || '';
           const otherParsedPlayers = parseNotesForPlayers(other.notes || '');
@@ -520,9 +521,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       continue;
     }
 
-    const bookingDate = booking.request_date instanceof Date 
-      ? booking.request_date.toISOString().split('T')[0]
-      : booking.request_date;
+    const bookingDate = formatDateFromDb(booking.request_date as Date | string);
     const endTime = booking.end_time || booking.start_time;
 
     const existingBlock = await db.execute(sql`
@@ -622,9 +621,7 @@ export async function cleanupHistoricalLessons(dryRun = false): Promise<{
       continue;
     }
 
-    const bookingDate = (item.bookingDate as string | Date) instanceof Date 
-      ? (item.bookingDate as unknown as Date).toISOString().split('T')[0]
-      : item.bookingDate;
+    const bookingDate = formatDateFromDb(item.bookingDate as Date | string);
 
     if (!dryRun) {
       const existingBlock = await db.execute(sql`

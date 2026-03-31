@@ -3,6 +3,7 @@ import { useToast } from '../Toast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import { postWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../icons/Icon';
+import { getTodayPacific, addDaysToPacificDate } from '../../utils/dateUtils';
 
 interface WellnessFormDrawerProps {
   isOpen: boolean;
@@ -55,11 +56,9 @@ export const WellnessFormDrawer: React.FC<WellnessFormDrawerProps> = ({ isOpen, 
 
   useEffect(() => {
     if (isOpen) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
       setFormData({
         title: '',
-        date: tomorrow.toISOString().split('T')[0],
+        date: addDaysToPacificDate(getTodayPacific(), 1),
         time: '09:00',
         endTime: '10:00',
         instructor: '',
@@ -118,11 +117,9 @@ export const WellnessFormDrawer: React.FC<WellnessFormDrawerProps> = ({ isOpen, 
   };
 
   const handleClose = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
     setFormData({
       title: '',
-      date: tomorrow.toISOString().split('T')[0],
+      date: addDaysToPacificDate(getTodayPacific(), 1),
       time: '09:00',
       endTime: '10:00',
       instructor: '',

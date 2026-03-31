@@ -7,7 +7,7 @@ import { recordUsage, ensureSessionForBooking } from '../bookingService/sessionM
 
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { getTodayPacific } from '../../../shared/utils/dateUtils';
+import { getTodayPacific, formatDateFromDb } from '../../../shared/utils/dateUtils';
 export interface BookingTypeInfo {
   keyword: string | null;
   visitorType: VisitorType;
@@ -151,9 +151,7 @@ export async function matchBookingToPurchase(
   notes: string | null | undefined
 ): Promise<PurchaseMatch | null> {
   try {
-    const dateStr = typeof bookingDate === 'string' 
-      ? bookingDate.split('T')[0] 
-      : bookingDate.toISOString().split('T')[0];
+    const dateStr = formatDateFromDb(bookingDate as Date | string);
 
     const categories = mapNotesToLegacyCategories(notes);
     

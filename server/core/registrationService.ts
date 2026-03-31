@@ -2,7 +2,7 @@ import { db } from '../db';
 import { events, eventRsvps, wellnessEnrollments, wellnessClasses } from '../../shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { notifyAllStaff, notifyMember } from './notificationService';
-import { formatDateDisplayWithDay, formatTime12Hour } from '../utils/dateUtils';
+import { formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb } from '../utils/dateUtils';
 import { broadcastToStaff, broadcastWaitlistUpdate } from './websocket';
 import { logger } from './logger';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -135,9 +135,7 @@ export async function createWellnessEnrollment(
 
   const cls = classDataResult.rows[0] as Record<string, unknown>;
   const classDate = cls.date;
-  const dateStr = classDate instanceof Date
-    ? classDate.toISOString().split('T')[0]
-    : (typeof classDate === 'string' ? classDate.split('T')[0] : String(classDate));
+  const dateStr = formatDateFromDb(classDate as Date | string);
   const formattedDate = formatDateDisplayWithDay(dateStr);
   const waitlistEnabled = cls.waitlist_enabled as boolean;
   const classTitle = cls.title as string;

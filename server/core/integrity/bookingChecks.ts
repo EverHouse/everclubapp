@@ -2,7 +2,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger } from '../logger';
-import { getTodayPacific } from '../../utils/dateUtils';
+import { getTodayPacific, formatDateFromDb } from '../../utils/dateUtils';
 import type {
   IntegrityCheckResult,
   IntegrityIssue,
@@ -332,7 +332,7 @@ export async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResu
   const ghosts = ghostsResult.rows as unknown as GhostBookingRow[];
 
   for (const row of ghosts) {
-    const dateStr = row.request_date ? new Date(row.request_date).toISOString().split('T')[0] : 'unknown';
+    const dateStr = row.request_date ? formatDateFromDb(row.request_date) : 'unknown';
     const memberName = row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : undefined;
     issues.push({
       category: 'data_quality',

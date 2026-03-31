@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../EmptyState';
-import { formatTime12Hour } from '../../../utils/dateUtils';
+import { formatTime12Hour, formatDateFromDb } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow, getWellnessIcon, getEventIcon, formatTimeLeft } from '../helpers';
 import type { Tour, DBEvent, WellnessClass, TabType, NextActivityItem } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
@@ -73,9 +73,8 @@ const NextEventWidget: React.FC<NextEventWidgetProps> = ({ nextActivityItem, nex
 
   const normalizeDateStr = (d: string | Date | undefined): string => {
     if (!d) return '';
-    if (typeof d === 'string') return d.split('T')[0];
     try {
-      return d.toISOString().split('T')[0];
+      return formatDateFromDb(d as Date | string);
     } catch {
       return '';
     }
@@ -166,7 +165,7 @@ const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, u
             if (typeof wellness.date === 'string') {
               dateStr = wellness.date.split('T')[0];
             } else {
-              try { dateStr = new Date(wellness.date).toISOString().split('T')[0]; } catch { dateStr = ''; }
+              try { dateStr = formatDateFromDb(wellness.date as Date | string); } catch { dateStr = ''; }
             }
           }
           return (

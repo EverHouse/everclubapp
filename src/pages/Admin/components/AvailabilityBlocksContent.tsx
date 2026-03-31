@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { formatDateDisplayWithDay, getTodayPacific } from '../../../utils/dateUtils';
+import { formatDateDisplayWithDay, getTodayPacific, addDaysToPacificDate } from '../../../utils/dateUtils';
 import EmptyState from '../../../components/EmptyState';
 import { useToast } from '../../../components/Toast';
 import ModalShell from '../../../components/ModalShell';
@@ -166,11 +166,9 @@ const AvailabilityBlocksContent: React.FC = () => {
     };
 
     const openCreate = useCallback(() => {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
         setFormData({
             resource_id: resources[0]?.id || null,
-            block_date: tomorrow.toISOString().split('T')[0],
+            block_date: addDaysToPacificDate(getTodayPacific(), 1),
             start_time: '09:00',
             end_time: '10:00',
             block_type: 'maintenance',

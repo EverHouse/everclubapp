@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthData, useMemberData } from '../../../../contexts/DataContext';
 import { usePageReady } from '../../../../stores/pageReadyStore';
-import { getTodayPacific, formatTime12Hour } from '../../../../utils/dateUtils';
+import { getTodayPacific, formatTime12Hour, addDaysToPacificDate } from '../../../../utils/dateUtils';
 import { usePricing } from '../../../../hooks/usePricing';
 import ModalShell from '../../../../components/ModalShell';
 import { useToast } from '../../../../components/Toast';
@@ -82,9 +82,7 @@ const SimulatorTab: React.FC = () => {
     const calendarEndDate = calendarDate;
     
     const scheduledEndDate = useMemo(() => {
-        const d = new Date(today);
-        d.setDate(d.getDate() + 60);
-        return d.toISOString().split('T')[0];
+        return addDaysToPacificDate(today, 60);
     }, [today]);
     
     const { data: approvedBookingsData = [], isLoading: approvedLoading } = useApprovedBookings(calendarStartDate, calendarEndDate);
@@ -872,16 +870,8 @@ const SimulatorTab: React.FC = () => {
 
     const scheduledBookings = useMemo(() => {
         const today = getTodayPacific();
-        const tomorrow = (() => {
-            const d = new Date(today);
-            d.setDate(d.getDate() + 1);
-            return d.toISOString().split('T')[0];
-        })();
-        const weekEnd = (() => {
-            const d = new Date(today);
-            d.setDate(d.getDate() + 7);
-            return d.toISOString().split('T')[0];
-        })();
+        const tomorrow = addDaysToPacificDate(today, 1);
+        const weekEnd = addDaysToPacificDate(today, 7);
         
         return scheduledRangeData
             .filter(b => {

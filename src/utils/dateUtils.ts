@@ -4,6 +4,8 @@ export { CLUB_TIMEZONE };
 export {
   getTodayPacific,
   addDaysToPacificDate,
+  getDayOfWeekFromDateStr,
+  formatDateFromDb,
   parseLocalDate,
   formatDateDisplay,
   formatDateDisplayWithDay,

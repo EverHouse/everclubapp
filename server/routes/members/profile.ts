@@ -25,7 +25,7 @@ import { invalidateCache } from '../../core/queryCache';
 import { normalizeEmail } from '../../core/utils/emailNormalization';
 import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { getTodayPacific } from '../../utils/dateUtils';
+import { getTodayPacific, formatDateFromDb } from '../../utils/dateUtils';
 import { getLifetimeVisitStats } from '../../core/memberService/lifetimeVisitStats';
 
 const router = Router();
@@ -167,7 +167,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
     
     const lastBookingDateRaw = (lastActivityResult as unknown as { rows?: { last_date: string | Date | null }[] }).rows?.[0]?.last_date;
     const lastBookingDate = lastBookingDateRaw 
-      ? (lastBookingDateRaw instanceof Date ? lastBookingDateRaw.toISOString().split('T')[0] : String(lastBookingDateRaw).split('T')[0])
+      ? formatDateFromDb(lastBookingDateRaw as Date | string)
       : null;
     
     res.json({

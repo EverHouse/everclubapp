@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { ACTIVE_BOOKING_STATUSES } from '../../../shared/constants/statuses';
+import { formatDateFromDb } from '../../utils/dateUtils';
 
 interface UserIdRow {
   id: number;
@@ -26,7 +27,7 @@ const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended',
 
 function formatYMD(dateInput: string | Date): string {
   if (dateInput instanceof Date) {
-    return dateInput.toISOString().split('T')[0];
+    return formatDateFromDb(dateInput);
   }
   return String(dateInput).substring(0, 10);
 }

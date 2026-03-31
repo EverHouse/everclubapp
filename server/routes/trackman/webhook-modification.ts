@@ -3,7 +3,7 @@ import { transferRequestParticipantsToSession } from '../../core/trackmanImport'
 import { broadcastToStaff, broadcastAvailabilityUpdate } from '../../core/websocket';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
-import { formatTime12Hour } from '../../utils/dateUtils';
+import { formatTime12Hour, formatDateFromDb } from '../../utils/dateUtils';
 import { bookingRequests } from '../../../shared/schema';
 import { sql } from 'drizzle-orm';
 import { db } from '../../db';
@@ -104,9 +104,7 @@ export async function handleBookingModification(
   const existingEndTime = existing.endTime instanceof Date
     ? existing.endTime.toISOString().substring(11, 16)
     : typeof existing.endTime === 'string' ? existing.endTime.substring(0, 5) : '';
-  const existingDate = existing.requestDate instanceof Date
-    ? existing.requestDate.toISOString().split('T')[0]
-    : String(existing.requestDate);
+  const existingDate = formatDateFromDb(existing.requestDate as Date | string);
 
   const bayChanged = incoming.resourceId != null && existing.resourceId != null
     ? incoming.resourceId !== existing.resourceId

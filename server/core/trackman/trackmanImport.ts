@@ -4,7 +4,7 @@ import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, 
 import { eq, sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getTodayPacific, formatNotificationDateTime } from '../../utils/dateUtils';
+import { getTodayPacific, formatNotificationDateTime, formatDateFromDb } from '../../utils/dateUtils';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
@@ -271,7 +271,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           
           if (!bookingDate && booking.createdAt) {
             const date = booking.createdAt instanceof Date ? booking.createdAt : new Date(booking.createdAt);
-            bookingDate = date.toISOString().split('T')[0];
+            bookingDate = formatDateFromDb(date);
           }
           
           if (csvDateRange && bookingDate && (bookingDate < csvDateRange.min || bookingDate > csvDateRange.max)) {
@@ -1830,9 +1830,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   
   for (const booking of matchedToCancel) {
     if (booking.trackmanBookingId && !importBookingIds.has(booking.trackmanBookingId)) {
-      const bookingDateStr = typeof booking.requestDate === 'object' && booking.requestDate !== null
-        ? (booking.requestDate as Date).toISOString().split('T')[0]
-        : String(booking.requestDate);
+      const bookingDateStr = formatDateFromDb(booking.requestDate as Date | string);
       
       const isStillFuture = isFutureBooking(bookingDateStr, booking.startTime || '00:00');
       

@@ -6,7 +6,7 @@ import { getErrorMessage } from '../../../utils/errorUtils';
 import { getGoogleCalendarClient } from '../../integrations';
 import { wellnessClasses } from '../../../../shared/models/auth';
 import { availabilityBlocks } from '../../../../shared/models/scheduling';
-import { getTodayPacific, getPacificMidnightUTC } from '../../../utils/dateUtils';
+import { getTodayPacific, getPacificMidnightUTC, formatDateFromDb } from '../../../utils/dateUtils';
 import { CALENDAR_CONFIG } from '../config';
 import { getCalendarIdByName, discoverCalendarIds } from '../cache';
 import { alertOnSyncFailure } from '../../dataAlerts';
@@ -399,9 +399,7 @@ export async function syncWellnessCalendarEvents(options?: { suppressAlert?: boo
           const reviewDismissed = dbRow.review_dismissed === true;
           const shouldSetNeedsReview = reviewDismissed ? false : needsReview;
           
-          const dbDate = dbRow.date instanceof Date 
-            ? dbRow.date.toISOString().split('T')[0] 
-            : String(dbRow.date || '').split('T')[0];
+          const dbDate = formatDateFromDb(dbRow.date as Date | string);
           
           const wasReviewed = dbRow.needs_review === false && dbRow.reviewed_at !== null;
           const hasChanges = (

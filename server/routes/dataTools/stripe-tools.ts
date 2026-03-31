@@ -8,6 +8,7 @@ import { getHubSpotClientWithFallback } from '../../core/integrations';
 import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { logFromRequest, logBillingAudit } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import { broadcastToStaff } from '../../core/websocket';
 import { getErrorMessage, getErrorCode, getErrorStatusCode, safeErrorDetail, isStripeResourceMissing } from '../../utils/errorUtils';
 import Stripe from 'stripe';
@@ -568,7 +569,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
             const latestInvoice = invoices.data[0];
             stripePaymentStatus = latestInvoice.status || 'unknown';
             lastInvoiceDate = latestInvoice.created 
-              ? new Date(latestInvoice.created * 1000).toISOString().split('T')[0]
+              ? formatDateFromDb(new Date(latestInvoice.created * 1000))
               : null;
             lastInvoiceAmount = latestInvoice.amount_paid || null;
           } else {
@@ -581,7 +582,7 @@ router.post('/api/data-tools/sync-payment-status', isAdmin, async (req: Request,
               const latestInvoice = allInvoices.data[0];
               stripePaymentStatus = latestInvoice.status || 'unknown';
               lastInvoiceDate = latestInvoice.created 
-                ? new Date(latestInvoice.created * 1000).toISOString().split('T')[0]
+                ? formatDateFromDb(new Date(latestInvoice.created * 1000))
                 : null;
               lastInvoiceAmount = latestInvoice.amount_due || null;
             }

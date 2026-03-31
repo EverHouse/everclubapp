@@ -8,6 +8,7 @@ import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
 import { getStripeClient } from '../../core/stripe/client';
 import { cancelPaymentIntent } from '../../core/stripe/payments';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 
@@ -631,9 +632,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
     for (const booking of lessonBookings.rows as DbRow[]) {
       if (!booking.resource_id || !booking.request_date || !booking.start_time) continue;
 
-      const bookingDate = booking.request_date instanceof Date 
-        ? booking.request_date.toISOString().split('T')[0]
-        : booking.request_date;
+      const bookingDate = formatDateFromDb(booking.request_date as Date | string);
       const endTime = booking.end_time || booking.start_time;
 
       const existingBlock = await db.execute(sql`SELECT ab.id FROM availability_blocks ab
@@ -700,9 +699,7 @@ router.post('/api/trackman/admin/cleanup-lessons', isStaffOrAdmin, async (req, r
       
       if (resourceId && item.booking_date && item.start_time) {
         if (!dryRun) {
-          const bookingDate = item.booking_date instanceof Date 
-            ? item.booking_date.toISOString().split('T')[0]
-            : item.booking_date;
+          const bookingDate = formatDateFromDb(item.booking_date as Date | string);
 
           const existingBlock = await db.execute(sql`SELECT ab.id FROM availability_blocks ab
             WHERE ab.resource_id = ${resourceId}

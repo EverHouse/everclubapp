@@ -5,7 +5,7 @@ import { db } from '../../db';
 import { wellnessEnrollments, wellnessClasses, users, notifications } from '../../../shared/schema';
 import { notifyAllStaff, notifyMember } from '../../core/notificationService';
 import { eq, and, gte, sql, isNull, asc, desc } from 'drizzle-orm';
-import { formatDateDisplayWithDay, getTodayPacific, formatTime12Hour, addDaysToPacificDate } from '../../utils/dateUtils';
+import { formatDateDisplayWithDay, getTodayPacific, formatTime12Hour, addDaysToPacificDate, formatDateFromDb } from '../../utils/dateUtils';
 import { getAllActiveBayIds, getConferenceRoomId } from '../../core/affectedAreas';
 import { broadcastToStaff, broadcastWaitlistUpdate } from '../../core/websocket';
 import { getSessionUser } from '../../types/session';
@@ -985,9 +985,7 @@ router.delete('/api/wellness-enrollments/:class_id/:user_email', isAuthenticated
     }
     
     const cls = classDataResult.rows[0] as unknown as WellnessClassRow;
-    const dateStr = cls.date instanceof Date 
-      ? cls.date.toISOString().split('T')[0] 
-      : (typeof cls.date === 'string' ? cls.date.split('T')[0] : String(cls.date));
+    const dateStr = formatDateFromDb(cls.date as Date | string);
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const memberName = await getMemberDisplayName(user_email);
     const staffMessage = `${memberName} cancelled their enrollment for ${cls.title} on ${formattedDate}`;
@@ -1232,9 +1230,7 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
       status: 'confirmed',
     });
     
-    const dateStr = classDetails.date instanceof Date 
-      ? classDetails.date.toISOString().split('T')[0] 
-      : (typeof classDetails.date === 'string' ? classDetails.date.split('T')[0] : String(classDetails.date));
+    const dateStr = formatDateFromDb(classDetails.date as Date | string);
     const formattedDate = formatDateDisplayWithDay(dateStr);
     const classTitle = (classDetails?.title || 'Wellness Class') as string;
     const memberMessage = `You've been enrolled in ${classTitle} with ${classDetails.instructor || 'instructor'} on ${formattedDate} at ${formatTime12Hour(classDetails.time as string)} by staff.`;

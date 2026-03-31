@@ -1,5 +1,5 @@
 import React from 'react';
-import { getPacificDateParts } from '../../utils/dateUtils';
+import { getPacificDateParts, formatDateFromDb } from '../../utils/dateUtils';
 
 export const DateBlock: React.FC<{ dateStr: string; today: string }> = ({ dateStr, today }) => {
   const isToday = dateStr === today;
@@ -86,7 +86,7 @@ export const formatTimeLeft = (targetDate: string | Date, targetTime: string): s
     dateStr = targetDate.split('T')[0];
   } else {
     try {
-      dateStr = targetDate.toISOString().split('T')[0];
+      dateStr = formatDateFromDb(targetDate);
     } catch {
       return 'No upcoming';
     }

@@ -1,4 +1,4 @@
-import { getDateString, getPacificDateParts } from '../../../utils/dateUtils';
+import { getTodayPacific, addDaysToPacificDate, getDayOfWeekFromDateStr } from '../../../utils/dateUtils';
 
 export interface APIResource {
   id: number;
@@ -117,16 +117,18 @@ export const bookGolfKeys = {
 
 export const generateDates = (advanceDays: number = 7): { label: string; date: string; day: string; dateNum: string }[] => {
   const dates = [];
-  const { year, month, day } = getPacificDateParts();
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = getTodayPacific();
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   
   for (let i = 0; i <= advanceDays; i++) {
-    const d = new Date(year, month - 1, day + i);
-    const dayName = days[d.getDay()];
-    const dateNum = d.getDate().toString();
+    const dateStr = addDaysToPacificDate(today, i);
+    const [, m, d] = dateStr.split('-').map(Number);
+    const dow = getDayOfWeekFromDateStr(dateStr);
+    const dayName = dayNames[dow];
+    const dateNum = String(d);
     dates.push({
       label: `${dayName} ${dateNum}`,
-      date: getDateString(d),
+      date: dateStr,
       day: dayName,
       dateNum: dateNum
     });

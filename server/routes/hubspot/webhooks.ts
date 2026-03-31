@@ -8,6 +8,7 @@ import { normalizeTierName } from '../../../shared/constants/tiers';
 import { invalidateCache } from '../../core/queryCache';
 import { broadcastDirectoryUpdate } from '../../core/websocket';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { formatDateFromDb } from '../../utils/dateUtils';
 import {
   validateHubSpotWebhookSignature,
   retryableHubSpotRequest,
@@ -266,9 +267,9 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                     const normalizeDate = (v: string): string | null => {
                       if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
                       const ms = Number(v);
-                      if (!isNaN(ms) && ms > 0) return new Date(ms).toISOString().split('T')[0];
+                      if (!isNaN(ms) && ms > 0) return formatDateFromDb(new Date(ms));
                       const d = new Date(v);
-                      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+                      if (!isNaN(d.getTime())) return formatDateFromDb(d);
                       return null;
                     };
 

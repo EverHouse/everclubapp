@@ -7,7 +7,7 @@ import { useToast } from '../../../../components/Toast';
 import { SlideUpDrawer } from '../../../../components/SlideUpDrawer';
 import { fetchWithCredentials, deleteWithCredentials } from '../../../../hooks/queries/useFetch';
 import { EventsTabSkeleton } from '../../../../components/skeletons';
-import { getTodayPacific } from '../../../../utils/dateUtils';
+import { getTodayPacific, addDaysToPacificDate } from '../../../../utils/dateUtils';
 import { Participant, WellnessClass, WellnessFormData, WELLNESS_CATEGORY_TABS, INITIAL_DISPLAY_COUNT } from './eventsTypes';
 import { ParticipantDetailsModal } from './ParticipantDetailsModal';
 import Icon from '../../../../components/icons/Icon';
@@ -200,14 +200,12 @@ export const WellnessAdminContent: React.FC = () => {
     };
 
     const openCreate = useCallback(() => {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
         setFormData({
             category: activeCategory === 'all' ? 'Classes' : activeCategory,
             status: 'available',
             time: '09:00',
             endTime: '10:00',
-            date: tomorrow.toISOString().split('T')[0]
+            date: addDaysToPacificDate(getTodayPacific(), 1)
         });
         setEditId(null);
         setTouchedFields(new Set());

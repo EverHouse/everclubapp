@@ -1,4 +1,5 @@
 import { getSettingValue } from './settingsHelper';
+import { getDayOfWeekFromDateStr } from '../utils/dateUtils';
 
 export interface APISlot {
   start_time: string;
@@ -53,8 +54,7 @@ export function parseDisplayHoursToMinutes(displayStr: string): BusinessHours | 
 }
 
 export async function getBusinessHoursFromSettings(date: string): Promise<BusinessHours | null> {
-  const d = new Date(date + 'T12:00:00');
-  const dayOfWeek = d.getDay();
+  const dayOfWeek = getDayOfWeekFromDateStr(date);
   let settingKey: string;
   let fallback: string;
   switch (dayOfWeek) {

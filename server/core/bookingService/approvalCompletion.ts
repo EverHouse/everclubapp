@@ -3,7 +3,7 @@ import { pool, safeRelease } from '../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
 import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../../routes/push';
-import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
+import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb } from '../../utils/dateUtils';
 import { logger } from '../logger';
 import { notifyAllStaff, notifyMember, isSyntheticEmail } from '../notificationService';
 import { checkClosureConflict, checkAvailabilityBlockConflict } from '../bookingValidation';
@@ -219,9 +219,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
       return { success: false, error: 'Booking status changed while processing — please refresh and try again' };
     }
 
-    const dateStr = typeof booking.request_date === 'string'
-      ? booking.request_date
-      : (booking.request_date as Date).toISOString().split('T')[0];
+    const dateStr = formatDateFromDb(booking.request_date as Date | string);
     const timeStr = typeof booking.start_time === 'string'
       ? booking.start_time.substring(0, 5)
       : String(booking.start_time);

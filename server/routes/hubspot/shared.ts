@@ -8,6 +8,7 @@ import { normalizeTierName } from '../../../shared/constants/tiers';
 import pRetry, { AbortError } from 'p-retry';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getHubSpotClient } from '../../core/integrations';
+import { formatDateFromDb } from '../../utils/dateUtils';
 
 export interface HubSpotApiObject {
   id: string;
@@ -359,7 +360,7 @@ async function enrichContactsWithDbData(contacts: HubSpotContact[]): Promise<Hub
     const r = row as unknown as LastActivityRow;
     if (r.last_activity) {
       const date = r.last_activity instanceof Date ? r.last_activity : new Date(r.last_activity as string);
-      lastActivityMap[r.email] = date.toISOString().split('T')[0];
+      lastActivityMap[r.email] = formatDateFromDb(date);
     }
   }
   

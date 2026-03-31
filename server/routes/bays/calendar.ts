@@ -8,7 +8,7 @@ import { getConferenceRoomId } from '../../core/affectedAreas';
 import { logAndRespond, logger } from '../../core/logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getSessionUser } from '../../types/session';
-import { getTodayPacific } from '../../utils/dateUtils';
+import { getTodayPacific, addDaysToPacificDate } from '../../utils/dateUtils';
 import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 
 interface PaymentStatusRow {
@@ -70,9 +70,8 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     const { start_date, end_date } = req.query;
     
     const todayStr = getTodayPacific();
-    const todayMs = new Date(todayStr + 'T12:00:00Z').getTime();
-    const defaultStartDate = start_date || new Date(todayMs - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const defaultEndDate = end_date || new Date(todayMs + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const defaultStartDate = start_date || addDaysToPacificDate(todayStr, -30);
+    const defaultEndDate = end_date || addDaysToPacificDate(todayStr, 60);
     
     const conditions: (SQL | undefined)[] = [
       or(

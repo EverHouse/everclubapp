@@ -7,6 +7,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
+import { getTodayPacific, addDaysToPacificDate } from '../../utils/dateUtils';
 
 const ADDRESS_FALLBACK: Record<string, string> = {
   'contact.address_line1': '15771 Red Hill Ave, Ste 500',
@@ -60,12 +61,9 @@ const formatDateNice = (dateStr: string): string => {
 
 const generateNext14Days = (): string[] => {
   const days: string[] = [];
-  const now = new Date();
-  const pacific = new Date(now.toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+  const today = getTodayPacific();
   for (let i = 1; i <= 14; i++) {
-    const d = new Date(pacific);
-    d.setDate(d.getDate() + i);
-    days.push(d.toISOString().split('T')[0]);
+    days.push(addDaysToPacificDate(today, i));
   }
   return days;
 };
