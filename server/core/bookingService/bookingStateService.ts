@@ -1160,16 +1160,17 @@ export class BookingStateService {
     }
 
     if (manifest.bookingEvent) {
+      const evt = manifest.bookingEvent;
       bookingEvents.publish('booking_cancelled', {
-        bookingId: manifest.bookingEvent.bookingId,
-        memberEmail: manifest.bookingEvent.memberEmail,
-        bookingDate: manifest.bookingEvent.bookingDate,
-        startTime: manifest.bookingEvent.startTime,
-        status: manifest.bookingEvent.status,
-        actionBy: manifest.bookingEvent.actionBy as 'member' | 'staff',
-      }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => logger.error(`[BookingStateService] Booking event publish failed for bookingId=${manifest.bookingEvent.bookingId}`, { extra: { bookingId: manifest.bookingEvent.bookingId, error: getErrorMessage(err) } }));
+        bookingId: evt.bookingId,
+        memberEmail: evt.memberEmail,
+        bookingDate: evt.bookingDate,
+        startTime: evt.startTime,
+        status: evt.status,
+        actionBy: evt.actionBy as 'member' | 'staff',
+      }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => logger.error(`[BookingStateService] Booking event publish failed for bookingId=${evt.bookingId}`, { extra: { bookingId: evt.bookingId, error: getErrorMessage(err) } }));
 
-      voidBookingPass(manifest.bookingEvent.bookingId).catch(err => logger.error(`[BookingStateService] Failed to void booking wallet pass for bookingId=${manifest.bookingEvent.bookingId}`, { extra: { bookingId: manifest.bookingEvent.bookingId, error: getErrorMessage(err) } }));
+      voidBookingPass(evt.bookingId).catch(err => logger.error(`[BookingStateService] Failed to void booking wallet pass for bookingId=${evt.bookingId}`, { extra: { bookingId: evt.bookingId, error: getErrorMessage(err) } }));
     }
 
     return { errors };

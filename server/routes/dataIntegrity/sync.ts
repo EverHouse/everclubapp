@@ -149,7 +149,7 @@ async function tryAcquireStripeSyncLock(startedAt: string): Promise<boolean> {
             END
     RETURNING key
   `);
-  const rows = Array.isArray(result) ? result : (result as Record<string, unknown>).rows;
+  const rows = Array.isArray(result) ? result : (result as unknown as Record<string, unknown>).rows;
   return Array.isArray(rows) && rows.length > 0;
 }
 
