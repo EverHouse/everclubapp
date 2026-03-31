@@ -48,6 +48,7 @@ vi.mock('drizzle-orm', () => {
     return result;
   };
   sqlTagFn.join = vi.fn();
+  sqlTagFn.raw = vi.fn((str: string) => ({ __sqlStrings: [str], __sqlValues: [] }));
   return {
     sql: sqlTagFn,
     eq: vi.fn(),
@@ -374,9 +375,9 @@ describe('Booking Concurrency Tests', () => {
       expect(hasResourceLock).toBe(false);
     });
 
-    it('acquireBookingLocks skips pending check for conference rooms', async () => {
+    it('acquireBookingLocks allows higher pending limit for conference rooms', async () => {
       const txMock = {
-        execute: vi.fn().mockResolvedValue({ rows: [] }),
+        execute: vi.fn().mockResolvedValue({ rows: [{ cnt: 0 }] }),
       };
 
       await acquireBookingLocks(txMock, {
@@ -394,10 +395,10 @@ describe('Booking Concurrency Tests', () => {
         c.strings.some(s => s.includes('booking_requests')) &&
         c.strings.some(s => s.includes('pending'))
       );
-      expect(pendingCheckCall).toBeUndefined();
+      expect(pendingCheckCall).toBeDefined();
     });
 
-    it('staff requests skip member advisory lock unless view-as mode', async () => {
+    it('staff requests acquire both resource and user advisory locks', async () => {
       const txMock = {
         execute: vi.fn().mockResolvedValue({ rows: [{ cnt: 0 }] }),
       };
@@ -416,7 +417,7 @@ describe('Booking Concurrency Tests', () => {
       const lockCalls = sqlCalls.filter(c =>
         c.strings.some(s => s.includes('pg_advisory_xact_lock'))
       );
-      expect(lockCalls.length).toBe(1);
+      expect(lockCalls.length).toBe(2);
 
       sqlCalls.length = 0;
 

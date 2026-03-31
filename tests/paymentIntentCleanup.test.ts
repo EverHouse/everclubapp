@@ -87,6 +87,7 @@ vi.mock('../server/core/notificationService', () => ({
   notifyAllStaff: (...args: unknown[]) => mockNotifyAllStaff(...args),
   notifyMember: (...args: unknown[]) => mockNotifyMember(...args),
   isSyntheticEmail: vi.fn().mockReturnValue(false),
+  isNotifiableEmail: vi.fn().mockReturnValue(true),
 }));
 vi.mock('../server/core/bookingEvents', () => ({
   bookingEvents: { publish: vi.fn().mockResolvedValue(undefined) },
@@ -214,7 +215,7 @@ interface RouteLayer {
 }
 
 async function invokeMemberCancel(req: ReturnType<typeof makeReq>, res: ReturnType<typeof makeRes>): Promise<void> {
-  const mod = await import('../server/routes/bays/bookings');
+  const mod = await import('../server/routes/bays/booking-cancel');
   const router = mod.default;
   const layers = (router as unknown as { stack: RouteLayer[] }).stack;
   const layer = layers.find(l => l.route?.path === '/api/booking-requests/:id/member-cancel');
@@ -254,6 +255,7 @@ describe('Payment Intent Cleanup Integration Tests', () => {
     it('cancels each pending PI via Stripe and updates booking_fee_snapshots to cancelled', async () => {
       mockExecute
         .mockResolvedValueOnce({ rows: [{ stripe_payment_intent_id: 'pi_pending_1' }, { stripe_payment_intent_id: 'pi_pending_2' }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValue({ rows: [], rowCount: 1 });
       mockCancelPaymentIntent.mockResolvedValue({ success: true });
 
@@ -263,14 +265,16 @@ describe('Payment Intent Cleanup Integration Tests', () => {
       expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_pending_1');
       expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_pending_2');
 
-      const cancelledUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")));
+      const cancelledUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")) && !c.strings.some(s => s.includes('IS NULL')));
       expect(cancelledUpdates.length).toBe(2);
       expect(cancelledUpdates.map(c => c.values[0])).toContain('pi_pending_1');
       expect(cancelledUpdates.map(c => c.values[0])).toContain('pi_pending_2');
     });
 
     it('skips per-PI snapshot update when skipSnapshotUpdate is true (used by expiry scheduler)', async () => {
-      mockExecute.mockResolvedValueOnce({ rows: [{ stripe_payment_intent_id: 'pi_skip_1' }, { stripe_payment_intent_id: 'pi_skip_2' }] });
+      mockExecute
+        .mockResolvedValueOnce({ rows: [{ stripe_payment_intent_id: 'pi_skip_1' }, { stripe_payment_intent_id: 'pi_skip_2' }] })
+        .mockResolvedValueOnce({ rows: [] });
       mockCancelPaymentIntent.mockResolvedValue({ success: true });
 
       await cancelPendingPaymentIntentsForBooking(42, { skipSnapshotUpdate: true });
@@ -284,15 +288,17 @@ describe('Payment Intent Cleanup Integration Tests', () => {
       sqlCalls.length = 0;
       mockExecute
         .mockResolvedValueOnce({ rows: [{ stripe_payment_intent_id: 'pi_contrast' }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValue({ rows: [], rowCount: 1 });
       mockCancelPaymentIntent.mockResolvedValue({ success: true });
       await cancelPendingPaymentIntentsForBooking(42);
-      expect(findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'"))).length).toBe(1);
+      expect(findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")) && !c.strings.some(s => s.includes('IS NULL'))).length).toBe(1);
     });
 
     it('does not update snapshots for PIs that failed to cancel', async () => {
       mockExecute
         .mockResolvedValueOnce({ rows: [{ stripe_payment_intent_id: 'pi_ok' }, { stripe_payment_intent_id: 'pi_fail' }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValue({ rows: [], rowCount: 1 });
       mockCancelPaymentIntent
         .mockResolvedValueOnce({ success: true })
@@ -300,13 +306,15 @@ describe('Payment Intent Cleanup Integration Tests', () => {
 
       await cancelPendingPaymentIntentsForBooking(42);
 
-      const cancelledUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")));
+      const cancelledUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")) && !c.strings.some(s => s.includes('IS NULL')));
       expect(cancelledUpdates.length).toBe(1);
       expect(cancelledUpdates[0].values[0]).toBe('pi_ok');
     });
 
     it('handles no pending PIs gracefully', async () => {
-      mockExecute.mockResolvedValueOnce({ rows: [] });
+      mockExecute
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
       await cancelPendingPaymentIntentsForBooking(42);
       expect(mockCancelPaymentIntent).not.toHaveBeenCalled();
     });
@@ -314,6 +322,7 @@ describe('Payment Intent Cleanup Integration Tests', () => {
     it('survives cancelPaymentIntent throwing and still processes remaining PIs', async () => {
       mockExecute
         .mockResolvedValueOnce({ rows: [{ stripe_payment_intent_id: 'pi_throw' }, { stripe_payment_intent_id: 'pi_after' }] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValue({ rows: [], rowCount: 1 });
       mockCancelPaymentIntent
         .mockRejectedValueOnce(new Error('Network timeout'))
@@ -322,7 +331,7 @@ describe('Payment Intent Cleanup Integration Tests', () => {
       await cancelPendingPaymentIntentsForBooking(42);
 
       expect(mockCancelPaymentIntent).toHaveBeenCalledTimes(2);
-      const cancelledUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")));
+      const cancelledUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c => c.strings.some(s => s.includes("status = 'cancelled'")) && !c.strings.some(s => s.includes('IS NULL')));
       expect(cancelledUpdates.length).toBe(1);
       expect(cancelledUpdates[0].values[0]).toBe('pi_after');
     });
@@ -470,12 +479,9 @@ describe('Payment Intent Cleanup Integration Tests', () => {
   });
 
   describe('Member-cancel route — normal path (shouldSkipRefund=false)', () => {
-    function setupNormalCancel(bookingId: number, opts: {
-      paidParticipants?: Array<{ id: number; stripe_payment_intent_id: string; cached_fee_cents: number; display_name: string }>;
-      pendingPIs?: Array<{ stripe_payment_intent_id: string }>;
-      guestParticipants?: Array<{ display_name: string }>;
-    } = {}) {
-      const { paidParticipants = [], pendingPIs = [], guestParticipants = [] } = opts;
+    let cancelSpy: ReturnType<typeof vi.spyOn>;
+
+    function setupNormalCancel(bookingId: number) {
       const existing = {
         id: bookingId, userEmail: 'member@example.com', userName: 'Test Member',
         requestDate: '2026-06-15', startTime: '10:00', status: 'approved',
@@ -491,82 +497,80 @@ describe('Payment Intent Cleanup Integration Tests', () => {
         return { from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ name: 'Bay 1' }]) };
       });
 
-      const txExecuteHandler = (query: unknown) => {
-        const q = query as { __sqlStrings?: string[] };
-        const joined = q?.__sqlStrings?.join(' ') || '';
-        if (joined.includes('guest_pass_holds')) return Promise.resolve({ rows: [] });
-        if (joined.includes('booking_participants') && joined.includes('guest') && joined.includes('used_guest_pass'))
-          return Promise.resolve({ rows: guestParticipants });
-        if (joined.includes('booking_participants') && joined.includes('payment_status'))
-          return Promise.resolve({ rows: [] });
-        return Promise.resolve({ rows: [], rowCount: 0 });
-      };
-
-      mockTransaction.mockImplementation(async (fn: (tx: { execute: ReturnType<typeof vi.fn> }) => unknown) => fn({ execute: vi.fn().mockImplementation(txExecuteHandler) }));
-
-      mockExecute.mockImplementation((query: unknown) => {
-        const q = query as { __sqlStrings?: string[] };
-        const joined = q?.__sqlStrings?.join(' ') || '';
-        if (joined.includes('booking_participants') && joined.includes("payment_status = 'paid'"))
-          return Promise.resolve({ rows: paidParticipants });
-        if (joined.includes('stripe_payment_intents') && joined.includes("IN ('refunding', 'refunded')"))
-          return Promise.resolve({ rows: [], rowCount: 0 });
-        if (joined.includes("SET status = 'refunding'"))
-          return Promise.resolve({ rows: [{ id: 1 }], rowCount: 1 });
-        if (joined.includes('stripe_payment_intents') && joined.includes("'pending'") && joined.includes('SELECT'))
-          return Promise.resolve({ rows: pendingPIs });
-        if (joined.includes('booking_fee_snapshots'))
-          return Promise.resolve({ rows: [], rowCount: 1 });
-        if (joined.includes('booking_participants') && joined.includes("payment_status = 'refunded'"))
-          return Promise.resolve({ rows: [], rowCount: 1 });
-        return Promise.resolve({ rows: [], rowCount: 0 });
-      });
-
-      mockUpdate.mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([{ id: bookingId }]),
-          }),
-        }),
+      cancelSpy = vi.spyOn(BookingStateService, 'cancelBooking').mockResolvedValue({
+        success: true,
+        status: 'cancelled',
+        bookingId,
+        bookingData: { userEmail: 'member@example.com', userName: 'Test Member', resourceId: 1, requestDate: '2026-06-15', startTime: '10:00', durationMinutes: 60, calendarEventId: null, sessionId: 100, trackmanBookingId: null },
+        isLateCancel: false,
       });
     }
 
-    it('calls cancelPendingPaymentIntentsForBooking for normal cancellation', async () => {
-      setupNormalCancel(55, { pendingPIs: [{ stripe_payment_intent_id: 'pi_member_pending' }] });
-      mockCancelPaymentIntent.mockResolvedValue({ success: true });
+    afterEach(() => {
+      cancelSpy?.mockRestore();
+    });
 
+    it('delegates to BookingStateService.cancelBooking with enforceLateCancel for normal cancellation', async () => {
+      setupNormalCancel(55);
       await invokeMemberCancel(makeReq(55), makeRes());
 
-      expect(mockCancelPaymentIntent).toHaveBeenCalledWith('pi_member_pending');
+      expect(cancelSpy).toHaveBeenCalledWith(expect.objectContaining({
+        bookingId: 55,
+        source: 'member',
+        enforceLateCancel: true,
+      }));
     });
 
-    it('refunds paid participant PIs via Stripe', async () => {
-      setupNormalCancel(56, {
-        paidParticipants: [{ id: 1, stripe_payment_intent_id: 'pi_paid_1', cached_fee_cents: 7500, display_name: 'Guest A' }],
-      });
-      mockPiRetrieve.mockResolvedValue({ status: 'succeeded', latest_charge: 'ch_paid_1' });
-      mockRefundsCreate.mockResolvedValue({ id: 'refund_paid_1', amount: 7500 });
+    it('returns success with refundSkipped=false for normal cancellation', async () => {
+      setupNormalCancel(56);
+      const res = makeRes();
+      await invokeMemberCancel(makeReq(56), res);
 
-      await invokeMemberCancel(makeReq(56), makeRes());
-
-      expect(mockRefundsCreate).toHaveBeenCalled();
-      expect(mockRefundsCreate.mock.calls[0][0]).toMatchObject({ charge: 'ch_paid_1', reason: 'requested_by_customer' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        refundSkipped: false,
+      }));
     });
 
-    it('voids booking invoice', async () => {
+    it('passes cancelledBy matching booking owner email', async () => {
       setupNormalCancel(57);
       await invokeMemberCancel(makeReq(57), makeRes());
-      expect(mockVoidBookingInvoice).toHaveBeenCalledWith(57);
+
+      expect(cancelSpy).toHaveBeenCalledWith(expect.objectContaining({
+        cancelledBy: 'member@example.com',
+      }));
     });
 
-    it('refunds guest passes', async () => {
-      setupNormalCancel(58, { guestParticipants: [{ display_name: 'Guest With Pass' }] });
-      await invokeMemberCancel(makeReq(58), makeRes());
-      expect(mockRefundGuestPass).toHaveBeenCalledWith('member@example.com', 'Guest With Pass', false);
+    it('returns error when BookingStateService.cancelBooking fails', async () => {
+      const existing = {
+        id: 58, userEmail: 'member@example.com', userName: 'Test Member',
+        requestDate: '2026-06-15', startTime: '10:00', status: 'approved',
+        calendarEventId: null, resourceId: 1, trackmanBookingId: null, staffNotes: null, sessionId: 100,
+      };
+      mockCreatePacificDate.mockReturnValue(new Date(Date.now() + 48 * 60 * 60 * 1000));
+      mockSelect.mockImplementation(() => ({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([existing]),
+      }));
+      cancelSpy = vi.spyOn(BookingStateService, 'cancelBooking').mockResolvedValue({
+        success: false,
+        status: 'cancelled',
+        bookingId: 58,
+        bookingData: { userEmail: 'member@example.com', userName: 'Test Member', resourceId: 1, requestDate: '2026-06-15', startTime: '10:00', durationMinutes: 60, calendarEventId: null, sessionId: 100, trackmanBookingId: null },
+        error: 'Failed to cancel',
+        statusCode: 500,
+      });
+
+      const res = makeRes();
+      await invokeMemberCancel(makeReq(58), res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
     });
   });
 
   describe('Member-cancel route — late path (shouldSkipRefund=true)', () => {
+    let cancelSpy: ReturnType<typeof vi.spyOn>;
+
     function setupLateCancel(bookingId: number) {
       const existing = {
         id: bookingId, userEmail: 'member@example.com', userName: 'Test Member',
@@ -583,51 +587,48 @@ describe('Payment Intent Cleanup Integration Tests', () => {
         return { from: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue([{ name: 'Bay 1' }]) };
       });
 
-      mockTransaction.mockImplementation(async (fn: (tx: { execute: ReturnType<typeof vi.fn> }) => unknown) => fn({
-        execute: vi.fn().mockImplementation((query: unknown) => {
-          const q = query as { __sqlStrings?: string[] };
-          if (q?.__sqlStrings?.some(s => s.includes('guest_pass_holds'))) return Promise.resolve({ rows: [] });
-          if (q?.__sqlStrings?.some(s => s.includes('booking_participants') && s.includes('guest') && s.includes('used_guest_pass')))
-            return Promise.resolve({ rows: [{ display_name: 'Late Guest' }] });
-          return Promise.resolve({ rows: [], rowCount: 0 });
-        }),
-      }));
-
-      mockExecute.mockResolvedValue({ rows: [], rowCount: 1 });
-
-      mockUpdate.mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([{ id: bookingId }]),
-          }),
-        }),
+      cancelSpy = vi.spyOn(BookingStateService, 'cancelBooking').mockResolvedValue({
+        success: true,
+        status: 'cancelled',
+        bookingId,
+        bookingData: { userEmail: 'member@example.com', userName: 'Test Member', resourceId: 1, requestDate: '2025-06-14', startTime: '10:00', durationMinutes: 60, calendarEventId: null, sessionId: 100, trackmanBookingId: null },
+        isLateCancel: true,
       });
     }
 
-    it('does NOT call cancelPendingPaymentIntentsForBooking for late cancellations', async () => {
+    afterEach(() => {
+      cancelSpy?.mockRestore();
+    });
+
+    it('delegates to BookingStateService.cancelBooking for late cancellations', async () => {
       setupLateCancel(77);
       await invokeMemberCancel(makeReq(77), makeRes());
-      expect(mockCancelPaymentIntent).not.toHaveBeenCalled();
+
+      expect(cancelSpy).toHaveBeenCalledWith(expect.objectContaining({
+        bookingId: 77,
+        source: 'member',
+        enforceLateCancel: true,
+      }));
     });
 
-    it('updates booking_fee_snapshots to cancelled directly via SQL', async () => {
+    it('returns success with refundSkipped=true for late cancellations', async () => {
       setupLateCancel(78);
-      await invokeMemberCancel(makeReq(78), makeRes());
+      const res = makeRes();
+      await invokeMemberCancel(makeReq(78), res);
 
-      const snapshotUpdates = findSqlCallsContaining('booking_fee_snapshots').filter(c =>
-        c.strings.some(s => s.includes("status = 'cancelled'")) && c.strings.some(s => s.includes('booking_id'))
-      );
-      expect(snapshotUpdates.length).toBeGreaterThanOrEqual(1);
-      expect(snapshotUpdates[0].values[0]).toBe(78);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        refundSkipped: true,
+      }));
     });
 
-    it('does NOT void booking invoice for late cancellations', async () => {
+    it('does NOT void booking invoice for late cancellations (handled by BSS)', async () => {
       setupLateCancel(79);
       await invokeMemberCancel(makeReq(79), makeRes());
       expect(mockVoidBookingInvoice).not.toHaveBeenCalled();
     });
 
-    it('does NOT refund guest passes for late cancellations', async () => {
+    it('does NOT refund guest passes for late cancellations (handled by BSS)', async () => {
       setupLateCancel(80);
       await invokeMemberCancel(makeReq(80), makeRes());
       expect(mockRefundGuestPass).not.toHaveBeenCalled();

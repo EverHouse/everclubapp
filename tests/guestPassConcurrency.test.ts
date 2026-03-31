@@ -14,12 +14,11 @@ vi.mock('../server/utils/errorUtils', () => ({
 
 vi.mock('../server/core/bookingService/sessionManager', () => ({}));
 
-const sqlCalls: Array<{ strings: string[]; values: unknown[] }> = [];
-
-const { mockExecute, mockTransaction } = vi.hoisted(() => {
+const { sqlCalls, mockExecute, mockTransaction } = vi.hoisted(() => {
+  const sqlCalls: Array<{ strings: string[]; values: unknown[] }> = [];
   const mockExecute = vi.fn();
   const mockTransaction = vi.fn();
-  return { mockExecute, mockTransaction };
+  return { sqlCalls, mockExecute, mockTransaction };
 });
 
 vi.mock('../server/db', () => ({
@@ -105,9 +104,7 @@ describe('Guest Pass Concurrency Tests', () => {
       expect(result1.success).toBe(true);
       expect(result1.passesHeld).toBe(2);
 
-      const result2 = await createGuestPassHold('member@test.com', 2, 2);
-      expect(result2.success).toBe(false);
-      expect(result2.error).toContain('Not enough guest passes');
+      await expect(createGuestPassHold('member@test.com', 2, 2)).rejects.toThrow('Not enough guest passes');
     });
 
     it('createGuestPassHold issues FOR UPDATE on guest_passes row to serialize access', async () => {

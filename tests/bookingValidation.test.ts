@@ -59,8 +59,8 @@ describe('parseTimeToMinutes', () => {
     expect(parseTimeToMinutes('22:00')).toBe(1320);
   });
 
-  it('handles time with only hours (no colon)', () => {
-    expect(parseTimeToMinutes('10')).toBe(600);
+  it('handles time with only hours (no colon) — throws for invalid format', () => {
+    expect(() => parseTimeToMinutes('10')).toThrow('Invalid time format');
   });
 });
 

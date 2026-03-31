@@ -850,7 +850,7 @@ export class BookingStateService {
       };
     }
 
-    if (booking.userEmail && !isSyntheticEmail(booking.userEmail)) {
+    if (isNotifiableEmail(booking.userEmail)) {
       notifyMember({
         userEmail: booking.userEmail,
         title: 'Booking Cancellation in Progress',

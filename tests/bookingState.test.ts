@@ -44,6 +44,7 @@ vi.mock('../server/core/notificationService', () => ({
   notifyAllStaff: vi.fn().mockResolvedValue(undefined),
   notifyMember: vi.fn().mockResolvedValue(undefined),
   isSyntheticEmail: vi.fn().mockReturnValue(false),
+  isNotifiableEmail: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock('../server/core/bookingEvents', () => ({

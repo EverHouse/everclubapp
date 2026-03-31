@@ -88,14 +88,15 @@ describe('GuestPassHoldService', () => {
       expect(result).toBe(0);
     });
 
-    it('defaults to 4 guest passes when tier not found', async () => {
+    it('defaults to 0 guest passes when tier not found (fail-closed)', async () => {
       mockExecute
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ total_held: '0' }] });
 
       const result = await getAvailableGuestPasses('test@example.com');
-      expect(result).toBe(4);
+      expect(result).toBe(0);
     });
 
     it('updates passes_total when tier allows more than current total', async () => {
@@ -171,7 +172,7 @@ describe('GuestPassHoldService', () => {
       expect(result.passesHeld).toBe(0);
     });
 
-    it('returns error when not enough passes available', async () => {
+    it('throws GuestPassHoldError when not enough passes available', async () => {
       const mockTx = {
         execute: vi.fn()
           .mockResolvedValueOnce({ rows: [] })
@@ -183,9 +184,7 @@ describe('GuestPassHoldService', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockTransaction.mockImplementation(async (cb: (tx: any) => Promise<any>) => cb(mockTx));
 
-      const result = await createGuestPassHold('test@example.com', 1, 3);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Not enough guest passes');
+      await expect(createGuestPassHold('test@example.com', 1, 3)).rejects.toThrow('Not enough guest passes');
     });
   });
 

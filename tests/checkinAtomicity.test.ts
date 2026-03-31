@@ -170,6 +170,10 @@ vi.mock('../server/core/calendar/index', () => ({
 
 vi.mock('../server/core/errors', () => ({
   AppError: class AppError extends Error { statusCode: number; constructor(msg: string, code: number) { super(msg); this.statusCode = code; } },
+  STALE_BOOKING_MESSAGE: 'This booking was updated by someone else. Please refresh and try again.',
+  StaleBookingVersionError: class StaleBookingVersionError extends Error { statusCode: number; constructor() { super('This booking was updated by someone else. Please refresh and try again.'); this.statusCode = 409; } },
+  assertBookingVersion: vi.fn(),
+  GuestPassHoldError: class GuestPassHoldError extends Error { passesAvailable?: number; constructor(msg: string, pa?: number) { super(msg); this.passesAvailable = pa; } },
 }));
 
 vi.mock('../server/core/auditLog', () => ({
