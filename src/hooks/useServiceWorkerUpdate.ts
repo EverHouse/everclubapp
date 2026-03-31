@@ -10,9 +10,14 @@ interface ServiceWorkerUpdateState {
 const DISMISS_COOLDOWN_KEY = 'sw-update-dismissed-at';
 const DISMISS_COOLDOWN_MS = 30 * 60 * 1000;
 
-const isStandalonePWA = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (navigator as unknown as { standalone?: boolean }).standalone === true;
+let reloadTriggered = false;
+function cacheBustReload() {
+  if (reloadTriggered) return;
+  reloadTriggered = true;
+  const url = new URL(window.location.href);
+  url.searchParams.set('_r', Date.now().toString());
+  window.location.replace(url.toString());
+}
 
 export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -20,6 +25,7 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const visibilityHandlerRef = useRef<(() => void) | null>(null);
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controllerChangeHandlerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -42,12 +48,21 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
           clearTimeout(updateTimeoutRef.current);
           updateTimeoutRef.current = null;
         }
-        setUpdateAvailable(false);
-        setIsUpdating(false);
+        cacheBustReload();
       }
     };
 
+    const handleControllerChange = () => {
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+        updateTimeoutRef.current = null;
+      }
+      cacheBustReload();
+    };
+    controllerChangeHandlerRef.current = handleControllerChange;
+
     navigator.serviceWorker.addEventListener('message', handleMessage);
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
     const detectWaiting = (registration: ServiceWorkerRegistration) => {
       if (registration.waiting && registration.waiting.state === 'installed') {
@@ -65,6 +80,9 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
             if (navigator.serviceWorker.controller) {
               showUpdate(newWorker);
             }
+          }
+          if (newWorker.state === 'activated') {
+            cacheBustReload();
           }
         });
       });
@@ -105,6 +123,9 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
 
     return () => {
       navigator.serviceWorker.removeEventListener('message', handleMessage);
+      if (controllerChangeHandlerRef.current) {
+        navigator.serviceWorker.removeEventListener('controllerchange', controllerChangeHandlerRef.current);
+      }
       if (visibilityHandlerRef.current) {
         document.removeEventListener('visibilitychange', visibilityHandlerRef.current);
       }
@@ -121,14 +142,8 @@ export function useServiceWorkerUpdate(): ServiceWorkerUpdateState {
 
     updateTimeoutRef.current = setTimeout(() => {
       updateTimeoutRef.current = null;
-      if (isStandalonePWA()) {
-        const url = new URL(window.location.href);
-        url.searchParams.set('_r', Date.now().toString());
-        window.location.replace(url.toString());
-      } else {
-        window.location.reload();
-      }
-    }, 3000);
+      cacheBustReload();
+    }, 2000);
   }, [waitingWorker]);
 
   const dismissUpdate = useCallback(() => {

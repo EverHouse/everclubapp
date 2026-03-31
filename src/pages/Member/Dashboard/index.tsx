@@ -82,7 +82,10 @@ const Dashboard: React.FC = () => {
         <ErrorState
           title="Unable to load dashboard"
           message={error}
-          onRetry={() => refetchAllData()}
+          onRetry={() => {
+            refetchAllData();
+          }}
+          showSupport
         />
       </div>
     );

@@ -12,6 +12,7 @@ interface State {
   hasError: boolean;
   error: Error | null;
   retryCount: number;
+  manualRetryCount: number;
   autoRetryCount: number;
   countdown: number | null;
   chunkRetryCountdown: number | null;
@@ -82,7 +83,7 @@ function isChunkLoadError(error: Error | null): boolean {
 }
 
 class PageErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null, retryCount: 0, autoRetryCount: 0, countdown: null, chunkRetryCountdown: null };
+  state: State = { hasError: false, error: null, retryCount: 0, manualRetryCount: 0, autoRetryCount: 0, countdown: null, chunkRetryCountdown: null };
 
   private retryTimerRef: ReturnType<typeof setTimeout> | null = null;
   private countdownTimerRef: ReturnType<typeof setInterval> | null = null;
@@ -221,10 +222,15 @@ class PageErrorBoundary extends Component<Props, State> {
 
   handleRetry = () => {
     this.clearTimers();
+    if (this.state.manualRetryCount >= 1) {
+      this.clearCachesAndReload();
+      return;
+    }
     this.setState(prev => ({
       hasError: false,
       error: null,
       retryCount: prev.retryCount + 1,
+      manualRetryCount: prev.manualRetryCount + 1,
       autoRetryCount: 0,
       countdown: null
     }));
@@ -380,7 +386,7 @@ class PageErrorBoundary extends Component<Props, State> {
               : 'Something went wrong loading this section.'
           }
           onRetry={this.handleRetry}
-          retryLabel="Try Again"
+          retryLabel={this.state.manualRetryCount >= 1 ? 'Clear Cache & Refresh' : 'Try Again'}
           showSupport
         />
       );
