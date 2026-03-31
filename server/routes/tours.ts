@@ -60,6 +60,11 @@ async function bookHubSpotMeeting(options: {
   const startTimeMs = pacificToUtcMs(pacificDateStr);
   const durationMs = durationMinutes * 60 * 1000;
 
+  const formFields: Array<{ name: string; value: string }> = [];
+  if (phone) {
+    formFields.push({ name: 'phone', value: phone });
+  }
+
   const body: Record<string, unknown> = {
     slug,
     firstName,
@@ -71,6 +76,7 @@ async function bookHubSpotMeeting(options: {
     timezone,
     locale: 'en-us',
     likelyAvailableUserIds: [],
+    formFields,
   };
 
   if (phone) {
@@ -1022,6 +1028,10 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
 
     if (!firstName || !lastName || !email || !date || !startTime) {
       return res.status(400).json({ error: 'firstName, lastName, email, date, and startTime are required' });
+    }
+
+    if (!phone || typeof phone !== 'string' || !phone.trim()) {
+      return res.status(400).json({ error: 'Phone number is required' });
     }
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {

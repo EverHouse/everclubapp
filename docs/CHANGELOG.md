@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.1] - 2026-03-31
+
+### Fix: HubSpot tour booking fails when phone is required form field
+- **Bug**: HubSpot's scheduler v3 API requires `phone` in the `formFields` array for meeting links that have phone as a required form field. The code was sending `phone` only as a top-level body property, causing HubSpot to return 400: `"required form field phone does not have a corresponding value"`.
+- **Fix**: Added `formFields` array to the HubSpot meeting booking request body in `bookHubSpotMeeting()`, including `phone` when provided. Also kept the top-level `phone` property for backward compatibility. Added server-side validation requiring phone on `POST /api/tours/schedule` to catch missing phone before attempting the HubSpot API call.
+- **Impact**: Tour scheduling now reliably syncs to HubSpot instead of silently failing.
+- **Files changed**: `server/routes/tours.ts`
+
 ## [8.98.0] - 2026-03-31
 
 ### Fix: Missing billing_audit table causing silent payment audit failures

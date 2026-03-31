@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.1",
+    date: "2026-03-31",
+    title: "Tour Booking Fix",
+    changes: [
+      "Fixed: Tour scheduling now properly syncs with HubSpot, ensuring your phone number is correctly submitted when booking a tour.",
+    ]
+  },
+  {
     version: "8.98.0",
     date: "2026-03-31",
     title: "Payment Audit Trail Fix",
