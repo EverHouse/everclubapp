@@ -257,6 +257,61 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         </div>
       )}
 
+      {member.visitorType === 'wellhub' && member.wellhubStatus && member.wellhubStatus !== 'active' && (
+        <div
+          className="animate-slide-up-stagger"
+          style={{ '--stagger-index': 0.6 } as React.CSSProperties}
+        >
+          <div className={`p-3 rounded-xl border ${
+            member.wellhubStatus === 'cancelled'
+              ? (isDark ? 'bg-red-900/20 border-red-700/40' : 'bg-red-50 border-red-200')
+              : (isDark ? 'bg-amber-900/20 border-amber-700/40' : 'bg-amber-50 border-amber-200')
+          }`}>
+            <div className="flex items-center gap-2">
+              <Icon name="fitness_center" className={`text-lg ${
+                member.wellhubStatus === 'cancelled'
+                  ? (isDark ? 'text-red-400' : 'text-red-600')
+                  : (isDark ? 'text-amber-400' : 'text-amber-600')
+              }`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${
+                    member.wellhubStatus === 'cancelled'
+                      ? (isDark ? 'text-red-300' : 'text-red-700')
+                      : (isDark ? 'text-amber-300' : 'text-amber-700')
+                  }`}>
+                    Wellhub {member.wellhubStatus}
+                  </span>
+                </div>
+                <p className={`text-[10px] mt-0.5 ${
+                  member.wellhubStatus === 'cancelled'
+                    ? (isDark ? 'text-red-400/60' : 'text-red-600/60')
+                    : (isDark ? 'text-amber-400/60' : 'text-amber-600/60')
+                }`}>
+                  {member.wellhubStatus === 'cancelled' ? 'This visitor\'s Wellhub membership has been cancelled' : 'This visitor\'s Wellhub membership is paused'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {member.visitorType === 'wellhub' && (!member.wellhubStatus || member.wellhubStatus === 'active') && (
+        <div
+          className="animate-slide-up-stagger"
+          style={{ '--stagger-index': 0.6 } as React.CSSProperties}
+        >
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-900/20 border-emerald-700/40' : 'bg-emerald-50 border-emerald-200'}`}>
+            <div className="flex items-center gap-2">
+              <Icon name="fitness_center" className={`text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-emerald-300' : 'text-emerald-700'}`}>
+                Wellhub Active
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAdmin && !visitorMode && member.pendingTierChange && (
         <div
           className="animate-slide-up-stagger"

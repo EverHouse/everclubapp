@@ -114,6 +114,7 @@ export const users = pgTable("users", {
   lastManualFixBy: varchar("last_manual_fix_by"),
   pendingTierChange: jsonb("pending_tier_change"),
   wellhubId: varchar("wellhub_id"),
+  wellhubStatus: varchar("wellhub_status", { length: 50 }),
 }, (table) => [
   index("users_stripe_customer_id_idx").on(table.stripeCustomerId),
   index("users_wellhub_id_idx").on(table.wellhubId),

@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.3",
+    date: "2026-03-31",
+    title: "Wellhub Member Status Tracking",
+    changes: [
+      "New: Wellhub member status is now tracked automatically. If Wellhub cancels or pauses a membership, staff will see a real-time notification and a color-coded status badge (cancelled/paused) throughout the admin interface.",
+      "New: Check-in is automatically blocked for Wellhub members whose membership has been cancelled or paused, with a clear message explaining the reason.",
+      "New: Full audit trail of all Wellhub status changes for compliance and troubleshooting.",
+    ]
+  },
+  {
     version: "8.98.2",
     date: "2026-03-31",
     title: "Application Pipeline Invite Fix",

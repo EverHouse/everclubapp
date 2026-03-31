@@ -222,6 +222,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           u.hubspot_id,
           u.billing_provider,
           u.visitor_type,
+          u.wellhub_status,
           u.last_activity_at,
           u.last_activity_source,
           u.created_at,
@@ -301,6 +302,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       hubspot_id: string | null;
       billing_provider: string | null;
       visitor_type: string | null;
+      wellhub_status: string | null;
       last_activity_at: string | null;
       last_activity_source: string | null;
       created_at: string;
@@ -330,6 +332,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
       lastActivitySource: row.last_activity_source,
       createdAt: row.created_at,
       type: getType(row),
+      wellhubStatus: row.wellhub_status || null,
       archivedAt: row.archived_at || null,
       archivedBy: row.archived_by || null,
     }));

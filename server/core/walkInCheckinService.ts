@@ -16,6 +16,7 @@ interface MemberRow {
   tier: string | null;
   hubspot_id: string | null;
   lifetime_visits: number | null;
+  wellhub_status: string | null;
 }
 
 interface RecentCheckinRow {
@@ -55,7 +56,7 @@ export interface WalkInCheckinResult {
 export async function processWalkInCheckin(params: WalkInCheckinParams): Promise<WalkInCheckinResult> {
   try {
     const memberResult = await db.execute(sql`
-      SELECT u.id, u.email, u.first_name, u.last_name, u.membership_status, u.tier, u.hubspot_id, u.lifetime_visits
+      SELECT u.id, u.email, u.first_name, u.last_name, u.membership_status, u.tier, u.hubspot_id, u.lifetime_visits, u.wellhub_status
       FROM users u
       WHERE u.id = ${params.memberId}
       LIMIT 1
@@ -127,7 +128,8 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
         pinnedNotes,
         membershipStatus: member.membership_status,
         source: params.source,
-        isWellhub: params.isWellhub || false
+        isWellhub: params.isWellhub || false,
+        wellhubStatus: member.wellhub_status || null
       }
     });
 

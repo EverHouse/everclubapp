@@ -25,6 +25,7 @@ interface CheckInConfirmationModalProps {
   membershipStatus?: string | null;
   bookingDetails?: BookingDetails | null;
   isWellhub?: boolean;
+  wellhubStatus?: string | null;
 }
 
 function formatTime(time: string): string {
@@ -52,7 +53,8 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
   tier,
   membershipStatus,
   bookingDetails,
-  isWellhub
+  isWellhub,
+  wellhubStatus
 }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const soundPlayedRef = useRef(false);
@@ -148,9 +150,13 @@ const CheckInConfirmationModal: React.FC<CheckInConfirmationModalProps> = ({
           <p className="text-white/80 text-sm font-medium">Checked In</p>
 
           {isWellhub && (
-            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/25 border border-orange-400/40 text-orange-200 text-xs font-semibold uppercase tracking-wider">
+            <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
+              wellhubStatus === 'cancelled' || wellhubStatus === 'paused'
+                ? 'bg-red-500/25 border border-red-400/40 text-red-200'
+                : 'bg-orange-500/25 border border-orange-400/40 text-orange-200'
+            }`}>
               <Icon name="fitness_center" className="text-sm" />
-              Wellhub
+              Wellhub{wellhubStatus && wellhubStatus !== 'active' ? ` (${wellhubStatus})` : ''}
             </div>
           )}
 

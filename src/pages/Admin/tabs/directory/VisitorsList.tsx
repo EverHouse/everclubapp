@@ -59,8 +59,14 @@ const MobileVisitorRow: React.FC<VisitorRowProps> = React.memo(({ v, index, open
                         {activity.label}
                     </span>
                     {v.type === 'wellhub' && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400">
-                            Wellhub
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            v.wellhubStatus === 'cancelled'
+                                ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                                : v.wellhubStatus === 'paused'
+                                ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                : 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400'
+                        }`}>
+                            Wellhub{v.wellhubStatus && v.wellhubStatus !== 'active' ? ` (${v.wellhubStatus})` : ''}
                         </span>
                     )}
                     {v.type === 'day_pass' && (
@@ -110,8 +116,14 @@ const DesktopVisitorRow: React.FC<VisitorRowProps> = React.memo(({ v, index, ope
                         {activity.label}
                     </span>
                     {v.type === 'wellhub' && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400">
-                            Wellhub
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            v.wellhubStatus === 'cancelled'
+                                ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400'
+                                : v.wellhubStatus === 'paused'
+                                ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                : 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400'
+                        }`}>
+                            Wellhub{v.wellhubStatus && v.wellhubStatus !== 'active' ? ` (${v.wellhubStatus})` : ''}
                         </span>
                     )}
                     {v.type === 'day_pass' && (

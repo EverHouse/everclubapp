@@ -28,6 +28,21 @@ interface WellhubWebhookPayload {
   };
 }
 
+interface WellhubStatusWebhookPayload {
+  event_type: string;
+  gym_id: string | number;
+  event_timestamp?: string;
+  event_data: {
+    user: WellhubEventData;
+    plan?: {
+      id?: string | number;
+      name?: string;
+      tier?: string;
+    };
+    reason?: string;
+  };
+}
+
 function verifyWellhubSignature(req: Request): boolean {
   const webhookSecret = process.env.WELLHUB_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -266,6 +281,46 @@ async function validateWithWellhub(uniqueToken: string): Promise<{ status: strin
   }
 }
 
+async function getUserWellhubStatus(userId: string): Promise<string | null> {
+  try {
+    const result = await db.execute(sql`
+      SELECT wellhub_status FROM users WHERE id = ${userId} LIMIT 1
+    `);
+    if (result.rows.length > 0) {
+      return (result.rows[0] as { wellhub_status: string | null }).wellhub_status;
+    }
+    return null;
+  } catch (err: unknown) {
+    logger.error('[Wellhub Webhook] Failed to get user wellhub_status', { extra: { error: getErrorMessage(err), userId } });
+    return null;
+  }
+}
+
+async function logStatusEvent(
+  wellhubUserId: string,
+  userId: string | null,
+  eventType: string,
+  previousStatus: string | null,
+  newStatus: string,
+  tierInfo: Record<string, unknown> | null,
+  rawPayload: Record<string, unknown> | null
+): Promise<void> {
+  try {
+    await db.execute(sql`
+      INSERT INTO wellhub_status_events (wellhub_user_id, user_id, event_type, previous_status, new_status, tier_info, raw_payload, created_at)
+      VALUES (${wellhubUserId}, ${userId}, ${eventType}, ${previousStatus}, ${newStatus}, ${tierInfo ? JSON.stringify(tierInfo) : null}::jsonb, ${rawPayload ? JSON.stringify(rawPayload) : null}::jsonb, NOW())
+    `);
+  } catch (err: unknown) {
+    logger.error('[Wellhub Webhook] Failed to log status event', { extra: { error: getErrorMessage(err) } });
+  }
+}
+
+async function updateUserWellhubStatus(userId: string, newStatus: string): Promise<void> {
+  await db.execute(sql`
+    UPDATE users SET wellhub_status = ${newStatus}, updated_at = NOW() WHERE id = ${userId}
+  `);
+}
+
 async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<void> {
   const userData = payload.event_data?.user;
   if (!userData?.unique_token) {
@@ -282,6 +337,21 @@ async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<vo
 
   try {
     const { userId, email, displayName } = await findOrCreateWellhubUser(userData);
+
+    const wellhubStatus = await getUserWellhubStatus(userId);
+    if (wellhubStatus === 'cancelled' || wellhubStatus === 'paused') {
+      await logCheckin(wellhubUserId, userId, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, 'blocked_status', `User wellhub_status is ${wellhubStatus}`);
+
+      broadcastToStaff({
+        type: 'wellhub_status_blocked',
+        title: 'Wellhub Check-in Blocked',
+        message: `${displayName} attempted check-in but their Wellhub status is ${wellhubStatus}`,
+        data: { memberName: displayName, memberEmail: email, wellhubStatus, wellhubUserId }
+      });
+
+      logger.warn('[Wellhub Webhook] Check-in blocked — user wellhub_status is inactive', { extra: { wellhubUserId, userId, wellhubStatus } });
+      return;
+    }
 
     if (expiresAt) {
       const expiryDate = new Date(expiresAt);
@@ -305,6 +375,11 @@ async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<vo
     await logCheckin(wellhubUserId, userId, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, validationResult.status, validationResult.errorDetail || null);
 
     if (validationResult.status === 'validated') {
+      if (!wellhubStatus || wellhubStatus !== 'active') {
+        await updateUserWellhubStatus(userId, 'active');
+        await logStatusEvent(wellhubUserId, userId, 'checkin_auto_activate', wellhubStatus, 'active', null, null);
+      }
+
       const checkinResult = await processWalkInCheckin({
         memberId: userId,
         checkedInBy: 'wellhub',
@@ -334,6 +409,80 @@ async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<vo
     logger.error('[Wellhub Webhook] Error processing check-in', { extra: { wellhubUserId, error: getErrorMessage(err) } });
 
     await logCheckin(wellhubUserId, null, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, 'error', getErrorMessage(err));
+  }
+}
+
+async function processWellhubCancel(payload: WellhubStatusWebhookPayload): Promise<void> {
+  const userData = payload.event_data?.user;
+  if (!userData?.unique_token) {
+    logger.warn('[Wellhub Cancel] Missing user data in payload');
+    return;
+  }
+
+  const wellhubUserId = userData.unique_token;
+  const eventType = payload.event_type.toLowerCase();
+  const reason = payload.event_data?.reason;
+
+  try {
+    const { userId, email, displayName } = await findOrCreateWellhubUser(userData);
+
+    const previousStatus = await getUserWellhubStatus(userId);
+    const newStatus = eventType === 'pause' ? 'paused' : 'cancelled';
+
+    await updateUserWellhubStatus(userId, newStatus);
+
+    await logStatusEvent(wellhubUserId, userId, eventType, previousStatus, newStatus, null, payload as unknown as Record<string, unknown>);
+
+    broadcastToStaff({
+      type: 'wellhub_status_change',
+      title: `Wellhub Member ${newStatus === 'paused' ? 'Paused' : 'Cancelled'}`,
+      message: `${displayName} (${email}) — Wellhub status changed to ${newStatus}${reason ? ` (${reason})` : ''}`,
+      data: { memberName: displayName, memberEmail: email, previousStatus, newStatus, reason: reason || null, wellhubUserId }
+    });
+
+    logger.info(`[Wellhub Cancel] User status updated to ${newStatus}`, { extra: { wellhubUserId, userId, previousStatus, newStatus, reason } });
+  } catch (err: unknown) {
+    logger.error('[Wellhub Cancel] Error processing cancel/pause', { extra: { wellhubUserId, error: getErrorMessage(err) } });
+  }
+}
+
+async function processWellhubChange(payload: WellhubStatusWebhookPayload): Promise<void> {
+  const userData = payload.event_data?.user;
+  if (!userData?.unique_token) {
+    logger.warn('[Wellhub Change] Missing user data in payload');
+    return;
+  }
+
+  const wellhubUserId = userData.unique_token;
+  const eventType = payload.event_type.toLowerCase();
+  const planInfo = payload.event_data?.plan || null;
+
+  try {
+    const { userId, email, displayName } = await findOrCreateWellhubUser(userData);
+
+    const previousStatus = await getUserWellhubStatus(userId);
+    const isReactivation = eventType === 'reactivation' || eventType === 'reactivate';
+    const newStatus = isReactivation ? 'active' : (previousStatus || 'active');
+
+    if (isReactivation || !previousStatus) {
+      await updateUserWellhubStatus(userId, 'active');
+    }
+
+    const tierInfo = planInfo ? { id: planInfo.id, name: planInfo.name, tier: planInfo.tier } : null;
+    await logStatusEvent(wellhubUserId, userId, eventType, previousStatus, isReactivation ? 'active' : (previousStatus || 'active'), tierInfo, payload as unknown as Record<string, unknown>);
+
+    const action = isReactivation ? 'Reactivated' : (eventType === 'upgrade' ? 'Upgraded' : eventType === 'downgrade' ? 'Downgraded' : 'Changed');
+
+    broadcastToStaff({
+      type: 'wellhub_status_change',
+      title: `Wellhub Member ${action}`,
+      message: `${displayName} (${email}) — Wellhub plan ${action.toLowerCase()}${planInfo?.name ? ` to ${planInfo.name}` : ''}`,
+      data: { memberName: displayName, memberEmail: email, previousStatus, newStatus: isReactivation ? 'active' : newStatus, action, planInfo: tierInfo, wellhubUserId }
+    });
+
+    logger.info(`[Wellhub Change] User plan ${action.toLowerCase()}`, { extra: { wellhubUserId, userId, previousStatus, eventType, planInfo: tierInfo } });
+  } catch (err: unknown) {
+    logger.error('[Wellhub Change] Error processing change', { extra: { wellhubUserId, error: getErrorMessage(err) } });
   }
 }
 
@@ -380,6 +529,98 @@ router.post('/api/webhooks/wellhub', async (req: Request, res: Response) => {
   setImmediate(() => {
     processWellhubCheckin(payload).catch(err => {
       logger.error('[Wellhub Webhook] Async processing error', { extra: { error: getErrorMessage(err) } });
+    });
+  });
+});
+
+router.post('/api/webhooks/wellhub/cancel', async (req: Request, res: Response) => {
+  if (!verifyWellhubSignature(req)) {
+    logger.warn('[Wellhub Cancel] Signature verification failed');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  const payload = req.body as WellhubStatusWebhookPayload;
+
+  if (!payload?.event_type || !payload?.event_data?.user?.unique_token) {
+    logger.warn('[Wellhub Cancel] Invalid payload structure');
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
+  const configuredGymId = process.env.WELLHUB_GYM_ID;
+  if (configuredGymId && String(payload.gym_id) !== String(configuredGymId)) {
+    logger.warn('[Wellhub Cancel] Gym ID mismatch', { extra: { received: payload.gym_id, expected: configuredGymId } });
+    return res.status(403).json({ error: 'Gym ID mismatch' });
+  }
+
+  const allowedCancelEvents = ['cancel', 'cancellation', 'pause'];
+  if (!allowedCancelEvents.includes(payload.event_type.toLowerCase())) {
+    logger.warn('[Wellhub Cancel] Unexpected event_type on cancel endpoint', { extra: { eventType: payload.event_type } });
+    return res.status(400).json({ error: `Unsupported event_type for cancel endpoint: ${payload.event_type}` });
+  }
+
+  const eventTimestampKey = payload.event_timestamp || crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 16);
+  const eventId = `wellhub_cancel_${payload.event_type}_${payload.event_data.user.unique_token}_${eventTimestampKey}`;
+
+  const claimResult = await tryClaimEvent(eventId, `cancel_${payload.event_type}`);
+  if (claimResult === 'duplicate') {
+    logger.info('[Wellhub Cancel] Duplicate event, skipping', { extra: { eventId } });
+    return res.status(200).json({ status: 'duplicate' });
+  }
+  if (claimResult === 'error') {
+    return res.status(500).json({ error: 'Internal error, please retry' });
+  }
+
+  res.status(200).json({ status: 'received' });
+
+  setImmediate(() => {
+    processWellhubCancel(payload).catch(err => {
+      logger.error('[Wellhub Cancel] Async processing error', { extra: { error: getErrorMessage(err) } });
+    });
+  });
+});
+
+router.post('/api/webhooks/wellhub/change', async (req: Request, res: Response) => {
+  if (!verifyWellhubSignature(req)) {
+    logger.warn('[Wellhub Change] Signature verification failed');
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+
+  const payload = req.body as WellhubStatusWebhookPayload;
+
+  if (!payload?.event_type || !payload?.event_data?.user?.unique_token) {
+    logger.warn('[Wellhub Change] Invalid payload structure');
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+
+  const configuredGymId = process.env.WELLHUB_GYM_ID;
+  if (configuredGymId && String(payload.gym_id) !== String(configuredGymId)) {
+    logger.warn('[Wellhub Change] Gym ID mismatch', { extra: { received: payload.gym_id, expected: configuredGymId } });
+    return res.status(403).json({ error: 'Gym ID mismatch' });
+  }
+
+  const allowedChangeEvents = ['reactivation', 'reactivate', 'upgrade', 'downgrade', 'change', 'plan_change'];
+  if (!allowedChangeEvents.includes(payload.event_type.toLowerCase())) {
+    logger.warn('[Wellhub Change] Unexpected event_type on change endpoint', { extra: { eventType: payload.event_type } });
+    return res.status(400).json({ error: `Unsupported event_type for change endpoint: ${payload.event_type}` });
+  }
+
+  const eventTimestampKey = payload.event_timestamp || crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 16);
+  const eventId = `wellhub_change_${payload.event_type}_${payload.event_data.user.unique_token}_${eventTimestampKey}`;
+
+  const claimResult = await tryClaimEvent(eventId, `change_${payload.event_type}`);
+  if (claimResult === 'duplicate') {
+    logger.info('[Wellhub Change] Duplicate event, skipping', { extra: { eventId } });
+    return res.status(200).json({ status: 'duplicate' });
+  }
+  if (claimResult === 'error') {
+    return res.status(500).json({ error: 'Internal error, please retry' });
+  }
+
+  res.status(200).json({ status: 'received' });
+
+  setImmediate(() => {
+    processWellhubChange(payload).catch(err => {
+      logger.error('[Wellhub Change] Async processing error', { extra: { error: getErrorMessage(err) } });
     });
   });
 });

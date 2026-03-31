@@ -239,3 +239,22 @@ export const wellhubCheckins = pgTable("wellhub_checkins", {
 
 export type WellhubCheckin = typeof wellhubCheckins.$inferSelect;
 export type InsertWellhubCheckin = typeof wellhubCheckins.$inferInsert;
+
+export const wellhubStatusEvents = pgTable("wellhub_status_events", {
+  id: serial("id").primaryKey(),
+  wellhubUserId: varchar("wellhub_user_id", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  previousStatus: varchar("previous_status", { length: 50 }),
+  newStatus: varchar("new_status", { length: 50 }).notNull(),
+  tierInfo: jsonb("tier_info"),
+  rawPayload: jsonb("raw_payload"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  wellhubUserIdIdx: index("wellhub_status_events_wellhub_user_id_idx").on(table.wellhubUserId),
+  userIdIdx: index("wellhub_status_events_user_id_idx").on(table.userId),
+  createdAtIdx: index("wellhub_status_events_created_at_idx").on(table.createdAt),
+}));
+
+export type WellhubStatusEvent = typeof wellhubStatusEvents.$inferSelect;
+export type InsertWellhubStatusEvent = typeof wellhubStatusEvents.$inferInsert;

@@ -695,8 +695,14 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                   </span>
                 )}
                 {enrichedMember.visitorType === 'wellhub' && (
-                  <span className="w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
-                    Wellhub
+                  <span className={`w-fit px-2 py-0.5 rounded-[4px] text-[10px] font-bold uppercase tracking-widest ${
+                    enrichedMember.wellhubStatus === 'cancelled'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                      : enrichedMember.wellhubStatus === 'paused'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                      : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
+                  }`}>
+                    Wellhub{enrichedMember.wellhubStatus && enrichedMember.wellhubStatus !== 'active' ? ` (${enrichedMember.wellhubStatus})` : ''}
                   </span>
                 )}
               </div>

@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.3] - 2026-03-31
+
+### Feature: Wellhub User Status Webhooks (Task #332)
+- **New webhook endpoints**: `POST /api/webhooks/wellhub/cancel` and `POST /api/webhooks/wellhub/change` handle Wellhub member cancellations, pauses, and reactivations with HMAC-SHA1 signature verification and duplicate event protection.
+- **DB changes**: Added `wellhub_status` varchar column to `users` table (migration `0071`). Added `wellhub_status_events` audit table for full event logging.
+- **Check-in gating**: `processWellhubCheckin` now blocks check-in for cancelled/paused Wellhub members with descriptive error messages.
+- **Admin UI**: Color-coded Wellhub status badges in OverviewTab, VisitorsList, MemberProfileDrawer header, and CheckInConfirmationModal. Real-time WebSocket toasts for `wellhub_status_change` and `wellhub_status_blocked` events.
+- **Files changed**: `server/routes/wellhub/webhook.ts`, `drizzle/0071_add_wellhub_status.sql`, `shared/models/auth-session.ts`, `shared/models/system.ts`, `server/routes/members/profile.ts`, `server/routes/members/visitors.ts`, `src/types/data.ts`, `src/types/directoryTypes.ts`, `src/pages/Admin/AdminDashboard.tsx`, `src/components/memberProfile/OverviewTab.tsx`, `src/components/directory/VisitorsList.tsx`, `src/components/memberProfile/CheckInConfirmationModal.tsx`, `src/components/MemberProfileDrawer.tsx`, `src/hooks/useStaffWebSocket.ts`
+
 ## [8.98.2] - 2026-03-31
 
 ### Fix: Application Pipeline "Send Activation Link" blocked by CSRF

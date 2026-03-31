@@ -117,6 +117,7 @@ export interface MemberProfile {
     source: string;
   } | null;
   visitorType?: string | null;
+  wellhubStatus?: string | null;
 }
 
 export interface Booking {

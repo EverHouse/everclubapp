@@ -58,6 +58,7 @@ export interface Visitor {
     lastActivitySource: string | null;
     createdAt: string | null;
     type: 'day_pass' | 'guest' | 'NEW' | 'wellhub';
+    wellhubStatus?: string | null;
 }
 
 export interface VisitorPurchase {

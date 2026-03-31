@@ -65,6 +65,7 @@ const AdminDashboard: React.FC = () => {
     membershipStatus?: string | null;
     bookingDetails?: { bayName: string; startTime: string; endTime: string; resourceType: string } | null;
     isWellhub?: boolean;
+    wellhubStatus?: string | null;
   }>({ isOpen: false, memberName: '', pinnedNotes: [] });
 
   const handleCheckinClose = useCallback(() => {
@@ -106,6 +107,7 @@ const AdminDashboard: React.FC = () => {
           membershipStatus: detail.membershipStatus,
           bookingDetails: detail.bookingDetails || null,
           isWellhub: detail.isWellhub || false,
+          wellhubStatus: detail.wellhubStatus || null,
         });
         adminQueryClient.invalidateQueries();
       }
@@ -126,6 +128,27 @@ const AdminDashboard: React.FC = () => {
     };
     window.addEventListener('wellhub-validation-failed', handleWellhubFailed as EventListener);
     return () => window.removeEventListener('wellhub-validation-failed', handleWellhubFailed as EventListener);
+  }, [dashboardShowToast]);
+
+  useEffect(() => {
+    const handleWellhubStatusChange = (event: CustomEvent) => {
+      const detail = event.detail;
+      if (detail?.message) {
+        dashboardShowToast(detail.message, 'warning');
+      }
+    };
+    const handleWellhubStatusBlocked = (event: CustomEvent) => {
+      const detail = event.detail;
+      if (detail?.message) {
+        dashboardShowToast(detail.message, 'error');
+      }
+    };
+    window.addEventListener('wellhub-status-change', handleWellhubStatusChange as EventListener);
+    window.addEventListener('wellhub-status-blocked', handleWellhubStatusBlocked as EventListener);
+    return () => {
+      window.removeEventListener('wellhub-status-change', handleWellhubStatusChange as EventListener);
+      window.removeEventListener('wellhub-status-blocked', handleWellhubStatusBlocked as EventListener);
+    };
   }, [dashboardShowToast]);
 
   const handleGlobalBookingEvent = useCallback(() => {
@@ -323,6 +346,7 @@ const AdminDashboard: React.FC = () => {
         membershipStatus={checkinConfirmation.membershipStatus}
         bookingDetails={checkinConfirmation.bookingDetails}
         isWellhub={checkinConfirmation.isWellhub}
+        wellhubStatus={checkinConfirmation.wellhubStatus}
       />
     </div>
   );

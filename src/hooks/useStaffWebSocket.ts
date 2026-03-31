@@ -289,6 +289,18 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
             window.dispatchEvent(new CustomEvent('wellhub-validation-failed', { detail: message }));
           }
 
+          if (message.type === 'wellhub_status_change') {
+            // eslint-disable-next-line no-console
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received wellhub_status_change:', message.data?.memberName, message.data?.newStatus);
+            window.dispatchEvent(new CustomEvent('wellhub-status-change', { detail: message }));
+          }
+
+          if (message.type === 'wellhub_status_blocked') {
+            // eslint-disable-next-line no-console
+            if (import.meta.env.DEV) console.log('[StaffWebSocket] Received wellhub_status_blocked:', message.data?.memberName);
+            window.dispatchEvent(new CustomEvent('wellhub-status-blocked', { detail: message }));
+          }
+
           if (message.type === 'directory_update') {
             // eslint-disable-next-line no-console
             if (import.meta.env.DEV) console.log('[StaffWebSocket] Received directory_update:', message.action);
