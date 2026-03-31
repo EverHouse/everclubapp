@@ -92,6 +92,69 @@ async function waitForDatabaseReady(maxAttempts = 20): Promise<void> {
   }
 }
 
+export function validateEnvironment(): void {
+  const FATAL_VARS = [
+    'DATABASE_URL',
+  ];
+
+  const DEGRADED_VARS: Array<{ name: string; feature: string }> = [
+    { name: 'GOOGLE_CLIENT_ID', feature: 'Google sign-in' },
+    { name: 'SUPABASE_URL', feature: 'Supabase realtime' },
+    { name: 'SUPABASE_ANON_KEY', feature: 'Supabase client' },
+    { name: 'STRIPE_SECRET_KEY', feature: 'Stripe payments' },
+    { name: 'RESEND_API_KEY', feature: 'Email delivery' },
+    { name: 'SESSION_SECRET', feature: 'Session security' },
+  ];
+
+  const OPTIONAL_VARS = [
+    'HUBSPOT_ACCESS_TOKEN',
+    'APPLE_CLIENT_ID',
+    'APPLE_TEAM_ID',
+    'MAPKIT_PRIVATE_KEY',
+    'VAPID_PUBLIC_KEY',
+    'VAPID_PRIVATE_KEY',
+  ];
+
+  const fatalMissing: string[] = [];
+  for (const varName of FATAL_VARS) {
+    if (!process.env[varName]?.trim()) {
+      fatalMissing.push(varName);
+    }
+  }
+
+  if (fatalMissing.length > 0) {
+    logger.error(`[Startup] FATAL: Missing required environment variables: ${fatalMissing.join(', ')}`);
+    logger.error('[Startup] The server cannot start without these variables. Please set them and restart.');
+    process.exit(1);
+  }
+
+  const degradedMissing: string[] = [];
+  for (const { name, feature } of DEGRADED_VARS) {
+    if (!process.env[name]?.trim()) {
+      degradedMissing.push(name);
+      logger.warn(`[Startup] Missing ${name} — ${feature} will be unavailable`);
+    }
+  }
+
+  const optionalMissing: string[] = [];
+  for (const varName of OPTIONAL_VARS) {
+    if (!process.env[varName]?.trim()) {
+      optionalMissing.push(varName);
+    }
+  }
+
+  if (degradedMissing.length > 0) {
+    logger.warn(`[Startup] Running in degraded mode — missing: ${degradedMissing.join(', ')}`);
+    startupHealth.warnings.push(`Degraded env vars: ${degradedMissing.join(', ')}`);
+  }
+
+  if (optionalMissing.length > 0) {
+    logger.info(`[Startup] Optional env vars not set: ${optionalMissing.join(', ')}`);
+  }
+
+  logger.info('[Startup] Environment validation complete');
+}
+
 export async function runStartupTasks(): Promise<void> {
   logger.info('[Startup] Running deferred database initialization...');
 
@@ -102,6 +165,8 @@ export async function runStartupTasks(): Promise<void> {
   startupHealth.warnings = [];
   startupHealth.startedAt = new Date().toISOString();
   delete startupHealth.completedAt;
+
+  validateEnvironment();
 
   try {
     await waitForDatabaseReady();
@@ -120,13 +185,6 @@ export async function runStartupTasks(): Promise<void> {
     logger.error('[Startup] Database constraints failed', { extra: { error: getErrorMessage(err) } });
     startupHealth.database = 'failed';
     startupHealth.criticalFailures.push(`Database constraints: ${getErrorMessage(err)}`);
-  }
-
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    logger.error('[Startup] GOOGLE_CLIENT_ID is not set — Google sign-in and account linking will be unavailable');
-    startupHealth.warnings.push('GOOGLE_CLIENT_ID is not configured — Google auth disabled');
-  } else {
-    logger.info('[Startup] Google auth configured (GOOGLE_CLIENT_ID present)');
   }
 
   const parallelDbTasks: Array<() => Promise<void>> = [
