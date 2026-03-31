@@ -124,7 +124,18 @@ The following large files have been split into sub-modules with barrel re-export
 - **Linting**: ESLint v9 flat config with `typescript-eslint`, `react-hooks`, and `react-refresh`. Zero errors/warnings enforced (v8.86.0).
 - **Formatting**: Prettier with `eslint-config-prettier`.
 - **Type Checking**: `tsc --noEmit` with `strict: true` in both `tsconfig.json` (frontend/shared) and `server/tsconfig.json`. Zero TS errors enforced (v8.86.0).
-- **Unit Testing**: Vitest with `@vitest-environment node` for server tests (307 tests). Includes concurrency tests for booking advisory locks, roster optimistic locking, and guest pass race conditions (v8.86.0).
+- **Unit Testing**: Vitest with `@vitest-environment node` for server tests (436 tests across 21 test files). Includes concurrency tests for booking advisory locks, roster optimistic locking, and guest pass race conditions. Tests run automatically as the first step of `npm run build` — if any test fails, the build (and deployment) is blocked.
+- **Build Pipeline (Pre-deploy Checks)**: `npm run build` runs these steps in order, failing fast if any step fails:
+  1. `vitest run` — all unit/integration tests (436 tests)
+  2. `sync-migration-tracking.ts` — bootstrap migration tracking table
+  3. `check-ghost-columns.sh` — legacy ghost column check
+  4. `validate-raw-sql.ts` — comprehensive raw SQL validation
+  5. `check-stripe-webhook-coverage.ts` — Stripe webhook handler coverage
+  6. `check-typescript.ts` — TypeScript error ratchet (server baseline: 223 errors)
+  7. `audit-endpoints.ts` — endpoint security audit
+  8. `check-cache-headers.ts` — cache header validation
+  9. `vite build` — frontend production build
+  10. `check-bundle-size.ts` — bundle size guard
 - **Route Index**: Auto-generated route-to-file lookup at `docs/ROUTE_INDEX.md`.
 - **Editor Config**: `.editorconfig` for consistent indentation.
 - **Env Template**: `.env.example` documents environment variables.
