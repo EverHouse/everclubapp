@@ -121,4 +121,4 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
   );
 };
 
-export default ScheduleCard;
+export default React.memo(ScheduleCard);

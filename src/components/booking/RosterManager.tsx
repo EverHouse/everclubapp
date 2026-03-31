@@ -281,7 +281,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     }
   };
 
-  const handleRemoveParticipant = async (participantId: number, displayName: string) => {
+  const handleRemoveParticipant = useCallback(async (participantId: number, displayName: string) => {
     if (removingId !== null) return;
     setRemovingId(participantId);
     haptic.light();
@@ -328,9 +328,9 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     } finally {
       setRemovingId(null);
     }
-  };
+  }, [removingId, participants, apiRemainingSlots, apiCurrentParticipantCount, bookingId, showToast, fetchAllBookingData, onUpdate]);
 
-  const getTypeBadge = (type: 'owner' | 'member' | 'guest') => {
+  const getTypeBadge = useCallback((type: 'owner' | 'member' | 'guest') => {
     const styles = {
       owner: isDark 
         ? 'bg-[#CCB8E4]/20 text-[#CCB8E4] border-[#CCB8E4]/30' 
@@ -350,7 +350,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         {labels[type]}
       </span>
     );
-  };
+  }, [isDark]);
 
   const ownerParticipant = useMemo(() => 
     participants.find(p => p.participantType === 'owner'),
@@ -375,9 +375,12 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
   const rosterLocked = !!(feePreview?.allPaid);
 
-  const totalEstimatedFees = feePreview?.ownerFees?.estimatedTotalFees ?? ((feePreview?.ownerFees?.estimatedOverageFee ?? 0) + (feePreview?.ownerFees?.estimatedGuestFees ?? 0));
-  const hasEstimatedFees = totalEstimatedFees > 0;
-  const isPaid = !!(feePreview?.allPaid);
+  const totalEstimatedFees = useMemo(() =>
+    feePreview?.ownerFees?.estimatedTotalFees ?? ((feePreview?.ownerFees?.estimatedOverageFee ?? 0) + (feePreview?.ownerFees?.estimatedGuestFees ?? 0)),
+    [feePreview?.ownerFees?.estimatedTotalFees, feePreview?.ownerFees?.estimatedOverageFee, feePreview?.ownerFees?.estimatedGuestFees]
+  );
+  const hasEstimatedFees = useMemo(() => totalEstimatedFees > 0, [totalEstimatedFees]);
+  const isPaid = useMemo(() => !!(feePreview?.allPaid), [feePreview?.allPaid]);
 
   const hasPayableParticipantFees = useMemo(() => {
     if (!feePreview || isPaid) return false;

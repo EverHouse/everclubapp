@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { DirectoryTabSkeleton } from '../../../../components/skeletons';
 import EmptyState from '../../../../components/EmptyState';
 import { formatPhoneNumber } from '../../../../utils/formatting';
@@ -10,6 +10,95 @@ import type {
     VisitorSortField,
     SortDirection,
 } from './directoryTypes';
+
+function getActivityLabel(v: Visitor): { label: string; className: string } {
+    const lastDate = v.lastActivityAt || v.lastPurchaseDate || v.lastGuestDate;
+    if (!lastDate) return { label: 'Never Visited', className: 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400' };
+    const daysSince = (Date.now() - Date.parse(lastDate)) / (1000 * 60 * 60 * 24);
+    if (daysSince <= 90) return { label: 'Recent', className: 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' };
+    return { label: 'Lapsed', className: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' };
+}
+
+interface VisitorRowProps {
+    v: Visitor;
+    index: number;
+    openVisitorDetails: (v: Visitor) => void;
+}
+
+const MobileVisitorRow: React.FC<VisitorRowProps> = React.memo(({ v, index, openVisitorDetails }) => {
+    const handleClick = useCallback(() => openVisitorDetails(v), [openVisitorDetails, v]);
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); }
+    }, [openVisitorDetails, v]);
+    const activity = getActivityLabel(v);
+
+    return (
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            className={`tactile-row bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+        >
+            <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                    <h4 className="font-bold text-lg text-primary dark:text-white">
+                        {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
+                    </h4>
+                    {v.email && <p className="text-xs text-gray-500 dark:text-gray-400">{v.email}</p>}
+                    {v.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(v.phone)}</p>}
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{v.purchaseCount || 0} purchase{v.purchaseCount !== 1 ? 's' : ''}</p>
+                    {(v.lastActivityAt || v.lastPurchaseDate) && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</p>}
+                </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
+                        {activity.label}
+                    </span>
+                    {v.totalSpentCents > 0 && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                            ${(v.totalSpentCents / 100).toFixed(2)} spent
+                        </span>
+                    )}
+                </div>
+                <Icon name="chevron_right" className="text-gray-400 text-[16px]" />
+            </div>
+        </div>
+    );
+});
+
+const DesktopVisitorRow: React.FC<VisitorRowProps> = React.memo(({ v, index, openVisitorDetails }) => {
+    const handleClick = useCallback(() => openVisitorDetails(v), [openVisitorDetails, v]);
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); }
+    }, [openVisitorDetails, v]);
+    const activity = getActivityLabel(v);
+
+    return (
+        <tr
+            tabIndex={0}
+            role="button"
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+        >
+            <td style={{ width: '22%' }} className="p-3 font-medium text-primary dark:text-white">
+                {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
+            </td>
+            <td style={{ width: '30%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate max-w-0">{v.email || '-'}</td>
+            <td style={{ width: '14%' }} className="p-3">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
+                    {activity.label}
+                </span>
+            </td>
+            <td style={{ width: '16%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400">{v.purchaseCount || 0}</td>
+            <td style={{ width: '18%' }} className="p-3 text-sm text-gray-500 dark:text-gray-400">{formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</td>
+        </tr>
+    );
+});
 
 interface VisitorsListProps {
     visitors: Visitor[];
@@ -70,14 +159,6 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
     clearAllFilters,
     openVisitorDetails,
 }) => {
-    const getActivityLabel = (v: Visitor): { label: string; className: string } => {
-        const lastDate = v.lastActivityAt || v.lastPurchaseDate || v.lastGuestDate;
-        if (!lastDate) return { label: 'Never Visited', className: 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400' };
-        const daysSince = (Date.now() - Date.parse(lastDate)) / (1000 * 60 * 60 * 24);
-        if (daysSince <= 90) return { label: 'Recent', className: 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' };
-        return { label: 'Lapsed', className: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' };
-    };
-
     const sortedVisitors = useMemo(() => {
         const sorted = [...visitors];
         sorted.sort((a, b) => {
@@ -317,46 +398,12 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                     <div className="h-full overflow-y-auto pt-2 pb-24">
                         <div className="space-y-3 px-1">
                             {sortedVisitors.map((v, index) => (
-                                <div
+                                <MobileVisitorRow
                                     key={v.id ?? `visitor-${index}`}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => openVisitorDetails(v)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); } }}
-                                    className={`tactile-row bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex-1">
-                                            <h4 className="font-bold text-lg text-primary dark:text-white">
-                                                {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
-                                            </h4>
-                                            {v.email && <p className="text-xs text-gray-500 dark:text-gray-400">{v.email}</p>}
-                                            {v.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(v.phone)}</p>}
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{v.purchaseCount || 0} purchase{v.purchaseCount !== 1 ? 's' : ''}</p>
-                                            {(v.lastActivityAt || v.lastPurchaseDate) && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</p>}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50 dark:border-white/20">
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                            {(() => {
-                                                const activity = getActivityLabel(v);
-                                                return (
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
-                                                        {activity.label}
-                                                    </span>
-                                                );
-                                            })()}
-                                            {v.totalSpentCents > 0 && (
-                                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                    ${(v.totalSpentCents / 100).toFixed(2)} spent
-                                                </span>
-                                            )}
-                                        </div>
-                                        <Icon name="chevron_right" className="text-gray-400 text-[16px]" />
-                                    </div>
-                                </div>
+                                    v={v}
+                                    index={index}
+                                    openVisitorDetails={openVisitorDetails}
+                                />
                             ))}
                             {visitorsTotalPages > 1 && (
                                 <div className="py-4 flex items-center justify-center gap-4">
@@ -436,31 +483,12 @@ const VisitorsList: React.FC<VisitorsListProps> = ({
                             </thead>
                             <tbody >
                                 {sortedVisitors.map((v, index) => (
-                                    <tr
+                                    <DesktopVisitorRow
                                         key={v.id ?? `visitor-${index}`}
-                                        tabIndex={0}
-                                        role="button"
-                                        onClick={() => openVisitorDetails(v)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openVisitorDetails(v); } }}
-                                        className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-                                    >
-                                        <td style={{ width: '22%' }} className="p-3 font-medium text-primary dark:text-white">
-                                            {[v.firstName, v.lastName].filter(Boolean).join(' ') || 'Unknown'}
-                                        </td>
-                                        <td style={{ width: '30%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400 truncate max-w-0">{v.email || '-'}</td>
-                                        <td style={{ width: '14%' }} className="p-3">
-                                            {(() => {
-                                                const activity = getActivityLabel(v);
-                                                return (
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${activity.className}`}>
-                                                        {activity.label}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td style={{ width: '16%' }} className="p-3 text-sm text-gray-600 dark:text-gray-400">{v.purchaseCount || 0}</td>
-                                        <td style={{ width: '18%' }} className="p-3 text-sm text-gray-500 dark:text-gray-400">{formatJoinDate(v.lastActivityAt || v.lastPurchaseDate)}</td>
-                                    </tr>
+                                        v={v}
+                                        index={index}
+                                        openVisitorDetails={openVisitorDetails}
+                                    />
                                 ))}
                             </tbody>
                         </table>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import type { MemberProfile } from '../../../../contexts/DataContext';
 import TierBadge from '../../../../components/TierBadge';
 import { DirectoryTabSkeleton } from '../../../../components/skeletons';
@@ -10,6 +10,178 @@ import { formatJoinDate } from './directoryTypes';
 import SortableHeader from './DirectoryListHeader';
 import type { SortField } from './directoryTypes';
 import Icon from '../../../../components/icons/Icon';
+
+interface MemberRowProps {
+    m: MemberProfile;
+    index: number;
+    isAdmin: boolean;
+    getDisplayTier: (m: MemberProfile) => string | null;
+    isMemberPendingUpdate: (email: string) => boolean;
+    openDetailsModal: (m: MemberProfile) => void;
+    openAssignTierModal: (m: MemberProfile) => void;
+    handleViewAs: (m: MemberProfile) => void;
+}
+
+const MobileMemberRow: React.FC<MemberRowProps> = React.memo(({
+    m, index, isAdmin, getDisplayTier, isMemberPendingUpdate,
+    openDetailsModal, openAssignTierModal, handleViewAs,
+}) => {
+    const handleClick = useCallback(() => openDetailsModal(m), [openDetailsModal, m]);
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); }
+    }, [openDetailsModal, m]);
+    const handlePrefetch = useCallback(() => prefetchMemberProfile(m.email), [m.email]);
+
+    return (
+        <div 
+            key={m.email || `member-${index}`}
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            onMouseEnter={handlePrefetch}
+            onFocus={handlePrefetch}
+            className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+        >
+            <div className="flex justify-between items-start mb-2">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
+                    {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
+                </div>
+                <div className="text-right">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
+                    {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
+                </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1">
+                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
+                        {isMemberPendingUpdate(m.email) && (
+                            <Icon name="progress_activity" className="text-[14px] text-primary dark:!text-lavender animate-spin" />
+                        )}
+                    </div>
+                    {m.membershipStatus && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
+                            {getMemberStatusLabel(m.membershipStatus)}
+                        </span>
+                    )}
+                    {m.billingProvider && (
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                            m.billingProvider === 'stripe' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                            m.billingProvider === 'mindbody' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                            m.billingProvider === 'comped' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+                            m.billingProvider === 'family_addon' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' :
+                            m.billingProvider === 'manual' ? 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300' :
+                            'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300'
+                        }`}>
+                            {m.billingProvider === 'family_addon' ? 'Family' : m.billingProvider}
+                        </span>
+                    )}
+                    {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-interactive duration-fast active:scale-95"
+                        >
+                            <Icon name="add_circle" className="text-[14px]" />
+                            Assign Tier
+                        </button>
+                    )}
+                </div>
+                {isAdmin && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-interactive duration-fast active:scale-95"
+                    >
+                        <Icon name="visibility" className="text-[14px]" />
+                        View As
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+});
+
+const DesktopMemberRow: React.FC<MemberRowProps> = React.memo(({
+    m, index, isAdmin, getDisplayTier, isMemberPendingUpdate,
+    openDetailsModal, openAssignTierModal,
+}) => {
+    const handleClick = useCallback(() => openDetailsModal(m), [openDetailsModal, m]);
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); }
+    }, [openDetailsModal, m]);
+    const handlePrefetch = useCallback(() => prefetchMemberProfile(m.email), [m.email]);
+
+    return (
+        <div 
+            key={m.email || `member-${index}`}
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            onMouseEnter={handlePrefetch}
+            onFocus={handlePrefetch}
+            className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
+        >
+            <div style={{ width: '14%' }} className="p-3 font-medium text-primary dark:text-white truncate">{m.name}</div>
+            <div style={{ width: '11%' }} className="p-3">
+                <div className="flex items-center gap-1 flex-wrap">
+                    <div className="flex items-center gap-1">
+                        <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
+                        {isMemberPendingUpdate(m.email) && (
+                            <Icon name="progress_activity" className="text-[12px] text-primary dark:!text-lavender animate-spin" />
+                        )}
+                    </div>
+                    {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-interactive duration-fast active:scale-95"
+                        >
+                            <Icon name="add_circle" className="text-[12px]" />
+                            Assign
+                        </button>
+                    )}
+                </div>
+            </div>
+            <div style={{ width: '9%' }} className="p-3">
+                {m.membershipStatus ? (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
+                        {getMemberStatusLabel(m.membershipStatus)}
+                    </span>
+                ) : (
+                    <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
+                )}
+            </div>
+            <div style={{ width: '9%' }} className="p-3 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                {m.lifetimeVisits || 0}
+            </div>
+            <div style={{ width: '10%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                {formatJoinDate(m.joinDate)}
+            </div>
+            <div style={{ width: '11%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
+                {formatJoinDate(m.lastBookingDate)}
+            </div>
+            <div style={{ width: '36%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
+                {m.email}
+                {m.billingProvider && (
+                    <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                        m.billingProvider === 'stripe' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                        m.billingProvider === 'mindbody' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                        m.billingProvider === 'comped' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
+                        m.billingProvider === 'family_addon' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' :
+                        m.billingProvider === 'manual' ? 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300' :
+                        'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300'
+                    }`}>
+                        {m.billingProvider === 'family_addon' ? 'Family' : m.billingProvider}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+});
 
 interface ActiveMembersListProps {
     members: MemberProfile[];
@@ -126,75 +298,17 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                         <div className="pt-2 pb-24">
                             <div className="space-y-3 px-1">
                                 {visibleItems.map((m, index) => (
-                                    <div 
+                                    <MobileMemberRow
                                         key={m.email || `member-${index}`}
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => openDetailsModal(m)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
-                                        onMouseEnter={() => prefetchMemberProfile(m.email)}
-                                        onFocus={() => prefetchMemberProfile(m.email)}
-                                        className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-bold text-lg text-primary dark:text-white">{m.name}</h4>
-                                                </div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{m.email}</p>
-                                                {m.phone && <p className="text-xs text-gray-500 dark:text-gray-400">{formatPhoneNumber(m.phone)}</p>}
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">{m.lifetimeVisits || 0} visits</p>
-                                                {m.lastBookingDate && <p className="text-xs text-gray-500 dark:text-gray-400">Last: {formatJoinDate(m.lastBookingDate)}</p>}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between gap-3 mt-3 pt-3 pb-2 border-t border-gray-50 dark:border-white/20">
-                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                <div className="flex items-center gap-1">
-                                                    <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
-                                                    {isMemberPendingUpdate(m.email) && (
-                                                        <Icon name="progress_activity" className="text-[14px] text-primary dark:!text-lavender animate-spin" />
-                                                    )}
-                                                </div>
-                                                {m.membershipStatus && (
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
-                                                        {getMemberStatusLabel(m.membershipStatus)}
-                                                    </span>
-                                                )}
-                                                {m.billingProvider && (
-                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                                        m.billingProvider === 'stripe' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
-                                                        m.billingProvider === 'mindbody' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
-                                                        m.billingProvider === 'comped' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
-                                                        m.billingProvider === 'family_addon' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' :
-                                                        m.billingProvider === 'manual' ? 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300' :
-                                                        'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300'
-                                                    }`}>
-                                                        {m.billingProvider === 'family_addon' ? 'Family' : m.billingProvider}
-                                                    </span>
-                                                )}
-                                                {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-interactive duration-fast active:scale-95"
-                                                    >
-                                                        <Icon name="add_circle" className="text-[14px]" />
-                                                        Assign Tier
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {isAdmin && (
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); handleViewAs(m); }} 
-                                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-accent/20 text-brand-green dark:bg-accent/30 dark:text-accent text-xs font-bold hover:bg-accent/30 transition-interactive duration-fast active:scale-95"
-                                                >
-                                                    <Icon name="visibility" className="text-[14px]" />
-                                                    View As
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
+                                        m={m}
+                                        index={index}
+                                        isAdmin={isAdmin}
+                                        getDisplayTier={getDisplayTier}
+                                        isMemberPendingUpdate={isMemberPendingUpdate}
+                                        openDetailsModal={openDetailsModal}
+                                        openAssignTierModal={openAssignTierModal}
+                                        handleViewAs={handleViewAs}
+                                    />
                                 ))}
                             </div>
                         </div>
@@ -212,70 +326,17 @@ const ActiveMembersList: React.FC<ActiveMembersListProps> = ({
                         </div>
                         <div >
                             {visibleItems.map((m, index) => (
-                                <div 
+                                <DesktopMemberRow
                                     key={m.email || `member-${index}`}
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={() => openDetailsModal(m)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
-                                    onMouseEnter={() => prefetchMemberProfile(m.email)}
-                                    onFocus={() => prefetchMemberProfile(m.email)}
-                                    className="flex items-center border-b border-gray-200 dark:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer"
-                                >
-                                    <div style={{ width: '14%' }} className="p-3 font-medium text-primary dark:text-white truncate">{m.name}</div>
-                                    <div style={{ width: '11%' }} className="p-3">
-                                        <div className="flex items-center gap-1 flex-wrap">
-                                            <div className="flex items-center gap-1">
-                                                <TierBadge tier={getDisplayTier(m)} size="sm" showNoTier={true} membershipStatus={m.membershipStatus} role={m.role} />
-                                                {isMemberPendingUpdate(m.email) && (
-                                                    <Icon name="progress_activity" className="text-[12px] text-primary dark:!text-lavender animate-spin" />
-                                                )}
-                                            </div>
-                                            {isAdmin && !getDisplayTier(m) && !isMemberPendingUpdate(m.email) && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); openAssignTierModal(m); }}
-                                                    className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-200 dark:hover:bg-amber-500/30 transition-interactive duration-fast active:scale-95"
-                                                >
-                                                    <Icon name="add_circle" className="text-[12px]" />
-                                                    Assign
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div style={{ width: '9%' }} className="p-3">
-                                        {m.membershipStatus ? (
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getMemberStatusBadgeClass(m.membershipStatus)}`}>
-                                                {getMemberStatusLabel(m.membershipStatus)}
-                                            </span>
-                                        ) : (
-                                            <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                                        )}
-                                    </div>
-                                    <div style={{ width: '9%' }} className="p-3 text-center text-gray-600 dark:text-gray-400 text-sm font-medium">
-                                        {m.lifetimeVisits || 0}
-                                    </div>
-                                    <div style={{ width: '10%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                        {formatJoinDate(m.joinDate)}
-                                    </div>
-                                    <div style={{ width: '11%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm whitespace-nowrap">
-                                        {formatJoinDate(m.lastBookingDate)}
-                                    </div>
-                                    <div style={{ width: '36%' }} className="p-3 text-gray-500 dark:text-gray-400 text-sm truncate" title={m.email}>
-                                        {m.email}
-                                        {m.billingProvider && (
-                                            <span className={`ml-1.5 inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                                m.billingProvider === 'stripe' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
-                                                m.billingProvider === 'mindbody' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
-                                                m.billingProvider === 'comped' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' :
-                                                m.billingProvider === 'family_addon' ? 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300' :
-                                                m.billingProvider === 'manual' ? 'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300' :
-                                                'bg-gray-100 dark:bg-gray-700/30 text-gray-600 dark:text-gray-300'
-                                            }`}>
-                                                {m.billingProvider === 'family_addon' ? 'Family' : m.billingProvider}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
+                                    m={m}
+                                    index={index}
+                                    isAdmin={isAdmin}
+                                    getDisplayTier={getDisplayTier}
+                                    isMemberPendingUpdate={isMemberPendingUpdate}
+                                    openDetailsModal={openDetailsModal}
+                                    openAssignTierModal={openAssignTierModal}
+                                    handleViewAs={handleViewAs}
+                                />
                             ))}
                         </div>
                     </div>

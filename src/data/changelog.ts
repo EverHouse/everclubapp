@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.97.99",
+    date: "2026-03-31",
+    title: "Performance & Bundle Size Optimization",
+    changes: [
+      "Improved: Changelog data is now loaded on-demand from the server instead of bundled into the app, reducing initial download size by ~740KB.",
+      "Improved: Member and visitor directory lists now render more efficiently, reducing unnecessary re-draws when scrolling through large lists.",
+      "Improved: Booking roster and schedule components now update more efficiently, only re-rendering when their specific data changes.",
+    ]
+  },
+  {
     version: "8.97.98",
     date: "2026-03-29",
     title: "Apple Wallet Pass Performance & Sync Fix",

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { changelog } from '../../../data/changelog';
 import EmptyState from '../../../components/EmptyState';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
@@ -283,14 +282,38 @@ const ChangelogTab: React.FC = () => {
     const [limit, setLimit] = useState(50);
     const [hasMore, setHasMore] = useState(true);
     
-    // Changelog pagination - show 25 entries initially, load 25 more per click
+    interface ChangelogEntry {
+        version: string;
+        date: string;
+        title: string;
+        isMajor?: boolean;
+        changes: string[];
+    }
+    const [changelogEntries, setChangelogEntries] = useState<ChangelogEntry[]>([]);
+    const [changelogLoading, setChangelogLoading] = useState(false);
+    const [changelogError, setChangelogError] = useState<string | null>(null);
     const [changelogLimit, setChangelogLimit] = useState(25);
-    const visibleChangelog = changelog.slice(0, changelogLimit);
-    const hasMoreChangelog = changelogLimit < changelog.length;
+    const visibleChangelog = changelogEntries.slice(0, changelogLimit);
+    const hasMoreChangelog = changelogLimit < changelogEntries.length;
 
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
+
+    useEffect(() => {
+        if (activeTab !== 'updates') return;
+        if (changelogEntries.length > 0) return;
+        setChangelogLoading(true);
+        fetchWithCredentials<{ entries?: ChangelogEntry[] }>('/api/changelog')
+            .then(data => {
+                setChangelogEntries(data.entries || []);
+                setChangelogError(null);
+            })
+            .catch((err: unknown) => {
+                setChangelogError((err instanceof Error ? err.message : String(err)) || 'Failed to load changelog');
+            })
+            .finally(() => setChangelogLoading(false));
+    }, [activeTab, changelogEntries.length]);
 
     const fetchActivityLog = useCallback(async (reset = false) => {
         if (!isAdmin) return;
@@ -774,7 +797,23 @@ const ChangelogTab: React.FC = () => {
         return parts.join(' • ') || 'No additional details';
     };
 
-    const renderUpdatesTab = () => (
+    const renderUpdatesTab = () => {
+        if (changelogLoading) {
+            return <PageLoadingSpinner />;
+        }
+
+        if (changelogError) {
+            return (
+                <EmptyState
+                    icon="cloud_off"
+                    title="Failed to load updates"
+                    description={changelogError}
+                    variant="compact"
+                />
+            );
+        }
+
+        return (
         <div className="space-y-6 animate-content-enter">
             <div className="text-sm text-primary/80 dark:text-white/80 mb-6">
                 A complete history of updates, improvements, and new features added to the Ever Club app.
@@ -836,12 +875,13 @@ const ChangelogTab: React.FC = () => {
                         className="px-6 py-3 rounded-xl bg-primary/10 dark:bg-white/10 text-primary dark:text-white font-medium hover:bg-primary/20 dark:hover:bg-white/20 transition-colors flex items-center gap-2"
                     >
                         <Icon name="expand_more" className="text-xl" />
-                        Load More Updates ({changelog.length - changelogLimit} remaining)
+                        Load More Updates ({changelogEntries.length - changelogLimit} remaining)
                     </button>
                 </div>
             )}
         </div>
     );
+    };
 
     const renderActivityTab = () => {
         if (loading && entries.length === 0) {

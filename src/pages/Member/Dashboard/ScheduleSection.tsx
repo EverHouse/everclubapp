@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import ScheduleCard from '../../../components/ScheduleCard';
 import { RosterManager } from '../../../components/booking';
 import { downloadICalFile } from '../../../utils/icalUtils';
@@ -112,35 +112,33 @@ interface ScheduleItemRowProps {
   handleDownloadBookingWalletPass: (id: number) => void;
 }
 
-const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
+const ScheduleItemRow: React.FC<ScheduleItemRowProps> = React.memo(({
   item, idx, isDark, isStaffOrAdminProfile, walletPassAvailable,
   walletPassDownloading, refetchAllData,
   handleCancelBooking, handleLeaveBooking, handleCancelRSVP, handleCancelWellness,
   handleDownloadBookingWalletPass,
 }) => {
-  // eslint-disable-next-line no-useless-assignment
-  let actions: { icon: string; label: string; onClick: () => void; disabled?: boolean }[] = [];
+  const actions = useMemo(() => {
+    if (item.type === 'booking' || item.type === 'booking_request') {
+      const bookingStatus = (item as unknown as DashboardBookingItem).status as string;
+      const isConfirmed = bookingStatus === 'approved' || bookingStatus === 'confirmed';
+      const rawBooking = item.raw as DBBookingRequest | DBBooking;
+      const startTime24 = 'start_time' in rawBooking ? rawBooking.start_time : '';
+      const endTime24 = 'end_time' in rawBooking ? rawBooking.end_time : '';
+      const isLinkedMember = (item as unknown as DashboardBookingItem).isLinkedMember || false;
+      const primaryBookerName = (item as unknown as DashboardBookingItem).primaryBookerName;
+      const isCancellationPending = (item as unknown as DashboardBookingItem).status === 'cancellation_pending';
 
-  if (item.type === 'booking' || item.type === 'booking_request') {
-    const bookingStatus = (item as unknown as DashboardBookingItem).status as string;
-    const isConfirmed = bookingStatus === 'approved' || bookingStatus === 'confirmed';
-    const rawBooking = item.raw as DBBookingRequest | DBBooking;
-    const startTime24 = 'start_time' in rawBooking ? rawBooking.start_time : '';
-    const endTime24 = 'end_time' in rawBooking ? rawBooking.end_time : '';
-    const isLinkedMember = (item as unknown as DashboardBookingItem).isLinkedMember || false;
-    const primaryBookerName = (item as unknown as DashboardBookingItem).primaryBookerName;
-    const isCancellationPending = (item as unknown as DashboardBookingItem).status === 'cancellation_pending';
+      const bookingHasStarted = item.rawDate && startTime24
+        ? createPacificDate(item.rawDate, startTime24) <= new Date()
+        : false;
 
-    const bookingHasStarted = item.rawDate && startTime24
-      ? createPacificDate(item.rawDate, startTime24) <= new Date()
-      : false;
+      const isWalletEligible = walletPassAvailable && ['approved', 'confirmed', 'attended', 'checked_in'].includes(bookingStatus);
 
-    const isWalletEligible = walletPassAvailable && ['approved', 'confirmed', 'attended', 'checked_in'].includes(bookingStatus);
-
-    if (isCancellationPending) {
-      actions = [];
-    } else {
-      actions = [
+      if (isCancellationPending) {
+        return [];
+      }
+      return [
         ...(isWalletEligible ? [{
           icon: walletPassDownloading === Number(item.dbId) ? 'progress_activity' : 'wallet',
           label: 'Add to Digital Wallet',
@@ -168,58 +166,57 @@ const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
           onClick: () => handleLeaveBooking(Number(item.dbId), primaryBookerName)
         }] : [])
       ];
+    } else if (item.type === 'rsvp') {
+      const rsvpRaw = item.raw as DBRSVP;
+      return [
+        {
+          icon: 'calendar_add_on',
+          label: 'Add to Calendar',
+          onClick: () => downloadICalFile({
+            title: `${item.title} - Ever Club`,
+            description: `Your event at Ever Club`,
+            location: rsvpRaw.location || 'Ever Club, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
+            startDate: item.rawDate,
+            startTime: rsvpRaw.start_time,
+            endTime: rsvpRaw.end_time || ''
+          }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
+        },
+        { icon: 'close', label: 'Cancel RSVP', onClick: () => handleCancelRSVP(rsvpRaw.event_id) }
+      ];
+    } else if (item.type === 'wellness') {
+      const wellnessRaw = item.raw as DBWellnessEnrollment;
+      return [
+        {
+          icon: 'calendar_add_on',
+          label: 'Add to Calendar',
+          onClick: () => downloadICalFile({
+            title: `${item.title} - Ever Club`,
+            description: `Your wellness class at Ever Club`,
+            location: 'Ever Club, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
+            startDate: item.rawDate,
+            startTime: wellnessRaw.time,
+            endTime: ''
+          }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
+        },
+        { icon: 'close', label: 'Cancel', onClick: () => handleCancelWellness(wellnessRaw.class_id) }
+      ];
+    } else if (item.type === 'conference_room_calendar') {
+      const confCalRaw = item.raw as DashboardBookingItem;
+      const confCalStatus = confCalRaw.status || '';
+      const confCalWalletEligible = walletPassAvailable && ['approved', 'confirmed', 'attended', 'checked_in'].includes(confCalStatus);
+      return [
+        ...(confCalWalletEligible && typeof item.dbId === 'number' ? [{
+          icon: walletPassDownloading === item.dbId ? 'progress_activity' : 'wallet',
+          label: 'Add to Digital Wallet',
+          onClick: () => handleDownloadBookingWalletPass(item.dbId as number),
+          disabled: walletPassDownloading === item.dbId
+        }] : []),
+      ];
     }
-  } else if (item.type === 'rsvp') {
-    const rsvpRaw = item.raw as DBRSVP;
-    actions = [
-      {
-        icon: 'calendar_add_on',
-        label: 'Add to Calendar',
-        onClick: () => downloadICalFile({
-          title: `${item.title} - Ever Club`,
-          description: `Your event at Ever Club`,
-          location: rsvpRaw.location || 'Ever Club, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
-          startDate: item.rawDate,
-          startTime: rsvpRaw.start_time,
-          endTime: rsvpRaw.end_time || ''
-        }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
-      },
-      { icon: 'close', label: 'Cancel RSVP', onClick: () => handleCancelRSVP(rsvpRaw.event_id) }
-    ];
-  } else if (item.type === 'wellness') {
-    const wellnessRaw = item.raw as DBWellnessEnrollment;
-    actions = [
-      {
-        icon: 'calendar_add_on',
-        label: 'Add to Calendar',
-        onClick: () => downloadICalFile({
-          title: `${item.title} - Ever Club`,
-          description: `Your wellness class at Ever Club`,
-          location: 'Ever Club, 15771 Red Hill Ave, Ste 500, Tustin, CA 92780',
-          startDate: item.rawDate,
-          startTime: wellnessRaw.time,
-          endTime: ''
-        }, `EverClub_${item.rawDate}_${item.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`)
-      },
-      { icon: 'close', label: 'Cancel', onClick: () => handleCancelWellness(wellnessRaw.class_id) }
-    ];
-  } else if (item.type === 'conference_room_calendar') {
-    const confCalRaw = item.raw as DashboardBookingItem;
-    const confCalStatus = confCalRaw.status || '';
-    const confCalWalletEligible = walletPassAvailable && ['approved', 'confirmed', 'attended', 'checked_in'].includes(confCalStatus);
-    actions = [
-      ...(confCalWalletEligible && typeof item.dbId === 'number' ? [{
-        icon: walletPassDownloading === item.dbId ? 'progress_activity' : 'wallet',
-        label: 'Add to Digital Wallet',
-        onClick: () => handleDownloadBookingWalletPass(item.dbId as number),
-        disabled: walletPassDownloading === item.dbId
-      }] : []),
-    ];
-  } else {
-    actions = [];
-  }
+    return [];
+  }, [item, walletPassAvailable, walletPassDownloading, handleCancelBooking, handleLeaveBooking, handleCancelRSVP, handleCancelWellness, handleDownloadBookingWalletPass]);
 
-  const getScheduleStatus = () => {
+  const scheduleStatus = useMemo(() => {
     if (item.type === 'booking' || item.type === 'booking_request') {
       const s = (item as unknown as DashboardBookingItem).status;
       if (s === 'approved' || s === 'confirmed') return { label: 'Confirmed', color: 'bg-green-500' };
@@ -231,9 +228,9 @@ const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
     if (item.type === 'rsvp') return { label: "RSVP'd", color: 'bg-green-500' };
     if (item.type === 'wellness') return { label: 'Enrolled', color: 'bg-green-500' };
     return undefined;
-  };
+  }, [item]);
 
-  const getMetadata = () => {
+  const metadata = useMemo(() => {
     const chips: { icon: string; label: string }[] = [];
     if (item.type === 'booking' || item.type === 'booking_request') {
       const raw = item.raw as DBBookingRequest;
@@ -264,13 +261,15 @@ const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
       if (raw.instructor) chips.push({ icon: 'person', label: raw.instructor });
     }
     return chips;
-  };
+  }, [item]);
 
-  const scheduleStatus = getScheduleStatus();
-  const linkedBookerInfo = (item.type === 'booking' || item.type === 'booking_request') && 
-    (item as unknown as DashboardBookingItem).isLinkedMember && (item as unknown as DashboardBookingItem).primaryBookerName
-    ? `Booked by ${(item as unknown as DashboardBookingItem).primaryBookerName?.split(' ')[0]}`
-    : undefined;
+  const linkedBookerInfo = useMemo(() => {
+    if ((item.type === 'booking' || item.type === 'booking_request') && 
+      (item as unknown as DashboardBookingItem).isLinkedMember && (item as unknown as DashboardBookingItem).primaryBookerName) {
+      return `Booked by ${(item as unknown as DashboardBookingItem).primaryBookerName?.split(' ')[0]}`;
+    }
+    return undefined;
+  }, [item]);
 
   const isSimulatorBooking = item.resourceType === 'simulator';
   const isApprovedOrConfirmed = ['approved', 'confirmed'].includes((item as unknown as DashboardBookingItem).status || '');
@@ -281,6 +280,8 @@ const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
     isOwnerOfBooking;
   const rawBookingData = item.raw as DBBookingRequest;
 
+  const handleRefetchOnUpdate = useCallback(() => refetchAllData(), [refetchAllData]);
+
   return (
     <React.Fragment>
       <ScheduleCard
@@ -289,7 +290,7 @@ const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
         icon={getIconForType(item.resourceType)}
         title={item.title}
         dateTime={`${item.date} • ${item.time}${item.endTime ? ` - ${item.endTime}` : ''}`}
-        metadata={getMetadata()}
+        metadata={metadata}
         actions={actions}
         staggerIndex={idx + 4}
         linkedInfo={linkedBookerInfo}
@@ -301,14 +302,14 @@ const ScheduleItemRow: React.FC<ScheduleItemRowProps> = ({
             declaredPlayerCount={rawBookingData.declared_player_count || 1}
             isOwner={isOwnerOfBooking}
             isStaff={isStaffOrAdminProfile}
-            onUpdate={() => refetchAllData()}
+            onUpdate={handleRefetchOnUpdate}
             resourceType={item.resourceType === 'conference_room' ? 'conference_room' : 'simulator'}
           />
         </div>
       )}
     </React.Fragment>
   );
-};
+});
 
 interface EmptyScheduleProps {
   isDark: boolean;

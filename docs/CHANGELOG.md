@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.97.99] - 2026-03-31
+
+### Performance & Bundle Size Optimization
+- **Perf**: Lazy-load the 740KB `changelog.ts` data file via a new `GET /api/changelog` backend endpoint, removing it from the frontend bundle. The endpoint is staff-authenticated and caches the data in memory after first load.
+- **Perf**: Extracted `MobileMemberRow` and `DesktopMemberRow` as named `React.memo` components in `ActiveMembersList.tsx` with stable `useCallback` handlers.
+- **Perf**: Extracted `MobileVisitorRow` and `DesktopVisitorRow` as named `React.memo` components in `VisitorsList.tsx` with stable `useCallback` handlers; hoisted `getActivityLabel` to module scope.
+- **Perf**: Wrapped `ScheduleCard` in `React.memo`; refactored `ScheduleItemRow` in `ScheduleSection.tsx` into a `React.memo` component with `useMemo` for actions, status, metadata, and `useCallback` for roster updates.
+- **Perf**: Memoized `totalEstimatedFees`, `isPaid` with `useMemo` and wrapped `handleRemoveParticipant`, `getTypeBadge` with `useCallback` in `RosterManager.tsx`.
+- **Files changed**: `server/routes/changelog.ts` (new), `server/loaders/routes.ts`, `src/pages/Admin/tabs/ChangelogTab.tsx`, `src/components/ScheduleCard.tsx`, `src/pages/Member/Dashboard/ScheduleSection.tsx`, `src/components/booking/RosterManager.tsx`, `src/pages/Admin/tabs/directory/ActiveMembersList.tsx`, `src/pages/Admin/tabs/directory/VisitorsList.tsx`
+
 ## [8.97.98] - 2026-03-29
 
 ### Fix: Apple Wallet `If-Modified-Since` and update loop
