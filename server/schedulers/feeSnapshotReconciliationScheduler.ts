@@ -3,7 +3,7 @@ import { pool, safeRelease } from '../core/db';
 import type { PoolClient } from 'pg';
 import { getStripeClient, cancelPaymentIntent } from '../core/stripe';
 import { PaymentStatusService } from '../core/billing/PaymentStatusService';
-import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils/errorUtils';
+import { getErrorMessage, isStripeResourceMissing } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
 const RECONCILIATION_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
@@ -79,7 +79,15 @@ async function reconcilePendingSnapshots(): Promise<{ synced: number; errors: nu
       try {
         if (!snapshot.stripe_payment_intent_id.startsWith('pi_')) {
           logger.info(`[Fee Snapshot Reconciliation] Skipping synthetic PI ID ${snapshot.stripe_payment_intent_id} for booking ${snapshot.booking_id}`);
-          await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE stripe_payment_intent_id = ${snapshot.stripe_payment_intent_id} AND status IN ('pending', 'requires_action')`);
+          const updateClient = await connectWithTimeout();
+          try {
+            await updateClient.query(
+              `UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE stripe_payment_intent_id = $1 AND status IN ('pending', 'requires_action')`,
+              [snapshot.stripe_payment_intent_id]
+            );
+          } finally {
+            safeRelease(updateClient);
+          }
           continue;
         }
         const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
@@ -495,7 +503,7 @@ export function startFeeSnapshotReconciliationScheduler(): void {
     return;
   }
 
-  logger.info(`[Startup] Fee snapshot reconciliation scheduler enabled (runs every 15 minutes)`);
+  logger.info(`[Startup] Fee snapshot reconciliation scheduler enabled (runs every 30 minutes)`);
   schedulerTracker.recordRun('Fee Snapshot Reconciliation', true);
   
   // Run first check after 2 minutes (give server time to start)
