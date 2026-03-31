@@ -75,37 +75,41 @@ router.post('/api/admin/applications/:id/send-invite', isStaffOrAdmin, async (re
 
     if (!tierId) return res.status(400).json({ error: 'Tier ID required' });
 
+    const parsedTierId = Number(tierId);
+    if (!Number.isInteger(parsedTierId) || parsedTierId <= 0) {
+      return res.status(400).json({ error: 'Invalid tier ID' });
+    }
+
     const appResult = await db.execute(sql`SELECT id, email, first_name, last_name FROM form_submissions WHERE id = ${id} AND form_type = 'membership'`);
 
     if (appResult.rows.length === 0) {
       return res.status(404).json({ error: 'Application not found' });
     }
 
-    const app = appResult.rows[0];
+    const app = appResult.rows[0] as { id: number; email: string; first_name: string | null; last_name: string | null };
 
-    const internalRes = await fetch(`http://localhost:${process.env.PORT || 3001}/api/stripe/staff/send-membership-link`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': req.headers.cookie || '',
-      },
-      body: JSON.stringify({
-        email: app.email,
-        firstName: app.first_name || '',
-        lastName: app.last_name || '',
-        tierId: tierId,
-      }),
+    const { createMembershipInvite } = await import('../../core/membershipInviteService');
+    const result = await createMembershipInvite({
+      email: String(app.email).trim().toLowerCase(),
+      firstName: app.first_name || '',
+      lastName: app.last_name || '',
+      tierId: parsedTierId,
     });
 
-    if (!internalRes.ok) {
-      const errData = await internalRes.json().catch(() => ({ error: 'Failed to send invite' }));
-      return res.status(internalRes.status).json(errData);
+    if (!result.success) {
+      const statusMap: Record<string, number> = {
+        TIER_NOT_FOUND: 404,
+        NO_STRIPE_PRICE: 400,
+        CHECKOUT_FAILED: 500,
+        STRIPE_ERROR: 500,
+      };
+      const status = (result.errorCode && statusMap[result.errorCode]) || 500;
+      return res.status(status).json({ error: result.error });
     }
 
     await db.execute(sql`UPDATE form_submissions SET status = 'invited', updated_at = NOW() WHERE id = ${id}`);
 
-    const data = (await internalRes.json()) as { checkoutUrl?: string };
-    res.json({ success: true, checkoutUrl: data.checkoutUrl });
+    res.json({ success: true, checkoutUrl: result.checkoutUrl });
   } catch (error: unknown) {
     logger.error('[Applications] Failed to send invite', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to send invite' });

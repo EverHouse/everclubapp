@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.2",
+    date: "2026-03-31",
+    title: "Application Pipeline Invite Fix",
+    changes: [
+      "Fixed: \"Send Activation Link\" on approved membership applications now works correctly. Previously, the invite was silently blocked by a security check, returning a 403 error instead of sending the checkout email.",
+    ]
+  },
+  {
     version: "8.98.1",
     date: "2026-03-31",
     title: "Tour Booking Fix",

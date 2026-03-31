@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.2] - 2026-03-31
+
+### Fix: Application Pipeline "Send Activation Link" blocked by CSRF
+- **Bug**: When staff clicked "Send Activation Link" on an approved membership application, the backend made an internal HTTP `fetch` to `localhost` targeting `/api/stripe/staff/send-membership-link`. This internal call lacked `Origin` and `Referer` headers, so the CSRF middleware blocked it with a 403: "Origin verification failed." Production logs confirmed 4+ failed attempts on application #401.
+- **Fix**: Extracted the Stripe checkout session creation and invite email logic from the route handler into a shared service function (`server/core/membershipInviteService.ts`). Both the application pipeline (`/api/admin/applications/:id/send-invite`) and the staff command center (`/api/stripe/staff/send-membership-link`) now call this function directly — no more internal HTTP fetch, no CSRF conflict.
+- **Impact**: Staff can now successfully send activation links from the Application Pipeline.
+- **Files changed**: `server/core/membershipInviteService.ts` (new), `server/routes/members/applicationPipeline.ts`, `server/routes/stripe/admin.ts`
+
 ## [8.98.1] - 2026-03-31
 
 ### Fix: HubSpot tour booking fails when phone is required form field

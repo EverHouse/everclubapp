@@ -188,75 +188,21 @@ router.post('/api/stripe/staff/send-membership-link', isStaffOrAdmin, async (req
       return res.status(400).json({ error: 'First name and last name are required' });
     }
 
-    const tierResult = await db.execute(sql`SELECT id, name, stripe_price_id, price_cents, billing_interval 
-       FROM membership_tiers 
-       WHERE id = ${tierId} AND is_active = true 
-         AND product_type = 'subscription'
-         AND billing_interval IN ('month', 'year', 'week')`);
+    const { createMembershipInvite } = await import('../../core/membershipInviteService');
+    const result = await createMembershipInvite({ email, firstName: sanitizedFirstName, lastName: sanitizedLastName, tierId });
 
-    if (tierResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Tier not found or inactive' });
+    if (!result.success) {
+      const statusMap: Record<string, number> = {
+        TIER_NOT_FOUND: 404,
+        NO_STRIPE_PRICE: 400,
+        CHECKOUT_FAILED: 500,
+        STRIPE_ERROR: 500,
+      };
+      const status = (result.errorCode && statusMap[result.errorCode]) || 500;
+      return res.status(status).json({ error: result.error });
     }
 
-    const tier = tierResult.rows[0] as { id: number; name: string; stripe_price_id: string | null; price_cents: number; billing_interval: string };
-
-    if (!tier.stripe_price_id) {
-      return res.status(400).json({ error: 'This tier has not been synced to Stripe. Please sync tiers first.' });
-    }
-
-    const stripe = await getStripeClient();
-
-    const baseUrl = getAppBaseUrl();
-
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      customer_email: email,
-      line_items: [
-        {
-          price: tier.stripe_price_id,
-          quantity: 1,
-        },
-      ],
-      success_url: `${baseUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/`,
-      metadata: {
-        firstName: sanitizedFirstName,
-        lastName: sanitizedLastName,
-        tierId: String(tier.id),
-        tierName: tier.name as string,
-        source: 'staff_invite',
-      },
-    });
-
-    const checkoutUrl = session.url;
-
-    if (!checkoutUrl) {
-      logger.error('[Stripe] Checkout session created but no URL returned', { extra: { sessionId: session.id, email } });
-      return res.status(500).json({ error: 'Failed to generate checkout URL' });
-    }
-
-    try {
-      const { getResendClient } = await import('../../utils/resend');
-      const { client: resend, fromEmail } = await getResendClient();
-
-      const priceFormatted = tier.billing_interval === 'year' 
-        ? `$${(Number(tier.price_cents) / 100).toFixed(0)}/year`
-        : `$${(Number(tier.price_cents) / 100).toFixed(0)}/month`;
-
-      const safeFirstName = escapeHtml(sanitizedFirstName);
-
-      await resend.emails.send({
-        from: fromEmail || 'Ever Club <noreply@everclub.app>',
-        to: email,
-        subject: `Your Ever Club Membership Invitation - ${tier.name}`,
-        html: getMembershipInviteHtml({ firstName: safeFirstName, tierName: tier.name, priceFormatted, checkoutUrl }),
-      });
-      logger.info('[Stripe] Membership invite email sent to', { extra: { email } });
-    } catch (emailError: unknown) {
-      logger.error('[Stripe] Failed to send membership invite email', { extra: { error: getErrorMessage(emailError) } });
-    }
-
-    res.json({ success: true, checkoutUrl });
+    res.json({ success: true, checkoutUrl: result.checkoutUrl });
   } catch (error: unknown) {
     logger.error('[Stripe] Error sending membership invite', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create membership invite' });
