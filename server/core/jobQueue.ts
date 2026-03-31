@@ -56,6 +56,7 @@ export type JobType =
   | 'stripe_auto_refund'
   | 'stripe_balance_refund'
   | 'stripe_cancel_payment_intent'
+  | 'wellhub_report_event'
   | 'generic_async_task';
 
 interface QueueJobOptions {
@@ -408,6 +409,25 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         await processMemberTierUpdate(payload as unknown as Parameters<typeof processMemberTierUpdate>[0]);
         break;
           }
+      case 'wellhub_report_event': {
+        const { reportWellhubUsageEvent, markEventReported } = await import('./wellhubEventsService');
+        const reportResult = await reportWellhubUsageEvent(
+          payload.wellhubUserId as string,
+          payload.eventType as string,
+          new Date(payload.eventTimestamp as string)
+        );
+        if (reportResult.success) {
+          if (payload.checkinId && Number(payload.checkinId) > 0) {
+            await markEventReported(payload.checkinId as number);
+          }
+          logger.info(`[JobQueue] Wellhub usage event reported for checkin ${payload.checkinId}`);
+        } else if (reportResult.rateLimited) {
+          throw new Error('Wellhub rate limited — will retry');
+        } else {
+          throw new Error(reportResult.error || 'Unknown error reporting Wellhub event');
+        }
+        break;
+      }
       case 'generic_async_task':
         logger.info(`[JobQueue] Executing generic task: ${payload.description || 'no description'}`);
         break;

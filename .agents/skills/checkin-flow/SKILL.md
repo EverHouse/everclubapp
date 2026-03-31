@@ -147,6 +147,10 @@ Review endpoints:
 - `POST /api/bookings/:bookingId/mark-all-waivers-reviewed` (per booking)
 - `POST /api/bookings/bulk-review-all-waivers` (global, stale >12h)
 
+## Wellhub Check-in Usage Reporting
+
+After a Wellhub check-in is validated (`processWellhubCheckin` in `server/routes/wellhub/webhook.ts`), a usage event is reported to the Wellhub Events API (`POST /partner-app/v1/events`) via `reportWellhubUsageEvent()` in `server/core/wellhubEventsService.ts`. On success, `event_reported_at` is set on the `wellhub_checkins` row. On failure, a `wellhub_report_event` job is queued (max 5 retries). A nightly reconciliation scheduler re-attempts unreported events, and a monthly sweep on the 3rd ensures prior-month events are reported before Wellhub's 5th-of-month deadline.
+
 ## Overdue Payments
 
 `GET /api/bookings/overdue-payments` returns bookings from last 30 days with pending fees. Staff can bulk-review stale waivers (>12h old).

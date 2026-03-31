@@ -1,6 +1,6 @@
 ---
 name: scheduler-jobs
-description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 29 logical schedulers (26 files — `integrityScheduler.ts` contains 3), their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
+description: "Scheduled maintenance tasks — daily, hourly, and continuous background jobs. Covers all 31 logical schedulers (27 files — `integrityScheduler.ts` contains 3, `wellhubEventReconciliationScheduler.ts` contains 2), their timing, idempotency, the scheduler tracker, and the job queue processor. Use when adding new scheduled tasks, debugging scheduler issues, understanding maintenance windows, or checking scheduler health via the admin dashboard."
 ---
 
 # Scheduler Jobs
@@ -18,7 +18,7 @@ Note: `notificationCleanupScheduler.ts` uses `node-cron` (not `setInterval`) —
 | Job queue processor | `server/core/jobQueue.ts` | Background job processing |
 | Individual schedulers | `server/schedulers/*.ts` | Each scheduler implementation |
 
-## Scheduler Registry (29 logical tasks across 26 files)
+## Scheduler Registry (31 logical tasks across 27 files)
 
 **v8.97.24 (Task #213) — Scheduler timeout handling**: All schedulers now have configurable execution timeouts via `withTimeout()` wrapper in `schedulerTracker.ts`. Default timeout: 5 minutes per run. Timed-out runs are logged as errors and recorded in the tracker. This prevents individual scheduler hangs from blocking subsequent runs.
 
@@ -52,6 +52,8 @@ Note: `notificationCleanupScheduler.ts` uses `node-cron` (not `setInterval`) —
 | Onboarding Nudge | onboardingNudgeScheduler.ts | 1 hr | 10 AM Pacific | Stalled member nudge emails. **v8.97.24 fix**: Added `WHERE onboarding_completed_at IS NULL` filter to prevent sending to already-completed members. |
 | Supabase Heartbeat | supabaseHeartbeatScheduler.ts | 6 hr | None | Keep Supabase connection alive |
 | Notification Cleanup | notificationCleanupScheduler.ts | 24 hr (cron) | Midnight Pacific | Delete old notifications, push subscriptions, dismissed notices (configurable retention via `cleanup.notification_retention_days` setting, default 30 days) |
+| Wellhub Event Reconciliation | wellhubEventReconciliationScheduler.ts | 1 hr | 2 AM Pacific | Re-report unreported Wellhub usage events (35-day window) |
+| Wellhub Monthly Sweep | wellhubEventReconciliationScheduler.ts | 6 hr | 3rd of month | Ensure prior-month Wellhub events reported before 5th deadline |
 | Job Queue Processor | jobQueue.ts | 5 sec | None | Process background jobs |
 
 ## Hard Rules — Adding a New Scheduler
@@ -117,7 +119,7 @@ See [references/idempotency-patterns.md](references/idempotency-patterns.md) for
 
 ### Job Types
 
-`send_payment_receipt`, `send_payment_failed_email`, `send_membership_renewal_email`, `send_membership_failed_email`, `send_pass_with_qr_email`, `notify_payment_success`, `notify_payment_failed`, `notify_staff_payment_failed`, `notify_member`, `notify_all_staff`, `broadcast_billing_update`, `broadcast_day_pass_update`, `send_notification_to_user`, `sync_to_hubspot`, `sync_company_to_hubspot`, `sync_day_pass_to_hubspot`, `upsert_transaction_cache`, `update_member_tier`, `stripe_credit_refund`, `stripe_credit_consume`, `generic_async_task`
+`send_payment_receipt`, `send_payment_failed_email`, `send_membership_renewal_email`, `send_membership_failed_email`, `send_pass_with_qr_email`, `notify_payment_success`, `notify_payment_failed`, `notify_staff_payment_failed`, `notify_member`, `notify_all_staff`, `broadcast_billing_update`, `broadcast_day_pass_update`, `send_notification_to_user`, `sync_to_hubspot`, `sync_company_to_hubspot`, `sync_day_pass_to_hubspot`, `upsert_transaction_cache`, `update_member_tier`, `stripe_credit_refund`, `stripe_credit_consume`, `wellhub_report_event`, `generic_async_task`
 
 ### Queueing
 

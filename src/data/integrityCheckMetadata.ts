@@ -183,6 +183,13 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     description: 'Active Stripe subscriptions whose customer email doesn\'t match the linked member\'s email. Detects both emails that match no member and emails that match a different member (cross-member mislink).',
     impact: 'These subscriptions may be charging someone who is no longer a member, belong to the wrong person, or reflect an email change that wasn\'t synced to Stripe. Represents a real billing risk.',
     severity: 'critical'
+  },
+  {
+    checkName: 'Unreported Wellhub Events',
+    title: 'Unreported Wellhub Events',
+    description: 'Validated Wellhub check-ins whose usage events have not been successfully reported to the Wellhub Events API within the last 35 days.',
+    impact: 'Wellhub calculates partner payments based on reported usage events. Unreported events mean missed revenue. All events from the prior month must be reported by the 5th of the following month.',
+    severity: 'medium'
   }
 ];
 

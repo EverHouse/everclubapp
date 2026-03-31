@@ -5,6 +5,68 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { enqueueHubSpotSync } from '../hubspot/queue';
 import type { IntegrityCheckResult, IntegrityIssue } from './core';
 
+export async function checkUnreportedWellhubEvents(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const result = await db.execute(sql`
+      SELECT COUNT(*)::int as count
+      FROM wellhub_checkins
+      WHERE validation_status = 'validated'
+        AND event_reported_at IS NULL
+        AND created_at > NOW() - INTERVAL '35 days'
+    `);
+    const unreportedCount = (result.rows[0] as { count: number }).count;
+
+    if (unreportedCount > 0) {
+      const recentResult = await db.execute(sql`
+        SELECT id, wellhub_user_id, created_at
+        FROM wellhub_checkins
+        WHERE validation_status = 'validated'
+          AND event_reported_at IS NULL
+          AND created_at > NOW() - INTERVAL '35 days'
+        ORDER BY created_at ASC
+        LIMIT 10
+      `);
+
+      for (const row of recentResult.rows as unknown as Array<{ id: number; wellhub_user_id: string; created_at: string }>) {
+        issues.push({
+          category: 'sync_mismatch',
+          severity: 'warning',
+          table: 'wellhub_checkins',
+          recordId: String(row.id),
+          description: `Wellhub check-in #${row.id} (user ${row.wellhub_user_id}) validated but usage event not reported to Wellhub Events API`,
+          suggestion: 'Run the Wellhub event reconciliation or investigate API connectivity',
+          context: {
+            checkinId: row.id,
+            wellhubUserId: row.wellhub_user_id,
+            createdAt: row.created_at,
+            totalUnreported: unreportedCount,
+          }
+        });
+      }
+    }
+
+    return {
+      checkName: 'Unreported Wellhub Events',
+      status: unreportedCount === 0 ? 'pass' : 'warning',
+      issueCount: unreportedCount,
+      issues,
+      lastRun: new Date(),
+    };
+  } catch (error: unknown) {
+    logger.error('[Integrity] Unreported Wellhub Events check failed', { extra: { error: getErrorMessage(error) } });
+    return {
+      checkName: 'Unreported Wellhub Events',
+      status: 'error',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date(),
+      error: getErrorMessage(error),
+    };
+  }
+}
+
 export async function checkCrossSystemDrift(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
 

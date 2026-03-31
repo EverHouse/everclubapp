@@ -27,6 +27,7 @@ import { startNotificationCleanupScheduler, stopNotificationCleanupScheduler } f
 import { startInvoiceAutoFinalizeScheduler, stopInvoiceAutoFinalizeScheduler } from './invoiceAutoFinalizeScheduler';
 import { startFailedSideEffectsScheduler, stopFailedSideEffectsScheduler } from './failedSideEffectsScheduler';
 import { startVisitorReconciliationScheduler, stopVisitorReconciliationScheduler } from './visitorReconciliationScheduler';
+import { startWellhubEventReconciliationScheduler, stopWellhubEventReconciliationScheduler } from './wellhubEventReconciliationScheduler';
 import { stopRealtimeRecovery } from '../core/supabase/client';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
 import { stopBookingValidationPruner } from '../core/bookingValidation';
@@ -90,6 +91,8 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Invoice Auto-Finalize', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Failed Side Effects', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Visitor Reconciliation', 6 * 60 * 60 * 1000);
+  schedulerTracker.registerScheduler('Wellhub Event Reconciliation', 60 * 60 * 1000);
+  schedulerTracker.registerScheduler('Wellhub Monthly Sweep', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Job Queue Processor', 30000);
 
   logger.info(`[Schedulers] Staggering scheduler startup over ~${27 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
@@ -202,6 +205,9 @@ export function initSchedulers(): void {
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Visitor Reconciliation', () => {
     intervalIds.push(startVisitorReconciliationScheduler());
   });
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Wellhub Event Reconciliation', () => startWellhubEventReconciliationScheduler());
   // eslint-disable-next-line no-useless-assignment
   slot++;
 }
@@ -240,6 +246,7 @@ export function stopSchedulers(): void {
   stopSupabaseHeartbeatScheduler();
   stopNotificationCleanupScheduler();
   stopVisitorReconciliationScheduler();
+  stopWellhubEventReconciliationScheduler();
   stopInvoiceAutoFinalizeScheduler();
   stopFailedSideEffectsScheduler();
   stopRealtimeRecovery();

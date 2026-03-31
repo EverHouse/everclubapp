@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.4",
+    date: "2026-03-31",
+    title: "Wellhub Usage Reporting",
+    changes: [
+      "New: Wellhub check-in usage is now automatically reported to the Wellhub Events API for accurate payment reconciliation.",
+      "New: Nightly reconciliation catches any missed usage reports and re-attempts them automatically.",
+      "New: Monthly sweep ensures all prior-month events are reported before the Wellhub deadline.",
+      "New: Staff will be notified if any Wellhub usage events remain unreported close to the monthly deadline.",
+    ]
+  },
+  {
     version: "8.98.3",
     date: "2026-03-31",
     title: "Wellhub Member Status Tracking",

@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.4] - 2026-03-31
+
+### Feature: Wellhub Events API — Usage Reporting for Payment (Task #333)
+- **New service**: `server/core/wellhubEventsService.ts` — `reportWellhubUsageEvent()` calls `POST /partner-app/v1/events` with Bearer auth, handles success/rate-limit/error. Also provides `getUnreportedCheckins()`, `getUnreportedForMonth()`, `getUnreportedCount()`, `markEventReported()`.
+- **DB changes**: Added `event_reported_at` timestamp column to `wellhub_checkins` table (migration `0072`). Partial index for unreported validated events.
+- **Check-in integration**: After successful Wellhub validation, the webhook handler immediately reports the usage event. On failure, queues a `wellhub_report_event` retry job (max 5 retries).
+- **Job queue**: Added `wellhub_report_event` job type with handler that reports usage and marks `event_reported_at` on success.
+- **Nightly reconciliation**: New scheduler (`server/schedulers/wellhubEventReconciliationScheduler.ts`) runs hourly, checks at 2 AM Pacific for unreported validated check-ins within 35 days. Respects 50/minute rate limit with 1.3s inter-request delay and batch pauses.
+- **Monthly deadline sweep**: Same scheduler checks on the 3rd of each month, ensures all prior-month events are reported. Sends staff notification if any remain unreported.
+- **Data integrity**: New `checkUnreportedWellhubEvents` integrity check in `externalSystemChecks.ts`, registered in `core.ts` severity map (medium) and `integrityCheckMetadata.ts`.
+- **Admin visibility**: Profile route now returns `eventReported` and `eventReportedAt` fields for Wellhub check-in log entries.
+- **Files changed**: `server/core/wellhubEventsService.ts` (new), `server/schedulers/wellhubEventReconciliationScheduler.ts` (new), `drizzle/0072_add_wellhub_event_reporting.sql` (new), `server/routes/wellhub/webhook.ts`, `server/core/jobQueue.ts`, `server/schedulers/index.ts`, `server/core/integrity/externalSystemChecks.ts`, `server/core/integrity/core.ts`, `shared/models/system.ts`, `server/routes/members/profile.ts`, `src/data/integrityCheckMetadata.ts`
+
 ## [8.98.3] - 2026-03-31
 
 ### Feature: Wellhub User Status Webhooks (Task #332)

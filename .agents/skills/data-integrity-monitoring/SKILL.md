@@ -124,7 +124,7 @@ What type of alert?
 |---|---|---|
 | **Critical** | Notify staff every run | Stripe Sub Sync, Active Bookings Without Sessions, Stuck Transitional Members, Billing Orphans, Orphaned Stripe Subscriptions, Auth Linking Data Integrity |
 | **High** | Notify when count > threshold (10) | Tier Reconciliation, Billing Provider Hybrid State, Lingering Payment Intents on Terminal Bookings |
-| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Active Members Without Waivers, Duplicate Stripe Customers (DB-guarded), Orphaned Payment Intents (DB-guarded), Invoice-Booking Recon (DB-guarded), Guest Pass Drift (DB-guarded), Stale Pending (DB-guarded), Archived Lingering (DB-guarded) |
+| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Active Members Without Waivers, Unreported Wellhub Events, Duplicate Stripe Customers (DB-guarded), Orphaned Payment Intents (DB-guarded), Invoice-Booking Recon (DB-guarded), Guest Pass Drift (DB-guarded), Stale Pending (DB-guarded), Archived Lingering (DB-guarded) |
 | **Low** | Informational | Sessions Without Participants, Overlapping Bookings, Stale Past Tours |
 
 ### Error Alert Email Types

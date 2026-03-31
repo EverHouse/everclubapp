@@ -497,6 +497,7 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Auth Linking Data Integrity': 'critical',
   'Stuck Unpaid Bookings': 'high',
   'Unresolved Failed Side Effects': 'high',
+  'Unreported Wellhub Events': 'medium',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -769,7 +770,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
   const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
-  const { checkCrossSystemDrift, checkEmailDeliveryHealth } = await import('./externalSystemChecks');
+  const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
@@ -789,6 +790,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
     () => safeCheck(checkUsageLedgerGaps, 'Usage Ledger Gaps'),
     () => safeCheck(checkUnresolvedFailedSideEffects, 'Unresolved Failed Side Effects'),
+    () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
   ];
 
   const dbEnforcedChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [

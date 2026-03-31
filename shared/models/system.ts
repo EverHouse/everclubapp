@@ -229,6 +229,7 @@ export const wellhubCheckins = pgTable("wellhub_checkins", {
   validationStatus: varchar("validation_status", { length: 50 }).notNull().default('pending'),
   validatedAt: timestamp("validated_at"),
   errorDetail: text("error_detail"),
+  eventReportedAt: timestamp("event_reported_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   wellhubUserIdIdx: index("wellhub_checkins_wellhub_user_id_idx").on(table.wellhubUserId),

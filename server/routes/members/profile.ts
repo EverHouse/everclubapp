@@ -766,7 +766,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
         ORDER BY created_at DESC
       `),
       db.execute(sql`
-        SELECT id, event_type, validation_status, booking_number, created_at
+        SELECT id, event_type, validation_status, booking_number, event_reported_at, created_at
         FROM wellhub_checkins
         WHERE user_id IN (SELECT id FROM users WHERE LOWER(email) = ${normalizedEmail})
         ORDER BY created_at DESC
@@ -787,7 +787,7 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       isWellhub: v.source === 'wellhub',
     }));
 
-    interface WellhubRow { id: number; event_type: string; validation_status: string; booking_number: string | null; created_at: string }
+    interface WellhubRow { id: number; event_type: string; validation_status: string; booking_number: string | null; event_reported_at: string | null; created_at: string }
     const allWellhubRows = wellhubResult.rows as unknown as WellhubRow[];
     const validatedWellhubItems = allWellhubRows
       .filter(w => w.validation_status === 'validated')
@@ -808,6 +808,8 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
         isWalkIn: true,
         isWellhub: true,
         wellhubValidationStatus: 'validated' as string,
+        eventReported: !!w.event_reported_at,
+        eventReportedAt: w.event_reported_at,
       }));
 
     const failedWellhubItems = allWellhubRows
@@ -824,6 +826,8 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
         isWalkIn: true,
         isWellhub: true,
         wellhubValidationStatus: w.validation_status,
+        eventReported: false,
+        eventReportedAt: null as string | null,
       }));
 
     const wellhubItems = [...validatedWellhubItems, ...failedWellhubItems];

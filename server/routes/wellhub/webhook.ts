@@ -6,6 +6,8 @@ import { logger } from '../../core/logger';
 import { broadcastToStaff } from '../../core/websocket';
 import { processWalkInCheckin } from '../../core/walkInCheckinService';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { reportWellhubUsageEvent, markEventReported } from '../../core/wellhubEventsService';
+import { queueJob } from '../../core/jobQueue';
 
 const router = Router();
 
@@ -198,9 +200,9 @@ async function logCheckin(
   expiresAt: string | null,
   validationStatus: string,
   errorDetail: string | null
-): Promise<void> {
+): Promise<number | null> {
   try {
-    await db.execute(sql`
+    const result = await db.execute(sql`
       INSERT INTO wellhub_checkins (wellhub_user_id, user_id, gym_id, event_type, booking_number, event_timestamp, expires_at, validation_status, validated_at, error_detail, created_at)
       VALUES (
         ${wellhubUserId},
@@ -215,9 +217,12 @@ async function logCheckin(
         ${errorDetail},
         NOW()
       )
+      RETURNING id
     `);
+    return (result.rows[0] as { id: number })?.id ?? null;
   } catch (err: unknown) {
     logger.error('[Wellhub Webhook] Failed to log check-in', { extra: { error: getErrorMessage(err) } });
+    return null;
   }
 }
 
@@ -372,7 +377,7 @@ async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<vo
 
     const validationResult = await validateWithWellhub(wellhubUserId);
 
-    await logCheckin(wellhubUserId, userId, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, validationResult.status, validationResult.errorDetail || null);
+    const checkinId = await logCheckin(wellhubUserId, userId, gymId, eventType, bookingNumber, eventTimestamp, expiresAt, validationResult.status, validationResult.errorDetail || null);
 
     if (validationResult.status === 'validated') {
       if (!wellhubStatus || wellhubStatus !== 'active') {
@@ -394,6 +399,35 @@ async function processWellhubCheckin(payload: WellhubWebhookPayload): Promise<vo
         logger.info('[Wellhub Webhook] Check-in validated but duplicate walk-in (already checked in recently)', { extra: { wellhubUserId, userId } });
       } else {
         logger.warn('[Wellhub Webhook] Check-in validated but walk-in recording failed', { extra: { wellhubUserId, userId, error: checkinResult.error } });
+      }
+
+      const usageTimestamp = eventTimestamp ? new Date(eventTimestamp) : new Date();
+      try {
+        const reportResult = await reportWellhubUsageEvent(wellhubUserId, 'checkin', usageTimestamp);
+        if (reportResult.success) {
+          if (checkinId) {
+            await markEventReported(checkinId);
+          }
+          logger.info('[Wellhub Webhook] Usage event reported to Wellhub', { extra: { wellhubUserId, checkinId } });
+        } else {
+          logger.warn('[Wellhub Webhook] Usage event report failed, queuing retry', { extra: { wellhubUserId, checkinId, error: reportResult.error } });
+          await queueJob('wellhub_report_event', {
+            checkinId: checkinId || 0,
+            wellhubUserId,
+            eventType: 'checkin',
+            eventTimestamp: usageTimestamp.toISOString(),
+          }, { maxRetries: 5 });
+        }
+      } catch (reportErr: unknown) {
+        logger.error('[Wellhub Webhook] Error reporting usage event, queuing retry', { extra: { wellhubUserId, checkinId, error: getErrorMessage(reportErr) } });
+        await queueJob('wellhub_report_event', {
+          checkinId: checkinId || 0,
+          wellhubUserId,
+          eventType: 'checkin',
+          eventTimestamp: usageTimestamp.toISOString(),
+        }, { maxRetries: 5 }).catch(qErr => {
+          logger.error('[Wellhub Webhook] Failed to queue usage event retry', { extra: { error: getErrorMessage(qErr) } });
+        });
       }
     } else {
       broadcastToStaff({
