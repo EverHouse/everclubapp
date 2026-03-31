@@ -1199,6 +1199,36 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
           </div>
         );
 
+      case 'Billing Provider Hybrid State': {
+        const hybridResult = results.find(r => r.checkName === 'Billing Provider Hybrid State');
+        const hybridIssues = hybridResult?.issues.filter(i => !i.ignored) || [];
+        const missingSubIds = hybridIssues.filter(i => i.context?.issueType === 'stripe_missing_subscription_id');
+
+        return (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+              <strong>About:</strong> Members with billing configuration issues — e.g. billing_provider set to &apos;stripe&apos; but missing Stripe subscription/customer IDs. Active subscriptions (including 100% discount) are auto-detected and backfilled during checks.
+            </p>
+            {missingSubIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                <button
+                  onClick={() => {
+                    if (confirm(`Backfill missing Stripe subscription IDs for ${missingSubIds.length} member(s)? This will search each member's Stripe customer for active subscriptions and restore the link. No charges will be created.`)) {
+                      fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/backfill-stripe-subscription-ids', body: {} });
+                    }
+                  }}
+                  disabled={fixIssueMutation.isPending || isBulkActionRunning}
+                  className="tactile-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Icon name="link" className="text-[14px]" />
+                  Backfill Subscription IDs ({missingSubIds.length})
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
       default:
         return null;
     }

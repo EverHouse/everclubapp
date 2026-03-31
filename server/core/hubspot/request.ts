@@ -66,7 +66,7 @@ export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<
           logger.warn(`HubSpot Rate Limit hit (consecutive: ${consecutiveRateLimits}), backing off...`);
           throw error;
         }
-        throw new AbortError(getErrorMessage(error));
+        throw new AbortError(error instanceof Error ? error : new Error(getErrorMessage(error)));
       }
     },
     {

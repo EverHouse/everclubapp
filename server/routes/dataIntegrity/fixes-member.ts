@@ -1075,4 +1075,99 @@ router.post('/api/data-integrity/fix/backfill-hubspot-last-modified', isAdmin, a
   }
 });
 
+router.post('/api/data-integrity/fix/backfill-stripe-subscription-ids', isAdmin, async (req: Request, res) => {
+  try {
+    const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true;
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const stripe = await getStripeClient();
+
+    const membersResult = await db.execute(sql`
+      SELECT id, email, first_name, last_name, stripe_customer_id
+      FROM users
+      WHERE billing_provider = 'stripe'
+        AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
+        AND stripe_customer_id IS NOT NULL AND stripe_customer_id != ''
+        AND membership_status = 'active'
+        AND role = 'member'
+        AND archived_at IS NULL
+      ORDER BY email
+    `);
+
+    const rows = membersResult.rows as Array<Record<string, unknown>>;
+    if (rows.length === 0) {
+      res.json({ success: true, message: 'No members need subscription ID backfill.', backfilled: 0, orphaned: 0, noSubscription: 0 });
+      return;
+    }
+
+    let backfilled = 0;
+    let orphaned = 0;
+    let noSubscription = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const email = row.email as string;
+      const customerId = row.stripe_customer_id as string;
+      const userId = row.id;
+
+      try {
+        const customerSubs = await stripe.subscriptions.list({
+          customer: customerId,
+          status: 'all',
+          limit: 10,
+        });
+
+        const activeSub = customerSubs.data?.find(s =>
+          ['active', 'trialing', 'past_due'].includes(s.status)
+        );
+
+        if (activeSub) {
+          if (!dryRun) {
+            await db.execute(sql`
+              UPDATE users SET stripe_subscription_id = ${activeSub.id}, updated_at = NOW()
+              WHERE id = ${userId}
+                AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
+            `);
+          }
+          backfilled++;
+          logger.info(`[DataIntegrity] ${dryRun ? '[DRY RUN] ' : ''}Backfilled subscription ID for ${email}: ${activeSub.id}`);
+        } else {
+          noSubscription++;
+        }
+      } catch (err: unknown) {
+        const errMsg = getErrorMessage(err);
+        if (errMsg.includes('No such customer') || errMsg.includes('resource_missing')) {
+          orphaned++;
+          logger.warn(`[DataIntegrity] Orphaned Stripe customer for ${email}: ${customerId}`);
+        } else {
+          failed++;
+          logger.warn(`[DataIntegrity] Failed to check subscriptions for ${email}`, { extra: { error: errMsg } });
+        }
+      }
+    }
+
+    logFromRequest(req, 'backfill_stripe_subscription_ids', 'user', undefined, undefined, {
+      totalProcessed: rows.length,
+      backfilled,
+      orphaned,
+      noSubscription,
+      failed,
+      dryRun
+    });
+
+    res.json({
+      success: true,
+      dryRun,
+      message: `${dryRun ? '[DRY RUN] ' : ''}Processed ${rows.length} members: ${backfilled} backfilled, ${orphaned} orphaned customers, ${noSubscription} no active subscription, ${failed} failed.`,
+      backfilled,
+      orphaned,
+      noSubscription,
+      failed,
+      total: rows.length
+    });
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Backfill Stripe subscription IDs error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  }
+});
+
 export default router;

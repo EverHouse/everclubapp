@@ -410,10 +410,27 @@ export async function syncTierToHubSpot(params: {
         ? (updateError as { originalError: unknown }).originalError
         : updateError;
       const errBody = rawError && typeof rawError === 'object' && 'body' in rawError ? (rawError as { body: { errors?: Array<{ code: string; context?: { propertyName?: string[] } }> } }).body : undefined;
-      if (errBody?.errors?.some((e) => e.code === 'PROPERTY_DOESNT_EXIST')) {
-        const invalidProps = errBody.errors
-          .filter((e) => e.code === 'PROPERTY_DOESNT_EXIST')
-          .map((e) => e.context?.propertyName?.[0]);
+      const errMsg = getErrorMessage(updateError);
+      const hasPropertyDoesntExist = errBody?.errors?.some((e) => e.code === 'PROPERTY_DOESNT_EXIST') || errMsg.includes('PROPERTY_DOESNT_EXIST');
+      if (hasPropertyDoesntExist) {
+        const invalidProps: (string | undefined)[] = [];
+        if (errBody?.errors) {
+          invalidProps.push(...errBody.errors
+            .filter((e) => e.code === 'PROPERTY_DOESNT_EXIST')
+            .map((e) => e.context?.propertyName?.[0]));
+        }
+
+        if (invalidProps.length === 0) {
+          const propMatch = errMsg.match(/property\s+['"]?(\w+)['"]?\s+does\s+not\s+exist/gi);
+          if (propMatch) {
+            for (const match of propMatch) {
+              const nameMatch = match.match(/property\s+['"]?(\w+)['"]?/i);
+              if (nameMatch?.[1]) invalidProps.push(nameMatch[1]);
+            }
+          }
+        }
+
+        logger.warn(`[HubSpot TierSync] Missing HubSpot properties for ${normalizedEmail}: ${invalidProps.filter(Boolean).join(', ') || 'unknown'}. Retrying without them.`);
 
         const validProperties: Record<string, string> = {};
         for (const [key, value] of Object.entries(properties)) {
@@ -423,12 +440,11 @@ export async function syncTierToHubSpot(params: {
         }
 
         if (Object.keys(validProperties).length > 0) {
-          logger.info(`[HubSpot TierSync] Retrying ${normalizedEmail} without missing properties: ${invalidProps.join(', ')}`);
           await retryableHubSpotRequest(() =>
             hubspot.crm.contacts.basicApi.update(hubspotContactId, { properties: validProperties })
           );
         } else {
-          logger.warn(`[HubSpot TierSync] All properties invalid for ${normalizedEmail}: ${invalidProps.join(', ')}`);
+          logger.warn(`[HubSpot TierSync] All properties invalid for ${normalizedEmail}: ${invalidProps.filter(Boolean).join(', ')}`);
           return;
         }
       } else {

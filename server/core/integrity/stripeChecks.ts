@@ -405,6 +405,13 @@ export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResul
 export async function checkBillingProviderHybridState(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
 
+  let stripe: Stripe | undefined;
+  try {
+    stripe = await getStripeClient();
+  } catch {
+    logger.debug('[DataIntegrity] Could not connect to Stripe for hybrid billing check');
+  }
+
   const hybridResult = await db.execute(sql`
     SELECT id, email, first_name, last_name, tier, membership_status, 
            billing_provider, stripe_subscription_id, stripe_customer_id, mindbody_client_id
@@ -446,11 +453,64 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
       suggestion = 'Mark as comped/manual or link an existing Stripe customer. Do NOT create a new subscription — member may have already paid.';
       severity = 'error';
       issueType = 'stripe_missing_customer_id';
-    } else {
+    } else if (member.billing_provider === 'stripe' && member.stripe_customer_id && (!member.stripe_subscription_id || member.stripe_subscription_id === '')) {
+      if (stripe) {
+        try {
+          const customerSubs = await stripe.subscriptions.list({
+            customer: member.stripe_customer_id,
+            status: 'all',
+            limit: 10,
+          });
+
+          const activeSub = customerSubs.data?.find((s: Stripe.Subscription) =>
+            ['active', 'trialing', 'past_due'].includes(s.status)
+          );
+
+          if (activeSub) {
+            await db.execute(sql`
+              UPDATE users 
+              SET stripe_subscription_id = ${activeSub.id}, updated_at = NOW()
+              WHERE id = ${member.id}
+                AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
+            `);
+            logger.info(`[DataIntegrity] Auto-backfilled subscription ID for "${memberName}" <${member.email}>: ${activeSub.id} (status: ${activeSub.status})`);
+            continue;
+          }
+        } catch (err: unknown) {
+          const errMsg = getErrorMessage(err);
+          if (errMsg.includes('No such customer') || errMsg.includes('resource_missing')) {
+            issues.push({
+              category: 'data_quality',
+              severity: 'error',
+              table: 'users',
+              recordId: member.id,
+              description: `Member "${memberName}" has billing_provider='stripe' but Stripe customer ${member.stripe_customer_id} no longer exists`,
+              suggestion: 'Clear orphaned Stripe customer ID or link to correct customer',
+              context: {
+                memberName,
+                memberEmail: member.email,
+                memberTier: member.tier || 'none',
+                memberStatus: member.membership_status,
+                billingProvider: member.billing_provider || 'none',
+                stripeSubscriptionId: member.stripe_subscription_id || 'none',
+                stripeCustomerId: member.stripe_customer_id || 'none',
+                mindbodyClientId: member.mindbody_client_id || 'none',
+                userId: String(member.id),
+                issueType: 'stripe_orphaned_customer_id',
+                errorType: 'orphaned_stripe_customer'
+              }
+            });
+            continue;
+          }
+          logger.debug(`[DataIntegrity] Could not look up subscriptions for "${memberName}": ${errMsg}`);
+        }
+      }
       description = `Member "${memberName}" has billing_provider='stripe' but no Stripe subscription ID`;
       suggestion = 'Verify Stripe subscription exists or update billing provider to comped/manual';
       severity = 'error';
       issueType = 'stripe_missing_subscription_id';
+    } else {
+      continue;
     }
 
     issues.push({
