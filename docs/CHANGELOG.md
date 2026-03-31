@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.5] - 2026-03-31
+
+### Bugfix: Trackman webhook cannot reactivate cancelled bookings
+- **Root cause**: The `trg_booking_status_machine` DB trigger rejects `cancelled → approved` transitions (terminal status). The Trackman webhook modification handler attempted this transition without bypassing the trigger.
+- **Fix**: Added `SET LOCAL app.bypass_status_check = 'true'` before the update when `needsReactivation` is true, and reset it after. `SET LOCAL` is transaction-scoped, so the bypass is automatically cleared on commit/rollback.
+- **Production impact**: Booking 35231 and similar bookings were failing repeatedly with `Status transition rejected: cannot change from "cancelled" to "approved"`. This caused repeated ERROR logs and contributed to pool pressure during Trackman webhook batches.
+- **Files changed**: `server/routes/trackman/webhook-modification.ts`
+
 ## [8.98.4] - 2026-03-31
 
 ### Feature: Wellhub Events API — Usage Reporting for Payment (Task #333)

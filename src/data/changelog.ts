@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.5",
+    date: "2026-03-31",
+    title: "Trackman Booking Sync Fix",
+    changes: [
+      "Fixed: Bookings that were cancelled in the app but then rebooked via Trackman now properly sync back as active bookings instead of silently failing.",
+    ]
+  },
+  {
     version: "8.98.4",
     date: "2026-03-31",
     title: "Wellhub Usage Reporting",

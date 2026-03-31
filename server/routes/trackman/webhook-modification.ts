@@ -215,6 +215,9 @@ export async function handleBookingModification(
       }
 
       const reactivationNote = needsReactivation ? ` [Reactivated via Trackman webhook — was ${existing.status}]` : '';
+      if (needsReactivation) {
+        await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
+      }
       await tx.execute(sql`UPDATE booking_requests
          SET start_time = ${newStartTime},
              end_time = ${newEndTime},
@@ -227,6 +230,9 @@ export async function handleBookingModification(
              staff_notes = COALESCE(staff_notes, '') || ${reactivationNote + staffNoteAddition},
              updated_at = NOW()
          WHERE id = ${bookingId}`);
+      if (needsReactivation) {
+        await tx.execute(sql`SET LOCAL app.bypass_status_check = 'false'`);
+      }
 
       if (sessionId) {
         if (bayChanged || timeChanged || dateChanged) {
