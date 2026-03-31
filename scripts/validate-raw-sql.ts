@@ -32,7 +32,7 @@ function parseSchemaFiles(): TableSchema[] {
       const startIdx = match.index + match[0].length;
       const columns = new Set<string>();
 
-      const afterTable = content.slice(startIdx, startIdx + 5000);
+      const afterTable = content.slice(startIdx, startIdx + 15000);
       const colTypeRegex = /(?:serial|integer|varchar|text|boolean|timestamp|jsonb|bigint|real|doublePrecision|smallint|numeric|date|uuid|char|json|customType|time|interval|inet|cidr|macaddr)\s*\(\s*["'](\w+)["']/g;
       let colMatch;
 
