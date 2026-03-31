@@ -6,6 +6,7 @@ import { syncBookingInvoice } from './bookingInvoiceService';
 import { logger } from '../logger';
 import { isPlaceholderGuestName } from './pricingConfig';
 import { sendPassUpdateForMemberByEmail } from '../../walletPass/apnPushService';
+import { notifyAllStaff } from '../notificationService';
 
 async function fetchStripePriceCents(stripePriceId: string, fallback: number): Promise<number> {
   try {
@@ -162,11 +163,52 @@ export async function consumeGuestPassForParticipant(
       const bookingResult = await db.execute(sql`SELECT id FROM booking_requests WHERE session_id = ${sessionId} LIMIT 1`);
       if (bookingResult.rows.length > 0) {
         resolvedBookingId = (bookingResult.rows[0] as unknown as BookingIdRow).id as number;
-        await db.execute(sql`DELETE FROM guest_pass_holds 
-           WHERE booking_id = ${resolvedBookingId} AND LOWER(member_email) = ${ownerEmailLower} AND passes_held <= 1;
-           UPDATE guest_pass_holds 
-           SET passes_held = passes_held - 1
-           WHERE booking_id = ${resolvedBookingId} AND LOWER(member_email) = ${ownerEmailLower} AND passes_held > 1`);
+
+        const MAX_HOLD_CLEANUP_RETRIES = 3;
+        let holdCleanupSuccess = false;
+        let lastHoldErr: unknown = null;
+
+        for (let attempt = 1; attempt <= MAX_HOLD_CLEANUP_RETRIES; attempt++) {
+          try {
+            await db.transaction(async (tx) => {
+              const holdRows = await tx.execute(sql`
+                SELECT id, passes_held FROM guest_pass_holds
+                WHERE booking_id = ${resolvedBookingId} AND LOWER(member_email) = ${ownerEmailLower}
+                FOR UPDATE
+              `);
+              if (holdRows.rows.length === 0) return;
+              for (const row of holdRows.rows) {
+                const hold = row as Record<string, unknown>;
+                const currentHeld = (hold.passes_held as number) || 0;
+                if (currentHeld <= 1) {
+                  await tx.execute(sql`DELETE FROM guest_pass_holds WHERE id = ${hold.id as number}`);
+                } else {
+                  await tx.execute(sql`UPDATE guest_pass_holds SET passes_held = passes_held - 1 WHERE id = ${hold.id as number}`);
+                }
+              }
+            });
+            holdCleanupSuccess = true;
+            break;
+          } catch (err: unknown) {
+            lastHoldErr = err;
+            logger.warn(`[GuestPassConsumer] Hold cleanup attempt ${attempt}/${MAX_HOLD_CLEANUP_RETRIES} failed`, { extra: { bookingId: resolvedBookingId, error: getErrorMessage(err) } });
+            if (attempt < MAX_HOLD_CLEANUP_RETRIES) {
+              await new Promise(resolve => setTimeout(resolve, 200 * Math.pow(2, attempt - 1)));
+            }
+          }
+        }
+
+        if (!holdCleanupSuccess) {
+          logger.error(`[GuestPassConsumer] Hold cleanup failed after ${MAX_HOLD_CLEANUP_RETRIES} retries`, { extra: { bookingId: resolvedBookingId, memberEmail: ownerEmailLower, error: getErrorMessage(lastHoldErr) } });
+          notifyAllStaff(
+            'Guest Pass Hold Cleanup Failed',
+            `Hold cleanup failed after ${MAX_HOLD_CLEANUP_RETRIES} retries for member ${ownerEmailLower}, booking #${resolvedBookingId}, guest "${guestName}". The hold may need to be released manually.`,
+            'warning',
+            { relatedId: resolvedBookingId, relatedType: 'booking' }
+          ).catch(notifErr => {
+            logger.warn('[GuestPassConsumer] Failed to send staff alert for hold cleanup failure', { extra: { error: getErrorMessage(notifErr) } });
+          });
+        }
       }
     } catch (holdErr: unknown) {
       logger.info(`[GuestPassConsumer] Hold cleanup failed (non-blocking):`, { extra: { detail: holdErr } });

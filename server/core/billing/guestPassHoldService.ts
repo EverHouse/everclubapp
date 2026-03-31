@@ -112,7 +112,7 @@ export async function createGuestPassHold(
     }
     
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setTime(expiresAt.getTime() + 24 * 60 * 60 * 1000);
     
     const insertResult = await executor.execute(sql`
       INSERT INTO guest_pass_holds (member_email, booking_id, passes_held, expires_at)
