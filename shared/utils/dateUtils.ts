@@ -63,7 +63,8 @@ export function getDayOfWeekFromDateStr(dateStr: string): number {
   return getDayOfWeek(year, month, day);
 }
 
-export function formatDateFromDb(date: Date | string): string {
+export function formatDateFromDb(date: Date | string | null | undefined): string {
+  if (!date) return getTodayPacific();
   if (date instanceof Date) {
     return date.toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
   }
