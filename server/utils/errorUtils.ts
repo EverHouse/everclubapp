@@ -70,6 +70,13 @@ export function getErrorStack(error: unknown): string | undefined {
   return hasProperty(error, 'stack') ? String(error.stack) : undefined;
 }
 
+export function getErrorProperty(error: unknown, prop: string): unknown {
+  if (error != null && typeof error === 'object' && prop in error) {
+    return (error as Record<string, unknown>)[prop];
+  }
+  return undefined;
+}
+
 export interface ParsedConstraintError {
   table: string;
   message: string;
