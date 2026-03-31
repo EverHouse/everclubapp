@@ -306,5 +306,22 @@ export const stripeTransactionCache = pgTable("stripe_transaction_cache", {
   index("idx_stripe_cache_object_type").on(table.objectType),
 ]);
 
+export const billingAudit = pgTable("billing_audit", {
+  id: serial("id").primaryKey(),
+  memberEmail: varchar("member_email").notNull(),
+  memberId: varchar("member_id"),
+  action: varchar("action").notNull(),
+  amountCents: integer("amount_cents"),
+  description: text("description"),
+  bookingId: integer("booking_id"),
+  sessionId: integer("session_id"),
+  paymentIntentId: varchar("payment_intent_id"),
+  invoiceId: varchar("invoice_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_billing_audit_member_email").on(table.memberEmail),
+  index("idx_billing_audit_created_at").on(sql`${table.createdAt} DESC`),
+]);
+
 // Note: billingGroups, groupMembers, and familyAddOnProducts are defined in hubspot-billing.ts
 // to avoid duplicate exports. Import them from there or from the main schema.

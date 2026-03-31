@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.0",
+    date: "2026-03-31",
+    title: "Payment Audit Trail Fix",
+    changes: [
+      "Fixed: Payment records from saved card transactions are now properly saved, ensuring a complete billing history for all member payments.",
+    ]
+  },
+  {
     version: "8.97.99",
     date: "2026-03-31",
     title: "Performance & Bundle Size Optimization",

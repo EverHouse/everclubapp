@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.0] - 2026-03-31
+
+### Fix: Missing billing_audit table causing silent payment audit failures
+- **Bug**: Code in `saved-cards.ts` and `invoices.ts` inserts into `billing_audit` table, but the table never existed. The old migration created `billing_audit_log` with a completely different schema (HubSpot-oriented columns). The table was also dropped by `drizzle-kit push` since there was no Drizzle schema definition.
+- **Fix**: Added `billingAudit` Drizzle schema in `shared/models/billing.ts` with columns matching what the code actually inserts: `member_email`, `member_id`, `action`, `amount_cents`, `description`, `booking_id`, `session_id`, `payment_intent_id`, `invoice_id`, `created_at`. Created the table in the database with indexes on `member_email` and `created_at`.
+- **Impact**: Member saved-card payments and invoice payments now properly log audit entries instead of silently failing.
+- **Files changed**: `shared/models/billing.ts`
+
 ## [8.97.99] - 2026-03-31
 
 ### Performance & Bundle Size Optimization
