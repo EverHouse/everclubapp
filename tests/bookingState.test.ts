@@ -273,6 +273,64 @@ describe('BookingStateService', () => {
       expect(result.success).toBe(false);
       expect(result.statusCode).toBe(500);
     });
+
+    it('blocks staff from completing cancellation_pending booking', async () => {
+      const pendingCancelBooking = {
+        id: 10,
+        userEmail: 'test@example.com',
+        userName: 'Test User',
+        resourceId: 1,
+        requestDate: '2025-01-01',
+        startTime: '10:00',
+        durationMinutes: 60,
+        status: 'cancellation_pending',
+        calendarEventId: null,
+        sessionId: null,
+        trackmanBookingId: '12345',
+        staffNotes: null,
+        version: 1,
+      };
+      mockDbSelectChain([pendingCancelBooking]);
+
+      const result = await BookingStateService.cancelBooking({
+        bookingId: 10,
+        source: 'staff',
+        cancelledBy: 'staff@example.com',
+        staffEmail: 'staff@example.com',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.statusCode).toBe(403);
+      expect(result.error).toContain('Trackman');
+    });
+
+    it('returns idempotent success for member re-cancelling cancellation_pending booking', async () => {
+      const pendingCancelBooking = {
+        id: 11,
+        userEmail: 'member@example.com',
+        userName: 'Test Member',
+        resourceId: 1,
+        requestDate: '2025-01-01',
+        startTime: '10:00',
+        durationMinutes: 60,
+        status: 'cancellation_pending',
+        calendarEventId: null,
+        sessionId: null,
+        trackmanBookingId: '12345',
+        staffNotes: null,
+        version: 1,
+      };
+      mockDbSelectChain([pendingCancelBooking]);
+
+      const result = await BookingStateService.cancelBooking({
+        bookingId: 11,
+        source: 'member',
+        cancelledBy: 'member@example.com',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe('cancellation_pending');
+    });
   });
 
   describe('completePendingCancellation', () => {
