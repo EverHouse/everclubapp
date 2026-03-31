@@ -22,7 +22,9 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   role: varchar("role").$type<UserRole>().default("member"),
+  // TODO(deprecate): `tier` is a legacy text field that duplicates `tier_id`. `tier_id` (FK to membership_tiers) is the source of truth. This field is kept for backward compatibility but should be consolidated in a future migration.
   tier: varchar("tier"),
+  // `tier_id` is the canonical source of truth for a member's tier. See TODO above re: legacy `tier` text field.
   tierId: integer("tier_id"),
   tags: jsonb("tags").default(sql`'[]'::jsonb`),
   discountCode: varchar("discount_code"),

@@ -1,20 +1,27 @@
 import { logger } from '../core/logger';
+import { DEFAULT_TIER_NAMES } from '../../shared/constants/tiers';
 
 /**
  * Bootstrap-only fallback tier slugs. These are overwritten on startup by setServerTierData()
  * when tiers are loaded from the membership_tiers database table.
  * NEVER use these as authoritative tier lists — always query the DB or use the
  * dynamically-populated TIER_SLUGS / CANONICAL_TIER_NAMES exports after startup.
+ *
+ * Canonical tier names are derived from shared/constants/tiers.ts DEFAULT_TIER_NAMES
+ * to maintain a single source of truth. Server-only tiers (staff, group-lessons) are
+ * added here as they are not part of the shared membership tier list.
  */
-const DEFAULT_TIER_SLUGS = ['social', 'core', 'premium', 'corporate', 'vip', 'staff', 'group-lessons'];
-const DEFAULT_CANONICAL_NAMES: Record<string, string> = {
-  social: 'Social',
-  core: 'Core',
-  premium: 'Premium',
-  corporate: 'Corporate',
-  vip: 'VIP',
+const SERVER_ONLY_TIERS: Record<string, string> = {
   staff: 'Staff',
   'group-lessons': 'Group Lessons',
+};
+const DEFAULT_TIER_SLUGS = [
+  ...DEFAULT_TIER_NAMES.map(n => n.toLowerCase()),
+  ...Object.keys(SERVER_ONLY_TIERS),
+];
+const DEFAULT_CANONICAL_NAMES: Record<string, string> = {
+  ...Object.fromEntries(DEFAULT_TIER_NAMES.map(n => [n.toLowerCase(), n])),
+  ...SERVER_ONLY_TIERS,
 };
 const DEFAULT_FUZZY_PATTERNS: { pattern: string; slug: string }[] = [
   { pattern: 'vip', slug: 'vip' },

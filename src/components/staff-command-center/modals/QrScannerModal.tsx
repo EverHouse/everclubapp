@@ -104,6 +104,7 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
           },
           () => {}
         );
+        if (!isMounted) return;
         setTimeout(() => {
           const container = document.getElementById(elementId);
           if (container) {
@@ -130,6 +131,7 @@ const QrScannerModal: React.FC<QrScannerModalProps> = ({ isOpen, onClose, onScan
     return () => {
       isMounted = false;
       clearTimeout(timeoutId);
+      stopScanner();
     };
   }, [isOpen, elementId, stopScanner]);
 

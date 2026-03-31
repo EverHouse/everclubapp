@@ -6,7 +6,7 @@ export type TierName = string;
  * NEVER use these as authoritative tier lists — always query the DB or use the
  * dynamically-populated TIER_NAMES / TIER_HIERARCHY exports after startup.
  */
-const DEFAULT_TIER_NAMES = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
+export const DEFAULT_TIER_NAMES = ['Social', 'Core', 'Premium', 'Corporate', 'VIP'] as const;
 const DEFAULT_TIER_HIERARCHY: Record<string, number> = {
   'Social': 1,
   'Core': 2,
@@ -55,6 +55,7 @@ export function normalizeTierName(tierString: string | null | undefined): string
     }
   }
 
+  console.warn(`[normalizeTierName] Unrecognized tier name: "${tierString}" — no match found in known tiers`);
   return null;
 }
 

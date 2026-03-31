@@ -466,7 +466,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
                     <label className="block text-sm font-medium text-primary dark:text-white mb-2">Steps</label>
                     <div className="space-y-3">
                         {steps.map((step, index) => (
-                            <div key={index} className="p-4 bg-primary/5 dark:bg-white/5 rounded-xl space-y-3">
+                            <div key={`edit-step-${index}-${step.title || ''}`} className="p-4 bg-primary/5 dark:bg-white/5 rounded-xl space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium text-primary dark:text-white">Step {index + 1}</span>
                                     {steps.length > 1 && (
@@ -715,7 +715,7 @@ const StaffTrainingGuide: React.FC = () => {
                         <div className={`cls-safe-collapse ${isPrinting || expandedSection === String(section.id) ? 'cls-safe-visible' : ''}`}>
                             <div className="cls-safe-inner px-5 pb-5 space-y-4 print:pt-2">
                                 {section.steps.map((step, index) => (
-                                    <div key={index} className="flex gap-4">
+                                    <div key={`display-step-${index}-${step.title}`} className="flex gap-4">
                                         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-primary dark:text-white print:bg-gray-100 print:text-gray-700">
                                             {index + 1}
                                         </div>

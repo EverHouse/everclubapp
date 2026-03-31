@@ -859,7 +859,7 @@ export class BookingStateService {
         relatedId: bookingId,
         relatedType: 'booking_request',
         url: '/sims'
-      }, { sendPush: true }).catch(err => logger.error('[BookingStateService] Member notification failed', { extra: { error: getErrorMessage(err) } }));
+      }, { sendPush: true }).catch(err => logger.error(`[BookingStateService] Member notification failed for bookingId=${bookingId}`, { extra: { bookingId, error: getErrorMessage(err) } }));
     }
 
     const staffMessage = `Booking cancellation pending for ${memberName} on ${bookingDate} at ${bookingTime} (${bayName}). Please cancel in Trackman to complete.`;
@@ -868,7 +868,7 @@ export class BookingStateService {
       staffMessage,
       'booking_cancelled',
       { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings' },
-    ).catch(err => logger.error('[BookingStateService] Staff cancellation notification failed', { extra: { error: getErrorMessage(err) } }));
+    ).catch(err => logger.error(`[BookingStateService] Staff cancellation notification failed for bookingId=${bookingId}`, { extra: { bookingId, error: getErrorMessage(err) } }));
 
     return {
       success: true,
@@ -1128,7 +1128,7 @@ export class BookingStateService {
         relatedId: mn.relatedId,
         relatedType: mn.relatedType,
         url: '/sims'
-      }, { sendPush: true, sendWebSocket: true }).catch(err => logger.error('[BookingStateService] Member notification failed', { extra: { error: getErrorMessage(err) } }));
+      }, { sendPush: true, sendWebSocket: true }).catch(err => logger.error(`[BookingStateService] Member notification failed for bookingId=${mn.relatedId}`, { extra: { bookingId: mn.relatedId, error: getErrorMessage(err) } }));
     }
 
     if (manifest.notifications.staffNotification) {
@@ -1137,7 +1137,7 @@ export class BookingStateService {
         manifest.notifications.staffNotification.message,
         'booking_cancelled',
         { url: '/admin/bookings' },
-      ).catch(err => logger.error('[BookingStateService] Staff notification failed', { extra: { error: getErrorMessage(err) } }));
+      ).catch(err => logger.error(`[BookingStateService] Staff notification failed for booking cancellation`, { extra: { error: getErrorMessage(err) } }));
     }
 
     if (manifest.notifications.memberWebSocket && manifest.notifications.memberWebSocket.email) {
@@ -1167,9 +1167,9 @@ export class BookingStateService {
         startTime: manifest.bookingEvent.startTime,
         status: manifest.bookingEvent.status,
         actionBy: manifest.bookingEvent.actionBy as 'member' | 'staff',
-      }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => logger.error('[BookingStateService] Booking event publish failed', { extra: { error: getErrorMessage(err) } }));
+      }, { notifyMember: false, notifyStaff: true, cleanupNotifications: false }).catch(err => logger.error(`[BookingStateService] Booking event publish failed for bookingId=${manifest.bookingEvent.bookingId}`, { extra: { bookingId: manifest.bookingEvent.bookingId, error: getErrorMessage(err) } }));
 
-      voidBookingPass(manifest.bookingEvent.bookingId).catch(err => logger.error('[BookingStateService] Failed to void booking wallet pass:', { extra: { error: getErrorMessage(err) } }));
+      voidBookingPass(manifest.bookingEvent.bookingId).catch(err => logger.error(`[BookingStateService] Failed to void booking wallet pass for bookingId=${manifest.bookingEvent.bookingId}`, { extra: { bookingId: manifest.bookingEvent.bookingId, error: getErrorMessage(err) } }));
     }
 
     return { errors };

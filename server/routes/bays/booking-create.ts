@@ -500,7 +500,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           url: '/admin/bookings',
           sendPush: true
         }
-      ).catch((err: unknown) => logger.error('Staff notification failed:', { extra: { error: getErrorMessage(err) } }));
+      ).catch((err: unknown) => logger.error(`[BookingCreate] Staff notification failed for bookingId=${row.id}`, { extra: { bookingId: row.id, error: getErrorMessage(err) } }));
       
       bookingEvents.publish('booking_created', {
         bookingId: row.id,
@@ -514,7 +514,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         playerCount: declared_player_count || undefined,
         status: row.status || 'pending',
         actionBy: 'member'
-      }, { notifyMember: false, notifyStaff: true }).catch((err: unknown) => logger.error('Booking event publish failed:', { extra: { error: getErrorMessage(err) } }));
+      }, { notifyMember: false, notifyStaff: true }).catch((err: unknown) => logger.error(`[BookingCreate] Booking event publish failed for bookingId=${row.id}`, { extra: { bookingId: row.id, error: getErrorMessage(err) } }));
       
       broadcastAvailabilityUpdate({
         resourceId: row.resourceId || undefined,
@@ -523,7 +523,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         action: 'booked'
       });
     } catch (postCommitError: unknown) {
-      logger.error('[BookingRequest] Post-commit operations failed', { extra: { error: getErrorMessage(postCommitError) } });
+      logger.error(`[BookingCreate] Post-commit operations failed for bookingId=${row.id}`, { extra: { bookingId: row.id, error: getErrorMessage(postCommitError) } });
     }
   } catch (error: unknown) {
     if (error instanceof BookingValidationError) {

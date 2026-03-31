@@ -244,9 +244,9 @@ const ClosureAlert: React.FC = () => {
             if (areasList.length > 0) {
               return (
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {areasList.slice(0, 3).map((area, idx) => (
+                  {areasList.slice(0, 3).map((area) => (
                     <span 
-                      key={idx} 
+                      key={area} 
                       className={`text-[10px] px-1.5 py-0.5 rounded ${
                         blocking
                           ? (isDark ? 'bg-red-400/30 text-red-300' : 'bg-red-200 text-red-700')

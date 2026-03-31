@@ -90,7 +90,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           {metadata && metadata.length > 0 ? (
             <div className={`flex items-center gap-0 text-[13px] flex-wrap ${isDark ? 'text-white/50' : 'text-primary/45'}`}>
               {metadata.map((chip, idx) => (
-                <React.Fragment key={idx}>
+                <React.Fragment key={`${chip.icon}-${chip.label}`}>
                   {idx > 0 && <span className={`mx-2.5 ${isDark ? 'text-white/15' : 'text-primary/15'}`}>|</span>}
                   <span className="flex items-center gap-1.5">
                     <Icon name={chip.icon} className="text-[15px]" />
@@ -102,9 +102,9 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           ) : <div />}
           {actions && actions.length > 0 && (
             <div className="flex gap-2">
-              {actions.map((action, idx) => (
+              {actions.map((action) => (
                 <button
-                  key={idx}
+                  key={action.label}
                   onClick={(e) => { e.stopPropagation(); if (!action.disabled) action.onClick(); }}
                   disabled={action.disabled}
                   className={`w-10 h-10 rounded-[4px] flex items-center justify-center transition-interactive duration-150 ${action.disabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-90'} ${isDark ? 'bg-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.14]' : 'bg-primary/[0.05] text-primary/50 hover:text-primary hover:bg-primary/[0.1]'}`}

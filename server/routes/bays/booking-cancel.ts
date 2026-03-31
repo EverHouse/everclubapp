@@ -84,7 +84,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     
     if (existing.status === 'cancellation_pending') {
       voidBookingPass(bookingId).catch(err =>
-        logger.warn('[BookingCancel] Self-heal void pass failed for already-pending booking (non-fatal)', { extra: { bookingId, error: getErrorMessage(err) } })
+        logger.warn(`[BookingCancel] Self-heal void pass failed for already-pending booking (non-fatal), bookingId=${bookingId}`, { extra: { bookingId, error: getErrorMessage(err) } })
       );
       return res.status(400).json({ error: 'Cancellation is already in progress' });
     }
@@ -112,7 +112,7 @@ router.put('/api/booking-requests/:id/member-cancel', isAuthenticated, async (re
     logFromRequest(req, result.status === 'cancellation_pending' ? 'cancellation_requested' : 'cancel_booking', 'booking', idStr, undefined, {
       member_email: existing.userEmail,
       ...(existing.trackmanBookingId ? { trackman_booking_id: existing.trackmanBookingId } : {})
-    }).catch(err => logger.error('[BookingCancel] Audit log failed', { extra: { error: getErrorMessage(err) } }));
+    }).catch(err => logger.error(`[BookingCancel] Audit log failed for bookingId=${bookingId}`, { extra: { bookingId, error: getErrorMessage(err) } }));
 
     let bayNameForLog = 'Simulator';
     if (existing.resourceId) {
