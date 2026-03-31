@@ -193,8 +193,10 @@ export async function ensureSessionForBooking(params: {
       if (!manageLockClient) {
         await lockClient.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [lockKey]);
       } else {
-        const MAX_LOCK_ATTEMPTS = 4;
+        const MAX_LOCK_ATTEMPTS = 8;
         const LOCK_RETRY_BASE_MS = 250;
+        const LOCK_RETRY_MAX_MS = 2000;
+        const LOCK_WARN_THRESHOLD = 4;
         let lockAcquired = false;
         for (let attempt = 0; attempt < MAX_LOCK_ATTEMPTS; attempt++) {
           const lockResult = await lockClient.query(`SELECT pg_try_advisory_lock(hashtext($1)) AS acquired`, [lockKey]);
@@ -204,15 +206,21 @@ export async function ensureSessionForBooking(params: {
           }
           if (attempt < MAX_LOCK_ATTEMPTS - 1) {
             const jitter = Math.floor(Math.random() * 100);
-            const delay = LOCK_RETRY_BASE_MS * Math.pow(2, attempt) + jitter;
-            logger.info(`[SessionManager] Advisory lock contention on ${lockKey}, retry ${attempt + 1}/${MAX_LOCK_ATTEMPTS} (delay ${delay}ms)`, {
-              extra: { bookingId: params.bookingId, resourceId: params.resourceId }
-            });
+            const delay = Math.min(LOCK_RETRY_BASE_MS * Math.pow(2, attempt), LOCK_RETRY_MAX_MS) + jitter;
+            if (attempt + 1 > LOCK_WARN_THRESHOLD) {
+              logger.warn(`[SessionManager] Advisory lock contention exceeding threshold on ${lockKey}, retry ${attempt + 1}/${MAX_LOCK_ATTEMPTS} (delay ${delay}ms)`, {
+                extra: { bookingId: params.bookingId, resourceId: params.resourceId, attempt: attempt + 1 }
+              });
+            } else {
+              logger.info(`[SessionManager] Advisory lock contention on ${lockKey}, retry ${attempt + 1}/${MAX_LOCK_ATTEMPTS} (delay ${delay}ms)`, {
+                extra: { bookingId: params.bookingId, resourceId: params.resourceId }
+              });
+            }
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
         if (!lockAcquired) {
-          throw new Error(`Advisory lock timeout: could not acquire lock for ${lockKey} after ${MAX_LOCK_ATTEMPTS} attempts. Another booking approval for this bay/day may be in progress — please retry.`);
+          throw new Error(`This time slot is currently being processed by another request. Please wait a few seconds and try again.`);
         }
       }
       try {
