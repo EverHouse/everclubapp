@@ -159,16 +159,24 @@ export class BookingStateService {
     }
 
     if (booking.status === 'cancellation_pending' && source !== 'trackman_webhook') {
-      logger.warn('[BookingStateService] Blocked non-webhook cancellation completion for cancellation_pending booking', {
-        extra: { bookingId, source, cancelledBy }
-      });
+      if (source === 'staff') {
+        logger.warn('[BookingStateService] Blocked staff manual cancellation completion for cancellation_pending booking', {
+          extra: { bookingId, source, cancelledBy }
+        });
+        return {
+          success: false,
+          status: 'cancellation_pending',
+          bookingId,
+          bookingData: this.extractBookingData(booking),
+          error: 'Booking is awaiting Trackman cancellation confirmation. Please cancel in Trackman first.',
+          statusCode: 403,
+        };
+      }
       return {
-        success: false,
+        success: true,
         status: 'cancellation_pending',
         bookingId,
         bookingData: this.extractBookingData(booking),
-        error: 'Booking is awaiting Trackman cancellation confirmation. Please cancel in Trackman first.',
-        statusCode: 403,
       };
     }
 
