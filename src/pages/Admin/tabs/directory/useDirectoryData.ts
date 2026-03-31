@@ -85,6 +85,7 @@ export function useDirectoryData({
     const [formerLoading, setFormerLoading] = useState(false);
     const [formerError, setFormerError] = useState(false);
     const lastAppliedJobIdRef = useRef<string | null>(null);
+    const syncDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [optimisticTiers, setOptimisticTiers] = useState<Record<string, string>>({});
     const [pendingTierUpdates, setPendingTierUpdates] = useState<Set<string>>(new Set());
 
@@ -225,11 +226,16 @@ export function useDirectoryData({
                 if (wsJobId && lastAppliedJobIdRef.current === wsJobId) return;
                 if (wsJobId) lastAppliedJobIdRef.current = wsJobId;
 
-                refreshMembers();
-                if (memberTab === 'former') {
-                    setFormerLoading(true);
-                    fetchFormerMembers().finally(() => setFormerLoading(false));
-                }
+                if (syncDebounceTimerRef.current) clearTimeout(syncDebounceTimerRef.current);
+                syncDebounceTimerRef.current = setTimeout(() => {
+                    syncDebounceTimerRef.current = null;
+                    refreshMembers();
+                    if (memberTab === 'former') {
+                        setFormerLoading(true);
+                        fetchFormerMembers().finally(() => setFormerLoading(false));
+                    }
+                }, 300);
+
                 if (result) {
                     const msg = formatSyncResult(result as DirectorySyncResult);
                     showToast(msg.text, msg.type);
@@ -244,6 +250,10 @@ export function useDirectoryData({
 
         window.addEventListener('directory-sync-update', handleDirectorySyncUpdate as EventListener);
         return () => {
+            if (syncDebounceTimerRef.current) {
+                clearTimeout(syncDebounceTimerRef.current);
+                syncDebounceTimerRef.current = null;
+            }
             window.removeEventListener('directory-sync-update', handleDirectorySyncUpdate as EventListener);
         };
     }, [queryClient, refreshMembers, memberTab, fetchFormerMembers, formatSyncResult, setFormerLoading]);
