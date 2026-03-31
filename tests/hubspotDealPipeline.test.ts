@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AddMemberInput } from '../server/core/hubspot/members';
 import type { SyncMemberToHubSpotInput } from '../server/core/hubspot/stages';
