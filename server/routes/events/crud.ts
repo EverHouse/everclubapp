@@ -349,12 +349,36 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     updateData.conflictDetected = false;
     
-    const result = await db.update(events).set(updateData).where(eq(events.id, eventId)).returning();
-    
+    const userEmail = getSessionUser(req)?.email || 'system';
+    const hadAnyBlocking = previousBlockSimulators || previousBlockConferenceRoom;
+    const hasAnyBlocking = newBlockSimulators || newBlockConferenceRoom;
+
+    const result = await db.transaction(async (tx) => {
+      const updateResult = await tx.update(events).set(updateData).where(eq(events.id, eventId)).returning();
+
+      if (updateResult.length === 0) {
+        throw new Error('EVENT_NOT_FOUND');
+      }
+
+      const updatedEvent = updateResult[0];
+
+      if (hadAnyBlocking && !hasAnyBlocking) {
+        await removeEventAvailabilityBlocks(eventId, tx);
+      } else if (!hadAnyBlocking && hasAnyBlocking) {
+        await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title, tx);
+      } else if (hasAnyBlocking) {
+        await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title, tx);
+      }
+
+      return updateResult;
+    });
+
     if (result.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
     }
-    
+
+    const updatedEvent = result[0];
+
     if (existing.length > 0 && existing[0].googleCalendarId) {
       try {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.events.name);
@@ -391,38 +415,18 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
               lastSyncedAt: new Date(),
             }).where(eq(events.id, eventId));
           }
+        } else {
+          logger.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event update — locallyEdited flag retained for retry`, {
+            extra: { eventId, googleCalendarId: existing[0].googleCalendarId }
+          });
         }
       } catch (calError: unknown) {
-        logger.error('Failed to update Google Calendar event', { extra: { error: getErrorMessage(calError) } });
-      }
-    }
-    
-    const userEmail = getSessionUser(req)?.email || 'system';
-    
-    const hadAnyBlocking = previousBlockSimulators || previousBlockConferenceRoom;
-    const hasAnyBlocking = newBlockSimulators || newBlockConferenceRoom;
-    
-    const updatedEvent = result[0];
-    
-    if (hadAnyBlocking && !hasAnyBlocking) {
-      await removeEventAvailabilityBlocks(eventId);
-    } else if (!hadAnyBlocking && hasAnyBlocking) {
-      try {
-        await createEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
-      } catch (blockErr: unknown) {
-        logger.error(`[Events] Failed to create availability blocks for event #${eventId}`, { 
-          extra: { error: getErrorMessage(blockErr), eventId, blockSimulators: newBlockSimulators, blockConferenceRoom: newBlockConferenceRoom }
-        });
-      }
-    } else if (hasAnyBlocking) {
-      try {
-        await updateEventAvailabilityBlocks(eventId, trimmedEventDate, trimmedStartTime, trimmedEndTime || trimmedStartTime, newBlockSimulators, newBlockConferenceRoom, userEmail, updatedEvent.title);
-      } catch (blockErr: unknown) {
-        logger.error(`[Events] Failed to update availability blocks for event #${eventId}`, { 
-          extra: { error: getErrorMessage(blockErr), eventId, blockSimulators: newBlockSimulators, blockConferenceRoom: newBlockConferenceRoom }
+        logger.error('[Events] Failed to update Google Calendar event — locallyEdited flag retained for retry', {
+          extra: { error: getErrorMessage(calError), eventId, googleCalendarId: existing[0].googleCalendarId }
         });
       }
     }
+
     logFromRequest(req, 'update_event', 'event', String(updatedEvent.id), updatedEvent.title, {
       event_date: updatedEvent.eventDate,
       start_time: updatedEvent.startTime,
@@ -437,6 +441,9 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     
     res.json(updatedEvent);
   } catch (error: unknown) {
+    if (error instanceof Error && error.message === 'EVENT_NOT_FOUND') {
+      return res.status(404).json({ error: 'Event not found' });
+    }
     logAndRespond(req, res, 500, 'Failed to update event', error);
   }
 });
@@ -494,40 +501,45 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Event is already archived' });
     }
     
+    const deletedEvent = await db.transaction(async (tx) => {
+      await removeEventAvailabilityBlocks(eventId, tx);
+
+      const eventBeforeDelete = await tx.select({
+        title: events.title,
+        eventDate: events.eventDate,
+        startTime: events.startTime,
+        location: events.location
+      }).from(events).where(eq(events.id, eventId));
+
+      await tx.update(events)
+        .set({
+          archivedAt: new Date(),
+          archivedBy: archivedBy
+        })
+        .where(eq(events.id, eventId));
+
+      return eventBeforeDelete[0] || { title: 'Unknown', eventDate: '', startTime: '', location: '' };
+    });
+
     if (existing[0].googleCalendarId) {
       try {
         const calendarId = await getCalendarIdByName(CALENDAR_CONFIG.events.name);
         if (calendarId) {
           await deleteCalendarEvent(existing[0].googleCalendarId, calendarId);
         } else {
-          logger.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event deletion`);
+          logger.error(`[Events] Calendar "${CALENDAR_CONFIG.events.name}" not found for event deletion — flagged for retry`, {
+            extra: { eventId, googleCalendarId: existing[0].googleCalendarId }
+          });
+          await db.update(events).set({ locallyEdited: true }).where(eq(events.id, eventId));
         }
       } catch (calError: unknown) {
-        logger.error('Failed to delete Google Calendar event', { extra: { error: getErrorMessage(calError) } });
+        logger.error('[Events] Failed to delete Google Calendar event — flagged for retry', {
+          extra: { error: getErrorMessage(calError), eventId, googleCalendarId: existing[0].googleCalendarId }
+        });
+        await db.update(events).set({ locallyEdited: true }).where(eq(events.id, eventId));
       }
     }
-    
-    try {
-      await removeEventAvailabilityBlocks(eventId);
-    } catch (blockError: unknown) {
-      logger.error('Failed to remove availability blocks for event', { extra: { error: getErrorMessage(blockError) } });
-    }
-    
-    const eventBeforeDelete = await db.select({
-      title: events.title,
-      eventDate: events.eventDate,
-      startTime: events.startTime,
-      location: events.location
-    }).from(events).where(eq(events.id, eventId));
-    
-    await db.update(events)
-      .set({
-        archivedAt: new Date(),
-        archivedBy: archivedBy
-      })
-      .where(eq(events.id, eventId));
-    
-    const deletedEvent = eventBeforeDelete[0] || { title: 'Unknown', eventDate: '', startTime: '', location: '' };
+
     logFromRequest(req, 'delete_event', 'event', String(eventId), deletedEvent.title, {
       event_date: deletedEvent.eventDate,
       start_time: deletedEvent.startTime,

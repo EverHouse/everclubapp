@@ -79,8 +79,12 @@ export async function createEventAvailabilityBlocks(
   logger.info(`[Events] Created ${resourceIds.length} availability blocks for event #${eventId} on ${eventDate}`);
 }
 
-export async function removeEventAvailabilityBlocks(eventId: number): Promise<void> {
-  await db.delete(availabilityBlocks).where(eq(availabilityBlocks.eventId, eventId));
+export async function removeEventAvailabilityBlocks(
+  eventId: number,
+  tx?: Parameters<Parameters<typeof db.transaction>[0]>[0]
+): Promise<void> {
+  const executor = tx || db;
+  await executor.delete(availabilityBlocks).where(eq(availabilityBlocks.eventId, eventId));
 }
 
 export async function updateEventAvailabilityBlocks(
@@ -91,7 +95,8 @@ export async function updateEventAvailabilityBlocks(
   blockSimulators: boolean,
   blockConferenceRoom: boolean,
   createdBy?: string,
-  eventTitle?: string
+  eventTitle?: string,
+  tx?: Parameters<Parameters<typeof db.transaction>[0]>[0]
 ): Promise<void> {
   const resourceIds: number[] = [];
   
@@ -107,14 +112,14 @@ export async function updateEventAvailabilityBlocks(
     }
   }
   
-  await db.transaction(async (tx) => {
-    await tx.delete(availabilityBlocks).where(eq(availabilityBlocks.eventId, eventId));
+  const executeUpdate = async (executor: Parameters<Parameters<typeof db.transaction>[0]>[0]) => {
+    await executor.delete(availabilityBlocks).where(eq(availabilityBlocks.eventId, eventId));
     
     if (blockSimulators || blockConferenceRoom) {
       const blockNotes = eventTitle ? `Blocked for: ${eventTitle}` : 'Blocked for event';
       
       for (const resourceId of resourceIds) {
-        await tx.insert(availabilityBlocks).values({
+        await executor.insert(availabilityBlocks).values({
           resourceId,
           blockDate: eventDate,
           startTime,
@@ -134,5 +139,13 @@ export async function updateEventAvailabilityBlocks(
         });
       }
     }
-  });
+  };
+
+  if (tx) {
+    await executeUpdate(tx);
+  } else {
+    await db.transaction(async (innerTx) => {
+      await executeUpdate(innerTx);
+    });
+  }
 }
