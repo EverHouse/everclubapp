@@ -113,7 +113,7 @@ vi.mock('../server/core/notificationService', () => ({
   notifyMember: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../server/routes/guestPasses', () => ({
+vi.mock('../server/core/billing/guestPassService', () => ({
   useGuestPass: vi.fn().mockResolvedValue({ success: true }),
   refundGuestPass: vi.fn().mockResolvedValue(undefined),
   ensureGuestPassRecord: vi.fn().mockResolvedValue(undefined),

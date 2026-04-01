@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
   import { db } from '../../../../db';
   import { sql } from 'drizzle-orm';
-  import { notifyPaymentFailed, notifyStaffPaymentFailed } from '../../../notificationService';
+  import { notifyPaymentFailed, notifyStaffPaymentFailed, notifyAllStaff } from '../../../notificationService';
   import { sendPaymentFailedEmail } from '../../../../emails/paymentEmails';
   import { broadcastBillingUpdate } from '../../../websocket';
   import { computeFeeBreakdown } from '../../../billing/unifiedFeeService';

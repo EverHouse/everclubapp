@@ -1852,7 +1852,7 @@ describe('failedSideEffectsScheduler', () => {
     expect(notifyAllStaff).toHaveBeenCalledWith(
       'Failed Side Effects Need Manual Review',
       expect.stringContaining('5 failed side effect(s)'),
-      'system_alert',
+      'system',
       expect.any(Object)
     );
   });

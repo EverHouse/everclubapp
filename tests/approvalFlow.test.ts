@@ -127,11 +127,30 @@ vi.mock('../server/routes/bays/helpers', () => ({
   getCalendarNameForBayAsync: vi.fn().mockResolvedValue('Bay 1 Calendar'),
 }));
 
+const mockDeferredAddCalls: Array<{ type: string }> = [];
+vi.mock('../server/core/deferredSideEffects', () => {
+  class MockDeferredSideEffects {
+    private actions: Array<{ type: string; fn: () => Promise<void> }> = [];
+    add(type: string, fn: () => Promise<void>) { 
+      mockDeferredAddCalls.push({ type });
+      this.actions.push({ type, fn }); 
+    }
+    async executeAll() {
+      for (const action of this.actions) {
+        try { await action.fn(); } catch { /* swallow in test */ }
+      }
+      return { failures: [] };
+    }
+  }
+  return { DeferredSideEffects: MockDeferredSideEffects };
+});
+
 vi.mock('../server/core/calendar/index', () => ({
   getCalendarIdByName: vi.fn().mockResolvedValue('cal-123'),
   createCalendarEventOnCalendar: vi.fn().mockResolvedValue('event-123'),
   deleteCalendarEvent: vi.fn().mockResolvedValue(undefined),
 }));
+
 
 vi.mock('../server/core/billing/prepaymentService', () => ({
   createPrepaymentIntent: vi.fn().mockResolvedValue(undefined),
@@ -246,6 +265,7 @@ function setupApprovalTransaction(bookingRow: Record<string, unknown>) {
 describe('Approval Flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDeferredAddCalls.length = 0;
     vi.mocked(checkClosureConflict).mockResolvedValue({ hasConflict: false });
     vi.mocked(checkAvailabilityBlockConflict).mockResolvedValue({ hasConflict: false });
     vi.mocked(timePeriodsOverlap).mockReturnValue(false);
@@ -574,15 +594,15 @@ describe('Approval Flow', () => {
         selectCallCount++;
         if (selectCallCount === 1) return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([booking]) }) };
         if (selectCallCount === 2) return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([]) }) };
-        return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ name: 'Bay 1', type: 'simulator' }]) }) };
+        if (selectCallCount === 3) return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ name: 'Bay 1', type: 'simulator' }]) }) };
+        return { from: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue([{ id: 'user-1', firstName: 'Test', lastName: 'Member' }]) }) };
       });
 
       mockTransaction.mockImplementation(async (fn: (tx: typeof txMock) => Promise<unknown>) => fn(txMock));
 
       await approveBooking({ bookingId: 1, status: 'approved' });
 
-      expect(getCalendarIdByName).toHaveBeenCalled();
-      expect(createCalendarEventOnCalendar).toHaveBeenCalled();
+      expect(mockDeferredAddCalls.some(c => c.type === 'calendar_sync')).toBe(true);
     });
 
     it('throws AppError when session creation fails within transaction', async () => {
