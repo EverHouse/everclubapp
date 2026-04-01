@@ -530,6 +530,17 @@ async function initializeApp() {
       if (/\.html?(\.br|\.gz)?$/i.test(req.path)) {
         return next();
       }
+      const accept = req.headers.accept || '';
+      const secFetchDest = req.headers['sec-fetch-dest'];
+      if (
+        req.method === 'GET' &&
+        !req.path.startsWith('/api/') &&
+        !req.path.startsWith('/assets/') &&
+        !req.path.includes('.') &&
+        (secFetchDest === 'document' || accept.includes('text/html'))
+      ) {
+        return next();
+      }
       staticGzipHandler(req, res, next);
     });
 
