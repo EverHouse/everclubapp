@@ -99,8 +99,11 @@ function injectNonceIntoHtml(html: string, nonce: string): string {
 }
 
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
-  const isStaticAsset = !req.path.startsWith('/api/') &&
-    /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path);
+  const isStaticAsset = !req.path.startsWith('/api/') && (
+    req.path.startsWith('/assets/') ||
+    /\.[a-f0-9]{8,}\.(js|css)(\?|$)/i.test(req.path) ||
+    /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path)
+  );
 
   if (isStaticAsset) {
     res.setHeader('X-Content-Type-Options', 'nosniff');
