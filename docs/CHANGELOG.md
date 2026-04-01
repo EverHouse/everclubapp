@@ -2,6 +2,24 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.14] - 2026-04-01
+
+### Fix: Phantom participant foreign key crash (Bug #1)
+- If a client sent a fake/invalid `userId` for a participant, the DB lookup returned nothing but the participant remained in the array with an empty email, bypassing overlap and daily-limit checks. On insert, PostgreSQL would throw a foreign key constraint violation (500 error).
+- Now explicitly checks that every requested `userId` was found; rejects the booking with a 400 if any are missing.
+- The existing catch block also now re-throws `BookingValidationError` so it isn't swallowed.
+- Files changed: `server/core/bookingService/createBooking.ts`
+
+### Fix: 24:00:00 time string breaks JS Date parsing (Bug #2)
+- `computeEndTime` could produce `"24:00:00"` for bookings ending exactly at midnight. PostgreSQL accepts this, but `new Date("2024-10-15T24:00:00")` returns `Invalid Date` in V8/browsers, breaking schedulers, calendar UIs, and webhooks.
+- Now caps exact-midnight to `"23:59:59"` to maintain strict ISO-8601 and ECMAScript compatibility.
+- Files changed: `server/core/bookingService/createBooking.ts`
+
+### Fix: Non-array participants crash (Bug #3)
+- `sanitizeAndResolveParticipants` assumed `rawParticipants` was always an array. If the payload sent an object, null, or string, `.length` and `.map()` would throw a `TypeError` (500).
+- Added `Array.isArray()` guard at the top of the function, returning a clean 400 error.
+- Files changed: `server/core/bookingService/createBooking.ts`
+
 ## [8.98.13] - 2026-04-01
 
 ### Fix: DoS via timingSafeEqual crash on multi-byte headers (Bug #1)

@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.14",
+    date: "2026-04-01",
+    title: "Booking Validation Hardening",
+    changes: [
+      "Fixed: Bookings with invalid or fake participant IDs are now rejected immediately instead of causing a database error.",
+      "Fixed: Bookings ending exactly at midnight now use a compatible time format, preventing issues with calendars and reminders.",
+      "Fixed: Participant data is now validated as a proper list before processing, preventing unexpected server errors.",
+    ]
+  },
+  {
     version: "8.98.13",
     date: "2026-04-01",
     title: "Security & Stability Fixes",

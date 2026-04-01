@@ -67,8 +67,6 @@ export function computeEndTime(startTime: string, durationMinutes: number, opts?
   const totalMins = hours * 60 + mins + parsedDuration;
   const endHours = Math.floor(totalMins / 60);
   const endMins = totalMins % 60;
-  const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
-
   if (opts?.strictMidnight) {
     if (endHours >= 24) {
       throw new BookingValidationError(400, { error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
@@ -79,6 +77,11 @@ export function computeEndTime(startTime: string, durationMinutes: number, opts?
     }
   }
 
+  if (endHours === 24 && endMins === 0) {
+    return { endTime: "23:59:59", endHours: 23, endMins: 59 };
+  }
+
+  const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
   return { endTime, endHours, endMins };
 }
 
@@ -95,6 +98,10 @@ export async function sanitizeAndResolveParticipants(
 ): Promise<SanitizedParticipant[]> {
   const maxGuests = opts?.maxGuests ?? 3;
   const isStaff = opts?.isStaff ?? false;
+
+  if (!Array.isArray(rawParticipants)) {
+    throw new BookingValidationError(400, { error: 'Participants must be provided as a valid list.' });
+  }
 
   if (rawParticipants.length > maxGuests) {
     throw new BookingValidationError(400, { error: `Maximum of ${maxGuests} guests allowed per booking` });
@@ -168,10 +175,13 @@ export async function sanitizeAndResolveParticipants(
               participant.name = fullName || found.email || undefined;
             }
             logger.info('[Booking] Resolved email for directory-selected participant', { extra: { participantEmail: participant.email } });
+          } else {
+            throw new BookingValidationError(400, { error: 'One or more selected participants could not be found in the directory.' });
           }
         }
       }
     } catch (err: unknown) {
+      if (err instanceof BookingValidationError) throw err;
       logger.error('[Booking] Failed to batch lookup users by userId', { extra: { error: getErrorMessage(err) } });
       throw new Error('Failed to look up participant user IDs. Please try again.');
     }
