@@ -813,7 +813,8 @@ export async function ensureDatabaseConstraints() {
               'terminal_payment_canceled',
               'funds_added', 'trial_expired', 'trial_ending',
               'waiver_review', 'cancellation_pending', 'cancellation_stuck',
-              'bug_report', 'import_failure', 'integration_error', 'attendance'
+              'bug_report', 'import_failure', 'integration_error', 'attendance',
+              'system_alert', 'payment'
             ));
         END $$;
       `);

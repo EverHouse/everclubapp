@@ -89,7 +89,10 @@ export type NotificationType =
   | 'integration_error'
   | 'attendance'
   | 'wellness'
-  | 'trial_ending';
+  | 'trial_ending'
+  | 'system_alert'
+  | 'billing_update'
+  | 'payment';
 
 export interface NotificationPayload {
   userEmail: string;

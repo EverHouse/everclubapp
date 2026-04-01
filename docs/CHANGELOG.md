@@ -4,6 +4,17 @@ All notable changes to the Ever Club Members App are documented here.
 
 ## [8.98.8] - 2026-04-01
 
+### Bugfix: Missing notification types causing DB constraint violations
+- **Root cause**: `NotificationType` union in `server/core/notificationService.ts` was missing `system_alert`, `billing_update`, and `payment` — all used extensively across the codebase (20+ usage sites for `billing_update`, 5 for `system_alert`, 2 for `payment`). The DB CHECK constraint `notifications_type_check` also lacked `system_alert` and `payment`.
+- **Impact**: TypeScript errors (8 baselined), and potential runtime DB constraint violations when inserting notifications with these types.
+- **Fix**: Added all three types to `NotificationType` union and to the DB CHECK constraint in `db-init.ts`. Updated `scripts/ts-error-baseline.json` (157 → 149 errors).
+- **Files changed**: `server/core/notificationService.ts`, `server/db-init.ts`, `scripts/ts-error-baseline.json`
+
+### Bugfix: Missing `.well-known/webauthn` endpoint (404 on every login page)
+- **Root cause**: Browsers request `/.well-known/webauthn` for passkey credential discovery (Conditional UI autofill). No route handler existed, causing a 404 on every login page visit.
+- **Fix**: Added `GET /.well-known/webauthn` route in `server/routes/auth-passkey.ts` returning `{ origins: [getOrigin()] }`. Added `/.well-known` proxy rule in `vite.config.ts` so dev requests reach the backend.
+- **Files changed**: `server/routes/auth-passkey.ts`, `vite.config.ts`
+
 ### Chore: Fix stale guest pass mock paths in test suite
 - **Root cause**: Architecture tasks #345–#350 moved guest pass logic from `server/routes/guestPasses.ts` to `server/core/billing/guestPassService.ts`. The route file re-exports from core, so core service files now import from `core/billing/guestPassService`. However, 9 test files still mocked the old `routes/guestPasses` path — which doesn't intercept the core import.
 - **Impact**: Guest pass mocks were silently not intercepting calls in affected tests. Tests passed only because mock data avoided guest-pass code paths. Any new guest-related test scenario would fail unexpectedly.

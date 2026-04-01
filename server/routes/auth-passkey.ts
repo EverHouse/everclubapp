@@ -383,4 +383,10 @@ router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) 
   }
 });
 
+router.get('/.well-known/webauthn', (_req, res) => {
+  res.json({
+    origins: [getOrigin()],
+  });
+});
+
 export default router;

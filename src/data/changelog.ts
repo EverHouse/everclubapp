@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.8",
+    date: "2026-04-01",
+    title: "Bug Fixes & Type Safety",
+    changes: [
+      "Fixed: Face ID / Touch ID sign-in discovery now works correctly in supported browsers.",
+      "Fixed: Notification types for billing updates, payment alerts, and system warnings are now properly recognized.",
+    ]
+  },
+  {
     version: "8.98.7",
     date: "2026-04-01",
     title: "Stability & Reliability Improvements",

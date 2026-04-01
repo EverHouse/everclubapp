@@ -91,6 +91,10 @@ export default defineConfig({
             console.log('[Vite Proxy] WebSocket proxy error (backend may be starting):', err.message);
           });
         },
+      },
+      '/.well-known': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
       }
     },
     watch: {
