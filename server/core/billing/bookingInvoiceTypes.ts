@@ -1,70 +1,16 @@
-import { createHash } from 'crypto';
-import { getStripeClient } from '../stripe/client';
 import { db } from '../../db';
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { notifyAllStaff } from '../notificationService';
 import { broadcastBookingInvoiceUpdate } from '../websocket';
-import { bookingRequests } from '../../../shared/schema';
-import { notifications } from '../../../shared/models/notifications';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type Stripe from 'stripe';
 import type { BookingFeeLineItem } from '../stripe/invoices';
 import { PRICING } from './pricingConfig';
-import { markPaymentRefunded } from './PaymentStatusService';
-import { BOOKING_STATUS, PARTICIPANT_TYPE, RESOURCE_TYPE, PAYMENT_STATUS } from '../../../shared/constants/statuses';
-import type { ParticipantType } from '../../../shared/constants/statuses';
-
-interface _InvoiceWithPaymentIntent extends Stripe.Invoice {
-  payment_intent: string | Stripe.PaymentIntent | null;
-}
-
-interface BookingInvoiceIdRow {
-  stripe_invoice_id: string | null;
-}
-
-interface StripeCustomerIdRow {
-  stripe_customer_id: string | null;
-}
-
-interface ParticipantFeeRow {
-  id: number;
-  display_name: string | null;
-  participant_type: string;
-  cached_fee_cents: number;
-}
-
-interface _RefundCountRow {
-  cnt: string | number;
-}
-
-interface BookingInfoRow {
-  user_email: string;
-  session_id: number;
-  trackman_booking_id: string | null;
-  status: string;
-  resource_id?: number;
-  declared_player_count?: number;
-  resource_type?: string;
-}
+import { PARTICIPANT_TYPE } from '../../../shared/constants/statuses';
 
 export interface PaymentIntentLookupRow {
   stripe_payment_intent_id: string;
   amount_cents: number;
-}
-
-interface InvoiceSyncRow {
-  stripe_invoice_id: string | null;
-  user_email: string;
-  trackman_booking_id: string | null;
-  status: string;
-  resource_id: number | null;
-  resource_type: string;
-  declared_player_count: number | null;
-}
-
-interface TrackmanBookingIdRow {
-  trackman_booking_id: string | null;
 }
 
 export function safeBroadcast(params: Parameters<typeof broadcastBookingInvoiceUpdate>[0]): void {
