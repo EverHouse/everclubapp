@@ -12,6 +12,7 @@ import { isSyntheticEmail, notifyMember, notifyAllStaff } from '../core/notifica
 import { sendPushNotification, sendPushNotificationToStaff, isPushNotificationsEnabled } from '../core/pushService';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validate';
+import { formatAffectedAreasForNotification } from '../utils/closureUtils';
 
 const pushSubscribeSchema = z.object({
   subscription: z.object({
@@ -346,11 +347,17 @@ export async function sendMorningClosureNotifications() {
     for (const closure of closuresToNotify) {
       const title = closure.noticeType || closure.title || 'Notice';
       const timeInfo = closure.startTime && closure.endTime 
-        ? ` (${formatTime12Hour(closure.startTime)} - ${formatTime12Hour(closure.endTime)})`
+        ? `${formatTime12Hour(closure.startTime)} - ${formatTime12Hour(closure.endTime)}`
         : '';
-      const message = closure.reason 
-        ? `${closure.reason}${timeInfo}`
-        : `${title}${timeInfo}`;
+      const affectedText = closure.affectedAreas && closure.affectedAreas !== 'none' && closure.affectedAreas !== ''
+        ? formatAffectedAreasForNotification(closure.affectedAreas)
+        : '';
+      const parts: string[] = [];
+      if (closure.title) parts.push(closure.title);
+      if (timeInfo) parts.push(timeInfo);
+      if (affectedText) parts.push(affectedText);
+      if (closure.reason) parts.push(closure.reason);
+      const message = parts.length > 0 ? parts.join(' • ') : title;
 
       await notifyAllStaff(
         `Today: ${title}`,

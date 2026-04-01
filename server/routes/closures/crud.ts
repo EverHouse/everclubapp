@@ -11,7 +11,8 @@ import { notifyAllStaff } from '../../core/notificationService';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { numericIdParam } from '../../middleware/paramSchemas';
-import { getTodayPacific, createPacificDate } from '../../utils/dateUtils';
+import { getTodayPacific, createPacificDate, formatTime12Hour } from '../../utils/dateUtils';
+import { formatAffectedAreasForNotification } from '../../utils/closureUtils';
 import { getCached, setCache, invalidateCache } from '../../core/queryCache';
 import {
   getAffectedBayIds,
@@ -449,17 +450,20 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
     
     if (notify_members) {
       const notificationTitle = title || 'Facility Closure';
-      const affectedText = affected_areas === 'entire_facility' 
-        ? 'Entire Facility' 
-        : affected_areas === 'all_bays' 
-          ? 'All Simulator Bays' 
-          : affected_areas;
+      const affectedText = formatAffectedAreasForNotification(affected_areas);
       const [_sny, snm, snd] = start_date.split('-').map(Number);
       const monthsNotif = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const startDateFormattedNotif = `${monthsNotif[snm - 1]} ${snd}`;
-      const notificationBody = reason 
-        ? `${reason} - ${affectedText} on ${startDateFormattedNotif}`
-        : `${affectedText} will be closed on ${startDateFormattedNotif}`;
+      const timeRange = start_time && end_time
+        ? `${formatTime12Hour(start_time)} - ${formatTime12Hour(end_time)}`
+        : '';
+      const parts: string[] = [];
+      if (title) parts.push(title);
+      if (timeRange) parts.push(timeRange);
+      if (affectedText) parts.push(affectedText);
+      parts.push(`on ${startDateFormattedNotif}`);
+      if (reason) parts.push(reason);
+      const notificationBody = parts.join(' • ');
       
       try {
         await notifyAllStaff(

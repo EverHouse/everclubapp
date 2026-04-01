@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthData } from '../contexts/DataContext';
 import { getTodayPacific } from '../utils/dateUtils';
-import { isBlockingClosure, getAffectedAreasList, getNoticeLabel as getNoticeLabelUtil } from '../utils/closureUtils';
+import { isBlockingClosure, getNoticeLabel as getNoticeLabelUtil } from '../utils/closureUtils';
 import { fetchWithCredentials, isAbortError } from '../hooks/queries/useFetch';
 import Icon from './icons/Icon';
 
@@ -176,20 +176,6 @@ const ClosureAlert: React.FC = () => {
 
   const isBlocking = isBlockingClosure;
 
-  const formatTime12Hour = (time: string): string => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-    return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-
-  const formatDateDisplay = (dateStr: string): string => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr + 'T12:00:00');
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' });
-  };
-
   const isVisible = !isLoading && activeClosures.length > 0 && !isExiting;
 
   const closure = activeClosures[0];
@@ -218,62 +204,18 @@ const ClosureAlert: React.FC = () => {
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <Icon name={blocking ? 'event_busy' : 'notifications'} className={`text-lg flex-shrink-0 ${ blocking ? (isDark ? 'text-red-400' : 'text-red-600') : (isDark ? 'text-amber-400' : 'text-amber-600') }`} />
         <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold uppercase ${
-              blocking
-                ? (isDark ? 'text-red-400' : 'text-red-600')
-                : (isDark ? 'text-amber-400' : 'text-amber-600')
-            }`}>
-              {noticeLabel}
-            </span>
-            <span className={`text-[10px] ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-              {formatDateDisplay(closure.startDate)}
-              {closure.endDate && closure.endDate !== closure.startDate && ` - ${formatDateDisplay(closure.endDate)}`}
-              {closure.startTime && ` • ${formatTime12Hour(closure.startTime)}`}
-              {closure.endTime && closure.endTime !== closure.startTime && ` - ${formatTime12Hour(closure.endTime)}`}
-            </span>
-          </div>
+          <span className={`text-[10px] font-bold uppercase ${
+            blocking
+              ? (isDark ? 'text-red-400' : 'text-red-600')
+              : (isDark ? 'text-amber-400' : 'text-amber-600')
+          }`}>
+            {noticeLabel}
+          </span>
           <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <span className="line-clamp-1">
-              {closure.reason && closure.reason.trim() ? closure.reason : closure.title || 'Notice'}
+              {closure.reason && closure.reason.trim() ? closure.reason : 'See details'}
             </span>
           </div>
-          {(() => {
-            const hasAffectedAreas = closure.affectedAreas && closure.affectedAreas !== 'none' && closure.affectedAreas !== '';
-            const areasList = hasAffectedAreas ? getAffectedAreasList(closure.affectedAreas) : [];
-            if (areasList.length > 0) {
-              return (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {areasList.slice(0, 3).map((area) => (
-                    <span 
-                      key={area} 
-                      className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        blocking
-                          ? (isDark ? 'bg-red-400/30 text-red-300' : 'bg-red-200 text-red-700')
-                          : (isDark ? 'bg-amber-400/30 text-amber-300' : 'bg-amber-200 text-amber-700')
-                      }`}
-                    >
-                      {area}
-                    </span>
-                  ))}
-                  {areasList.length > 3 && (
-                    <span className={`text-[10px] ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                      +{areasList.length - 3} more
-                    </span>
-                  )}
-                </div>
-              );
-            }
-            // For informational notices without affected areas, show "No booking restrictions"
-            if (!blocking) {
-              return (
-                <span className={`text-[10px] mt-1 ${isDark ? 'text-white/50' : 'text-gray-400'}`}>
-                  No booking restrictions
-                </span>
-              );
-            }
-            return null;
-          })()}
         </div>
         {hasMultiple && (
           <span className={`text-xs font-medium flex-shrink-0 px-1.5 py-0.5 rounded ${
