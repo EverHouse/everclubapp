@@ -1007,12 +1007,8 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     if (!memberMatchWarning) return;
     if (action === 'member') {
       const member = rosterData?.members?.find(m => m.slotNumber === memberMatchWarning.slotNumber);
-      if (member) {
-        await handleManageModeLinkMember(member.id, memberMatchWarning.memberMatch.email);
-      } else {
-        await postWithCredentials(`/api/admin/booking/${bookingId}/members`, { memberEmail: memberMatchWarning.memberMatch.email, slotId: memberMatchWarning.slotNumber });
-        await fetchRosterData();
-      }
+      const slotId = member ? member.id : memberMatchWarning.slotNumber;
+      await handleManageModeLinkMember(slotId, memberMatchWarning.memberMatch.email);
       setMemberMatchWarning(null);
       setManageModeGuestForm(null);
       setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
