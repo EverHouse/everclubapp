@@ -105,13 +105,18 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path)
   );
 
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
   if (isStaticAsset) {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     return next();
+  }
+
+  if (!isStaticAsset) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   }
 
   const nonce = randomBytes(16).toString('base64');
@@ -130,12 +135,8 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     return originalSend(body);
   } as typeof res.send;
 
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+
 
   // ─── CSP External Resource Audit ───────────────────────────────────────
   // Stripe:        js.stripe.com (script, frame), hooks.stripe.com (frame),
