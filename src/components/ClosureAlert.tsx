@@ -60,7 +60,7 @@ const ClosureAlert: React.FC = () => {
           '/api/notices/dismissed',
           { signal: controller.signal }
         );
-        const closureIds = data
+        const closureIds = (data ?? [])
           .filter(d => d.noticeType === 'closure')
           .map(d => d.noticeId);
         if (closureIds.length > 0) {
@@ -84,7 +84,7 @@ const ClosureAlert: React.FC = () => {
     const fetchClosures = async () => {
       try {
         const data = await fetchWithCredentials<Closure[]>('/api/closures', { signal: controller.signal });
-        setClosures(data);
+        setClosures(data ?? []);
       } catch (error: unknown) {
         if (isAbortError(error)) return;
         console.error('Failed to fetch closures:', error);

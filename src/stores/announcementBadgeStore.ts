@@ -41,7 +41,7 @@ export const useAnnouncementBadgeStore = create<AnnouncementBadgeState>((set, ge
 
     try {
       const dismissed = await fetchWithCredentials<DismissedNotice[]>('/api/notices/dismissed');
-      const dismissedAnnouncementIds = dismissed
+      const dismissedAnnouncementIds = (dismissed ?? [])
         .filter(d => d.noticeType === 'announcement')
         .map(d => d.noticeId.toString());
       set({ seenIds: new Set(dismissedAnnouncementIds), isInitialized: true });

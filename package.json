@@ -1,7 +1,7 @@
 {
   "name": "ehmembersapp",
   "private": true,
-  "version": "8.98.6",
+  "version": "8.98.7",
   "type": "module",
   "scripts": {
     "dev": "concurrently --kill-others-on-fail --names backend,frontend --prefix-colors blue,green \"npm run server\" \"npm run frontend\"",

@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.7",
+    date: "2026-04-01",
+    title: "Stability & Reliability Improvements",
+    changes: [
+      "Fixed: Apple Wallet pass updates now work reliably (wallet device communication was being blocked).",
+      "Fixed: Rare crash when loading bookings, closure alerts, or announcement badges if the server returned an unexpected response.",
+    ]
+  },
+  {
     version: "8.98.6",
     date: "2026-04-01",
     title: "Directory & Login Fix",

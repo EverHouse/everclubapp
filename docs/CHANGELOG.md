@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.7] - 2026-04-01
+
+### Bugfix: Apple Wallet `/api/wallet/v1/log` blocked by CSRF middleware
+- **Root cause**: The CSRF middleware requires an `Origin` or `Referer` header on non-GET requests. Apple Wallet's native device sends `POST /api/wallet/v1/log` without either header, causing 403 rejections every few minutes in production.
+- **Fix**: Added exact-path bypass for `/api/wallet/v1/log` in `server/middleware/security.ts`, placed before the existing `ApplePass` header check for other wallet routes.
+- **Files changed**: `server/middleware/security.ts`
+
+### Bugfix: Null-guard crashes on `fetchWithCredentials` array consumers
+- **Root cause**: `fetchWithCredentials` returns `undefined` when the response is 204, has content-length 0, or a non-JSON content-type. Several call sites called `.filter()` or `.map()` directly on the result without guarding.
+- **Affected files**: `src/components/staff-command-center/modals/useUnifiedBookingLogic.ts` (booking filter), `src/stores/announcementBadgeStore.ts` (dismissed notices), `src/components/ClosureAlert.tsx` (closure and dismissed-closure fetches).
+- **Fix**: Added `(data ?? [])` null coalescing before array operations in all affected sites.
+- **Files changed**: `useUnifiedBookingLogic.ts`, `announcementBadgeStore.ts`, `ClosureAlert.tsx`
+
 ## [8.98.6] - 2026-04-01
 
 ### Bugfix: Missing Wellhub columns crash all users-table queries in production

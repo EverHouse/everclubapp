@@ -525,7 +525,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       try {
         const data = await fetchWithCredentials<Array<{ id: string; email: string; name?: string; firstName?: string; lastName?: string }>>(`/api/visitors/search?query=${encodeURIComponent(fullName)}&limit=5&includeStaff=true&includeMembers=true`);
         if (isActive) {
-          const matches = data.filter((v) => {
+          const matches = (data ?? []).filter((v) => {
             const vName = (v.name || `${v.firstName} ${v.lastName}`).toLowerCase().trim();
             return vName === fullName.toLowerCase();
           });
