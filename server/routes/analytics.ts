@@ -23,6 +23,8 @@ interface RevenueMonth {
 
 let revenueCache: { data: Record<string, RevenueMonth>; fetchedAt: number } | null = null;
 const REVENUE_CACHE_TTL_MS = 5 * 60 * 1000;
+const REVENUE_CACHE_STALE_MS = 30 * 60 * 1000;
+let revenueRefreshPromise: Promise<Record<string, RevenueMonth>> | null = null;
 
 function categorizeCharge(charge: Stripe.Charge): string {
   const pi = charge.payment_intent && typeof charge.payment_intent === 'object' ? charge.payment_intent as Stripe.PaymentIntent : null;
@@ -42,11 +44,8 @@ function categorizeCharge(charge: Stripe.Charge): string {
   return 'other';
 }
 
-async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
+async function refreshRevenueCache(): Promise<Record<string, RevenueMonth>> {
   const now = Date.now();
-  if (revenueCache && (now - revenueCache.fetchedAt) < REVENUE_CACHE_TTL_MS) {
-    return revenueCache.data;
-  }
 
   const stripe = await getStripeClient();
   const nowPacificStr = new Date().toLocaleDateString('en-CA', { timeZone: CLUB_TIMEZONE });
@@ -121,6 +120,32 @@ async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
   revenueCache = { data: months, fetchedAt: now };
   logger.info('[Analytics] Fetched revenue data from Stripe', { extra: { monthCount: Object.keys(months).length, skippedOrphans } });
   return months;
+}
+
+function startRefresh(): Promise<Record<string, RevenueMonth>> {
+  if (!revenueRefreshPromise) {
+    revenueRefreshPromise = refreshRevenueCache().finally(() => {
+      revenueRefreshPromise = null;
+    });
+  }
+  return revenueRefreshPromise;
+}
+
+async function fetchRevenueFromStripe(): Promise<Record<string, RevenueMonth>> {
+  const now = Date.now();
+
+  if (revenueCache && (now - revenueCache.fetchedAt) < REVENUE_CACHE_TTL_MS) {
+    return revenueCache.data;
+  }
+
+  if (revenueCache && (now - revenueCache.fetchedAt) < REVENUE_CACHE_STALE_MS) {
+    startRefresh().catch(err =>
+      logger.error('[Analytics] Background revenue refresh failed', { extra: { error: getErrorMessage(err) } })
+    );
+    return revenueCache.data;
+  }
+
+  return startRefresh();
 }
 
 const STAFF_EMAILS_SUBQUERY = sql`(SELECT email FROM users WHERE role IN ('staff', 'admin'))`;

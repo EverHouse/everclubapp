@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.11",
+    date: "2026-04-01",
+    title: "Bug Fixes & Performance",
+    changes: [
+      "Fixed: Analytics page could crash on first load due to a framework initialization issue.",
+      "Improved: Analytics dashboard now loads instantly — revenue data refreshes in the background instead of blocking the page.",
+    ]
+  },
+  {
     version: "8.98.10",
     date: "2026-04-01",
     title: "Infrastructure & Performance",

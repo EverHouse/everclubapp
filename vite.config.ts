@@ -131,7 +131,11 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, '.'),
       '@assets': path.resolve(__dirname, 'attached_assets'),
-    }
+    },
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@tanstack/react-query'],
   },
   define: {
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),

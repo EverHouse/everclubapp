@@ -2,6 +2,22 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.11] - 2026-04-01
+
+### Fix: AnalyticsTab useContext crash on lazy load
+- `AnalyticsTab` (lazy-loaded) would intermittently crash with `Cannot read properties of null (reading 'useContext')` because Vite's dep optimization could create duplicate React instances.
+- **Fix**: Added `resolve.dedupe` for `react`, `react-dom`, `react/jsx-runtime`, `react/jsx-dev-runtime` and `optimizeDeps.include` for React + TanStack Query in `vite.config.ts`.
+- Files changed: `vite.config.ts`
+
+### Fix: `/api/analytics/extended-stats` slow response (4–6s) causing pool exhaustion
+- The Stripe revenue fetch paginated through 6 months of charges, taking 4–6 seconds per cold-cache call. Concurrent requests on cold/expired cache would all fire separate Stripe paginations, exhausting the DB connection pool (10/10 active, 1 waiting).
+- **Fix**: Implemented stale-while-revalidate caching with single-flight promise coalescing:
+  - Fresh cache (<5 min): return immediately.
+  - Stale cache (5–30 min): return stale data, trigger one background refresh shared across all concurrent callers.
+  - Expired cache (>30 min) or cold start: all concurrent callers await the same single in-flight `refreshRevenueCache()` promise.
+- `startRefresh()` ensures only one Stripe pagination runs at a time via `revenueRefreshPromise` singleton.
+- Files changed: `server/routes/analytics.ts`
+
 ## [8.98.10] - 2026-04-01
 
 ### Fix: Missing `version` column on `booking_requests`
