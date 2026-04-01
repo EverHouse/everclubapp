@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.6] - 2026-04-01
+
+### Bugfix: Missing Wellhub columns crash all users-table queries in production
+- **Root cause**: Wellhub integration (Task #333) added `wellhub_id` and `wellhub_status` columns to the Drizzle schema and created migration SQL files (0070-0072), but the production deploy process does not run `drizzle migrate`. The project relies on `db-init.ts` for runtime schema creation, and the Wellhub columns/tables were not added there.
+- **Impact**: Every Drizzle ORM query touching the `users` table failed with `column "wellhub_id" does not exist` — this broke: staff directory visitors list, OTP member login, HubSpot contact sync (all inserts/updates failed), and any other user-querying endpoint.
+- **Fix**: Added `wellhub_id`, `wellhub_status` columns, `wellhub_checkins` table (with `event_reported_at`), and `wellhub_status_events` table creation to `server/db-init.ts` using the established `ADD COLUMN IF NOT EXISTS` / `CREATE TABLE IF NOT EXISTS` pattern. Also added existence checks for migrations 0070 and 0071 to `scripts/sync-migration-tracking.ts` to prevent phantom tracking entries.
+- **Files changed**: `server/db-init.ts`, `scripts/sync-migration-tracking.ts`
+
 ## [8.98.5] - 2026-03-31
 
 ### Bugfix: Trackman webhook cannot reactivate cancelled bookings

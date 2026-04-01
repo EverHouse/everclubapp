@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.6",
+    date: "2026-04-01",
+    title: "Directory & Login Fix",
+    changes: [
+      "Fixed: Staff directory visitors tab, member login, and HubSpot sync were failing due to missing database columns — all now working correctly.",
+    ]
+  },
+  {
     version: "8.98.5",
     date: "2026-03-31",
     title: "Trackman Booking Sync Fix",

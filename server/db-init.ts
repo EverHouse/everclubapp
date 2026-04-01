@@ -601,6 +601,54 @@ export async function ensureDatabaseConstraints() {
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS pending_tier_change JSONB DEFAULT NULL`); } catch { logger.debug('[DB Init] pending_tier_change column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS mindbody_cancellation_detected_at TIMESTAMP`); } catch { logger.debug('[DB Init] mindbody_cancellation_detected_at column already exists or failed'); }
     try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS concierge_saved_at TIMESTAMP`); } catch { logger.debug('[DB Init] concierge_saved_at column already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS wellhub_id VARCHAR`); } catch { logger.debug('[DB Init] wellhub_id column already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS wellhub_status VARCHAR(50)`); } catch { logger.debug('[DB Init] wellhub_status column already exists or failed'); }
+    try { await db.execute(sql`CREATE INDEX IF NOT EXISTS users_wellhub_id_idx ON users(wellhub_id)`); } catch { logger.debug('[DB Init] users_wellhub_id_idx already exists or failed'); }
+    try { await db.execute(sql`CREATE INDEX IF NOT EXISTS users_wellhub_status_idx ON users(wellhub_status) WHERE wellhub_status IS NOT NULL`); } catch { logger.debug('[DB Init] users_wellhub_status_idx already exists or failed'); }
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS wellhub_checkins (
+          id serial PRIMARY KEY,
+          wellhub_user_id varchar(255) NOT NULL,
+          user_id varchar(255),
+          gym_id varchar(100) NOT NULL,
+          event_type varchar(100) NOT NULL,
+          booking_number varchar(255),
+          event_timestamp timestamp,
+          expires_at timestamp,
+          validation_status varchar(50) NOT NULL DEFAULT 'pending',
+          validated_at timestamp,
+          error_detail text,
+          event_reported_at timestamp,
+          created_at timestamp NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_checkins_wellhub_user_id_idx ON wellhub_checkins(wellhub_user_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_checkins_user_id_idx ON wellhub_checkins(user_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_checkins_validation_status_idx ON wellhub_checkins(validation_status)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_checkins_created_at_idx ON wellhub_checkins(created_at)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_checkins_event_reported_idx ON wellhub_checkins(event_reported_at) WHERE event_reported_at IS NULL AND validation_status = 'validated'`);
+      await db.execute(sql`ALTER TABLE wellhub_checkins ADD COLUMN IF NOT EXISTS event_reported_at timestamp`);
+    } catch { logger.debug('[DB Init] wellhub_checkins table already exists or failed'); }
+    try {
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS wellhub_status_events (
+          id serial PRIMARY KEY,
+          wellhub_user_id varchar(255) NOT NULL,
+          user_id varchar(255),
+          event_type varchar(100) NOT NULL,
+          previous_status varchar(50),
+          new_status varchar(50) NOT NULL,
+          tier_info jsonb,
+          raw_payload jsonb,
+          created_at timestamp NOT NULL DEFAULT now()
+        )
+      `);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_status_events_wellhub_user_id_idx ON wellhub_status_events(wellhub_user_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_status_events_user_id_idx ON wellhub_status_events(user_id)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellhub_status_events_created_at_idx ON wellhub_status_events(created_at)`);
+    } catch { logger.debug('[DB Init] wellhub_status_events table already exists or failed'); }
+    logger.info('[DB Init] Wellhub integration columns and tables verified');
     logger.info('[DB Init] Billing migration columns verified');
 
     try {

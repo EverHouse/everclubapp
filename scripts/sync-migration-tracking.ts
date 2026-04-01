@@ -27,6 +27,8 @@ const MIGRATION_EXISTENCE_CHECKS: Record<string, MigrationCheck> = {
   "0065_add_webhook_dead_letter_queue": { type: "table", name: "webhook_dead_letter_queue" },
   "0066_update_booking_exclusion_statuses": { type: "function", name: "booking_time_range" },
   "0067_add_fee_products": { type: "table", name: "fee_products" },
+  "0070_add_wellhub_integration": { type: "table", name: "wellhub_checkins" },
+  "0071_add_wellhub_status": { type: "table", name: "wellhub_status_events" },
 };
 
 async function objectExists(client: pg.Client, check: MigrationCheck): Promise<boolean> {
