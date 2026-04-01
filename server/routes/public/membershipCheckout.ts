@@ -105,34 +105,12 @@ router.post(
         const userId = existingUserId || randomUUID();
         const memberName = `${firstName} ${lastName}`.trim();
 
-        if (existingUserId) {
-          await db.execute(sql`UPDATE users SET
-            archived_at = NULL, archived_by = NULL,
-            first_name = COALESCE(${firstName || null}, first_name),
-            last_name = COALESCE(${lastName || null}, last_name),
-            tier = ${tier.name},
-            membership_status = 'pending',
-            membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'pending' THEN NOW() ELSE membership_status_changed_at END,
-            billing_provider = 'stripe',
-            updated_at = NOW()
-          WHERE id = ${existingUserId}`);
-        } else {
+        if (!existingUserId) {
           const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${email.toLowerCase()}`);
           if (exclusionCheck.rows.length > 0) {
             logger.warn('[Self-Serve Checkout] Blocked checkout for permanently deleted member', { extra: { email } });
             return res.status(400).json({ error: 'This email cannot be used for a new membership. Please contact the club.' });
           }
-          await db.insert(users).values({
-            id: userId,
-            email: email.toLowerCase(),
-            firstName: firstName || null,
-            lastName: lastName || null,
-            tier: tier.name,
-            membershipStatus: 'pending',
-            billingProvider: 'stripe',
-            createdAt: new Date(),
-          });
-          logger.info('[Self-Serve Checkout] Created pending user', { extra: { email, tierName: tier.name } });
         }
 
         let customerId: string;
@@ -141,8 +119,6 @@ router.post(
         try {
           const customerResult = await getOrCreateStripeCustomer(userId, email, memberName, tier.name);
           customerId = customerResult.customerId;
-
-          await db.update(users).set({ stripeCustomerId: customerId }).where(eq(users.id, userId));
 
           const stripe = await getStripeClient();
           const baseUrl = getAppBaseUrl();
@@ -210,17 +186,54 @@ router.post(
             throw new Error('Failed to create checkout session - no URL returned');
           }
         } catch (stripeErr: unknown) {
-          logger.error('[Self-Serve Checkout] Stripe call failed, rolling back pending user', { extra: { email, userId, error: getErrorMessage(stripeErr) } });
-          if (!existingUserId) {
-            try {
-              await db.delete(users).where(eq(users.id, userId));
-            } catch (cleanupErr: unknown) {
-              logger.error('[Self-Serve Checkout] Failed to clean up pending user', { extra: { userId, email, error: getErrorMessage(cleanupErr) } });
-            }
-          }
+          logger.error('[Self-Serve Checkout] Stripe checkout failed — no user record was committed', { extra: { email, userId, error: getErrorMessage(stripeErr) } });
           const stripeErrMsg = getErrorMessage(stripeErr);
           if (stripeErrMsg.includes('Promo code') || stripeErrMsg.includes('promo code')) {
             return res.status(400).json({ error: stripeErrMsg });
+          }
+          return res.status(500).json({ error: 'Failed to create checkout session. Please try again.' });
+        }
+
+        try {
+          await db.transaction(async (tx) => {
+            if (existingUserId) {
+              await tx.execute(sql`UPDATE users SET
+                archived_at = NULL, archived_by = NULL,
+                first_name = COALESCE(${firstName || null}, first_name),
+                last_name = COALESCE(${lastName || null}, last_name),
+                tier = ${tier.name},
+                membership_status = 'pending',
+                membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'pending' THEN NOW() ELSE membership_status_changed_at END,
+                billing_provider = 'stripe',
+                stripe_customer_id = ${customerId},
+                updated_at = NOW()
+              WHERE id = ${existingUserId}`);
+            } else {
+              await tx.insert(users).values({
+                id: userId,
+                email: email.toLowerCase(),
+                firstName: firstName || null,
+                lastName: lastName || null,
+                tier: tier.name,
+                membershipStatus: 'pending',
+                billingProvider: 'stripe',
+                stripeCustomerId: customerId,
+                createdAt: new Date(),
+              });
+              logger.info('[Self-Serve Checkout] Created pending user', { extra: { email, tierName: tier.name } });
+            }
+          });
+        } catch (dbErr: unknown) {
+          logger.error('[Self-Serve Checkout] DB commit failed after Stripe session created — expiring checkout session', {
+            extra: { email, userId, checkoutSessionId: checkoutSession.id, error: getErrorMessage(dbErr) },
+          });
+          try {
+            const stripe = await getStripeClient();
+            await stripe.checkout.sessions.expire(checkoutSession.id);
+          } catch (expireErr: unknown) {
+            logger.error('[Self-Serve Checkout] Failed to expire orphaned checkout session', {
+              extra: { checkoutSessionId: checkoutSession.id, error: getErrorMessage(expireErr) },
+            });
           }
           return res.status(500).json({ error: 'Failed to create checkout session. Please try again.' });
         }

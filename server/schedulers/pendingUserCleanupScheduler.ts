@@ -4,17 +4,21 @@ import { getStripeClient } from '../core/stripe/client';
 import { getErrorMessage, getErrorCode, isStripeResourceMissing } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 
+const parsedMaxAge = parseInt(process.env.PENDING_USER_MAX_AGE_HOURS || '24', 10);
+const PENDING_USER_MAX_AGE_HOURS = Number.isFinite(parsedMaxAge) && parsedMaxAge > 0 ? parsedMaxAge : 24;
+
 async function cleanupPendingUsers(): Promise<void> {
   try {
     const pendingUsers = await queryWithRetry(
-      `SELECT id, email, stripe_customer_id, created_at
+      `SELECT id, email, stripe_customer_id, created_at, membership_status_changed_at
        FROM users
        WHERE membership_status = 'pending'
        AND billing_provider = 'stripe'
-       AND created_at < NOW() - INTERVAL '48 hours'
+       AND COALESCE(membership_status_changed_at, created_at) < NOW() - make_interval(hours => $1)
        AND stripe_subscription_id IS NULL
-       ORDER BY created_at ASC
-       LIMIT 50`
+       ORDER BY COALESCE(membership_status_changed_at, created_at) ASC
+       LIMIT 50`,
+      [PENDING_USER_MAX_AGE_HOURS]
     );
 
     if (pendingUsers.rows.length === 0) {
