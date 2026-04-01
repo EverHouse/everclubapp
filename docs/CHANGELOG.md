@@ -2,6 +2,29 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.12] - 2026-04-01
+
+### Fix: Input validation hardening in booking creation (Bug #1)
+- `prepareBookingCreation`: Added runtime guard for `input.userEmail` — rejects missing/non-string values with 400 before calling `.toLowerCase()`.
+- `computeEndTime`: Added runtime guard for `startTime` parameter before calling `.split(':')`.
+- `validateBookingDate`: Added strict `YYYY-MM-DD` regex validation before any string comparison, preventing brittle lexicographic date comparison with non-padded formats (e.g., `2024-5-9` vs `2024-10-01`).
+- Files changed: `server/core/bookingService/createBooking.ts`
+
+### Fix: CSRF origin check port bypass in dev mode (Bug #2)
+- `isAllowedOrigin` compared `url.hostname` (which strips port), allowing any localhost port to bypass CSRF checks in development.
+- Now validates against an explicit allowlist of dev ports (`3000`, `3001`, `5000`, `5173`, `443`) using `url.port` with protocol-aware defaults.
+- Files changed: `server/middleware/security.ts`
+
+### Fix: Subscription lock table creation race condition (Bug #3)
+- `acquireSubscriptionLock` used a boolean `tableEnsured` flag that allowed concurrent callers to fire `CREATE TABLE IF NOT EXISTS` in parallel during startup bursts, risking deadlocks.
+- Replaced with a shared promise (`tableEnsuredPromise`) — first caller creates the promise, all others await it. Promise is reset to null on failure so it can retry.
+- Files changed: `server/middleware/rateLimiting.ts`
+
+### Perf: Skip CSP nonce generation for static assets (Bug #4)
+- `securityMiddleware` generated a crypto nonce (`randomBytes(16)`) for every request including static assets (images, fonts, CSS), wasting CPU entropy.
+- Static assets now early-return with only `X-Content-Type-Options` and `Cross-Origin-Opener-Policy` headers, skipping nonce generation, CSP, and cache-control headers entirely.
+- Files changed: `server/middleware/security.ts`
+
 ## [8.98.11] - 2026-04-01
 
 ### Fix: AnalyticsTab useContext crash on lazy load

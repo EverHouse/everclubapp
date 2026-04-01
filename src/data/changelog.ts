@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.12",
+    date: "2026-04-01",
+    title: "Security & Stability Fixes",
+    changes: [
+      "Fixed: Booking creation now validates all input fields before processing, preventing potential server errors from malformed requests.",
+      "Fixed: Date validation now strictly enforces YYYY-MM-DD format to prevent incorrect date comparisons.",
+      "Security: Tightened cross-origin request validation in development mode to only allow known ports.",
+      "Improved: Static asset requests (images, fonts, CSS) now skip unnecessary security header processing for faster delivery.",
+      "Fixed: A rare race condition during high-traffic subscription creation has been resolved.",
+    ]
+  },
+  {
     version: "8.98.11",
     date: "2026-04-01",
     title: "Bug Fixes & Performance",

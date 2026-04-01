@@ -177,20 +177,16 @@ setInterval(() => {
 }, 30_000).unref();
 
 async function ensureSubscriptionLocksTable(): Promise<void> {
-  try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS subscription_locks (
-        email TEXT PRIMARY KEY,
-        locked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        locked_by TEXT
-      )
-    `);
-  } catch (err) {
-    logger.warn('[SubscriptionLock] Table creation failed (may already exist)', { extra: { error: getErrorMessage(err) } });
-  }
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS subscription_locks (
+      email TEXT PRIMARY KEY,
+      locked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      locked_by TEXT
+    )
+  `);
 }
 
-let tableEnsured = false;
+let tableEnsuredPromise: Promise<void> | null = null;
 
 export async function acquireSubscriptionLock(email: string, lockedBy?: string): Promise<boolean> {
   const key = email.toLowerCase();
@@ -201,14 +197,16 @@ export async function acquireSubscriptionLock(email: string, lockedBy?: string):
     return false;
   }
 
-  if (!tableEnsured) {
-    try {
-      await ensureSubscriptionLocksTable();
-      tableEnsured = true;
-    } catch (err) {
-      logger.error('[SubscriptionLock] Failed to ensure lock table', { extra: { error: getErrorMessage(err) } });
-      return false;
-    }
+  if (!tableEnsuredPromise) {
+    tableEnsuredPromise = ensureSubscriptionLocksTable();
+  }
+
+  try {
+    await tableEnsuredPromise;
+  } catch (err) {
+    tableEnsuredPromise = null;
+    logger.error('[SubscriptionLock] Failed to ensure lock table', { extra: { error: getErrorMessage(err) } });
+    return false;
   }
 
   try {

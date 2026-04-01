@@ -28,7 +28,9 @@ function isAllowedOrigin(origin: string): boolean {
     if (replitDomain && hostname === replitDomain) return true;
 
     if (!isProduction) {
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+      const allowedDevPorts = ['3000', '3001', '5000', '5173', '443'];
+      const port = url.port || (url.protocol === 'https:' ? '443' : '80');
+      if ((hostname === 'localhost' || hostname === '127.0.0.1') && allowedDevPorts.includes(port)) return true;
     }
 
     if (cachedAllowedHostnames.includes(hostname)) return true;
@@ -91,14 +93,22 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
 }
 
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
+  const isStaticAsset = !req.path.startsWith('/api/') &&
+    /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path);
+
+  if (isStaticAsset) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    return next();
+  }
+
   const nonce = randomBytes(16).toString('base64');
   res.locals.cspNonce = nonce;
 
-  const isStaticAsset = !req.path.startsWith('/api/') &&
-    /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path);
-  if (!isStaticAsset) {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');

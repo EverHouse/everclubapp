@@ -18,9 +18,12 @@ export interface ValidatedDateResult {
 }
 
 export function validateBookingDate(requestDate: string, opts?: { allowPastDate?: boolean }): ValidatedDateResult {
-  const parsedDate = new Date(requestDate + 'T00:00:00');
-  if (isNaN(parsedDate.getTime())) {
-    throw new BookingValidationError(400, { error: 'Invalid date format' });
+  if (!requestDate || typeof requestDate !== 'string') {
+    throw new BookingValidationError(400, { error: 'Missing or invalid date' });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(requestDate)) {
+    throw new BookingValidationError(400, { error: 'Invalid date format. Use YYYY-MM-DD.' });
   }
 
   const [year, month, day] = requestDate.split('-').map((n: string) => parseInt(n, 10));
@@ -48,6 +51,9 @@ export interface ComputedEndTime {
 }
 
 export function computeEndTime(startTime: string, durationMinutes: number, opts?: { strictMidnight?: boolean }): ComputedEndTime {
+  if (!startTime || typeof startTime !== 'string') {
+    throw new BookingValidationError(400, { error: 'Missing or invalid start time' });
+  }
   const [hoursStr, minsStr] = startTime.split(':');
   const hours = Number(hoursStr);
   const mins = Number(minsStr);
@@ -289,7 +295,10 @@ export async function prepareBookingCreation(
   input: BookingCreationInput,
   context: BookingCreationContext
 ): Promise<PreparedBookingData> {
-  let resolvedEmail = input.userEmail.toLowerCase();
+  if (!input || typeof input.userEmail !== 'string' || !input.userEmail.trim()) {
+    throw new BookingValidationError(400, { error: 'Missing or invalid userEmail' });
+  }
+  let resolvedEmail = input.userEmail.trim().toLowerCase();
   let resolvedUserId: string | null = null;
 
   const resolved = await resolveUserByEmail(resolvedEmail);
