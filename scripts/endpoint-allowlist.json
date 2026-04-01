@@ -8002,5 +8002,23 @@
     "method": "POST",
     "path": "*",
     "reason": "external webhook — protected by HMAC signature verification (verifyWellhubSignature)"
+  },
+  {
+    "file": "server/routes/performance.ts",
+    "method": "POST",
+    "path": "/api/admin/performance/clear",
+    "reason": "staff-only admin endpoint — protected by isStaffOrAdmin middleware"
+  },
+  {
+    "file": "server/routes/performance.ts",
+    "method": "POST",
+    "path": "/api/admin/performance/clear",
+    "reason": "staff-only admin endpoint — protected by isStaffOrAdmin middleware"
+  },
+  {
+    "file": "server/routes/performance.ts",
+    "method": "POST",
+    "path": "/api/admin/performance/clear",
+    "reason": "staff-only admin endpoint — protected by isStaffOrAdmin middleware"
   }
 ]
