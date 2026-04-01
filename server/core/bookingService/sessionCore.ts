@@ -368,7 +368,7 @@ export async function ensureSessionForBooking(params: {
         await notifyAllStaff(
           'Session Creation Failed',
           `Automatic session creation failed for booking #${params.bookingId} after retry. Manual session creation required. Error: ${errorMsg.substring(0, 120)}`,
-          'system_alert',
+          'system',
           { relatedId: params.bookingId, relatedType: 'booking', url: '/admin/bookings' }
         );
       } catch (alertError: unknown) {

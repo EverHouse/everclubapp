@@ -313,7 +313,7 @@ export async function closeWebSocketServer(): Promise<void> {
 }
 
 export async function initWebSocketServer(server: Server) {
-  wss = new WebSocketServer({ server, path: '/ws' });
+  wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1024 * 1024 });
   
   wss.on('error', (error) => {
     logger.error('[WebSocket] Server error:', { extra: { error: getErrorMessage(error) } });

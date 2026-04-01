@@ -910,7 +910,7 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
         await notifyAllStaff(
           'Inactive Members — Bookings Auto-Cancelled',
           `${cancelledCount} of ${total} approved/confirmed booking(s) for inactive/suspended/cancelled members were auto-cancelled.`,
-          'system_alert',
+          'system',
           { url: '/admin/data-integrity' }
         );
       } catch (alertError: unknown) {

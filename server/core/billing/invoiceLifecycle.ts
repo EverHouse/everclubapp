@@ -11,6 +11,7 @@ import { getStripeClient } from '../stripe/client';
   import { markPaymentRefunded } from './PaymentStatusService';
   import {
     type FinalizeAndPayResult,
+    type PaymentIntentLookupRow,
     extractPaymentIntentId,
     computeBalanceApplied,
     safeBroadcast,

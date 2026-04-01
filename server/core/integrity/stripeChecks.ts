@@ -1139,7 +1139,7 @@ export async function checkUnresolvedFailedSideEffects(): Promise<IntegrityCheck
         await notifyAllStaff(
           'Unresolved Failed Side Effects',
           `${totalExhausted} failed side effect(s) have exceeded the maximum retry limit and require manual resolution. Check the Data Integrity dashboard.`,
-          'system_alert',
+          'system',
           { sendPush: false }
         );
       } catch {

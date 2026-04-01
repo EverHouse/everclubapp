@@ -81,19 +81,6 @@ export async function getBookingInvoiceStatus(bookingId: number): Promise<{
   }
 }
 
-function extractPaymentIntentId(invoice: Stripe.Invoice): string | null {
-  const rawPi = (invoice as unknown as { payment_intent: string | Stripe.PaymentIntent | null }).payment_intent;
-  if (typeof rawPi === 'string') return rawPi;
-  if (rawPi && typeof rawPi === 'object' && 'id' in rawPi) return rawPi.id;
-  return null;
-}
-
-function computeBalanceApplied(invoice: Stripe.Invoice): number {
-  const startingBalance = invoice.starting_balance || 0;
-  const endingBalance = invoice.ending_balance || 0;
-  return Math.max(0, Math.abs(startingBalance) - Math.abs(endingBalance));
-}
-
 export interface BookingPaymentStatus {
   allPaid: boolean;
   hasPaidFees: boolean;

@@ -52,7 +52,7 @@ vi.mock('../../server/core/notificationService', () => ({
 }));
 
 const mockRefundGuestPass = vi.fn().mockResolvedValue({ success: true, remaining: 3 });
-vi.mock('../../server/routes/guestPasses', () => ({
+vi.mock('../../server/core/billing/guestPassService', () => ({
   refundGuestPass: (...args: unknown[]) => mockRefundGuestPass(...args),
 }));
 

@@ -342,7 +342,7 @@ async function processFailedSideEffects(): Promise<void> {
       await notifyAllStaff(
         'Failed Side Effects Need Manual Review',
         `${exhaustedCount} failed side effect(s) have exceeded the maximum retry limit and need manual resolution. Check the Data Integrity dashboard for details.`,
-        'system_alert',
+        'system',
         { sendPush: true }
       );
     }

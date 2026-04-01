@@ -48,7 +48,7 @@ interface BookingInfoRow {
   resource_type?: string;
 }
 
-interface PaymentIntentLookupRow {
+export interface PaymentIntentLookupRow {
   stripe_payment_intent_id: string;
   amount_cents: number;
 }
