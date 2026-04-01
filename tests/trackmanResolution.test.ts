@@ -81,7 +81,7 @@ vi.mock('../server/core/stripe/payments', () => ({
   cancelPaymentIntent: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../server/routes/guestPasses', () => ({
+vi.mock('../server/core/billing/guestPassService', () => ({
   useGuestPass: vi.fn().mockResolvedValue(undefined),
 }));
 

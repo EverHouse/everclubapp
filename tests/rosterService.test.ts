@@ -707,7 +707,7 @@ describe('Roster Service', () => {
       (sessionManager.createOrFindGuest as ReturnType<typeof vi.fn>).mockResolvedValueOnce(99);
       (sessionManager.linkParticipants as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 60 }]);
 
-      const guestPasses = await import('../server/routes/guestPasses');
+      const guestPasses = await import('../server/core/billing/guestPassService');
       (guestPasses.useGuestPass as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ success: true, remaining: 3 });
 
       mockTransaction.mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {
@@ -764,7 +764,7 @@ describe('Roster Service', () => {
       (sessionManager.createOrFindGuest as ReturnType<typeof vi.fn>).mockResolvedValueOnce(100);
       (sessionManager.linkParticipants as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 61 }]);
 
-      const guestPasses = await import('../server/routes/guestPasses');
+      const guestPasses = await import('../server/core/billing/guestPassService');
       (guestPasses.useGuestPass as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ success: true, remaining: 2 });
 
       mockTransaction.mockImplementation(async (fn: (tx: Record<string, unknown>) => Promise<unknown>) => {

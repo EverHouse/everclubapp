@@ -58,7 +58,7 @@ vi.mock('../server/core/websocket', () => ({
   broadcastMemberStatsUpdated: vi.fn(),
 }));
 
-vi.mock('../server/routes/guestPasses', () => ({
+vi.mock('../server/core/billing/guestPassService', () => ({
   refundGuestPass: vi.fn().mockResolvedValue(undefined),
 }));
 

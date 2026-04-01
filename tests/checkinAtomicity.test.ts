@@ -95,7 +95,7 @@ vi.mock('../server/core/notificationService', () => ({
   isSyntheticEmail: vi.fn().mockReturnValue(false),
 }));
 
-vi.mock('../server/routes/guestPasses', () => ({
+vi.mock('../server/core/billing/guestPassService', () => ({
   refundGuestPass: vi.fn().mockResolvedValue(undefined),
 }));
 

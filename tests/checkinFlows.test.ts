@@ -250,7 +250,7 @@ vi.mock('../server/core/billing/paymentIntentCleanup', () => ({
   cancelPendingPaymentIntentsForBooking: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../server/routes/guestPasses', () => ({
+vi.mock('../server/core/billing/guestPassService', () => ({
   refundGuestPass: vi.fn().mockResolvedValue(undefined),
 }));
 

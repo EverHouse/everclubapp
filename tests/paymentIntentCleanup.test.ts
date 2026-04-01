@@ -100,7 +100,7 @@ vi.mock('../server/core/websocket', () => ({
 }));
 
 const mockRefundGuestPass = vi.fn().mockResolvedValue({ success: true });
-vi.mock('../server/routes/guestPasses', () => ({
+vi.mock('../server/core/billing/guestPassService', () => ({
   refundGuestPass: (...args: unknown[]) => mockRefundGuestPass(...args),
 }));
 

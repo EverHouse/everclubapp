@@ -11,7 +11,8 @@ description: "Guest pass lifecycle — allocation, holds, consumption, refunds, 
 
 | Task | Primary File(s) | When to touch |
 |---|---|---|
-| REST endpoints + helpers | `server/routes/guestPasses.ts` | API, `useGuestPass`, `refundGuestPass`, `getGuestPassesRemaining` |
+| Core service (logic) | `server/core/billing/guestPassService.ts` | `useGuestPass`, `refundGuestPass`, `getGuestPassesRemaining`, `ensureGuestPassRecord` |
+| REST endpoints (re-exports from core) | `server/routes/guestPasses.ts` | API routes; re-exports core helpers for backward compat |
 | Consumption/refund logic | `server/core/billing/guestPassConsumer.ts` | `consumeGuestPassForParticipant`, `refundGuestPassForParticipant` |
 | Hold lifecycle | `server/core/billing/guestPassHoldService.ts` | `createGuestPassHold`, `releaseGuestPassHold`, `convertHoldToUsage` |
 | Yearly reset | `server/schedulers/guestPassResetScheduler.ts` | Reset scheduler (January 1st, 3 AM Pacific) |
@@ -122,9 +123,11 @@ Guest pass consumption now also runs during:
 
 Previously, guest pass consumption only occurred during individual staff check-in via `consumeGuestPassForParticipant`.
 
-## Exported Helpers (from `guestPasses.ts`)
+## Exported Helpers (from `server/core/billing/guestPassService.ts`)
 
 - `useGuestPass(email, guestName?, sendNotification?)` — programmatic use
 - `refundGuestPass(email, guestName?, sendNotification?, txClient?)` — programmatic refund; pass `txClient` when calling inside an existing transaction to avoid deadlock (v8.87.34)
 - `getGuestPassesRemaining(email, tier?)` — remaining count
 - `ensureGuestPassRecord(email, tier?)` — create record if missing
+
+**Import rule (v8.98.8):** All core service files import from `server/core/billing/guestPassService`. The route file `server/routes/guestPasses.ts` re-exports these helpers for backward compatibility. Tests for core services MUST mock `../server/core/billing/guestPassService` (not the route path) — mocking the route file does not intercept core imports.

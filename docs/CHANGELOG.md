@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.8] - 2026-04-01
+
+### Chore: Fix stale guest pass mock paths in test suite
+- **Root cause**: Architecture tasks #345–#350 moved guest pass logic from `server/routes/guestPasses.ts` to `server/core/billing/guestPassService.ts`. The route file re-exports from core, so core service files now import from `core/billing/guestPassService`. However, 9 test files still mocked the old `routes/guestPasses` path — which doesn't intercept the core import.
+- **Impact**: Guest pass mocks were silently not intercepting calls in affected tests. Tests passed only because mock data avoided guest-pass code paths. Any new guest-related test scenario would fail unexpectedly.
+- **Fix**: Updated `vi.mock` paths in 8 test files from `../server/routes/guestPasses` to `../server/core/billing/guestPassService`. Updated 2 dynamic imports in `rosterService.test.ts` to use the core path. The route file `server/routes/guestPasses.ts` still exists and re-exports from core — `routeIntegration.test.ts` correctly mocks the route path since it tests the route layer.
+- **Files changed**: `tests/checkinFlows.test.ts`, `tests/bookingStateTransitions.test.ts`, `tests/bookingState.test.ts`, `tests/trackmanResolution.test.ts`, `tests/approvalCompletion.test.ts`, `tests/checkinAtomicity.test.ts`, `tests/paymentIntentCleanup.test.ts`, `tests/approvalFlow.test.ts`, `tests/rosterService.test.ts`
+- **Verification**: 96 test files / 2,504 tests pass. TypeScript compiles with zero errors.
+
 ## [8.98.7] - 2026-04-01
 
 ### Bugfix: Apple Wallet `/api/wallet/v1/log` blocked by CSRF middleware
