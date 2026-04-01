@@ -63,7 +63,7 @@ async function getDisplayHoursForDate(date: string): Promise<{ startMinutes: num
     default: settingKey = 'hours.tuesday_thursday'; fallback = '8:30 AM – 8:00 PM'; break;
   }
 
-  const displayStr = await getSettingValue(settingKey, fallback);
+  const displayStr = (await getSettingValue(settingKey, fallback)) ?? fallback;
   return parseDisplayHours(displayStr);
 }
 

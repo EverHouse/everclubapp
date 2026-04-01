@@ -2,6 +2,7 @@ import { db } from '../db';
 import { formatDatePacific } from '../utils/dateUtils';
 import { users, membershipTiers } from '../../shared/schema';
 import { memberNotes, userLinkedEmails } from '../../shared/models/membership';
+import type { MembershipStatus } from '../../shared/constants/statuses';
 import { getHubSpotClient } from './integrations';
 import { normalizeTierName } from '../../shared/constants/tiers';
 import { sql, eq } from 'drizzle-orm';
@@ -318,7 +319,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               tierId,
               tags: tags.length > 0 ? tags : [],
               hubspotId: contact.id,
-              membershipStatus: status,
+              membershipStatus: status as MembershipStatus,
               billingProvider: 'stripe',
               mindbodyClientId: contact.properties.mindbody_client_id || null,
               joinDate,
@@ -348,7 +349,7 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
                 tierId: isVisitorProtected ? sql`${users.tierId}` : (isMindBodyDeactivation ? sql`NULL` : sql`COALESCE(${users.tierId}, ${tierId})`),
                 tags: tags.length > 0 ? tags : sql`${users.tags}`,
                 hubspotId: contact.id,
-                membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : status,
+                membershipStatus: isStatusProtected ? sql`${users.membershipStatus}` : (status as MembershipStatus),
                 billingProvider: isMindBodyDeactivation ? sql`'stripe'` : sql`${users.billingProvider}`,
                 role: isVisitorProtected ? sql`${users.role}` : sql`COALESCE(${users.role}, 'member')`,
                 mindbodyClientId: contact.properties.mindbody_client_id || null,

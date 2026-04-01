@@ -9,6 +9,7 @@ import { isAuthenticated } from '../../core/middleware';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { buildUserEmailConditions } from '../../core/bookingService/bookingQueryBuilder';
+import type { BookingStatus } from '../../../shared/constants/statuses';
 
 const router = Router();
 
@@ -65,7 +66,7 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     }
     
     if (status) {
-      conditions.push(eq(bookingRequests.status, String(status)));
+      conditions.push(eq(bookingRequests.status, String(status) as BookingStatus));
     }
     
     let limit: number | undefined;

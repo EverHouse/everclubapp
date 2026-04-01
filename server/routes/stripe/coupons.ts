@@ -5,6 +5,8 @@ import { getErrorCode, isStripeResourceMissing } from '../../utils/errorUtils';
 import { logFromRequest } from '../../core/auditLog';
 import { createHash } from 'crypto';
 import { z } from 'zod';
+import Stripe from 'stripe';
+import type { PromotionCodeWithCoupon } from '../../core/stripe/stripeCompat';
 
 const idParamSchema = z.object({ id: z.string().min(1) });
 
@@ -24,7 +26,8 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
     const promoCodes = await stripe.promotionCodes.list({ limit: 100, active: true });
     const promoMap = new Map<string, string[]>();
     for (const pc of promoCodes.data) {
-      const couponId = typeof pc.coupon === 'string' ? pc.coupon : pc.coupon.id;
+      const pcWithCoupon = pc as unknown as PromotionCodeWithCoupon;
+      const couponId = typeof pcWithCoupon.coupon === 'string' ? pcWithCoupon.coupon : pcWithCoupon.coupon.id;
       const existing = promoMap.get(couponId) || [];
       existing.push(pc.code);
       promoMap.set(couponId, existing);
@@ -140,7 +143,7 @@ router.post('/api/stripe/coupons', isAdmin, async (req: Request, res: Response) 
           source: 'admin_dashboard',
           created_by: 'staff',
         },
-      });
+      } as unknown as Stripe.PromotionCodeCreateParams);
       createdPromoCode = promo.code;
       logger.info('[Stripe] Created promotion code', { extra: { promoCode: promo.code, couponId: coupon.id } });
       logFromRequest(req, 'create_promotion_code', 'promotion_code', promo.id, promo.code, { couponId: coupon.id });

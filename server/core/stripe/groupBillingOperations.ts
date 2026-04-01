@@ -425,7 +425,7 @@ export async function reconcileGroupBillingWithStripe(): Promise<ReconciliationR
               await db.insert(groupMembers).values({
                 billingGroupId: group.id,
                 memberEmail: email,
-                memberTier: tierFromMetadata,
+                memberTier: tierFromMetadata ?? 'unknown',
                 stripeSubscriptionItemId: item.id,
                 stripePriceId: priceInfo?.id || null,
                 addOnPriceCents: priceCents,

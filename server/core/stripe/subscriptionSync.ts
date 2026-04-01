@@ -242,7 +242,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                     firstName || (user.first_name as string) || '',
                     lastName || (user.last_name as string) || '',
                     undefined,
-                    tier
+                    tier ?? undefined
                   );
                   hubspotId = hubspotResult.contactId;
                   logger.info(`[Stripe Sync] Created/found HubSpot contact ${hubspotId} for existing user ${email}`);
@@ -269,7 +269,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               
               try {
                 const { syncMemberToHubSpot } = await import('../hubspot/stages');
-                await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe' });
+                await syncMemberToHubSpot({ email, status: 'active', tier: tier ?? undefined, billingProvider: 'stripe' });
               } catch (e: unknown) {
                 logger.warn(`[Stripe Sync] Failed to sync to HubSpot for ${email}:`, { extra: { detail: getErrorMessage(e) } });
               }
@@ -278,7 +278,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
               result.details.push({
                 email,
                 action: 'updated',
-                tier,
+                tier: tier ?? undefined,
               });
               logger.info(`[Stripe Sync] Updated user ${email} with tier ${tier}`);
               sendPassUpdateForMemberByEmail(email).catch(err => {
@@ -300,7 +300,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                 firstName || '',
                 lastName || '',
                 undefined,
-                tier
+                tier ?? undefined
               );
               hubspotId = hubspotResult.contactId;
               logger.info(`[Stripe Sync] Created/found HubSpot contact ${hubspotId} for ${email}`);
@@ -321,13 +321,13 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
                  WHERE id = ${resolved.userId}`);
               logger.info(`[Stripe Sync] Cleared grace period for migrated member ${email}`);
               result.updated++;
-              result.details.push({ email, action: 'updated', tier, reason: `Matched via ${resolved.matchType}` });
+              result.details.push({ email, action: 'updated', tier: tier ?? undefined, reason: `Matched via ${resolved.matchType}` });
               logger.info(`[Stripe Sync] Updated existing user ${resolved.primaryEmail} (matched ${email} via ${resolved.matchType}) with tier ${tier}`);
             } else {
             const exclusionCheck = await db.execute(sql`SELECT 1 FROM sync_exclusions WHERE email = ${email.toLowerCase()}`);
             if (exclusionCheck.rows.length > 0) {
               logger.info(`[Stripe Sync] Skipping user creation for ${email} — permanently deleted (sync_exclusions)`);
-              result.details.push({ email, action: 'skipped', tier, reason: 'sync_exclusions' });
+              result.details.push({ email, action: 'skipped', tier: tier ?? undefined, reason: 'sync_exclusions' });
             } else {
             await db.execute(sql`INSERT INTO users (
                  email, first_name, last_name, role, tier, tier_id,
@@ -339,7 +339,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
             try {
               await findOrCreateHubSpotContact(email, firstName ?? '', lastName ?? '');
               const { syncMemberToHubSpot } = await import('../hubspot/stages');
-              await syncMemberToHubSpot({ email, status: 'active', tier, billingProvider: 'stripe', memberSince: new Date(), stripeCustomerId: stripeCustomerId || undefined });
+              await syncMemberToHubSpot({ email, status: 'active', tier: tier ?? undefined, billingProvider: 'stripe', memberSince: new Date(), stripeCustomerId: stripeCustomerId || undefined });
             } catch (e: unknown) {
               logger.warn(`[Stripe Sync] Failed to sync new user to HubSpot for ${email}:`, { extra: { detail: getErrorMessage(e) } });
             }
@@ -348,7 +348,7 @@ export async function syncActiveSubscriptionsFromStripe(): Promise<SubscriptionS
             result.details.push({
               email,
               action: 'created',
-              tier,
+              tier: tier ?? undefined,
             });
             logger.info(`[Stripe Sync] Created user ${email} with tier ${tier}`);
             }

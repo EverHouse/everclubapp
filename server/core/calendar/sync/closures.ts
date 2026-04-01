@@ -502,7 +502,8 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
         const existingClosure = existing.rows[0] as unknown as ClosureRow;
         const closureId = existingClosure.id;
         const googleUpdatedAt = event.updated ? new Date(event.updated) : null;
-        const appModifiedAt = existingClosure.app_last_modified_at instanceof Date ? existingClosure.app_last_modified_at : (existingClosure.app_last_modified_at ? new Date(existingClosure.app_last_modified_at) : null);
+        const rawAppModified: unknown = existingClosure.app_last_modified_at;
+        const appModifiedAt = rawAppModified instanceof Date ? rawAppModified : (rawAppModified ? new Date(String(rawAppModified)) : null);
         
         if (existingClosure.locally_edited === true) {
           if (!appModifiedAt) {
@@ -921,7 +922,7 @@ export async function backfillCalendarExtendedProperties(): Promise<BackfillResu
             calendarId: internalCalendarId,
             eventId: eventId.trim(),
             requestBody: {
-              extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, closureOptionalKeys) },
+              extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, closureOptionalKeys) as Record<string, string> },
             },
           }), `backfill-closure-patch-${row.id}`);
           
@@ -980,7 +981,7 @@ export async function backfillCalendarExtendedProperties(): Promise<BackfillResu
           calendarId: eventsCalendarId,
           eventId: row.google_calendar_id,
           requestBody: {
-            extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, eventOptionalKeys) },
+            extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, eventOptionalKeys) as Record<string, string> },
           },
         }), `backfill-event-patch-${row.id}`);
         
@@ -1036,7 +1037,7 @@ export async function backfillCalendarExtendedProperties(): Promise<BackfillResu
           calendarId: wellnessCalendarId,
           eventId: row.google_calendar_id,
           requestBody: {
-            extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, wellnessOptionalKeys) },
+            extendedProperties: { shared: buildPatchProps(existingProps, extendedProps, wellnessOptionalKeys) as Record<string, string> },
           },
         }), `backfill-wellness-patch-${row.id}`);
         

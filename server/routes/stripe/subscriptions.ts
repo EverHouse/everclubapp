@@ -923,7 +923,7 @@ router.post('/api/stripe/subscriptions/confirm-inline-payment', isStaffOrAdmin, 
           if (isTerminalPayment) {
             await stripe.invoices.pay(invoiceId, {
               payment_intent: paymentIntentId,
-            });
+            } as import('../../core/stripe/stripeCompat').InvoicePayWithIntent);
           } else {
             await stripe.invoices.pay(invoiceId, {
               paid_out_of_band: true,

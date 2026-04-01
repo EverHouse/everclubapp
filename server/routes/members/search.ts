@@ -145,7 +145,7 @@ router.get('/api/members/search', isAuthenticated, validateQuery(memberSearchSch
         userType = 'instructor';
       } else if (isStaff) {
         userType = 'staff';
-      } else if (user.membershipStatus === 'visitor' || user.membershipStatus === 'non-member') {
+      } else if ((user.membershipStatus as string) === 'visitor' || (user.membershipStatus as string) === 'non-member') {
         userType = 'visitor';
       }
       

@@ -18,7 +18,7 @@ export function regenerateSession(req: Request, userData: Record<string, unknown
         logger.error('[Auth] Session regeneration failed', { extra: { error: getErrorMessage(err) } });
         return reject(err);
       }
-      req.session.user = userData as typeof req.session.user;
+      req.session.user = userData as unknown as typeof req.session.user;
       if (oldSession.cookie) {
         req.session.cookie.maxAge = oldSession.cookie.maxAge;
       }

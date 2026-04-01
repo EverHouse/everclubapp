@@ -162,7 +162,7 @@ async function retryFailedSideEffect(record: FailedSideEffectRow): Promise<boole
           title,
           message,
           type: (notifType || 'system') as 'system',
-          relatedId: notifContext?.relatedId as string | undefined,
+          relatedId: notifContext?.relatedId as number | undefined,
           relatedType: notifContext?.relatedType as string | undefined,
           idempotencyKey: `failed_side_effect_${id}_booking_${bookingId}`,
         }, { sendPush: true, sendWebSocket: true });

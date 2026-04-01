@@ -48,7 +48,7 @@ const router = Router();
 router.get('/api/merch', validateQuery(merchQuerySchema), async (req, res) => {
   try {
     const { include_inactive } = req.query;
-    const sessionUser = (req.session as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
+    const sessionUser = (req.session as unknown as Record<string, unknown>)?.user as Record<string, unknown> | undefined;
     const userRole = sessionUser?.role as string | undefined;
     const isStaffOrAdminUser = userRole === 'admin' || userRole === 'staff';
     const showInactive = include_inactive === 'true' && isStaffOrAdminUser;

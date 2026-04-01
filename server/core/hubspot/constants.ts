@@ -93,7 +93,7 @@ export const ACTIVE_STATUSES = ['active', 'trialing', 'past_due'];
 export async function getDbStatusToHubSpotMapping(): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
   for (const [dbStatus, defaultVal] of Object.entries(DB_STATUS_TO_HUBSPOT_STATUS)) {
-    result[dbStatus] = await getSettingValue(`hubspot.status.${dbStatus}`, defaultVal);
+    result[dbStatus] = (await getSettingValue(`hubspot.status.${dbStatus}`, defaultVal)) ?? defaultVal;
   }
   return result;
 }
@@ -103,14 +103,15 @@ export async function getTierToHubSpotMapping(): Promise<Record<string, string>>
   const result: Record<string, string> = {};
   for (const [slug, name] of Object.entries(CANONICAL_TIER_NAMES)) {
     const defaultLabel = `${name} Membership`;
-    const label = await getSettingValue(`hubspot.tier.${slug}`, defaultLabel);
+    const label = (await getSettingValue(`hubspot.tier.${slug}`, defaultLabel)) ?? defaultLabel;
     result[slug] = label;
     result[slug.replace(/-/g, '_')] = label;
     result[slug.replace(/-/g, ' ')] = label;
     const longName = `${slug.replace(/-/g, ' ')} membership`;
     if (longName !== slug) result[longName] = label;
 
-    const foundingLabel = await getSettingValue(`hubspot.tier.${slug}-founding`, `${defaultLabel} Founding Members`);
+    const foundingDefault = `${defaultLabel} Founding Members`;
+    const foundingLabel = (await getSettingValue(`hubspot.tier.${slug}-founding`, foundingDefault)) ?? foundingDefault;
     result[`${slug}-founding`] = foundingLabel;
     result[`${slug}_founding`] = foundingLabel;
   }

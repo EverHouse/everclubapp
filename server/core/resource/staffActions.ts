@@ -198,7 +198,7 @@ export async function assignWithPlayers(
     });
 
     const statusesAllowingKeep = ['approved', 'confirmed', 'checked_in'];
-    const keepCurrentStatus = statusesAllowingKeep.includes(existingBooking.status);
+    const keepCurrentStatus = statusesAllowingKeep.includes(existingBooking.status ?? '');
     const targetStatus = keepCurrentStatus ? existingBooking.status : 'approved';
 
     const [updated] = await tx.update(bookingRequests)
@@ -782,7 +782,7 @@ export async function createStaffManualBooking(
       sanitizedParticipants = await sanitizeAndResolveParticipants(
         rawParticipants as Array<{ email?: string; type?: string; userId?: string; name?: string }>,
         resolvedEmail,
-        tx,
+        tx as unknown as Parameters<typeof sanitizeAndResolveParticipants>[2],
         { isStaff: true, maxGuests: 3 }
       );
     } catch (e: unknown) {

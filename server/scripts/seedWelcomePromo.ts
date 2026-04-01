@@ -1,6 +1,7 @@
 import { getStripeClient } from '../core/stripe/client';
 import { logger } from '../core/logger';
 import { getErrorMessage, isStripeResourceMissing } from '../utils/errorUtils';
+import Stripe from 'stripe';
 
 const COUPON_ID = 'WELCOME_50PCT_FIRST_MONTH';
 const PROMO_CODE = 'WELCOME50';
@@ -51,7 +52,7 @@ export async function seedWelcomePromoCode(): Promise<{ success: boolean; coupon
         source: 'self_serve_seed',
         description: 'Self-serve join page welcome discount',
       },
-    });
+    } as unknown as Stripe.PromotionCodeCreateParams);
 
     logger.info(`[Seed] Created promotion code ${PROMO_CODE}: ${promoCode.id}`);
     return { success: true, couponId: COUPON_ID, promoCodeId: promoCode.id };

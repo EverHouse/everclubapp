@@ -1,5 +1,5 @@
 import type { Express, RequestHandler } from 'express';
-import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User, type Provider } from '@supabase/supabase-js';
 import { jwtVerify, errors as joseErrors } from 'jose';
 import { authStorage } from '../replit_integrations/auth/storage';
 import { logger } from '../core/logger';
@@ -330,7 +330,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
       
       const { data, error } = await withTimeout(
         client.auth.signInWithOAuth({
-          provider,
+          provider: provider as Provider,
           options: {
             redirectTo: `${getAppUrl()}/auth/callback`,
           }

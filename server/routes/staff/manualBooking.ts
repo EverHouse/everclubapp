@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
-import { logFromRequest } from '../../core/auditLog';
+import { logFromRequest, type AuditAction, type ResourceType } from '../../core/auditLog';
 import { logAndRespond } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
 import { validateBody } from '../../middleware/validate';
@@ -51,8 +51,8 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, validateBody(staffManua
       row,
       dayPassRedeemed,
       input,
-      (action, entityType, entityId, entityName, metadata) => {
-        logFromRequest(req, action, entityType, entityId, entityName, metadata);
+      (action: string, entityType: string, entityId: string, entityName: string, metadata: Record<string, unknown>) => {
+        logFromRequest(req, action as AuditAction, entityType as ResourceType, entityId, entityName, metadata);
       }
     );
   } catch (error: unknown) {

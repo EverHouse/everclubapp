@@ -11,6 +11,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
 import { z } from 'zod';
 import { validateBody, validateQuery } from '../middleware/validate';
+import type { BugReportStatus } from '../../shared/constants/statuses';
 
 const bugReportCreateSchema = z.object({
   description: z.string().min(1, 'Description is required').max(5000),
@@ -73,7 +74,7 @@ router.get('/api/admin/bug-reports', isStaffOrAdmin, validateQuery(bugReportQuer
     const conditions: SQL[] = [];
     
     if (status && typeof status === 'string' && status !== 'all') {
-      conditions.push(eq(bugReports.status, status));
+      conditions.push(eq(bugReports.status, status as BugReportStatus));
     }
     
     let query = db.select().from(bugReports);

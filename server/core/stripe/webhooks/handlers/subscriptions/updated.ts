@@ -163,7 +163,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
             try {
               await queueTierSync({
                 email: deferredTierEmail,
-                newTier: deferredNewTierName,
+                newTier: deferredNewTierName ?? '',
                 oldTier: deferredOldTier,
                 changedBy: 'stripe-webhook',
                 changedByName: 'Stripe Subscription'
@@ -256,7 +256,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
                   try {
                     const { syncMemberToHubSpot } = await import('../../../../hubspot/stages');
                     for (const subEmail of deferredCorpSubEmails) {
-                      await syncMemberToHubSpot({ email: subEmail, tier: deferredCorpNewTier, billingProvider: 'stripe', billingGroupRole: 'Sub-member' });
+                      await syncMemberToHubSpot({ email: subEmail, tier: deferredCorpNewTier ?? undefined, billingProvider: 'stripe', billingGroupRole: 'Sub-member' });
                     }
                     logger.info(`[Stripe Webhook] Synced ${deferredCorpSubEmails.length} corporate sub-members to HubSpot after tier propagation`);
                   } catch (hubspotErr: unknown) {

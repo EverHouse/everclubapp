@@ -454,7 +454,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           minutesCharged: memberBilling?.minutesAllocated ?? perParticipantMinutes,
           overageFee: memberBilling?.overageFee ?? 0,
           guestFee: 0,
-          tierAtBooking: md.tier,
+          tierAtBooking: md.tier ?? undefined,
           paymentMethod: input.isPast ? 'credit_card' : 'unpaid'
         },
         'trackman_import'
@@ -470,7 +470,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           minutesCharged: ownerBilling?.minutesAllocated ?? perParticipantMinutes,
           overageFee: ownerBilling?.overageFee ?? 0,
           guestFee: billingResult.totalGuestFees,
-          tierAtBooking: ownerTier,
+          tierAtBooking: ownerTier ?? undefined,
           paymentMethod: input.isPast ? 'credit_card' : 'unpaid'
         },
         'trackman_import'

@@ -2,6 +2,7 @@ import { db } from '../db';
 import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 import { users } from '../../shared/schema';
 import { communicationLogs } from '../../shared/models/membership';
+import type { CommunicationLogStatus } from '../../shared/constants/statuses';
 import { getHubSpotClient } from './integrations';
 import { sql, eq } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './hubspot/request';
@@ -220,7 +221,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
                   direction,
                   subject,
                   body: body || null,
-                  status,
+                  status: status as CommunicationLogStatus,
                   hubspotEngagementId: callId,
                   hubspotSyncedAt: new Date(),
                   loggedBy: 'system',

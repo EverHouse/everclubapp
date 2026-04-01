@@ -552,7 +552,7 @@ router.post('/api/data-integrity/fix/clear-stripe-customer-id', isAdmin, validat
     const { getStripeClient } = await import('../../core/stripe/client');
     const stripe = await getStripeClient();
     const customers = await stripe.customers.list({ email: (user.email || '').toLowerCase(), limit: 10 });
-    const nonDeletedCustomers = customers.data.filter((c: { deleted?: boolean }) => !c.deleted);
+    const nonDeletedCustomers = customers.data.filter((c) => !(c as unknown as { deleted?: boolean }).deleted);
 
     const matchingCustomer = nonDeletedCustomers.find((c: { metadata?: Record<string, string> }) => c.metadata?.userId === String(userId)) || nonDeletedCustomers[0];
 
@@ -747,7 +747,7 @@ async function reconnectSingleMember(userId: string, staffEmail: string): Promis
   if (nonDeletedCustomers.length === 0) {
     const { getOrCreateStripeCustomer } = await import('../../core/stripe/customers');
     try {
-      const { customerId, isNew } = await getOrCreateStripeCustomer(userId, (user.email || '').toLowerCase(), memberName, user.tier || undefined);
+      const { customerId, isNew } = await getOrCreateStripeCustomer(userId, (user.email || '').toLowerCase(), memberName ?? undefined, (user.tier ?? undefined) as string | undefined);
       return {
         success: true,
         message: `${isNew ? 'Created' : 'Linked'} Stripe customer ${customerId} for "${memberName}" (${user.email}). No subscription found.`,
@@ -1024,7 +1024,7 @@ router.post('/api/data-integrity/fix/backfill-hubspot-last-modified', isAdmin, a
             updated++;
           } else {
             const contact = await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.getById(hubspotId, ['last_modified_at'])
+              hubspot.client.crm.contacts.basicApi.getById(hubspotId, ['last_modified_at'])
             );
 
             if (contact.properties?.last_modified_at) {
@@ -1036,7 +1036,7 @@ router.post('/api/data-integrity/fix/backfill-hubspot-last-modified', isAdmin, a
             midnightUtc.setUTCHours(0, 0, 0, 0);
 
             await retryableHubSpotRequest(() =>
-              hubspot.crm.contacts.basicApi.update(hubspotId, {
+              hubspot.client.crm.contacts.basicApi.update(hubspotId, {
                 properties: {
                   last_modified_at: midnightUtc.getTime().toString()
                 }

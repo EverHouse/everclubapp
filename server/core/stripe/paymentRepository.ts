@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { stripePaymentIntents, users } from '../../../shared/schema';
 import { eq, and, gte, inArray, desc, sql } from 'drizzle-orm';
+import type { StripePaymentIntentStatus } from '../../../shared/constants/statuses';
 
 export interface PaymentWithMember {
   id: number;
@@ -146,7 +147,7 @@ export async function getFailedPayments(limit = 50): Promise<FailedPayment[]> {
     })
     .from(stripePaymentIntents)
     .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
-    .where(inArray(stripePaymentIntents.status, failedStatuses))
+    .where(inArray(stripePaymentIntents.status, failedStatuses as StripePaymentIntentStatus[]))
     .orderBy(desc(stripePaymentIntents.createdAt))
     .limit(limit);
 
@@ -187,7 +188,7 @@ export async function getPendingAuthorizations(): Promise<PendingAuthorization[]
     })
     .from(stripePaymentIntents)
     .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
-    .where(inArray(stripePaymentIntents.status, pendingStatuses))
+    .where(inArray(stripePaymentIntents.status, pendingStatuses as StripePaymentIntentStatus[]))
     .orderBy(desc(stripePaymentIntents.createdAt));
 
   return results.map(row => ({
@@ -242,14 +243,14 @@ export async function getPaymentByIntentId(paymentIntentId: string) {
 export async function updatePaymentStatus(paymentIntentId: string, status: string) {
   await db
     .update(stripePaymentIntents)
-    .set({ status, updatedAt: new Date() })
+    .set({ status: status as StripePaymentIntentStatus, updatedAt: new Date() })
     .where(eq(stripePaymentIntents.stripePaymentIntentId, paymentIntentId));
 }
 
 export async function updatePaymentStatusAndAmount(paymentIntentId: string, status: string, amountCents: number) {
   await db
     .update(stripePaymentIntents)
-    .set({ status, amountCents, updatedAt: new Date() })
+    .set({ status: status as StripePaymentIntentStatus, amountCents, updatedAt: new Date() })
     .where(eq(stripePaymentIntents.stripePaymentIntentId, paymentIntentId));
 }
 

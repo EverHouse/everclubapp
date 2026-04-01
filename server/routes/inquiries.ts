@@ -7,6 +7,7 @@ import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
+import type { FormSubmissionStatus } from '../../shared/constants/statuses';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get('/api/admin/inquiries', isStaffOrAdmin, async (req, res) => {
     ];
     
     if (status && typeof status === 'string') {
-      conditions.push(eq(formSubmissions.status, status));
+      conditions.push(eq(formSubmissions.status, status as FormSubmissionStatus));
     }
     
     if (formType && typeof formType === 'string') {

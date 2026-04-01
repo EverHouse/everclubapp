@@ -58,7 +58,7 @@ export async function devConfirmBooking(params: DevConfirmParams) {
 
   // eslint-disable-next-line no-useless-assignment
   let resolvedTotalFeeCents = 0;
-  let transactionResult: { sessionId: number | null; totalFeeCents: number; dateStr: string; timeStr: string; participantEmails: string[] };
+  let transactionResult: { success?: boolean; error?: string; sessionId?: number | null; totalFeeCents?: number; dateStr?: string; timeStr?: string; participantEmails?: string[] };
   try {
   transactionResult = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('approve_booking_' || ${String(bookingId)}))`);
@@ -299,6 +299,9 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     throw txError;
   }
 
+  if (transactionResult.success === false) {
+    return { error: transactionResult.error || 'Transaction failed', statusCode: 409 };
+  }
   const { sessionId, totalFeeCents, dateStr, timeStr, participantEmails } = transactionResult;
   resolvedTotalFeeCents = totalFeeCents ?? 0;
   if (sessionId) {

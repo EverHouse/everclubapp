@@ -579,7 +579,7 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
           lastName: dbUser[0].lastName || '',
           email: dbUser[0].email || normalizedEmail,
           phone: dbUser[0].phone || '',
-          tier: role === 'visitor' ? undefined : (normalizeTierName(dbUser[0].tier) || null),
+          tier: role === 'visitor' ? undefined : (normalizeTierName(dbUser[0].tier) || undefined),
           tags: (dbUser[0].tags || []) as string[],
           mindbodyClientId: dbUser[0].mindbodyClientId || '',
           status: statusMap[dbMemberStatus] || (dbMemberStatus ? dbMemberStatus.charAt(0).toUpperCase() + dbMemberStatus.slice(1) : 'Active'),
@@ -640,7 +640,7 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
           lastName: (hasDbUser ? dbUser[0].lastName : contact?.properties?.lastname) || '',
           email: (hasDbUser ? dbUser[0].email : contact?.properties?.email) || normalizedEmail,
           phone: (hasDbUser ? dbUser[0].phone : contact?.properties?.phone) || '',
-          tier: role === 'visitor' ? undefined : (normalizeTierName(hasDbUser ? dbUser[0].tier : contact?.properties?.membership_tier) || null),
+          tier: role === 'visitor' ? undefined : (normalizeTierName(hasDbUser ? dbUser[0].tier : contact?.properties?.membership_tier) || undefined),
           tags: tags as string[],
           mindbodyClientId: (hasDbUser ? dbUser[0].mindbodyClientId : contact?.properties?.mindbody_client_id) || '',
           status: statusMap[memberStatusStr] || (memberStatusStr ? memberStatusStr.charAt(0).toUpperCase() + memberStatusStr.slice(1) : 'Active'),
@@ -680,7 +680,7 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
       logger.warn('[Auth] Non-critical first_login_at update failed:', { extra: { error: getErrorMessage(err) } });
     }
 
-    await regenerateSession(req, member as Record<string, unknown>);
+    await regenerateSession(req, member as unknown as Record<string, unknown>);
 
     (async () => {
       try {

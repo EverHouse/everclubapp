@@ -1,6 +1,7 @@
 import { db } from '../../db';
 import { bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns } from '../../../shared/schema';
 import { eq, or, ilike, and, sql } from 'drizzle-orm';
+import type { BookingStatus } from '../../../shared/constants/statuses';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { formatDateFromDb } from '../../utils/dateUtils';
 import { bookingEvents } from '../bookingEvents';
@@ -92,7 +93,7 @@ async function insertBookingIfNotExists(
   }
 
   const isUpcoming = isFutureBooking(booking.bookingDate || '', booking.startTime || '');
-  const originalStatus = booking.status || 'attended';
+  const originalStatus: string = booking.status || 'attended';
   let finalStatus: string;
   
   if (isUpcoming) {
@@ -130,7 +131,7 @@ async function insertBookingIfNotExists(
       durationMinutes: booking.durationMinutes || 60,
       endTime: booking.endTime,
       notes: `[Trackman Import ID:${booking.trackmanBookingId}] ${booking.notes || ''}`,
-      status: finalStatus,
+      status: finalStatus as BookingStatus,
       createdAt: booking.createdAt,
       trackmanBookingId: booking.trackmanBookingId,
       guestCount: actualGuestCount,

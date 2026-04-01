@@ -555,7 +555,7 @@ export async function checkBillingOrphans(): Promise<IntegrityCheckResult> {
   const PAID_TIERS = paidTierResult.rows.map((r: Record<string, unknown>) => r.name as string);
   
   if (PAID_TIERS.length === 0) {
-    return { name: 'Billing Orphans', status: 'pass' as const, issues: [], summary: 'No paid tiers configured' };
+    return { name: 'Billing Orphans', checkName: 'billing_orphans', status: 'pass' as const, issues: [], issueCount: 0, lastRun: new Date() };
   }
   
   const paidTierLower = PAID_TIERS.map(t => t.toLowerCase());
@@ -1003,7 +1003,7 @@ export async function checkOrphanedBookingInvoices(): Promise<IntegrityCheckResu
           memberEmail: row.user_email,
           bookingDate: row.request_date,
           status: row.status,
-          billingSyncPending: String(alreadyFlagged)
+          billingSyncPending: alreadyFlagged
         }
       });
 
@@ -1018,7 +1018,7 @@ export async function checkOrphanedBookingInvoices(): Promise<IntegrityCheckResu
       }
     }
 
-    const newlyFlaggedCount = issues.filter(i => i.context?.billingSyncPending === 'false').length;
+    const newlyFlaggedCount = issues.filter(i => i.context?.billingSyncPending === false).length;
     if (newlyFlaggedCount > 0) {
       notifyAllStaff(
         'Orphaned booking invoices detected',

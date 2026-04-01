@@ -1,6 +1,7 @@
 import { eq, and, or, sql, desc, asc, ne } from 'drizzle-orm';
 import { db } from '../../db';
 import { resources, users, bookingRequests, bookingParticipants } from '../../../shared/schema';
+import type { BookingStatus } from '../../../shared/constants/statuses';
 import { isAuthorizedForMemberBooking } from '../bookingAuth';
 import { logger } from '../logger';
 import { withRetry } from '../retry';
@@ -140,16 +141,16 @@ export async function fetchBookings(params: {
   }
   
   if (params.status) {
-    conditions.push(eq(bookingRequests.status, params.status));
+    conditions.push(eq(bookingRequests.status, params.status as BookingStatus));
   } else if (params.includeAll) {
     // intentionally no filter — include all statuses
   } else {
     conditions.push(or(
-      eq(bookingRequests.status, 'confirmed'),
-      eq(bookingRequests.status, 'approved'),
-      eq(bookingRequests.status, 'pending_approval'),
-      eq(bookingRequests.status, 'pending'),
-      eq(bookingRequests.status, 'attended')
+      eq(bookingRequests.status, 'confirmed' as BookingStatus),
+      eq(bookingRequests.status, 'approved' as BookingStatus),
+      eq(bookingRequests.status, 'pending_approval' as BookingStatus),
+      eq(bookingRequests.status, 'pending' as BookingStatus),
+      eq(bookingRequests.status, 'attended' as BookingStatus)
     )!);
   }
   
@@ -427,7 +428,7 @@ export async function createBookingRequest(params: {
     resourceType = (resourceResult.rows as unknown as ResourceTypeRow[])[0]?.type || 'simulator';
   }
   
-  const limitCheck = await checkDailyBookingLimit(resolvedEmail, params.bookingDate, durationMinutes, userTier, resourceType);
+  const limitCheck = await checkDailyBookingLimit(resolvedEmail, params.bookingDate, durationMinutes, userTier ?? undefined, resourceType);
   if (!limitCheck.allowed) {
     throw new AppError(403, limitCheck.reason ?? 'Booking limit exceeded', {
       remainingMinutes: limitCheck.remainingMinutes

@@ -134,10 +134,10 @@ function extractQueryText(firstArg: unknown): string {
 function createInstrumentedPool(targetPool: Pool): Pool {
   const originalConnect = targetPool.connect.bind(targetPool);
   const wrappedConnect: typeof targetPool.connect = function connect(
-    callback?: (err: Error, client: PoolClient, done: (release?: boolean) => void) => void
+    callback?: (err: Error | undefined, client: PoolClient | undefined, done: (release?: any) => void) => void
   ) {
     if (callback) {
-      return originalConnect((err: Error, client: PoolClient, done: (release?: boolean) => void) => {
+      return originalConnect((err: Error | undefined, client: PoolClient | undefined, done: (release?: any) => void) => {
         if (!err && client && isPerformanceEnabled()) {
           instrumentClient(client);
         }
@@ -173,7 +173,7 @@ function createInstrumentedPool(targetPool: Pool): Pool {
           recordQueryTiming(queryText, start);
           throw err;
         }
-      ) as ReturnType<typeof targetPool.query>;
+      ) as unknown as ReturnType<typeof targetPool.query>;
     }
     return result;
   } as typeof targetPool.query;
@@ -208,7 +208,7 @@ function instrumentClient(client: PoolClient): void {
           recordQueryTiming(queryText, start);
           throw err;
         }
-      ) as ReturnType<typeof client.query>;
+      ) as unknown as ReturnType<typeof client.query>;
     }
     return result;
   } as typeof client.query;

@@ -279,7 +279,7 @@ export async function processStripeWebhook(
 
     logger.info(`[Stripe Webhook] Processing event: ${event.id} (${event.type})`);
 
-    const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object, event.data.previous_attributes);
+    const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object as StripeWebhookDataObject, event.data.previous_attributes as Partial<SubscriptionPreviousAttributes> | undefined);
 
     await client.query('COMMIT');
     isCommitted = true;
@@ -359,7 +359,7 @@ export async function replayStripeEvent(
 
     logger.info(`[Stripe Webhook Replay] Processing event: ${event.id} (${event.type})`);
 
-    const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object, event.data.previous_attributes);
+    const deferredActions = await dispatchWebhookEvent(client, event.type, event.data.object as StripeWebhookDataObject, event.data.previous_attributes as Partial<SubscriptionPreviousAttributes> | undefined);
 
     await client.query('COMMIT');
     replayCommitted = true;

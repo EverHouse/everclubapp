@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
 import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, bookingSessions, availabilityBlocks } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
+import type { BookingStatus, TrackmanUnmatchedStatus } from '../../../shared/constants/statuses';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getTodayPacific, formatNotificationDateTime, formatDateFromDb } from '../../utils/dateUtils';
@@ -1356,7 +1357,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             durationMinutes: row.durationMins,
             endTime: endTime,
             notes: `[Trackman Import ID:${row.bookingId}] ${row.notes}`,
-            status: matchedEmail ? 'approved' : normalizedStatus,
+            status: (matchedEmail ? 'approved' : normalizedStatus) as BookingStatus,
             createdAt: originalBookedDate || new Date(),
             trackmanBookingId: row.bookingId,
             guestCount: actualGuestCount,
@@ -1572,14 +1573,21 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     );
                   }
                 }
+                let retryUserId: string | null = null;
+                if (matchedEmail) {
+                  const retryUserIdResult = await tx.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${matchedEmail}) LIMIT 1`);
+                  retryUserId = (retryUserIdResult.rows as Array<{ id: string }>)[0]?.id || null;
+                }
+                const retryBookedDate = row.bookedDate ? new Date(row.bookedDate.replace(' ', 'T') + ':00') : null;
+                const retryGuestCount = parseNotesForPlayers(row.notes).filter(p => p.type === 'guest').length;
                 const retryInsert = await tx.execute(sql`INSERT INTO booking_requests
                   (user_email, user_name, user_id, resource_id, request_date, start_time, end_time,
                    duration_minutes, notes, status, created_at, trackman_booking_id,
                    guest_count, trackman_player_count, declared_player_count,
                    origin, last_sync_source, last_trackman_sync_at)
-                  VALUES (${matchedEmail}, ${row.userName}, ${insertUserId}, ${parsedBayId}, ${bookingDate}, ${startTime}, ${endTime},
-                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] ${row.notes}`}, ${matchedEmail ? 'approved' : normalizedStatus}, ${originalBookedDate || new Date()}, ${row.bookingId},
-                          ${actualGuestCount}, ${row.playerCount}, ${row.playerCount},
+                  VALUES (${matchedEmail}, ${row.userName}, ${retryUserId}, ${parsedBayId}, ${bookingDate}, ${startTime}, ${endTime},
+                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] ${row.notes}`}, ${matchedEmail ? 'approved' : normalizedStatus}, ${retryBookedDate || new Date()}, ${row.bookingId},
+                          ${retryGuestCount}, ${row.playerCount}, ${row.playerCount},
                           'trackman_import', 'trackman_import', NOW())
                   ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
                     last_trackman_sync_at = NOW(), updated_at = NOW()
@@ -1602,7 +1610,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                    trackman_player_count, declared_player_count, is_unmatched, trackman_customer_notes,
                    origin, last_sync_source, last_trackman_sync_at)
                   VALUES ('', ${row.userName}, ${parsedBayId}, ${bookingDate}, ${startTime}, ${endTime},
-                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] [UNMATCHED - overlap could not be auto-resolved] ${row.notes}`}, ${normalizedStatus}, ${originalBookedDate || new Date()}, ${row.bookingId},
+                          ${row.durationMins}, ${`[Trackman Import ID:${row.bookingId}] [UNMATCHED - overlap could not be auto-resolved] ${row.notes}`}, ${normalizedStatus}, ${row.bookedDate ? new Date(row.bookedDate.replace(' ', 'T') + ':00') : new Date()}, ${row.bookingId},
                           ${row.playerCount}, ${row.playerCount}, true, ${`Original: ${row.userName} / ${row.userEmail}. Overlap auto-resolve failed.`},
                           'trackman_import', 'trackman_import', NOW())
                   ON CONFLICT (trackman_booking_id) WHERE trackman_booking_id IS NOT NULL DO UPDATE SET
@@ -1659,7 +1667,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             durationMinutes: row.durationMins,
             endTime: endTime,
             notes: `[Trackman Import ID:${row.bookingId}] [UNMATCHED - requires staff resolution] ${row.notes}`,
-            status: normalizedStatus,
+            status: normalizedStatus as BookingStatus,
             createdAt: row.bookedDate ? new Date(row.bookedDate.replace(' ', 'T') + ':00') : new Date(),
             trackmanBookingId: row.bookingId,
             trackmanPlayerCount: row.playerCount,
@@ -1753,7 +1761,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               startTime: startTime,
               endTime: endTime,
               durationMinutes: row.durationMins,
-              status: normalizedStatus,
+              status: normalizedStatus as TrackmanUnmatchedStatus,
               bayNumber: row.bayNumber,
               playerCount: row.playerCount,
               notes: row.notes,

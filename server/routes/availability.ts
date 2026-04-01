@@ -39,7 +39,7 @@ router.post('/api/availability/batch', async (req, res) => {
     const ignoreId = ignore_booking_id ? ignore_booking_id : null;
     
     const sessionUser = getSessionUser(req);
-    const requestingEmail = (sessionUser ? (user_email || sessionUser.email || '') : (sessionUser?.email || '')).trim().toLowerCase();
+    const requestingEmail = (sessionUser ? (user_email || sessionUser.email || '') : '').trim().toLowerCase();
     
     const hours = await getBusinessHoursFromSettings(date);
     

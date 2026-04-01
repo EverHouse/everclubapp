@@ -7,6 +7,7 @@ import { computeFeeBreakdown, applyFeeBreakdownToParticipants } from '../../core
 import { PRICING } from '../../core/billing/pricingConfig';
 import { getErrorMessage } from '../../utils/errorUtils';
 
+import type { SanitizedParticipant } from '../../core/bookingService/bookingTypes';
 export { BookingValidationError, type SanitizedParticipant } from '../../core/bookingService/bookingTypes';
 
 export interface InvoicePayResult {

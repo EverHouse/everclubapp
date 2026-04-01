@@ -30,7 +30,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { invoiceId } = req.params;
+    const invoiceId = req.params.invoiceId as string;
     if (!invoiceId || !invoiceId.startsWith('in_')) {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
@@ -205,7 +205,7 @@ router.post('/api/member/invoices/:invoiceId/pay-saved-card', isAuthenticated, p
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { invoiceId } = req.params;
+    const invoiceId = req.params.invoiceId as string;
     if (!invoiceId || !invoiceId.startsWith('in_')) {
       return res.status(400).json({ error: 'Invalid invoice ID' });
     }
@@ -335,7 +335,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { invoiceId } = req.params;
+    const invoiceId = req.params.invoiceId as string;
     const { paymentIntentId } = req.body;
 
     if (!invoiceId || !paymentIntentId) {
@@ -361,7 +361,7 @@ router.post('/api/member/invoices/:invoiceId/confirm', isAuthenticated, async (r
       return res.status(400).json({ error: 'Payment has not succeeded' });
     }
 
-    const invId = invoiceId;
+    const invId = String(invoiceId);
     const invoice = await stripe.invoices.retrieve(invId, { expand: ['payment_intent'] });
 
     if (invoice.customer !== stripeCustomerId) {

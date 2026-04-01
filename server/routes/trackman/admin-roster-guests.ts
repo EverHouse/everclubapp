@@ -118,7 +118,7 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
 
     let guestPassesRemaining = 0;
     if (ownerEmail) {
-      const ownerTierName = await getMemberTierByEmail(ownerEmail);
+      const ownerTierName = await getMemberTierByEmail(ownerEmail as string);
       const { getTierLimits } = await import('../../core/tierService');
       const ownerTierLimits = ownerTierName ? await getTierLimits(ownerTierName) : null;
       const tierPassTotal = ownerTierLimits?.guest_passes_per_year ?? null;

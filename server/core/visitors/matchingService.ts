@@ -8,6 +8,7 @@ import { syncCustomerMetadataToStripe } from "../stripe/customers";
 
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
+import type { MembershipStatus } from '../../../shared/constants/statuses';
 const PLACEHOLDER_EMAIL_PATTERNS = [
   '@visitors.evenhouse.club',
   '@visitors.everclub.co',
@@ -234,7 +235,7 @@ export async function upsertVisitor(data: VisitorData, _createStripeCustomer: bo
       mindbodyClientId: data.mindbodyClientId,
       hubspotId: data.hubspotId,
       role: "visitor",
-      membershipStatus: "visitor",
+      membershipStatus: "visitor" as MembershipStatus,
     })
     .returning();
 

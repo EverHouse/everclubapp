@@ -353,7 +353,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
 
 router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     
     const visitorResult = await db.select({
       id: users.id,
@@ -373,8 +373,8 @@ router.get('/api/visitors/:id/purchases', isStaffOrAdmin, async (req, res) => {
     const visitor = visitorResult[0];
     
     const isVisitorLike = visitor.role === 'visitor' || 
-                          visitor.membershipStatus === 'visitor' || 
-                          visitor.membershipStatus === 'non-member';
+                          (visitor.membershipStatus as string) === 'visitor' || 
+                          (visitor.membershipStatus as string) === 'non-member';
     if (!isVisitorLike) {
       return res.status(403).json({ error: 'User is not a visitor' });
     }
@@ -450,7 +450,7 @@ router.get('/api/guests/needs-email', isStaffOrAdmin, async (req, res) => {
 
 router.patch('/api/guests/:guestId/email', isStaffOrAdmin, async (req, res) => {
   try {
-    const { guestId } = req.params;
+    const guestId = req.params.guestId as string;
     const { email: rawEmail } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
     
@@ -858,7 +858,7 @@ router.post('/api/visitors/backfill-types', isAdmin, async (req, res) => {
 
 router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { deleteFromHubSpot, deleteFromStripe } = req.query;
     const sessionUser = getSessionUser(req);
     
@@ -1056,7 +1056,7 @@ router.delete('/api/visitors/:id', isStaffOrAdmin, async (req, res) => {
       action: 'delete_visitor',
       resourceType: 'user',
       resourceId: id,
-      resourceName: visitorName || undefined,
+      resourceName: (visitorName as string) || undefined,
       details: {
         email: visitor.email,
         deletedRecords: deletionLog,

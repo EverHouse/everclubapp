@@ -2,6 +2,8 @@ import { logger } from '../core/logger';
 import { Router, Request, Response, NextFunction } from 'express';
 import Stripe from 'stripe';
 
+import type { InvoiceWithExpandedFields } from '../core/stripe/stripeCompat';
+
 interface StripeInvoiceExpanded extends Stripe.Invoice {
   number: string | null;
 }
@@ -1114,7 +1116,8 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
             }
           }
 
-          const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id;
+          const invExpanded = inv as unknown as InvoiceWithExpandedFields;
+          const piId = typeof invExpanded.payment_intent === 'string' ? invExpanded.payment_intent : invExpanded.payment_intent?.id;
           if (piId && existingPaymentIntentIds.has(piId)) continue;
 
           const invBookingId = bookingId ? parseInt(bookingId, 10) : null;
@@ -1123,7 +1126,7 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
             id: `inv-${inv.id}`,
             type: 'stripe',
             itemName: inv.description || lineDescription || `Invoice ${inv.number || inv.id}`,
-            itemCategory: inv.subscription ? 'membership' : 'invoice',
+            itemCategory: invExpanded.subscription ? 'membership' : 'invoice',
             amountCents: inv.status === 'paid' ? (inv.amount_paid ?? inv.amount_due) : inv.amount_due,
             date: new Date(inv.created * 1000).toISOString(),
             status: inv.status || 'open',

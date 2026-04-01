@@ -1,5 +1,6 @@
 import { db } from '../../db';
 import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
+import type { BookingStatus } from '../../../shared/constants/statuses';
 import { eq, and, or, gt, lt, lte, gte, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../pushService';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb } from '../../utils/dateUtils';
@@ -128,7 +129,7 @@ export async function updateGenericStatus(bookingId: number, status: string, sta
 
   const result = await db.update(bookingRequests)
     .set({
-      status: status,
+      status: status as BookingStatus,
       staffNotes: staff_notes || undefined,
       updatedAt: new Date(),
       version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
@@ -537,14 +538,14 @@ export async function checkinBooking(params: CheckinBookingParams) {
 
     const updated = await tx.update(bookingRequests)
       .set({
-        status: newStatus,
+        status: newStatus as BookingStatus,
         isUnmatched: false,
         updatedAt: new Date(),
         version: sql`COALESCE(${bookingRequests.version}, 1) + 1`
       })
       .where(and(
         eq(bookingRequests.id, bookingId),
-        eq(bookingRequests.status, currentStatus || '')
+        eq(bookingRequests.status, (currentStatus || '') as BookingStatus)
       ))
       .returning();
 

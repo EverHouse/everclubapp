@@ -65,8 +65,8 @@ export async function renderTemplatePreview(templateId: string): Promise<string 
       return getAccountDeletionHtml({ firstName: 'Alex' });
 
     case 'tour-confirmation': {
-      const tourAddr = await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500');
-      const tourCsz = await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780');
+      const tourAddr = (await getSettingValue('contact.address_line1', '15771 Red Hill Ave, Ste 500')) ?? '15771 Red Hill Ave, Ste 500';
+      const tourCsz = (await getSettingValue('contact.city_state_zip', 'Tustin, CA 92780')) ?? 'Tustin, CA 92780';
       return getTourConfirmationHtml({
         guestName: 'Jordan Smith',
         date: '2026-03-20',

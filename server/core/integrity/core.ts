@@ -417,6 +417,8 @@ export interface IssueContext {
   sessionDate?: string;
   checkinId?: number;
   previousCount?: number;
+  currentCount?: number;
+  dropPercent?: number;
   billingSyncPending?: boolean;
   participantCount?: number;
   membershipStatus?: string;

@@ -364,7 +364,7 @@ router.delete('/api/auth/passkey/:passkeyId', isAuthenticated, async (req, res) 
       return logAndRespond(req, res, 401, 'Session expired');
     }
 
-    const passkeyId = parseInt(req.params.passkeyId, 10);
+    const passkeyId = parseInt(req.params.passkeyId as string, 10);
     if (isNaN(passkeyId)) {
       return logAndRespond(req, res, 400, 'Invalid passkey ID');
     }

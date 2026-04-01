@@ -642,7 +642,7 @@ router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, as
       );
       for (let j = 0; j < results.length; j++) {
         if (results[j].status === 'fulfilled') {
-          const val = (results[j] as PromiseFulfilledResult<{ participantsUpdated: number; ledgerUpdated: number }>).value;
+          const val = (results[j] as unknown as PromiseFulfilledResult<{ participantsUpdated: number; ledgerUpdated: number }>).value;
           if (val.participantsUpdated > 0) {
             succeeded++;
           } else {

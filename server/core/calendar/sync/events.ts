@@ -211,7 +211,8 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
 
       if (existing.rows.length > 0) {
         const dbRow = existing.rows[0] as unknown as EventDbRow;
-        const appModifiedAt = dbRow.app_last_modified_at instanceof Date ? dbRow.app_last_modified_at : (dbRow.app_last_modified_at ? new Date(dbRow.app_last_modified_at) : null);
+        const rawAppModified: unknown = dbRow.app_last_modified_at;
+        const appModifiedAt = rawAppModified instanceof Date ? rawAppModified : (rawAppModified ? new Date(String(rawAppModified)) : null);
         
         if (dbRow.locally_edited === true && appModifiedAt) {
           const calendarIsNewer = googleUpdatedAt && googleUpdatedAt > appModifiedAt;
@@ -283,7 +284,7 @@ export async function syncGoogleCalendarEvents(options?: { suppressAlert?: boole
                     timeZone: 'America/Los_Angeles',
                   } : undefined,
                   extendedProperties: {
-                    shared: mergedEventProps,
+                    shared: mergedEventProps as Record<string, string>,
                   },
                 },
               }), `events-patch-event-${dbRow.id}`);

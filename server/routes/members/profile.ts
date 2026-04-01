@@ -47,7 +47,7 @@ router.get('/api/members/:email/details', isAuthenticated, memberLookupRateLimit
   try {
     const { email } = req.params;
     
-    if (email === 'private-event@resolved' || email.endsWith('@trackman.local') || email.startsWith('unmatched-')) {
+    if (email === 'private-event@resolved' || (email as string).endsWith('@trackman.local') || (email as string).startsWith('unmatched-')) {
       return res.status(200).json({ synthetic: true, email, firstName: 'Private', lastName: 'Event', tier: null, membershipStatus: null });
     }
     

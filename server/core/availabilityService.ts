@@ -64,7 +64,7 @@ export async function getBusinessHoursFromSettings(date: string): Promise<Busine
     case 6: settingKey = 'hours.friday_saturday'; fallback = '8:30 AM – 10:00 PM'; break;
     default: settingKey = 'hours.tuesday_thursday'; fallback = '8:30 AM – 8:00 PM'; break;
   }
-  const displayStr = await getSettingValue(settingKey, fallback);
+  const displayStr = (await getSettingValue(settingKey, fallback)) ?? fallback;
   return parseDisplayHoursToMinutes(displayStr);
 }
 
