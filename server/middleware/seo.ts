@@ -547,12 +547,6 @@ function getJsonLdScripts(routePath: string): string {
   return `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": graphItems })}</script>`;
 }
 
-export const injectCspNonce = (html: string, nonce: string): string => {
-  return html
-    .replace(/<script(?![^>]*type\s*=\s*["']application\/ld\+json["'])(?=[\s>])/gi, `<script nonce="${nonce}"`)
-    .replace(/<style(?=[\s>])/gi, `<style nonce="${nonce}"`);
-};
-
 export interface SeoMiddlewareOptions {
   getCachedIndexHtml: () => string | null;
   getMainCssPath: () => string | null;
@@ -579,7 +573,6 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
 
       const routePath = req.path.replace(/\/+$/, '') || '/';
       const meta = SEO_META[routePath];
-      const nonce = res.locals.cspNonce as string;
 
       res.setHeader('Content-Type', 'text/html');
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -618,7 +611,7 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
         html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${ogUrl}" />`);
         html = html.replace('</head>', `${GEO_META_TAGS}\n${getJsonLdScripts(routePath)}\n</head>`);
         html = injectSsrContent(html, routePath);
-        return res.send(injectCspNonce(html, nonce));
+        return res.send(html);
       }
 
       let html = cachedHtml;
@@ -627,7 +620,7 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
       html = html.replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${fallbackUrl}" />`);
       html = html.replace('</head>', `${GEO_META_TAGS}\n${getJsonLdScripts(routePath)}\n</head>`);
       html = injectSsrContent(html, routePath);
-      return res.send(injectCspNonce(html, nonce));
+      return res.send(html);
     }
     next();
   };
