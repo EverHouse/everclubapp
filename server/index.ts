@@ -205,7 +205,7 @@ async function initializeApp() {
   const { default: expressStaticGzip } = await import('express-static-gzip');
   const { default: rateLimit } = await import('express-rate-limit');
   const path = await import('path');
-  const { fileURLToPath } = await import('url');
+
   const { globalRateLimiter } = await import('./middleware/rateLimiting');
   const { getSession, registerAuthRoutes } = await import('./replit_integrations/auth');
   const { setupSupabaseAuthRoutes } = await import('./supabase/auth');
@@ -223,8 +223,6 @@ async function initializeApp() {
   const { registerSitemapRoutes } = await import('./middleware/sitemap');
   const { seoMiddleware } = await import('./middleware/seo');
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
   const distDir = path.join(process.cwd(), 'dist');
 
   logger.info(`[Startup] Environment: ${isProduction ? 'production' : 'development'}`);
