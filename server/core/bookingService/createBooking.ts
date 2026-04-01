@@ -60,7 +60,11 @@ export function computeEndTime(startTime: string, durationMinutes: number, opts?
   if (isNaN(hours) || isNaN(mins) || hours < 0 || hours > 23 || mins < 0 || mins > 59) {
     throw new BookingValidationError(400, { error: 'Invalid start time format. Use HH:MM in 24-hour format.' });
   }
-  const totalMins = hours * 60 + mins + durationMinutes;
+  const parsedDuration = Number(durationMinutes);
+  if (isNaN(parsedDuration) || parsedDuration <= 0) {
+    throw new BookingValidationError(400, { error: 'Invalid or missing duration' });
+  }
+  const totalMins = hours * 60 + mins + parsedDuration;
   const endHours = Math.floor(totalMins / 60);
   const endMins = totalMins % 60;
   const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
@@ -177,20 +181,26 @@ export async function sanitizeAndResolveParticipants(
     .filter(p => p.userId)
     .map(p => p.userId as string);
   if (allParticipantUserIds.length > 0) {
-    const dbLike = tx as unknown as { select: typeof import('../../db').db.select };
-    const statusResults = await dbLike.select({
-      id: users.id,
-      membershipStatus: users.membershipStatus,
-      email: users.email,
-      name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
-    }).from(users)
-      .where(inArray(users.id, allParticipantUserIds));
-    for (const statusRow of statusResults) {
-      if (statusRow.membershipStatus === 'inactive' || statusRow.membershipStatus === 'cancelled') {
-        throw new BookingValidationError(400, {
-          error: `${statusRow.name || statusRow.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
-        });
+    try {
+      const dbLike = tx as unknown as { select: typeof import('../../db').db.select };
+      const statusResults = await dbLike.select({
+        id: users.id,
+        membershipStatus: users.membershipStatus,
+        email: users.email,
+        name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
+      }).from(users)
+        .where(inArray(users.id, allParticipantUserIds));
+      for (const statusRow of statusResults) {
+        if (statusRow.membershipStatus === 'inactive' || statusRow.membershipStatus === 'cancelled') {
+          throw new BookingValidationError(400, {
+            error: `${statusRow.name || statusRow.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
+          });
+        }
       }
+    } catch (err: unknown) {
+      if (err instanceof BookingValidationError) throw err;
+      logger.error('[Booking] Failed to batch lookup membership status', { extra: { error: getErrorMessage(err) } });
+      throw new Error('Failed to verify membership status. Please try again.');
     }
   }
 

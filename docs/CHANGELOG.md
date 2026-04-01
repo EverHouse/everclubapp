@@ -2,6 +2,28 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.13] - 2026-04-01
+
+### Fix: DoS via timingSafeEqual crash on multi-byte headers (Bug #1)
+- `csrfOriginCheck` compared `String.length` (character count) before calling `timingSafeEqual`, but multi-byte characters (emojis) could pass the character-length check while producing different byte-length buffers, causing `timingSafeEqual` to throw `TypeError` and crash the process.
+- Now compares `Buffer.byteLength` directly and removes the redundant string-length pre-check.
+- Files changed: `server/middleware/security.ts`
+
+### Fix: Auth rate limiter per-email bypass via IP rotation (Bug #2)
+- `authRateLimiterByEmail` keyed on `email:ip`, allowing distributed attackers to get fresh attempts per IP against the same account.
+- Key now uses email only (`auth-email:{email}`) so the 10-attempt limit applies globally per account regardless of source IP.
+- Files changed: `server/middleware/rateLimiting.ts`
+
+### Fix: String concatenation corrupting booking end times (Bug #3)
+- `computeEndTime` added `durationMinutes` (potentially a string from JSON payload) to numeric `mins`, causing JavaScript string concatenation instead of addition (e.g., `"63060"` instead of `690`).
+- Now explicitly casts `durationMinutes` via `Number()` with NaN/non-positive validation before arithmetic.
+- Files changed: `server/core/bookingService/createBooking.ts`
+
+### Fix: Unhandled rejection in participant membership status lookup (Bug #4)
+- The third DB query in `sanitizeAndResolveParticipants` (membership status check) had no try/catch, so a DB timeout/disconnect would produce an unhandled rejection.
+- Wrapped in try/catch that re-throws `BookingValidationError` (inactive member) and converts DB errors to a user-friendly error message.
+- Files changed: `server/core/bookingService/createBooking.ts`
+
 ## [8.98.12] - 2026-04-01
 
 ### Fix: Input validation hardening in booking creation (Bug #1)

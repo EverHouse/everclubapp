@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.13",
+    date: "2026-04-01",
+    title: "Security & Stability Fixes",
+    changes: [
+      "Security: Fixed a potential server crash from specially crafted request headers.",
+      "Security: Login rate limiting now applies per account regardless of the requester's location, blocking distributed brute-force attacks.",
+      "Fixed: Booking duration is now strictly validated to prevent corrupted scheduling data.",
+      "Fixed: Improved error handling during participant membership verification to prevent unexpected failures.",
+    ]
+  },
+  {
     version: "8.98.12",
     date: "2026-04-01",
     title: "Security & Stability Fixes",
