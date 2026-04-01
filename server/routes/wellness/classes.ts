@@ -760,13 +760,13 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
       
       if (!hadAnyBlocking && hasAnyBlocking) {
         // Blocks newly enabled
-        await createWellnessAvailabilityBlocks(wellnessClassId, updated.date as string, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title as string);
+        await createWellnessAvailabilityBlocks(wellnessId, updated.date as string, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title as string);
       } else if (hadAnyBlocking && !hasAnyBlocking) {
         // Blocks disabled
-        await removeWellnessAvailabilityBlocks(wellnessClassId);
+        await removeWellnessAvailabilityBlocks(wellnessId);
       } else if (hasAnyBlocking) {
         // Blocks changed or time/date changed
-        await updateWellnessAvailabilityBlocks(wellnessClassId, updated.date as string, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title as string);
+        await updateWellnessAvailabilityBlocks(wellnessId, updated.date as string, startTime24, endTime24, newBlockSimulators, newBlockConferenceRoom, userEmail, updated.title as string);
       }
     } catch (blockError: unknown) {
       logger.error('Failed to update availability blocks for wellness class', { extra: { error: getErrorMessage(blockError) } });

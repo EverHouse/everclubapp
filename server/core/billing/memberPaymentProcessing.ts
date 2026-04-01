@@ -304,7 +304,7 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
       bookingId,
       sessionId: booking.session_id,
       metadata: {
-        participantIds: participantIds.join(','),
+        participantIds: serverFees.map(f => f.id).join(','),
         source: `${label}_pay_fees_balance_aware`,
       },
     });
@@ -484,7 +484,6 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     };
   });
 
-  const { getStripeClient } = await import('../stripe/client');
   const stripe = await getStripeClient();
 
   await stripe.invoices.update(draftResult.invoiceId, {
@@ -707,9 +706,8 @@ export async function processConfirmPayment(params: ConfirmPaymentParams): Promi
     const invoiceIdResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} AND stripe_invoice_id IS NOT NULL LIMIT 1`);
     const invoiceId = (invoiceIdResult.rows[0] as Record<string, unknown> | undefined)?.stripe_invoice_id as string | undefined;
     if (invoiceId) {
-      const { getStripeClient } = await import('../stripe/client');
-      const stripe = await getStripeClient();
-      const inv = await stripe.invoices.retrieve(invoiceId);
+      const stripeInv = await getStripeClient();
+      const inv = await stripeInv.invoices.retrieve(invoiceId);
       if (inv.status === 'paid') {
         logger.info(`[${label} Stripe] Invoice paid via its own PI`, { extra: { bookingId, invoiceId } });
       } else {

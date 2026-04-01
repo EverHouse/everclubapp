@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.9",
+    date: "2026-04-01",
+    title: "Critical Bug Fixes",
+    changes: [
+      "Fixed: Wellness class updates with simulator/conference room blocking would crash instead of saving.",
+      "Fixed: Member payments using account balance would fail at checkout.",
+      "Fixed: Payment confirmation flow had a duplicate import causing potential failures.",
+    ]
+  },
+  {
     version: "8.98.8",
     date: "2026-04-01",
     title: "Bug Fixes & Type Safety",

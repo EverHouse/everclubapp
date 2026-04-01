@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.9] - 2026-04-01
+
+### Bugfix: Wellness class update crashes when availability blocking is enabled
+- **Root cause**: The PUT (update) handler in `server/routes/wellness/classes.ts` referenced `wellnessClassId` (defined only in the DELETE handler) instead of `wellnessId` (the correct local variable). This caused a `ReferenceError` at runtime when staff updated any wellness class with simulator or conference room blocking enabled.
+- **Impact**: Staff could not update yoga/wellness classes that block simulator or conference room availability without triggering a server crash.
+- **Fix**: Changed `wellnessClassId` → `wellnessId` on 3 lines (763, 766, 769) in the update handler.
+- **Files changed**: `server/routes/wellness/classes.ts`
+
+### Bugfix: Member payments via account balance crash (undefined `participantIds`)
+- **Root cause**: `memberPaymentProcessing.ts` (split from `paymentProcessingService.ts` by Task #347) referenced `participantIds` variable that was never defined, causing a `ReferenceError` when members paid booking fees using their account balance.
+- **Impact**: Members paying with account balance would see a server error at checkout.
+- **Fix**: Replaced `participantIds.join(',')` with `serverFees.map(f => f.id).join(',')` (matching the pattern used elsewhere in the same file). Also removed redundant dynamic re-imports of `getStripeClient` that shadowed the top-level import.
+- **Files changed**: `server/core/billing/memberPaymentProcessing.ts`
+
+### Chore: Update TS error baseline after Task #347 merge
+- Updated `scripts/ts-error-baseline.json` to reflect current 149 unique errors (several old errors resolved by Task #347 refactoring, some new ones introduced by file splits).
+
 ## [8.98.8] - 2026-04-01
 
 ### Bugfix: Missing notification types causing DB constraint violations
