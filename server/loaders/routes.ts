@@ -56,6 +56,7 @@ import authPasskeyRouter from '../routes/auth-passkey';
 import idScannerRouter from '../routes/idScanner';
 import emailTemplatesRouter from '../routes/emailTemplates';
 import monitoringRouter from '../routes/monitoring';
+import performanceRouter from '../routes/performance';
 import nfcCheckinRouter from '../routes/nfcCheckin';
 import kioskCheckinRouter from '../routes/kioskCheckin';
 import analyticsRouter from '../routes/analytics';
@@ -126,6 +127,7 @@ export function registerRoutes(app: Express): void {
   app.use(idScannerRouter);
   app.use(emailTemplatesRouter);
   app.use(monitoringRouter);
+  app.use(performanceRouter);
   app.use(nfcCheckinRouter);
   app.use(kioskCheckinRouter);
   app.use(analyticsRouter);

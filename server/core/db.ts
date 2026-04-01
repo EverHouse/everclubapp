@@ -3,6 +3,7 @@ import { getErrorCode, getErrorDetail, getErrorMessage } from '../utils/errorUti
 import { isRetryableError as _isRetryableError, RETRYABLE_ERRORS } from './retry';
 
 import { logger } from './logger';
+import { isPerformanceEnabled, getQuerySlowThreshold, recordQuery } from './performanceCollector';
 export const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
 
 export function stripSslMode(url: string | undefined): string | undefined {
@@ -112,6 +113,110 @@ basePool.on('connect', () => {
 // A previous `SET search_path` listener here was race-prone: pg doesn't await event
 // listeners before returning the client, so business queries could run before the SET completed.
 
+function recordQueryTiming(queryText: string, start: number): void {
+  const durationMs = Date.now() - start;
+  const pattern = sanitizeQueryPattern(queryText);
+  recordQuery({ queryPattern: pattern, durationMs, timestamp: Date.now() });
+  const threshold = getQuerySlowThreshold();
+  if (durationMs >= threshold) {
+    logger.warn(`[Perf] Slow query (${durationMs}ms, threshold: ${threshold}ms): ${pattern}`);
+  }
+}
+
+function extractQueryText(firstArg: unknown): string {
+  if (typeof firstArg === 'string') return firstArg;
+  if (firstArg && typeof firstArg === 'object' && 'text' in firstArg) {
+    return String((firstArg as { text: unknown }).text);
+  }
+  return '';
+}
+
+function createInstrumentedPool(targetPool: Pool): Pool {
+  const originalConnect = targetPool.connect.bind(targetPool);
+  const wrappedConnect: typeof targetPool.connect = function connect(
+    callback?: (err: Error, client: PoolClient, done: (release?: boolean) => void) => void
+  ) {
+    if (callback) {
+      return originalConnect((err: Error, client: PoolClient, done: (release?: boolean) => void) => {
+        if (!err && client && isPerformanceEnabled()) {
+          instrumentClient(client);
+        }
+        callback(err, client, done);
+      });
+    }
+    return (originalConnect() as Promise<PoolClient>).then((client: PoolClient) => {
+      if (isPerformanceEnabled()) {
+        instrumentClient(client);
+      }
+      return client;
+    });
+  } as typeof targetPool.connect;
+  targetPool.connect = wrappedConnect;
+
+  const originalQuery = targetPool.query.bind(targetPool);
+  const wrappedQuery: typeof targetPool.query = function query(
+    ...args: [unknown, ...unknown[]]
+  ): ReturnType<typeof targetPool.query> {
+    if (!isPerformanceEnabled()) {
+      return (originalQuery as Function)(...args);
+    }
+    const queryText = extractQueryText(args[0]);
+    const start = Date.now();
+    const result = (originalQuery as Function)(...args);
+    if (result && typeof (result as { then?: unknown }).then === 'function') {
+      return (result as Promise<QueryResult>).then(
+        (res: QueryResult) => {
+          recordQueryTiming(queryText, start);
+          return res;
+        },
+        (err: unknown) => {
+          recordQueryTiming(queryText, start);
+          throw err;
+        }
+      ) as ReturnType<typeof targetPool.query>;
+    }
+    return result;
+  } as typeof targetPool.query;
+  targetPool.query = wrappedQuery;
+
+  return targetPool;
+}
+
+const instrumentedClients = new WeakSet<PoolClient>();
+
+function instrumentClient(client: PoolClient): void {
+  if (instrumentedClients.has(client)) return;
+  instrumentedClients.add(client);
+
+  const originalQuery = client.query.bind(client);
+  const wrappedQuery: typeof client.query = function query(
+    ...args: [unknown, ...unknown[]]
+  ): ReturnType<typeof client.query> {
+    if (!isPerformanceEnabled()) {
+      return (originalQuery as Function)(...args);
+    }
+    const queryText = extractQueryText(args[0]);
+    const start = Date.now();
+    const result = (originalQuery as Function)(...args);
+    if (result && typeof (result as { then?: unknown }).then === 'function') {
+      return (result as Promise<QueryResult>).then(
+        (res: QueryResult) => {
+          recordQueryTiming(queryText, start);
+          return res;
+        },
+        (err: unknown) => {
+          recordQueryTiming(queryText, start);
+          throw err;
+        }
+      ) as ReturnType<typeof client.query>;
+    }
+    return result;
+  } as typeof client.query;
+  client.query = wrappedQuery;
+}
+
+createInstrumentedPool(basePool);
+
 export const pool = basePool;
 
 const directConnectionUrl = (forcePoolerRedirect && poolerUrl) ? poolerUrl : directUrl;
@@ -131,6 +236,10 @@ const directPoolInstance = usingPooler
   : pool;
 
 // Direct pool also uses appendSearchPath in the connection string — no SET listener needed.
+
+if (directPoolInstance !== basePool) {
+  createInstrumentedPool(directPoolInstance);
+}
 
 export const directPool = directPoolInstance;
 
@@ -208,6 +317,20 @@ function isConnectionError(error: unknown): boolean {
     'Connection refused',
   ];
   return connectionPatterns.some(p => message.includes(p));
+}
+
+function sanitizeQueryPattern(queryText: string): string {
+  return queryText
+    .replace(/\$\d+/g, '$?')
+    .replace(/'[^']*'/g, "'?'")
+    .replace(/\$\$[\s\S]*?\$\$/g, "'?'")
+    .replace(/\b\d+\.?\d*\b/g, '?')
+    .replace(/\b(true|false|null)\b/gi, '?')
+    .replace(/--[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
 }
 
 export async function queryWithRetry<T extends QueryResultRow = Record<string, unknown>>(

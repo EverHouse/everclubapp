@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { getSessionUser } from '../types/session';
+import { isPerformanceEnabled, getApiSlowThreshold, recordEndpoint } from './performanceCollector';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -160,6 +161,24 @@ export function logRequest(req: Request, res: Response, next: NextFunction) {
     };
     const message = `${req.method} ${req.path}`;
     
+    if (isPerformanceEnabled() && req.path.startsWith('/api/')) {
+      recordEndpoint({
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        durationMs: duration,
+        timestamp: Date.now(),
+      });
+
+      const slowThreshold = getApiSlowThreshold();
+      if (duration >= slowThreshold) {
+        logger.warn(`[Perf] Slow API response: ${req.method} ${req.path} took ${duration}ms (threshold: ${slowThreshold}ms)`, {
+          ...context,
+          extra: { slowThresholdMs: slowThreshold },
+        });
+      }
+    }
+
     if (isNoisyRequest(req.method, req.path, res.statusCode)) {
       logger.debug(message, context);
     } else if (res.statusCode >= 400) {
