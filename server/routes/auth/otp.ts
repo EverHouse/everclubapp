@@ -7,6 +7,7 @@ import { isProduction } from '../../core/db';
 import { getHubSpotClient } from '../../core/integrations';
 import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { normalizeTierName } from '../../../shared/constants/tiers';
+import type { MembershipStatus } from '../../../shared/constants/statuses';
 import { safeSendEmail } from '../../utils/resend';
 import { getSessionUser, SessionUser } from '../../types/session';
 import { sendWelcomeEmail } from '../../emails/welcomeEmail';
@@ -72,6 +73,7 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
     if (hasDbUser && isStripeBilled && !isStaffOrAdmin) {
       let dbMemberStatus = (dbUser[0].membershipStatus || '').toLowerCase();
       const activeStatuses = ['active', 'trialing', 'past_due'];
+      let statusFixValue: MembershipStatus | null = null;
       
       if (!activeStatuses.includes(dbMemberStatus) && dbUser[0].stripeSubscriptionId) {
         try {
@@ -81,17 +83,8 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
           
           const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
           if (stripeActiveStatuses.includes(subscription.status)) {
-            await db.update(users).set({ membershipStatus: subscription.status, updatedAt: new Date() }).where(eq(users.id, dbUser[0].id));
-            logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus, subscriptionStatus: subscription.status } });
+            statusFixValue = subscription.status as MembershipStatus;
             dbMemberStatus = subscription.status;
-            
-            try {
-              const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
-              await syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' });
-              logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
-            } catch (hubspotError: unknown) {
-              logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } });
-            }
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
@@ -117,6 +110,7 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
       };
       let memberFirstName = dbUser[0].firstName || '';
       let memberLastName = dbUser[0].lastName || '';
+      let nameBackfill: { firstName: string; lastName: string } | null = null;
 
       if (!memberFirstName) {
         try {
@@ -130,14 +124,36 @@ otpRouter.post('/api/auth/verify-member', ...authRateLimiter, async (req, res) =
           if (hsContact?.properties?.firstname) {
             memberFirstName = hsContact.properties.firstname;
             memberLastName = memberLastName || hsContact.properties.lastname || '';
-            await db.update(users).set({
-              firstName: memberFirstName,
-              lastName: memberLastName || undefined,
-              updatedAt: new Date()
-            }).where(eq(users.id, dbUser[0].id));
+            nameBackfill = { firstName: memberFirstName, lastName: memberLastName };
           }
         } catch (hsErr: unknown) {
           logger.warn('[Auth] HubSpot name backfill failed during verify-member', { extra: { error: getErrorMessage(hsErr) } });
+        }
+      }
+
+      if (statusFixValue || nameBackfill) {
+        await db.transaction(async (tx) => {
+          if (statusFixValue) {
+            await tx.update(users).set({ membershipStatus: statusFixValue, updatedAt: new Date() }).where(eq(users.id, dbUser[0].id));
+            logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus: (dbUser[0].membershipStatus || '').toLowerCase(), subscriptionStatus: statusFixValue } });
+          }
+          if (nameBackfill) {
+            await tx.update(users).set({
+              firstName: nameBackfill.firstName,
+              lastName: nameBackfill.lastName || undefined,
+              updatedAt: new Date()
+            }).where(eq(users.id, dbUser[0].id));
+          }
+        });
+
+        if (statusFixValue) {
+          try {
+            const { syncMemberToHubSpot } = await import('../../core/hubspot/stages');
+            await syncMemberToHubSpot({ email: normalizedEmail, status: statusFixValue, billingProvider: 'stripe' });
+            logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } });
+          } catch (hubspotError: unknown) {
+            logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } });
+          }
         }
       }
 
@@ -292,6 +308,7 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
     const isStripeBilled = hasDbUser && (dbUserResult[0].stripeSubscriptionId || dbUserResult[0].stripeCustomerId);
     
     let firstName = isStaffOrAdminUser ? 'Team Member' : 'Member';
+    let pendingStatusFix: { userId: string; status: MembershipStatus; dbMemberStatus: string } | null = null;
     
     if (hasDbUser && isStripeBilled && !isStaffOrAdminUser) {
       const dbMemberStatus = (dbUserResult[0].membershipStatus || '').toLowerCase();
@@ -305,14 +322,7 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
           
           const stripeActiveStatuses = ['active', 'trialing', 'past_due'];
           if (stripeActiveStatuses.includes(subscription.status)) {
-            await db.update(users).set({ membershipStatus: subscription.status, updatedAt: new Date() }).where(eq(users.id, dbUserResult[0].id));
-            logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus, subscriptionStatus: subscription.status } });
-            
-            void import('../../core/hubspot/stages').then(({ syncMemberToHubSpot }) =>
-              syncMemberToHubSpot({ email: normalizedEmail, status: subscription.status, billingProvider: 'stripe' })
-                .then(() => logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } }))
-                .catch((hubspotError: unknown) => logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } }))
-            ).catch((importErr: unknown) => logger.error('[Auth] Failed to import HubSpot stages module', { extra: { error: getErrorMessage(importErr) } }));
+            pendingStatusFix = { userId: dbUserResult[0].id, status: subscription.status as MembershipStatus, dbMemberStatus };
           } else {
             return res.status(403).json({ error: 'Your membership is not active. Please contact us for assistance.' });
           }
@@ -371,12 +381,26 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
-    await db.insert(magicLinks).values({
-      email: normalizedEmail,
-      token: otpCode,
-      expiresAt,
-      used: false
+    await db.transaction(async (tx) => {
+      if (pendingStatusFix) {
+        await tx.update(users).set({ membershipStatus: pendingStatusFix.status, updatedAt: new Date() }).where(eq(users.id, pendingStatusFix.userId));
+        logger.info('[Auth] Auto-fixed membership_status for : ->', { extra: { normalizedEmail, dbMemberStatus: pendingStatusFix.dbMemberStatus, subscriptionStatus: pendingStatusFix.status } });
+      }
+      await tx.insert(magicLinks).values({
+        email: normalizedEmail,
+        token: otpCode,
+        expiresAt,
+        used: false
+      });
     });
+
+    if (pendingStatusFix) {
+      void import('../../core/hubspot/stages').then(({ syncMemberToHubSpot }) =>
+        syncMemberToHubSpot({ email: normalizedEmail, status: pendingStatusFix!.status, billingProvider: 'stripe' })
+          .then(() => logger.info('[Auth] Synced auto-fixed status to HubSpot for', { extra: { normalizedEmail } }))
+          .catch((hubspotError: unknown) => logger.error('[Auth] HubSpot sync failed for auto-fix', { extra: { error: getErrorMessage(hubspotError) } }))
+      ).catch((importErr: unknown) => logger.error('[Auth] Failed to import HubSpot stages module', { extra: { error: getErrorMessage(importErr) } }));
+    }
     
     const emailHtml = getOtpEmailHtml({ code: otpCode, firstName, logoUrl: 'https://everclub.app/images/everclub-logo-dark.png' });
     const emailText = getOtpEmailText({ code: otpCode, firstName });
