@@ -39,7 +39,7 @@ export const integrityCheckHistory = pgTable("integrity_check_history", {
 
 export const integrityIssuesTracking = pgTable("integrity_issues_tracking", {
   id: serial("id").primaryKey(),
-  issueKey: text("issue_key").notNull().unique(),
+  issueKey: text("issue_key").notNull(),
   firstDetectedAt: timestamp("first_detected_at").defaultNow().notNull(),
   lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
@@ -76,7 +76,7 @@ export type InsertIntegrityIgnore = typeof integrityIgnores.$inferInsert;
 
 export const webhookProcessedEvents = pgTable("webhook_processed_events", {
   id: serial("id").primaryKey(),
-  eventId: varchar("event_id", { length: 255 }).notNull().unique(),
+  eventId: varchar("event_id", { length: 255 }).notNull(),
   eventType: varchar("event_type", { length: 100 }),
   processedAt: timestamp("processed_at").defaultNow().notNull(),
 }, (table) => ({
