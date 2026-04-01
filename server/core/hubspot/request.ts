@@ -1,5 +1,3 @@
-import pRetry, { AbortError } from 'p-retry';
-
 import { logger } from '../logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 interface HubSpotErrorObject {
@@ -50,30 +48,31 @@ async function throttle(): Promise<void> {
 }
 
 export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<T> {
-  return pRetry(
-    async () => {
-      await throttle();
-      try {
-        const result = await fn();
-        if (consecutiveRateLimits > 0) {
-          consecutiveRateLimits = Math.max(0, consecutiveRateLimits - 1);
-        }
-        return result;
-      } catch (error: unknown) {
-        if (isRateLimitError(error)) {
-          consecutiveRateLimits++;
-          _rateLimitEncountered = true;
-          logger.warn(`HubSpot Rate Limit hit (consecutive: ${consecutiveRateLimits}), backing off...`);
-          throw error;
-        }
-        throw new AbortError(error instanceof Error ? error : new Error(getErrorMessage(error)));
+  const maxRetries = 3;
+  const minTimeout = 5000;
+  const maxTimeout = 30000;
+  const factor = 2;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    await throttle();
+    try {
+      const result = await fn();
+      if (consecutiveRateLimits > 0) {
+        consecutiveRateLimits = Math.max(0, consecutiveRateLimits - 1);
       }
-    },
-    {
-      retries: 3,
-      minTimeout: 5000,
-      maxTimeout: 30000,
-      factor: 2
+      return result;
+    } catch (error: unknown) {
+      if (isRateLimitError(error)) {
+        consecutiveRateLimits++;
+        _rateLimitEncountered = true;
+        logger.warn(`HubSpot Rate Limit hit (consecutive: ${consecutiveRateLimits}), backing off...`);
+        if (attempt > maxRetries) throw error;
+        const delay = Math.min(minTimeout * Math.pow(factor, attempt - 1), maxTimeout);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error instanceof Error ? error : new Error(getErrorMessage(error));
     }
-  );
+  }
+  throw new Error('HubSpot retry loop exited unexpectedly');
 }

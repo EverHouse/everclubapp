@@ -499,6 +499,13 @@ async function initializeApp() {
   registerSitemapRoutes(app, isProduction);
 
   if (isProduction) {
+    app.use((req, _res, next) => {
+      if (/^\/index\.html(\.br|\.gz)?$/i.test(req.path)) {
+        req.url = '/';
+      }
+      next();
+    });
+
     app.use(expressStaticGzip(distDir, {
       enableBrotli: true,
       orderPreference: ['br', 'gz'],

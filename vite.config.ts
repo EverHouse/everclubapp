@@ -120,11 +120,13 @@ export default defineConfig({
       algorithm: 'gzip',
       ext: '.gz',
       threshold: 1024,
+      filter: /\.(js|css|svg|json|txt|xml|wasm)$/i,
     }),
     viteCompression({
       algorithm: 'brotliCompress',
       ext: '.br',
       threshold: 1024,
+      filter: /\.(js|css|svg|json|txt|xml|wasm)$/i,
     }),
   ],
   resolve: {

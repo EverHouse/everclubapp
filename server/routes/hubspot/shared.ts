@@ -5,8 +5,8 @@ import { isProduction } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { normalizeTierName } from '../../../shared/constants/tiers';
-import pRetry, { AbortError } from 'p-retry';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { AbortError } from '../../core/retryUtils';
 import { getHubSpotClient } from '../../core/integrations';
 import { formatDateFromDb } from '../../utils/dateUtils';
 
@@ -243,25 +243,26 @@ export function isRateLimitError(error: unknown): boolean {
 }
 
 export async function retryableHubSpotRequest<T>(fn: () => Promise<T>): Promise<T> {
-  return pRetry(
-    async () => {
-      try {
-        return await fn();
-      } catch (error: unknown) {
-        if (isRateLimitError(error)) {
-          logger.warn('HubSpot Rate Limit hit, retrying...');
-          throw error;
-        }
-        throw new AbortError(error instanceof Error ? error : new Error(getErrorMessage(error)));
+  const maxRetries = 5;
+  const minTimeout = 1000;
+  const maxTimeout = 30000;
+  const factor = 2;
+
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      if (isRateLimitError(error)) {
+        logger.warn('HubSpot Rate Limit hit, retrying...');
+        if (attempt > maxRetries) throw error;
+        const delay = Math.min(minTimeout * Math.pow(factor, attempt - 1), maxTimeout);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
       }
-    },
-    {
-      retries: 5,
-      minTimeout: 1000,
-      maxTimeout: 30000,
-      factor: 2
+      throw error instanceof Error ? error : new Error(getErrorMessage(error));
     }
-  );
+  }
+  throw new Error('HubSpot retry loop exited unexpectedly');
 }
 
 export const HUBSPOT_CONTACT_PROPERTIES = [
