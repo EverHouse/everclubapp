@@ -115,9 +115,7 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     return next();
   }
 
-  if (!isStaticAsset) {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
   const nonce = randomBytes(16).toString('base64');
   res.locals.cspNonce = nonce;
@@ -185,6 +183,5 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     "upgrade-insecure-requests",
   ].join('; '));
 
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   next();
 }
