@@ -6,7 +6,8 @@ import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { notifyAllStaff, notifyMember } from '../core/notificationService';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
-import { logAndRespond } from '../core/logger';
+import { logAndRespond, logger } from '../core/logger';
+import { getErrorMessage } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
 
 const router = Router();
@@ -121,28 +122,31 @@ router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
       updateData.staffNotes = staffNotes;
     }
     
+    const updated = await db.transaction(async (tx) => {
+      const [result] = await tx.update(bugReports)
+        .set(updateData)
+        .where(eq(bugReports.id, parsedId))
+        .returning();
+      return result;
+    });
+    
+    if (!updated) {
+      return logAndRespond(req, res, 404, 'Bug report not found');
+    }
+
     if (status === 'resolved') {
-      const [original] = await db.select().from(bugReports).where(eq(bugReports.id, parsedId));
-      if (original?.userEmail) {
-        await notifyMember({
-          userEmail: original.userEmail,
+      const reporterEmail = updated.userEmail;
+      if (reporterEmail) {
+        notifyMember({
+          userEmail: reporterEmail,
           title: 'Bug Report Resolved',
           message: 'Your bug report has been resolved. Thank you for helping us improve!',
           type: 'system',
           relatedId: parsedId,
           relatedType: 'bug_report',
           url: '/member/profile'
-        });
+        }).catch(err => logger.error('Failed to send bug report resolution notification', { extra: { error: getErrorMessage(err) } }));
       }
-    }
-    
-    const [updated] = await db.update(bugReports)
-      .set(updateData)
-      .where(eq(bugReports.id, parsedId))
-      .returning();
-    
-    if (!updated) {
-      return logAndRespond(req, res, 404, 'Bug report not found');
     }
     
     logFromRequest(req, 'update_bug_report', 'bug_report', String(id), undefined, { status: req.body.status });

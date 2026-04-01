@@ -89,7 +89,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
         }
       }
     }
-    
+
     const VALID_HUBSPOT_CONTACT_FIELDS = new Set([
       'firstname', 'lastname', 'email', 'phone', 'company', 'message',
       'membership_interest', 'event_type', 'guest_count',
@@ -175,6 +175,7 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
     };
     
     try {
+      const submissionEmail = getFieldValue('email') || '';
       const metadata: Record<string, string> = {};
       for (const field of fields) {
         if (!['firstname', 'lastname', 'email', 'phone', 'message'].includes(field.name)) {
@@ -182,40 +183,59 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
         }
       }
       
-      const insertResult = await db.insert(formSubmissions).values({
-        formType,
-        firstName: getFieldValue('firstname') || getFieldValue('first_name') || null,
-        lastName: getFieldValue('lastname') || getFieldValue('last_name') || null,
-        email: getFieldValue('email') || '',
-        phone: getFieldValue('phone') || null,
-        message: getFieldValue('message') || null,
-        metadata: Object.keys(metadata).length > 0 ? metadata : null,
-        status: 'new',
-      }).returning();
-      
-      const formTypeLabels: Record<string, string> = {
-        'membership': 'Membership Application',
-        'private-hire': 'Private Hire Inquiry',
-        'guest-checkin': 'Guest Check-in',
-        'contact': 'Contact Form'
-      };
-      const formLabel = formTypeLabels[formType] || 'Form Submission';
-      const submitterName = [getFieldValue('firstname') || getFieldValue('first_name'), getFieldValue('lastname') || getFieldValue('last_name')].filter(Boolean).join(' ') || getFieldValue('email') || 'Someone';
-      const staffMessage = `${submitterName} submitted a ${formLabel}`;
-      
-      const notificationUrl = formType === 'membership' ? '/admin/applications' : '/admin/inquiries';
-      const notificationRelatedType = formType === 'membership' ? 'application' : 'inquiry';
-      
-      notifyAllStaff(
-        `New ${formLabel}`,
-        staffMessage,
-        'system',
-        {
-          relatedId: insertResult[0]?.id,
-          relatedType: notificationRelatedType,
-          url: notificationUrl
+      const insertResult = await db.transaction(async (tx) => {
+        if (submissionEmail) {
+          await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${submissionEmail + '::' + formType}))`);
+          const dupCheck = await tx.execute(sql`
+            SELECT id FROM form_submissions
+            WHERE email = ${submissionEmail}
+              AND form_type = ${formType}
+              AND created_at > NOW() - INTERVAL '60 seconds'
+            LIMIT 1
+          `);
+          if (dupCheck.rows.length > 0) {
+            return null;
+          }
         }
-      ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { error: getErrorMessage(err) } }));
+
+        const [row] = await tx.insert(formSubmissions).values({
+          formType,
+          firstName: getFieldValue('firstname') || getFieldValue('first_name') || null,
+          lastName: getFieldValue('lastname') || getFieldValue('last_name') || null,
+          email: submissionEmail,
+          phone: getFieldValue('phone') || null,
+          message: getFieldValue('message') || null,
+          metadata: Object.keys(metadata).length > 0 ? metadata : null,
+          status: 'new',
+        }).returning();
+        return row;
+      });
+      
+      if (insertResult) {
+        const formTypeLabels: Record<string, string> = {
+          'membership': 'Membership Application',
+          'private-hire': 'Private Hire Inquiry',
+          'guest-checkin': 'Guest Check-in',
+          'contact': 'Contact Form'
+        };
+        const formLabel = formTypeLabels[formType] || 'Form Submission';
+        const submitterName = [getFieldValue('firstname') || getFieldValue('first_name'), getFieldValue('lastname') || getFieldValue('last_name')].filter(Boolean).join(' ') || getFieldValue('email') || 'Someone';
+        const staffMessage = `${submitterName} submitted a ${formLabel}`;
+        
+        const notificationUrl = formType === 'membership' ? '/admin/applications' : '/admin/inquiries';
+        const notificationRelatedType = formType === 'membership' ? 'application' : 'inquiry';
+        
+        notifyAllStaff(
+          `New ${formLabel}`,
+          staffMessage,
+          'system',
+          {
+            relatedId: insertResult.id,
+            relatedType: notificationRelatedType,
+            url: notificationUrl
+          }
+        ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { error: getErrorMessage(err) } }));
+      }
 
     } catch (dbError: unknown) {
       logger.error('Failed to save form submission locally', { extra: { error: getErrorMessage(dbError) } });

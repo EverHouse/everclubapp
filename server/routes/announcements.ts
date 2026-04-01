@@ -218,12 +218,25 @@ router.post('/api/announcements', isStaffOrAdmin, validateBody(announcementSchem
     
     const userEmail = getSessionUser(req)?.email || 'system';
     
-    const result = await db.transaction(async (tx) => {
+    const { created, row } = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${title + '::' + userEmail}))`);
+
+      const dedup = await tx.execute(sql`
+        SELECT * FROM announcements
+        WHERE title = ${title}
+          AND created_by = ${userEmail}
+          AND created_at > NOW() - INTERVAL '60 seconds'
+        LIMIT 1
+      `);
+      if (dedup.rows.length > 0) {
+        return { created: false, row: dedup.rows[0] as unknown as AnnouncementRow };
+      }
+
       if (showAsBanner) {
         await tx.execute(sql`UPDATE announcements SET show_as_banner = false WHERE show_as_banner = true`);
       }
       
-      return await tx.execute(sql`
+      const insertResult = await tx.execute(sql`
         INSERT INTO announcements (title, message, priority, starts_at, ends_at, link_type, link_target, created_by, show_as_banner, is_active)
         VALUES (
           ${title},
@@ -239,9 +252,9 @@ router.post('/api/announcements', isStaffOrAdmin, validateBody(announcementSchem
         )
         RETURNING *
       `);
+      return { created: true, row: insertResult.rows[0] as unknown as AnnouncementRow };
     });
-    const resultRows = result.rows as unknown as AnnouncementRow[];
-    const newAnnouncement = resultRows[0];
+    const newAnnouncement = row;
     
     const responseData = {
       id: newAnnouncement.id.toString(),
@@ -257,44 +270,45 @@ router.post('/api/announcements', isStaffOrAdmin, validateBody(announcementSchem
       linkTarget: newAnnouncement.link_target || undefined,
       showAsBanner: newAnnouncement.show_as_banner || false
     };
-    
-    // Broadcast real-time update to all connected clients
-    broadcastAnnouncementUpdate('created', responseData);
-    
-    // Log audit trail
-    logFromRequest(req, 'create_announcement', 'announcement', String(newAnnouncement.id), title, {
-      message: description,
-      priority: 'normal',
-      startsAt: startDate,
-      endsAt: endDate,
-      linkType,
-      linkTarget,
-      showAsBanner
-    });
-    
-    if (notifyMembers) {
-      try {
-        await sendPushNotificationToAllMembers({
-          title: title,
-          body: description || title,
-          url: '/updates?tab=announcements',
-          tag: `announcement-${String(newAnnouncement.id)}`
-        });
-      } catch (pushErr: unknown) {
-        logger.error('Failed to send push notifications for announcement', { extra: { error: getErrorMessage(pushErr) } });
-      }
-    }
-    
-    getLinkedSheetId().then(sheetId => {
-      if (sheetId) {
-        pushSingleAnnouncement(sheetId, newAnnouncement as unknown as AnnouncementData).catch(err => {
-          logger.error('Failed to sync new announcement to Google Sheet', { extra: { error: getErrorMessage(err) } });
-        });
-      }
-    }).catch(err => logger.error('[Announcements] Sheet sync error', { extra: { error: getErrorMessage(err) } }));
 
-    invalidateCache('api:announcements');
-    res.status(201).json(responseData);
+    if (created) {
+      broadcastAnnouncementUpdate('created', responseData);
+      
+      logFromRequest(req, 'create_announcement', 'announcement', String(newAnnouncement.id), title, {
+        message: description,
+        priority: 'normal',
+        startsAt: startDate,
+        endsAt: endDate,
+        linkType,
+        linkTarget,
+        showAsBanner
+      });
+      
+      if (notifyMembers) {
+        try {
+          await sendPushNotificationToAllMembers({
+            title: title,
+            body: description || title,
+            url: '/updates?tab=announcements',
+            tag: `announcement-${String(newAnnouncement.id)}`
+          });
+        } catch (pushErr: unknown) {
+          logger.error('Failed to send push notifications for announcement', { extra: { error: getErrorMessage(pushErr) } });
+        }
+      }
+      
+      getLinkedSheetId().then(sheetId => {
+        if (sheetId) {
+          pushSingleAnnouncement(sheetId, newAnnouncement as unknown as AnnouncementData).catch(err => {
+            logger.error('Failed to sync new announcement to Google Sheet', { extra: { error: getErrorMessage(err) } });
+          });
+        }
+      }).catch(err => logger.error('[Announcements] Sheet sync error', { extra: { error: getErrorMessage(err) } }));
+
+      invalidateCache('api:announcements');
+    }
+
+    res.status(created ? 201 : 200).json(responseData);
   } catch (error: unknown) {
     logger.error('Announcement create error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to create announcement' });
