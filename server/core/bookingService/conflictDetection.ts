@@ -177,7 +177,18 @@ export async function findConflictingBookings(
         JOIN booking_sessions bs ON bp.session_id = bs.id
         LEFT JOIN booking_requests br ON br.session_id = bs.id
         LEFT JOIN resources r ON bs.resource_id = r.id
-        WHERE bp.user_id = (SELECT id FROM users WHERE LOWER(email) = ${normalizedEmail} LIMIT 1)
+        WHERE bp.user_id IN (
+            SELECT u.id FROM users u
+            WHERE LOWER(u.email) = ${normalizedEmail}
+            UNION
+            SELECT u2.id FROM users u2
+            JOIN user_linked_emails ule ON LOWER(u2.email) = LOWER(ule.primary_email)
+            WHERE LOWER(ule.linked_email) = ${normalizedEmail}
+            UNION
+            SELECT u3.id FROM users u3
+            JOIN user_linked_emails ule2 ON LOWER(u3.email) = LOWER(ule2.linked_email)
+            WHERE LOWER(ule2.primary_email) = ${normalizedEmail}
+          )
           AND bs.session_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND bp.invite_status = 'accepted'
           AND (br.id IS NULL OR br.status = ANY(${OCCUPIED_STATUSES}))

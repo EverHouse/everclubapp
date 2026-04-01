@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { sql } from 'drizzle-orm';
 import { logger } from '../logger';
 import { formatTime12Hour } from '../../utils/dateUtils';
@@ -17,7 +18,8 @@ async function queryWithSavepoint(
   query: ReturnType<typeof sql>,
   logLabel: string,
 ): Promise<{ rows: Record<string, unknown>[] }> {
-  const safeName = savepointName.replace(/[^a-zA-Z0-9_]/g, '');
+  const uniqueSuffix = randomBytes(4).toString('hex');
+  const safeName = `${savepointName.replace(/[^a-zA-Z0-9_]/g, '')}_${uniqueSuffix}`;
   try {
     await tx.execute(sql.raw(`SAVEPOINT ${safeName}`));
     return await tx.execute(query);
@@ -152,7 +154,6 @@ export async function checkResourceOverlap(
       )
       ${excludeClause}
       ORDER BY id ASC
-      FOR UPDATE
     `);
 
     if (overlapCheck.rows.length > 0) {
@@ -178,8 +179,7 @@ export async function checkResourceOverlap(
         END
       )
       ORDER BY start_time ASC
-      LIMIT 1
-      FOR SHARE`,
+      LIMIT 1`,
     'trackman_bay_slots',
   );
 
@@ -206,8 +206,7 @@ export async function checkResourceOverlap(
         END
       )
       ORDER BY tub.start_time ASC
-      LIMIT 1
-      FOR SHARE`,
+      LIMIT 1`,
     'trackman_unmatched_bookings',
   );
 
@@ -233,8 +232,7 @@ export async function checkResourceOverlap(
         AND br.status NOT IN ('cancelled', 'deleted', 'declined')
       )
       ORDER BY bs.start_time ASC
-      LIMIT 1
-      FOR SHARE`,
+      LIMIT 1`,
     'booking_sessions',
   );
 
