@@ -260,6 +260,11 @@ export async function processStripeWebhook(
   try {
     await client.query('BEGIN');
 
+    if (resourceId) {
+      const lockKey = BigInt('0x' + Buffer.from(resourceId).subarray(0, 8).toString('hex'));
+      await client.query('SELECT pg_advisory_xact_lock($1)', [lockKey.toString()]);
+    }
+
     const claimResult = await tryClaimEvent(client, event.id, event.type, event.created, resourceId);
     
     if (!claimResult.claimed) {
@@ -337,6 +342,11 @@ export async function replayStripeEvent(
 
   try {
     await client.query('BEGIN');
+
+    if (resourceId) {
+      const lockKey = BigInt('0x' + Buffer.from(resourceId).subarray(0, 8).toString('hex'));
+      await client.query('SELECT pg_advisory_xact_lock($1)', [lockKey.toString()]);
+    }
 
     if (!forceReplay) {
       const claimResult = await tryClaimEvent(client, event.id, event.type, event.created, resourceId);

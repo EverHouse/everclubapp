@@ -159,14 +159,13 @@ export async function checkResourceEventOrder(
 export async function executeDeferredActions(actions: DeferredAction[], eventContext?: { eventId: string; eventType: string }): Promise<number> {
   let failedCount = 0;
   const failedIndices: number[] = [];
-  for (let i = 0; i < actions.length; i++) {
-    try {
-      await actions[i]();
-    } catch (err: unknown) {
+  const results = await Promise.allSettled(actions.map(action => Promise.resolve().then(() => action())));
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].status === 'rejected') {
       failedCount++;
       failedIndices.push(i);
       logger.error(`[Stripe Webhook] Deferred action ${i + 1}/${actions.length} failed (non-critical):`, { 
-        extra: { error: getErrorMessage(err), ...(eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : {}) }
+        extra: { error: getErrorMessage((results[i] as PromiseRejectedResult).reason), ...(eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : {}) }
       });
     }
   }

@@ -84,8 +84,10 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
         if (productId) {
           try {
             const stripe = await getStripeClient();
+            const productPromise = stripe.products.retrieve(typeof productId === 'string' ? productId : productId.id);
+            productPromise.catch(() => {});
             const product = await Promise.race([
-              stripe.products.retrieve(typeof productId === 'string' ? productId : productId.id),
+              productPromise,
               new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Stripe product retrieve timed out after 5s')), 5000))
             ]) as Stripe.Product;
             const productName = product.name?.toLowerCase() || '';
@@ -308,8 +310,9 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
       const activeResult = await client.query(
         `UPDATE users SET membership_status = 'active', billing_provider = 'stripe', stripe_current_period_end = COALESCE($2, stripe_current_period_end),
          membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM 'active' THEN NOW() ELSE membership_status_changed_at END,
-         archived_at = NULL, archived_by = NULL, updated_at = NOW() 
+         updated_at = NOW() 
          WHERE id = $1 
+         AND archived_at IS NULL
          AND (membership_status IS NULL OR membership_status IN (${allowedStatuses.map((_, i) => `$${i + 3}`).join(', ')}))`,
         [userId, subscriptionPeriodEnd, ...allowedStatuses]
       );
