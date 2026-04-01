@@ -161,12 +161,118 @@ async function retryFailedSideEffect(record: FailedSideEffectRow): Promise<boole
           userEmail,
           title,
           message,
-          type: (notifType || 'system_alert') as 'system_alert',
+          type: (notifType || 'system') as 'system',
           relatedId: notifContext?.relatedId as string | undefined,
           relatedType: notifContext?.relatedType as string | undefined,
           idempotencyKey: `failed_side_effect_${id}_booking_${bookingId}`,
         }, { sendPush: true, sendWebSocket: true });
         return true;
+      }
+
+      case 'invoice_status_check': {
+        const bookingResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} AND stripe_invoice_id IS NOT NULL LIMIT 1`);
+        const invoiceId = (bookingResult.rows[0] as Record<string, unknown> | undefined)?.stripe_invoice_id as string | undefined;
+        if (!invoiceId) return true;
+        const { getStripeClient } = await import('../core/stripe/client');
+        const stripe = await getStripeClient();
+        const inv = await stripe.invoices.retrieve(invoiceId);
+        logger.info('[FailedSideEffects] Invoice status check retry complete', { extra: { id, bookingId, invoiceId, invoiceStatus: inv.status } });
+        return true;
+      }
+
+      case 'wallet_pass_refresh': {
+        const { refreshBookingPass } = await import('../walletPass/bookingPassService');
+        await refreshBookingPass(bookingId);
+        return true;
+      }
+
+      case 'wallet_pass_void': {
+        const { voidBookingPass } = await import('../walletPass/bookingPassService');
+        await voidBookingPass(bookingId);
+        return true;
+      }
+
+      case 'hubspot_visit_sync': {
+        const hubspotId = (context as Record<string, unknown> | null)?.hubspotId as string | undefined;
+        const lifetimeVisits = (context as Record<string, unknown> | null)?.lifetimeVisits as number | undefined;
+        if (!hubspotId || lifetimeVisits == null) {
+          logger.warn('[FailedSideEffects] hubspot_visit_sync retry missing required context', { extra: { id, bookingId, context } });
+          return false;
+        }
+        const { updateHubSpotContactVisitCount } = await import('../core/memberSync');
+        await updateHubSpotContactVisitCount(hubspotId, lifetimeVisits);
+        return true;
+      }
+
+      case 'guest_pass_refund': {
+        const refundContext = context as Record<string, unknown> | null;
+        const ownerEmail = refundContext?.ownerEmail as string | undefined;
+        const guestDisplayName = refundContext?.guestDisplayName as string | undefined;
+        if (!ownerEmail) {
+          logger.warn('[FailedSideEffects] guest_pass_refund retry missing ownerEmail', { extra: { id, bookingId, context } });
+          return false;
+        }
+        const { refundGuestPass } = await import('../core/billing/guestPassService');
+        const refundResult = await refundGuestPass(ownerEmail, guestDisplayName || 'Guest', false);
+        return refundResult.success;
+      }
+
+      case 'checkin_notification':
+      case 'no_show_notification': {
+        const notifCtx = context as Record<string, unknown> | null;
+        const memberEmail = notifCtx?.memberEmail as string | undefined;
+        if (!memberEmail) {
+          logger.warn('[FailedSideEffects] Checkin notification retry missing memberEmail', { extra: { id, bookingId, context } });
+          return true;
+        }
+        const originalTitle = (notifCtx?.title as string) || (actionType === 'no_show_notification' ? 'Missed Booking' : 'Checked In');
+        const originalMessage = (notifCtx?.message as string) || `Booking #${bookingId} status update notification (retry).`;
+        const originalType = (notifCtx?.notificationType as string) || 'booking';
+        const { notifyMember } = await import('../core/notificationService');
+        await notifyMember({
+          userEmail: memberEmail,
+          title: originalTitle,
+          message: originalMessage,
+          type: originalType as 'booking',
+          relatedId: notifCtx?.relatedId as number | undefined ?? bookingId,
+          relatedType: (notifCtx?.relatedType as string) || 'booking',
+          idempotencyKey: `failed_side_effect_${id}_booking_${bookingId}`,
+        }, { sendPush: true });
+        return true;
+      }
+
+      case 'calendar_sync': {
+        const calCtx = context as Record<string, unknown> | null;
+        logger.info('[FailedSideEffects] Calendar sync requires manual resolution via admin dashboard', { extra: { id, bookingId, context: calCtx } });
+        return false;
+      }
+
+      case 'prepayment_creation':
+      case 'invoice_finalization': {
+        logger.info(`[FailedSideEffects] ${actionType} requires manual resolution via admin dashboard`, { extra: { id, bookingId } });
+        return false;
+      }
+
+      case 'push_notification': {
+        const pushCtx = context as Record<string, unknown> | null;
+        const pushUserEmail = pushCtx?.userEmail as string | undefined;
+        if (!pushUserEmail) {
+          logger.warn('[FailedSideEffects] Push notification retry missing userEmail', { extra: { id, bookingId } });
+          return true;
+        }
+        const { sendPushNotification } = await import('../core/notificationService');
+        await sendPushNotification(pushUserEmail, {
+          title: (pushCtx?.title as string) || 'Booking Update',
+          body: (pushCtx?.message as string) || `Booking #${bookingId} update.`,
+          url: (pushCtx?.url as string) || '/sims',
+          tag: `booking-${bookingId}`
+        });
+        return true;
+      }
+
+      case 'group_notification': {
+        logger.info('[FailedSideEffects] Group notification retry not supported — requires booking state reconstruction', { extra: { id, bookingId } });
+        return false;
       }
 
       default: {

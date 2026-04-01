@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { pool, safeRelease } from '../db';
-import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents, failedSideEffects } from '../../../shared/schema';
+import { bookingRequests, resources, notifications, users, bookingParticipants, stripePaymentIntents } from '../../../shared/schema';
 import { eq, and, or, ne, sql, isNull, isNotNull } from 'drizzle-orm';
 import { sendPushNotification } from '../pushService';
 import { formatNotificationDateTime, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
@@ -58,23 +58,6 @@ async function appendCalendarFailureNote(bookingId: number): Promise<void> {
   }
 }
 
-async function persistApprovalSideEffectFailure(bookingId: number, actionType: string, errorMessage: string, context?: Record<string, unknown>): Promise<void> {
-  try {
-    await db.insert(failedSideEffects).values({
-      bookingId,
-      actionType,
-      errorMessage,
-      context: context || null,
-    });
-    logger.warn(`[Booking Approval] Persisted ${actionType} side effect failure for booking ${bookingId}`, {
-      extra: { bookingId, actionType }
-    });
-  } catch (persistErr: unknown) {
-    logger.error('[Booking Approval] CRITICAL: Failed to persist side effect failure', {
-      extra: { bookingId, actionType, errorMessage, persistError: getErrorMessage(persistErr) }
-    });
-  }
-}
 
 export async function approveBooking(params: ApproveBookingParams) {
   const { bookingId, staff_notes, suggested_time, reviewed_by, resource_id, trackman_booking_id, trackman_external_id, pending_trackman_sync, expectedVersion } = params;
@@ -437,19 +420,28 @@ export async function approveBooking(params: ApproveBookingParams) {
     return { updated: updatedRow, bayName, approvalMessage, isConferenceRoom, calendarData, prepaymentData: null as typeof prepaymentData, createdSessionId, createdParticipantIds, ownerUserId };
   });
 
+  const { DeferredSideEffects } = await import('../deferredSideEffects');
+  const sideEffects = new DeferredSideEffects(bookingId, 'approval');
+
   if (updated.userEmail && approvalMessage && !isSyntheticEmail(updated.userEmail)) {
-    notifyMember({
-      userEmail: updated.userEmail,
-      title: 'Booking Request Approved',
-      message: approvalMessage,
-      type: 'booking_approved',
-      relatedId: bookingId,
-      relatedType: 'booking_request',
-      url: '/sims',
-      idempotencyKey: `booking_approved_${bookingId}_${updated.userEmail}`
-    }, { sendPush: true }).catch(async (err) => {
-      logger.error('[Approval] Post-commit notification failed', { extra: { error: getErrorMessage(err) } });
-      await persistApprovalSideEffectFailure(bookingId, 'notification', getErrorMessage(err), { flow: 'approval', userEmail: updated.userEmail });
+    sideEffects.add('notification', async () => {
+      await notifyMember({
+        userEmail: updated.userEmail,
+        title: 'Booking Request Approved',
+        message: approvalMessage,
+        type: 'booking_approved',
+        relatedId: bookingId,
+        relatedType: 'booking_request',
+        url: '/sims',
+        idempotencyKey: `booking_approved_${bookingId}_${updated.userEmail}`
+      }, { sendPush: true });
+    }, {
+      context: {
+        userEmail: updated.userEmail,
+        title: 'Booking Request Approved',
+        message: approvalMessage,
+        notificationType: 'booking_approved',
+      },
     });
   }
 
@@ -477,103 +469,101 @@ export async function approveBooking(params: ApproveBookingParams) {
   }
 
   if (bayName !== null) {
-    if (calendarData && !calendarData.existingCalendarEventId) {
-      try {
+    sideEffects.add('calendar_sync', async () => {
+      if (calendarData && !calendarData.existingCalendarEventId) {
         const calendarId = await getCalendarIdByName(calendarData.calendarName);
         if (calendarId) {
           const summary = `Booking: ${calendarData.userName || calendarData.userEmail}`;
           const description = `Area: ${calendarData.bayName}\nMember: ${calendarData.userEmail}\nDuration: ${calendarData.durationMinutes} minutes${calendarData.notes ? '\nNotes: ' + calendarData.notes : ''}`;
-          const newCalendarEventId = await createCalendarEventOnCalendar(calendarId, summary, description, calendarData.requestDate, calendarData.startTime, calendarData.endTime);
+          let newCalendarEventId: string | null = null;
+          try {
+            newCalendarEventId = await createCalendarEventOnCalendar(calendarId, summary, description, calendarData.requestDate, calendarData.startTime, calendarData.endTime);
+          } catch (calError) {
+            await appendCalendarFailureNote(bookingId);
+            throw calError;
+          }
           if (newCalendarEventId) {
             await db.update(bookingRequests)
               .set({ calendarEventId: newCalendarEventId })
               .where(eq(bookingRequests.id, bookingId));
           } else {
-            logger.warn('[Booking Approval] Calendar event creation returned null — adding staff note', { extra: { bookingId } });
             await appendCalendarFailureNote(bookingId);
-            await persistApprovalSideEffectFailure(bookingId, 'calendar_sync', 'Calendar event creation returned null', { flow: 'approval' });
+            throw new Error('Calendar event creation returned null');
           }
         }
-      } catch (calError: unknown) {
-        logger.error('Calendar sync failed (non-blocking)', { extra: { error: getErrorMessage(calError) } });
-        await appendCalendarFailureNote(bookingId);
-        await persistApprovalSideEffectFailure(bookingId, 'calendar_sync', getErrorMessage(calError), { flow: 'approval' });
       }
-    }
+    });
 
     if (prepaymentData) {
-      try {
+      const prepayData = prepaymentData;
+      sideEffects.add('prepayment_creation', async () => {
         const prepayResult = await createPrepaymentIntent({
-          sessionId: prepaymentData.sessionId,
-          bookingId: prepaymentData.bookingId,
-          userId: prepaymentData.userId,
-          userEmail: prepaymentData.userEmail,
-          userName: prepaymentData.userName,
-          totalFeeCents: prepaymentData.totalFeeCents,
-          feeBreakdown: prepaymentData.feeBreakdown
+          sessionId: prepayData.sessionId,
+          bookingId: prepayData.bookingId,
+          userId: prepayData.userId,
+          userEmail: prepayData.userEmail,
+          userName: prepayData.userName,
+          totalFeeCents: prepayData.totalFeeCents,
+          feeBreakdown: prepayData.feeBreakdown
         });
         if (prepayResult?.paidInFull) {
           await db.update(bookingParticipants)
             .set({ paymentStatus: 'paid' })
             .where(and(
-              eq(bookingParticipants.sessionId, prepaymentData.createdSessionId),
+              eq(bookingParticipants.sessionId, prepayData.createdSessionId),
               eq(bookingParticipants.paymentStatus, 'pending')
             ));
           await logPaymentAudit({
-            bookingId: prepaymentData.bookingId,
-            sessionId: prepaymentData.createdSessionId,
+            bookingId: prepayData.bookingId,
+            sessionId: prepayData.createdSessionId,
             action: 'payment_confirmed',
             staffEmail: 'system',
-            amountAffected: prepaymentData.totalFeeCents / 100,
+            amountAffected: prepayData.totalFeeCents / 100,
             paymentMethod: 'account_credit'
           });
-          logger.info('[Booking Approval] Prepayment fully covered by credit for session', { extra: { createdSessionId: prepaymentData.createdSessionId } });
+          logger.info('[Booking Approval] Prepayment fully covered by credit for session', { extra: { createdSessionId: prepayData.createdSessionId } });
         }
-      } catch (prepayError: unknown) {
-        logger.error('[Booking Approval] Failed to create prepayment intent', { extra: { error: getErrorMessage(prepayError) } });
-        await persistApprovalSideEffectFailure(bookingId, 'prepayment_creation', getErrorMessage(prepayError), { flow: 'approval', sessionId: prepaymentData.sessionId });
-      }
+      }, { context: { flow: 'approval', sessionId: prepaymentData.sessionId } });
     }
 
     if (isConferenceRoom && prepaymentData && prepaymentData.bookingId) {
-      const existingInvoiceId = await getBookingInvoiceId(prepaymentData.bookingId);
-      if (existingInvoiceId) {
-        try {
-          const invoiceResult = await finalizeAndPayInvoice({ bookingId: prepaymentData.bookingId });
+      const confPrepayData = prepaymentData;
+      sideEffects.add('invoice_finalization', async () => {
+        const existingInvoiceId = await getBookingInvoiceId(confPrepayData.bookingId);
+        if (existingInvoiceId) {
+          const invoiceResult = await finalizeAndPayInvoice({ bookingId: confPrepayData.bookingId });
           if (invoiceResult?.paidInFull) {
             await db.update(bookingParticipants)
               .set({ paymentStatus: 'paid' })
               .where(and(
-                eq(bookingParticipants.sessionId, prepaymentData.createdSessionId),
+                eq(bookingParticipants.sessionId, confPrepayData.createdSessionId),
                 eq(bookingParticipants.paymentStatus, 'pending')
               ));
-            logger.info('[Booking Approval] Conference room invoice finalized and paid for booking', { extra: { bookingId: prepaymentData.bookingId, invoiceId: invoiceResult.invoiceId } });
+            logger.info('[Booking Approval] Conference room invoice finalized and paid for booking', { extra: { bookingId: confPrepayData.bookingId, invoiceId: invoiceResult.invoiceId } });
           }
-        } catch (invoiceError: unknown) {
-          logger.error('[Booking Approval] Failed to finalize conference room invoice (non-blocking)', { extra: { bookingId: prepaymentData.bookingId, error: getErrorMessage(invoiceError) } });
-          await persistApprovalSideEffectFailure(bookingId, 'invoice_finalization', getErrorMessage(invoiceError), { flow: 'approval', isConferenceRoom: true });
+        } else {
+          logger.info('[Booking Approval] No invoice found for conference room booking — skipping finalization', { extra: { bookingId: confPrepayData.bookingId } });
         }
-      } else {
-        logger.info('[Booking Approval] No invoice found for conference room booking — skipping finalization', { extra: { bookingId: prepaymentData.bookingId } });
-      }
+      }, { context: { flow: 'approval', isConferenceRoom: true } });
     }
 
-    sendPushNotification(updated.userEmail, {
-      title: 'Booking Approved!',
-      body: approvalMessage,
-      url: '/sims',
-      tag: `booking-${bookingId}`
-    }).catch(async (err) => {
-      logger.error('Push notification failed:', { extra: { error: getErrorMessage(err) } });
-      await persistApprovalSideEffectFailure(bookingId, 'push_notification', getErrorMessage(err), { flow: 'approval', userEmail: updated.userEmail });
-    });
-
-    notifyLinkedMembers(bookingId, updated as unknown as BookingUpdateResult)
-      .catch(async (err) => {
-        logger.error('[Approval] Group notification failed', { extra: { error: getErrorMessage(err) } });
-        await persistApprovalSideEffectFailure(bookingId, 'group_notification', getErrorMessage(err), { flow: 'approval' });
+    sideEffects.add('push_notification', async () => {
+      await sendPushNotification(updated.userEmail, {
+        title: 'Booking Approved!',
+        body: approvalMessage,
+        url: '/sims',
+        tag: `booking-${bookingId}`
       });
+    }, { context: { flow: 'approval', userEmail: updated.userEmail } });
 
+    sideEffects.add('group_notification', async () => {
+      await notifyLinkedMembers(bookingId, updated as unknown as BookingUpdateResult);
+    });
+  }
+
+  await sideEffects.executeAll();
+
+  if (bayName !== null) {
     bookingEvents.publish('booking_approved', {
       bookingId,
       memberEmail: updated.userEmail,

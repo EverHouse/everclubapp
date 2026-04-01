@@ -9,6 +9,7 @@ import { broadcastAvailabilityUpdate } from '../websocket';
 import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../calendar/index';
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { persistSideEffectFailures, SideEffectFailure } from '../deferredSideEffects';
 import { bookingEvents } from '../bookingEvents';
 import { logMemberAction } from '../auditLog';
 import { releaseGuestPassHold } from '../billing/guestPassHoldService';
@@ -63,6 +64,8 @@ export async function handleCancellationCascade(
     prepaymentRefunds: 0,
     errors: []
   };
+
+  const sideEffectFailures: SideEffectFailure[] = [];
 
   const bookingStartTime = createPacificDate(requestDate, startTime);
   const now = new Date();
@@ -153,6 +156,7 @@ export async function handleCancellationCascade(
     } catch (cancelErr: unknown) {
       const errorMsg = `Failed to cancel payment intent ${row.stripe_payment_intent_id}: ${getErrorMessage(cancelErr)}`;
       result.errors.push(errorMsg);
+      sideEffectFailures.push({ actionType: 'stripe_refund', errorMessage: errorMsg, stripePaymentIntentId: row.stripe_payment_intent_id });
       logger.warn('[cancellation-cascade] ' + errorMsg);
     }
   }
@@ -279,6 +283,7 @@ export async function handleCancellationCascade(
         
         const errorMsg = `Failed to queue refund for prepayment ${row.stripe_payment_intent_id}: ${getErrorMessage(refundErr)}`;
         result.errors.push(errorMsg);
+        sideEffectFailures.push({ actionType: row.stripe_payment_intent_id.startsWith('balance-') ? 'balance_refund' : 'stripe_refund', errorMessage: errorMsg, stripePaymentIntentId: row.stripe_payment_intent_id });
         logger.warn('[cancellation-cascade] ' + errorMsg);
       }
     }));
@@ -300,6 +305,16 @@ export async function handleCancellationCascade(
       } catch (notifyError: unknown) {
         const errorMsg = `Failed to notify participant ${member.email}: ${getErrorMessage(notifyError)}`;
         result.errors.push(errorMsg);
+        sideEffectFailures.push({
+          actionType: 'notification',
+          errorMessage: errorMsg,
+          context: {
+            userEmail: member.email,
+            title: 'Booking Cancelled',
+            message: `${displayOwner}'s ${displayResource} booking on ${formattedDate} at ${formattedTime} has been cancelled.`,
+            notificationType: 'booking_cancelled',
+          },
+        });
         logger.warn('[cancellation-cascade] ' + errorMsg, { extra: { error: getErrorMessage(notifyError) } });
       }
     }
@@ -328,11 +343,22 @@ export async function handleCancellationCascade(
             }
           });
         } else {
-          result.errors.push(`Failed to refund guest pass for ${guest.displayName}: ${refundResult.error}`);
+          const guestErrorMsg = `Failed to refund guest pass for ${guest.displayName}: ${refundResult.error}`;
+          result.errors.push(guestErrorMsg);
+          sideEffectFailures.push({
+            actionType: 'guest_pass_refund',
+            errorMessage: guestErrorMsg,
+            context: { ownerEmail, guestDisplayName: guest.displayName },
+          });
         }
       } catch (refundError: unknown) {
         const errorMsg = `Failed to refund guest pass for ${guest.displayName}: ${getErrorMessage(refundError)}`;
         result.errors.push(errorMsg);
+        sideEffectFailures.push({
+          actionType: 'guest_pass_refund',
+          errorMessage: errorMsg,
+          context: { ownerEmail, guestDisplayName: guest.displayName },
+        });
         logger.warn('[cancellation-cascade] ' + errorMsg, { extra: { error: getErrorMessage(refundError) } });
       }
     }
@@ -350,6 +376,10 @@ export async function handleCancellationCascade(
       } catch (notifyError: unknown) {
         logger.warn('[cancellation-cascade] Failed to notify owner about guest pass refund', { extra: { error: getErrorMessage(notifyError) } });
       }
+    }
+
+    if (sideEffectFailures.length > 0) {
+      await persistSideEffectFailures(bookingId, 'cancellation_cascade', sideEffectFailures);
     }
 
     logger.info('[cancellation-cascade] Cascade complete', {

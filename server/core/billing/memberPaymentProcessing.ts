@@ -700,7 +700,10 @@ export async function processConfirmPayment(params: ConfirmPaymentParams): Promi
 
   logger.info(`[${label} Stripe] Payment confirmed for booking, participants marked as paid`, { extra: { bookingId, participantIdsLength: participantIdsToUpdate.length, ...(staffEmail ? { staffEmail } : {}) } });
 
-  try {
+  const { DeferredSideEffects } = await import('../deferredSideEffects');
+  const sideEffects = new DeferredSideEffects(bookingId, 'payment_confirmation');
+
+  sideEffects.add('invoice_status_check', async () => {
     const invoiceIdResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} AND stripe_invoice_id IS NOT NULL LIMIT 1`);
     const invoiceId = (invoiceIdResult.rows[0] as Record<string, unknown> | undefined)?.stripe_invoice_id as string | undefined;
     if (invoiceId) {
@@ -713,9 +716,29 @@ export async function processConfirmPayment(params: ConfirmPaymentParams): Promi
         logger.info(`[${label} Stripe] Invoice not yet marked paid — Stripe will settle automatically`, { extra: { bookingId, invoiceId, paymentIntentId, invoiceStatus: inv.status } });
       }
     }
-  } catch (invoiceCheckErr: unknown) {
-    logger.warn(`[${label} Stripe] Non-blocking: Failed to check invoice status after confirm-payment`, { extra: { bookingId, error: getErrorMessage(invoiceCheckErr) } });
-  }
+  });
+
+  sideEffects.add('notification', async () => {
+    const { notifyMember } = await import('../notificationService');
+    await notifyMember({
+      userEmail: memberEmail,
+      title: 'Payment Successful',
+      message: 'Your payment has been processed successfully.',
+      type: 'billing',
+      relatedId: bookingId,
+      relatedType: 'booking',
+      idempotencyKey: `payment_confirmed_${bookingId}_${paymentIntentId}`,
+    });
+  }, {
+    context: {
+      userEmail: memberEmail,
+      title: 'Payment Successful',
+      message: 'Your payment has been processed successfully.',
+      notificationType: 'billing',
+    },
+  });
+
+  await sideEffects.executeAll();
 
   sendNotificationToUser(memberEmail, {
     type: 'billing_update',

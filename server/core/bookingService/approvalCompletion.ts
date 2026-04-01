@@ -24,6 +24,7 @@ import { releaseGuestPassHold } from '../billing/guestPassHoldService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { voidBookingInvoice, finalizeAndPayInvoice, syncBookingInvoice, getBookingInvoiceId } from '../billing/bookingInvoiceService';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { DeferredSideEffects } from '../deferredSideEffects';
 import { upsertVisitor } from '../visitors/matchingService';
 import { AppError } from '../errors';
 import { logPaymentAudit } from '../auditLog';
@@ -311,16 +312,62 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     }
   }
 
+  const sideEffects = new DeferredSideEffects(bookingId, 'dev_confirm');
+
   if (booking.user_email && !isSyntheticEmail(booking.user_email as string)) {
-    notifyMember({
-      userEmail: booking.user_email as string,
-      title: 'Booking Confirmed',
-      message: `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`,
-      type: 'booking_confirmed',
-      relatedType: 'booking',
-      url: '/sims'
-    }, { sendPush: true }).catch(err => logger.error('[Dev Confirm] Owner notification failed', { extra: { error: getErrorMessage(err) } }));
+    const ownerNotifMsg = `Your simulator booking for ${dateStr} at ${timeStr} has been confirmed.`;
+    sideEffects.add('notification', async () => {
+      await notifyMember({
+        userEmail: booking.user_email as string,
+        title: 'Booking Confirmed',
+        message: ownerNotifMsg,
+        type: 'booking_confirmed',
+        relatedType: 'booking',
+        url: '/sims'
+      }, { sendPush: true });
+    }, {
+      context: {
+        userEmail: booking.user_email,
+        title: 'Booking Confirmed',
+        message: ownerNotifMsg,
+        notificationType: 'booking_confirmed',
+      },
+    });
   }
+
+  if (participantEmails && participantEmails.length > 0) {
+    const ownerName = booking.user_name || (booking.user_email as string)?.split('@')[0] || 'A member';
+    const formattedDate = formatDateDisplayWithDay(dateStr);
+    const formattedTime = formatTime12Hour(timeStr as string);
+    for (const participantEmail of participantEmails) {
+      if (isSyntheticEmail(participantEmail)) continue;
+      const notificationMsg = `${ownerName} has added you to their simulator booking on ${formattedDate} at ${formattedTime}.`;
+      sideEffects.add('notification', async () => {
+        await notifyMember({
+          userEmail: participantEmail,
+          title: 'Added to Booking',
+          message: notificationMsg,
+          type: 'booking',
+          relatedType: 'booking',
+          relatedId: bookingId,
+          url: '/sims'
+        }, { sendPush: true });
+      }, {
+        context: {
+          userEmail: participantEmail,
+          title: 'Added to Booking',
+          message: notificationMsg,
+          notificationType: 'booking',
+        },
+      });
+    }
+  }
+
+  sideEffects.add('wallet_pass_refresh', async () => {
+    await refreshBookingPass(bookingId);
+  });
+
+  await sideEffects.executeAll();
 
   sendNotificationToUser(booking.user_email as string, {
     type: 'notification',
@@ -336,23 +383,12 @@ export async function devConfirmBooking(params: DevConfirmParams) {
     for (const participantEmail of participantEmails) {
       if (isSyntheticEmail(participantEmail)) continue;
       const notificationMsg = `${ownerName} has added you to their simulator booking on ${formattedDate} at ${formattedTime}.`;
-      notifyMember({
-        userEmail: participantEmail,
-        title: 'Added to Booking',
-        message: notificationMsg,
-        type: 'booking',
-        relatedType: 'booking',
-        relatedId: bookingId,
-        url: '/sims'
-      }, { sendPush: true }).catch(err => logger.error('[Dev Confirm] Participant notification failed', { extra: { error: getErrorMessage(err) } }));
-
       sendNotificationToUser(participantEmail, {
         type: 'notification',
         title: 'Added to Booking',
         message: notificationMsg,
         data: { bookingId: bookingId.toString(), eventType: 'booking_participant_added' }
       }, { action: 'booking_participant_added', bookingId, triggerSource: 'approval.ts' });
-
       logger.info('[Dev Confirm] Sent Added to Booking notification', { extra: { participantEmail, bookingId } });
     }
   }
@@ -372,10 +408,6 @@ export async function devConfirmBooking(params: DevConfirmParams) {
       }
     }
   }
-
-  refreshBookingPass(bookingId).catch(err =>
-    logger.error('[Dev Confirm] Wallet pass refresh failed after confirm', { extra: { bookingId, error: getErrorMessage(err) } })
-  );
 
   return { success: true, bookingId, sessionId, totalFeeCents: resolvedTotalFeeCents, booking, dateStr, timeStr };
 }

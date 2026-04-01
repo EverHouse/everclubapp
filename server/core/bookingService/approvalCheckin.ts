@@ -617,7 +617,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
   }
 
   const booking = result[0];
-  const checkinSideEffectErrors: Array<{ action: string; error: string }> = [];
+  const checkinSideEffectErrors: Array<{ action: string; error: string; context?: Record<string, unknown> }> = [];
 
   if (newStatus === 'attended' && booking.userEmail) {
     const updateResult = await db.execute(sql`
@@ -634,7 +634,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       } catch (err: unknown) {
         const errMsg = getErrorMessage(err);
         logger.error('[Bays] Failed to sync visit count to HubSpot:', { extra: { error: errMsg } });
-        checkinSideEffectErrors.push({ action: 'hubspot_visit_sync', error: errMsg });
+        checkinSideEffectErrors.push({ action: 'hubspot_visit_sync', error: errMsg, context: { hubspotId: updatedUser.hubspot_id, lifetimeVisits: updatedUser.lifetime_visits } });
       }
     }
 
@@ -659,7 +659,17 @@ export async function checkinBooking(params: CheckinBookingParams) {
     } catch (err: unknown) {
       const errMsg = getErrorMessage(err);
       logger.error('[Checkin] Member notification failed', { extra: { bookingId, error: errMsg } });
-      checkinSideEffectErrors.push({ action: 'checkin_notification', error: errMsg });
+      checkinSideEffectErrors.push({
+        action: 'checkin_notification',
+        error: errMsg,
+        context: {
+          title: 'Checked In',
+          message: `Thanks for visiting! Your session on ${formattedDate} at ${formattedTime} has been checked in.`,
+          notificationType: 'booking',
+          relatedId: bookingId,
+          relatedType: 'booking',
+        },
+      });
     }
   }
 
@@ -700,7 +710,17 @@ export async function checkinBooking(params: CheckinBookingParams) {
     } catch (err: unknown) {
       const errMsg = getErrorMessage(err);
       logger.error('[approval] No-show notification failed', { extra: { error: errMsg } });
-      checkinSideEffectErrors.push({ action: 'no_show_notification', error: errMsg });
+      checkinSideEffectErrors.push({
+        action: 'no_show_notification',
+        error: errMsg,
+        context: {
+          title: 'Missed Booking',
+          message: `You were marked as a no-show for your booking on ${formattedDate} at ${formattedTime}. If this was in error, please contact staff.`,
+          notificationType: 'booking',
+          relatedId: bookingId,
+          relatedType: 'booking',
+        },
+      });
     }
 
     sendNotificationToUser(booking.userEmail, {
@@ -713,18 +733,12 @@ export async function checkinBooking(params: CheckinBookingParams) {
 
   if (checkinSideEffectErrors.length > 0) {
     try {
-      const { failedSideEffects } = await import('../../../shared/models/billing');
-      for (const sideEffect of checkinSideEffectErrors) {
-        await db.insert(failedSideEffects).values({
-          bookingId,
-          actionType: sideEffect.action,
-          errorMessage: sideEffect.error,
-          context: { source: 'checkin', status: newStatus, memberEmail: booking.userEmail },
-        });
-      }
-      logger.warn('[Checkin] Persisted failed side effects for retry', {
-        extra: { bookingId, failureCount: checkinSideEffectErrors.length }
-      });
+      const { persistSideEffectFailures } = await import('../deferredSideEffects');
+      await persistSideEffectFailures(bookingId, 'checkin', checkinSideEffectErrors.map(se => ({
+        actionType: se.action,
+        errorMessage: se.error,
+        context: { status: newStatus, memberEmail: booking.userEmail, ...se.context },
+      })));
     } catch (persistErr: unknown) {
       logger.error('[Checkin] CRITICAL: Failed to persist side effect failures', {
         extra: { bookingId, errors: checkinSideEffectErrors, persistError: getErrorMessage(persistErr) }
