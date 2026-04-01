@@ -217,11 +217,11 @@ export function useBookGolf() {
   });
   const walletPassAvailable = walletPassStatus?.available ?? false;
 
-  const guestCount = activeTab === 'simulator' ? playerSlots.filter(slot => slot.type === 'guest').length : 0;
+  const guestCount = useMemo(() => activeTab === 'simulator' ? playerSlots.filter(slot => slot.type === 'guest').length : 0, [activeTab, playerSlots]);
   const effectivePlayerCount = activeTab === 'simulator' ? playerCount : 1;
-  const guestsWithInfo = activeTab === 'simulator'
+  const guestsWithInfo = useMemo(() => activeTab === 'simulator'
     ? playerSlots.filter(slot => slot.type === 'guest' && (slot.selectedId || (slot.firstName?.trim() && slot.lastName?.trim() && slot.email && slot.email.includes('@')))).length
-    : 0;
+    : 0, [activeTab, playerSlots]);
   const memberUserIds = useMemo(() => activeTab === 'simulator'
     ? playerSlots.filter(slot => slot.type === 'member' && slot.selectedId).map(slot => slot.selectedId!)
     : [], [activeTab, playerSlots]);

@@ -135,14 +135,34 @@ export async function apiRequest<T = unknown>(
         };
       }
 
-      // Handle potential empty response body gracefully
+      if (res.status === 204) {
+        return { ok: true, data: {} as T };
+      }
+
+      const contentType = res.headers.get('Content-Type') || '';
       const text = await res.text();
+
+      if (!text) {
+        return { ok: true, data: {} as T };
+      }
+
+      if (!contentType.includes('application/json')) {
+        return {
+          ok: false,
+          error: `Unexpected response type: ${contentType || 'unknown'}`,
+          status: res.status
+        };
+      }
+
       let data: T;
       try {
-        data = text ? JSON.parse(text) : {} as T;
+        data = JSON.parse(text);
       } catch {
-        // If response is not valid JSON but status was ok, treat as success with empty data
-        data = {} as T;
+        return {
+          ok: false,
+          error: 'Invalid JSON in response body',
+          status: res.status
+        };
       }
       return { ok: true, data };
     } catch (err: unknown) {

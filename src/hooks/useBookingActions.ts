@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useToast } from '../components/Toast';
 import { bookingsKeys, simulatorKeys } from './queries/adminKeys';
-import { apiRequest } from '../lib/apiRequest';
+import { apiRequest, ApiResult } from '../lib/apiRequest';
 
 export interface CheckInOptions {
   status?: 'attended' | 'no_show' | 'cancelled';
@@ -59,67 +59,190 @@ export interface StaffCancelOptions {
   version?: number;
 }
 
+class MutationApiError extends Error {
+  constructor(public result: ApiResult<Record<string, unknown>>) {
+    super(result.error || 'API error');
+  }
+}
+
+type EntityRollbackContext = {
+  bookingId: number | string;
+  originalStatus: string | undefined;
+};
+
 function invalidateBookingQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
   queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+}
+
+function applyOptimisticStatus(old: unknown, bookingId: number | string, status: string) {
+  if (!Array.isArray(old)) return old;
+  return old.map((b: Record<string, unknown>) =>
+    String(b.id) === String(bookingId) ? { ...b, status } : b
+  );
+}
+
+function findBookingStatus(queryClient: ReturnType<typeof useQueryClient>, bookingId: number | string): string | undefined {
+  let originalStatus: string | undefined;
+  queryClient.getQueriesData({ queryKey: bookingsKeys.all }).forEach(([, data]) => {
+    if (Array.isArray(data)) {
+      const booking = data.find((b: Record<string, unknown>) => String(b.id) === String(bookingId));
+      if (booking && !originalStatus) originalStatus = booking.status as string;
+    }
+  });
+  if (!originalStatus) {
+    queryClient.getQueriesData({ queryKey: simulatorKeys.all }).forEach(([, data]) => {
+      if (Array.isArray(data)) {
+        const booking = data.find((b: Record<string, unknown>) => String(b.id) === String(bookingId));
+        if (booking && !originalStatus) originalStatus = booking.status as string;
+      }
+    });
+  }
+  return originalStatus;
+}
+
+function rollbackEntity(queryClient: ReturnType<typeof useQueryClient>, bookingId: number | string, originalStatus: string) {
+  queryClient.setQueriesData(
+    { queryKey: bookingsKeys.all },
+    (old: unknown) => applyOptimisticStatus(old, bookingId, originalStatus)
+  );
+  queryClient.setQueriesData(
+    { queryKey: simulatorKeys.all },
+    (old: unknown) => applyOptimisticStatus(old, bookingId, originalStatus)
+  );
 }
 
 export function useBookingActions() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
+  const prepareOptimistic = async (
+    bookingId: number | string,
+    newStatus: string
+  ): Promise<EntityRollbackContext> => {
+    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
+    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
+
+    const originalStatus = findBookingStatus(queryClient, bookingId);
+
+    queryClient.setQueriesData(
+      { queryKey: bookingsKeys.all },
+      (old: unknown) => applyOptimisticStatus(old, bookingId, newStatus)
+    );
+    queryClient.setQueriesData(
+      { queryKey: simulatorKeys.all },
+      (old: unknown) => applyOptimisticStatus(old, bookingId, newStatus)
+    );
+
+    return { bookingId, originalStatus };
+  };
+
+  const checkInMutation = useMutation<
+    ApiResult<Record<string, unknown>>,
+    MutationApiError,
+    { bookingId: number | string; options: CheckInOptions },
+    EntityRollbackContext
+  >({
+    mutationFn: async ({ bookingId, options }) => {
+      const { status = 'attended', source, skipPaymentCheck, version } = options;
+      const res = await apiRequest<Record<string, unknown>>(`/api/bookings/${bookingId}/checkin`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, source, skipPaymentCheck, ...(version !== undefined ? { version } : {}) })
+      }, { maxRetries: 1 });
+      if (!res.ok) throw new MutationApiError(res);
+      return res;
+    },
+    onMutate: async ({ bookingId, options }) => {
+      return await prepareOptimistic(bookingId, options.status || 'attended');
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.originalStatus) {
+        rollbackEntity(queryClient, context.bookingId, context.originalStatus);
+      }
+    },
+    onSettled: () => {
+      invalidateBookingQueries(queryClient);
+    },
+  });
+
+  const staffCancelMutation = useMutation<
+    ApiResult<Record<string, unknown>>,
+    MutationApiError,
+    { bookingId: number | string; options: StaffCancelOptions },
+    EntityRollbackContext
+  >({
+    mutationFn: async ({ bookingId, options }) => {
+      const { source, cancelledBy, version } = options;
+      const res = await apiRequest<Record<string, unknown>>(`/api/booking-requests/${bookingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled', source, cancelled_by: cancelledBy, ...(version !== undefined ? { version } : {}) })
+      }, { maxRetries: 1 });
+      if (!res.ok) throw new MutationApiError(res);
+      return res;
+    },
+    onMutate: async ({ bookingId }) => {
+      return await prepareOptimistic(bookingId, 'cancelled');
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.originalStatus) {
+        rollbackEntity(queryClient, context.bookingId, context.originalStatus);
+      }
+    },
+    onSettled: () => {
+      invalidateBookingQueries(queryClient);
+    },
+  });
+
+  const revertMutation = useMutation<
+    ApiResult<Record<string, unknown>>,
+    MutationApiError,
+    { bookingId: number | string; version?: number },
+    EntityRollbackContext
+  >({
+    mutationFn: async ({ bookingId, version }) => {
+      const res = await apiRequest<Record<string, unknown>>(`/api/bookings/${bookingId}/revert-to-approved`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(version !== undefined ? { version } : {}) }),
+      }, { maxRetries: 1 });
+      if (!res.ok) throw new MutationApiError(res);
+      return res;
+    },
+    onMutate: async ({ bookingId }) => {
+      return await prepareOptimistic(bookingId, 'approved');
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.originalStatus) {
+        rollbackEntity(queryClient, context.bookingId, context.originalStatus);
+      }
+    },
+    onSettled: () => {
+      invalidateBookingQueries(queryClient);
+    },
+  });
+
   const checkInBooking = useCallback(async (
     bookingId: number | string,
     options: CheckInOptions = {}
   ): Promise<CheckInResult> => {
-    const { status = 'attended', source, skipPaymentCheck, version } = options;
-
-    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
-    const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
-    const previousSimulator = queryClient.getQueriesData({ queryKey: simulatorKeys.all });
-
-    queryClient.setQueriesData(
-      { queryKey: bookingsKeys.all },
-      (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((b: Record<string, unknown>) =>
-          String(b.id) === String(bookingId) ? { ...b, status } : b
-        );
+    try {
+      await checkInMutation.mutateAsync({ bookingId, options });
+      return { success: true };
+    } catch (err) {
+      if (!(err instanceof MutationApiError)) {
+        return { success: false, error: 'Failed to update status' };
       }
-    );
-    queryClient.setQueriesData(
-      { queryKey: simulatorKeys.all },
-      (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((b: Record<string, unknown>) =>
-          String(b.id) === String(bookingId) ? { ...b, status } : b
-        );
-      }
-    );
 
-    const restoreOptimistic = () => {
-      previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
-    };
-
-    const res = await apiRequest<Record<string, unknown>>(`/api/bookings/${bookingId}/checkin`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, source, skipPaymentCheck, ...(version !== undefined ? { version } : {}) })
-    }, { maxRetries: 1 });
-
-    if (!res.ok) {
+      const res = err.result;
       const errorData = res.errorData || {};
 
       if (res.status === 409) {
-        restoreOptimistic();
-        invalidateBookingQueries(queryClient);
         return { success: false, error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
       }
 
       if (errorData.requiresRoster || errorData.requiresPayment || errorData.error === 'Payment required') {
-        restoreOptimistic();
         return {
           success: false,
           requiresPayment: !errorData.requiresRoster,
@@ -129,28 +252,28 @@ export function useBookingActions() {
         };
       }
 
-      if (errorData.requiresSync && !skipPaymentCheck) {
+      if (errorData.requiresSync && !options.skipPaymentCheck) {
         const retryRes = await apiRequest<Record<string, unknown>>(`/api/bookings/${bookingId}/checkin`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, source, skipPaymentCheck: true, ...(version !== undefined ? { version } : {}) })
+          body: JSON.stringify({
+            status: options.status || 'attended',
+            source: options.source,
+            skipPaymentCheck: true,
+            ...(options.version !== undefined ? { version: options.version } : {})
+          })
         }, { maxRetries: 1 });
 
         if (retryRes.ok) {
           invalidateBookingQueries(queryClient);
           return { success: true };
         }
-        restoreOptimistic();
         return { success: false, error: retryRes.error || 'Failed to check in after retry' };
       }
 
-      restoreOptimistic();
       return { success: false, requiresSync: !!errorData.requiresSync, error: res.error || 'Failed to update status' };
     }
-
-    invalidateBookingQueries(queryClient);
-    return { success: true };
-  }, [queryClient]);
+  }, [checkInMutation, queryClient]);
 
   const checkInWithToast = useCallback(async (
     bookingId: number | string,
@@ -246,52 +369,21 @@ export function useBookingActions() {
     bookingId: number | string,
     options: StaffCancelOptions = {}
   ): Promise<{ success: boolean; error?: string }> => {
-    const { source, cancelledBy, version } = options;
-
-    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
-    const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
-    const previousSimulator = queryClient.getQueriesData({ queryKey: simulatorKeys.all });
-
-    queryClient.setQueriesData(
-      { queryKey: bookingsKeys.all },
-      (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((b: Record<string, unknown>) =>
-          String(b.id) === String(bookingId) ? { ...b, status: 'cancelled' } : b
-        );
+    try {
+      await staffCancelMutation.mutateAsync({ bookingId, options });
+      return { success: true };
+    } catch (err) {
+      if (err instanceof MutationApiError) {
+        const res = err.result;
+        if (res.status === 409) {
+          const errorData = res.errorData || {};
+          return { success: false, error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
+        }
+        return { success: false, error: res.error || 'Failed to cancel booking' };
       }
-    );
-    queryClient.setQueriesData(
-      { queryKey: simulatorKeys.all },
-      (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((b: Record<string, unknown>) =>
-          String(b.id) === String(bookingId) ? { ...b, status: 'cancelled' } : b
-        );
-      }
-    );
-
-    const res = await apiRequest(`/api/booking-requests/${bookingId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'cancelled', source, cancelled_by: cancelledBy, ...(version !== undefined ? { version } : {}) })
-    }, { maxRetries: 1 });
-
-    if (!res.ok) {
-      previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      if (res.status === 409) {
-        invalidateBookingQueries(queryClient);
-        const errorData = res.errorData || {};
-        return { success: false, error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
-      }
-      return { success: false, error: res.error || 'Failed to cancel booking' };
+      return { success: false, error: 'Failed to cancel booking' };
     }
-
-    invalidateBookingQueries(queryClient);
-    return { success: true };
-  }, [queryClient]);
+  }, [staffCancelMutation]);
 
   const staffCancelWithToast = useCallback(async (
     bookingId: number | string,
@@ -309,51 +401,21 @@ export function useBookingActions() {
   }, [staffCancelBooking, showToast]);
 
   const revertToApproved = useCallback(async (bookingId: number | string, options?: { version?: number }): Promise<{ success?: boolean; error?: string }> => {
-    const version = options?.version;
-    await queryClient.cancelQueries({ queryKey: bookingsKeys.all });
-    await queryClient.cancelQueries({ queryKey: simulatorKeys.all });
-    const previousBookings = queryClient.getQueriesData({ queryKey: bookingsKeys.all });
-    const previousSimulator = queryClient.getQueriesData({ queryKey: simulatorKeys.all });
-
-    queryClient.setQueriesData(
-      { queryKey: bookingsKeys.all },
-      (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((b: Record<string, unknown>) =>
-          String(b.id) === String(bookingId) ? { ...b, status: 'approved' } : b
-        );
+    try {
+      await revertMutation.mutateAsync({ bookingId, version: options?.version });
+      return { success: true };
+    } catch (err) {
+      if (err instanceof MutationApiError) {
+        const res = err.result;
+        if (res.status === 409) {
+          const errorData = res.errorData || {};
+          return { error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
+        }
+        return { error: res.error || 'Failed to revert booking' };
       }
-    );
-    queryClient.setQueriesData(
-      { queryKey: simulatorKeys.all },
-      (old: unknown) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((b: Record<string, unknown>) =>
-          String(b.id) === String(bookingId) ? { ...b, status: 'approved' } : b
-        );
-      }
-    );
-
-    const res = await apiRequest(`/api/bookings/${bookingId}/revert-to-approved`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...(version !== undefined ? { version } : {}) }),
-    }, { maxRetries: 1 });
-
-    if (!res.ok) {
-      previousBookings.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      previousSimulator.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      if (res.status === 409) {
-        invalidateBookingQueries(queryClient);
-        const errorData = res.errorData || {};
-        return { error: (errorData.error as string) || 'This booking was updated by someone else. Please refresh and try again.' };
-      }
-      return { error: res.error || 'Failed to revert booking' };
+      return { error: 'Failed to revert booking' };
     }
-
-    invalidateBookingQueries(queryClient);
-    return { success: true };
-  }, [queryClient]);
+  }, [revertMutation]);
 
   const revertToApprovedWithToast = useCallback(async (bookingId: number | string) => {
     const result = await revertToApproved(bookingId);
