@@ -113,6 +113,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 requestAnimationFrame(() => {
   removeSplash();
+  if ((window as unknown as Record<string, unknown>).__splashTimer) {
+    clearTimeout((window as unknown as Record<string, unknown>).__splashTimer as ReturnType<typeof setTimeout>);
+  }
+  try { sessionStorage.removeItem('__stale_recovery'); } catch {}
 });
 
 initWebVitals();

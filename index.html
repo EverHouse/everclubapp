@@ -153,6 +153,26 @@
     <main id="main-content" role="main">
       <div id="root"></div>
     </main>
+    <script>
+      (function(){
+        var KEY='__stale_recovery',MAX=2;
+        var t=setTimeout(function(){
+          if(!document.getElementById('root').hasChildNodes()){
+            try{var c=parseInt(sessionStorage.getItem(KEY)||'0',10)}catch(e){var c=0}
+            if(c>=MAX)return;
+            try{sessionStorage.setItem(KEY,String(c+1))}catch(e){}
+            var tasks=[];
+            if('caches' in window)tasks.push(caches.keys().then(function(k){return Promise.all(k.map(function(n){return caches.delete(n)}))}));
+            if('serviceWorker' in navigator)tasks.push(navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(w){return w.unregister()}))}));
+            Promise.all(tasks).then(function(){
+              var u=new URL(window.location.href);u.searchParams.set('_r',Date.now());
+              window.location.replace(u.toString());
+            });
+          }
+        },8000);
+        window.__splashTimer=t;
+      })();
+    </script>
     <noscript>
       <div>
         <h1>Ever Members Club — Indoor Golf & Social Club in Tustin, OC</h1>

@@ -234,18 +234,15 @@ self.addEventListener('fetch', function(event) {
 
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      caches.match(request).then(function(cachedResponse) {
-        if (cachedResponse) {
-          return cachedResponse;
+      fetch(request).then(function(response) {
+        if (response.ok) {
+          var clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(request, clone); });
         }
-        return fetch(request).then(function(response) {
-          if (response.ok) {
-            var clone = response.clone();
-            caches.open(CACHE_NAME).then(function(cache) { cache.put(request, clone); });
-          }
-          return response;
-        }).catch(function() {
-          return new Response('', { status: 503, statusText: 'Asset unavailable offline' });
+        return response;
+      }).catch(function() {
+        return caches.match(request).then(function(cachedResponse) {
+          return cachedResponse || new Response('', { status: 503, statusText: 'Asset unavailable offline' });
         });
       })
     );
