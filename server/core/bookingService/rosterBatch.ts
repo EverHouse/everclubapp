@@ -19,7 +19,7 @@ import {
 import { isPlaceholderGuestName } from '../billing/pricingConfig';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { findConflictingBookings } from './conflictDetection';
-import { useGuestPass, refundGuestPass, ensureGuestPassRecord } from '../../routes/guestPasses';
+import { useGuestPass, refundGuestPass, ensureGuestPassRecord } from '../billing/guestPassService';
 import { createOrFindGuest } from './sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { syncBookingInvoice } from '../billing/bookingInvoiceService';

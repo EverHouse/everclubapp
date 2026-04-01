@@ -8,7 +8,7 @@ import { notifyMember, notifyAllStaff } from '../../../notificationService';
 import { sendPaymentReceiptEmail } from '../../../../emails/paymentEmails';
 import { sendPassWithQrEmail } from '../../../../emails/passEmails';
 import { broadcastBillingUpdate, broadcastDayPassUpdate } from '../../../websocket';
-import { recordDayPassPurchaseFromWebhook } from '../../../../routes/dayPasses';
+import { recordDayPassPurchaseFromWebhook } from '../../../billing/dayPassService';
 import { logSystemAction } from '../../../auditLog';
 import { logger } from '../../../logger';
 import { getErrorMessage } from '../../../../utils/errorUtils';

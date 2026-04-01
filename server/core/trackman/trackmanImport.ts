@@ -8,7 +8,7 @@ import { getTodayPacific, formatNotificationDateTime, formatDateFromDb } from '.
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
-import { useGuestPass } from '../../routes/guestPasses';
+import { useGuestPass } from '../billing/guestPassService';
 import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
 import { alertOnTrackmanImportIssues } from '../dataAlerts';
 import { logSystemAction } from '../auditLog';

@@ -451,7 +451,7 @@ export async function reconcileDailyRefunds() {
                   `);
                   const ownerEmail = (bookingOwnerResult.rows[0] as { email: string } | undefined)?.email;
                   if (ownerEmail) {
-                    const { refundGuestPass } = await import('../../routes/guestPasses');
+                    const { refundGuestPass } = await import('../billing/guestPassService');
                     const guestRefundResult = await refundGuestPass(ownerEmail, participant.display_name || undefined, false);
                     if (guestRefundResult.success) {
                       guestPassesRestored++;

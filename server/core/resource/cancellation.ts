@@ -4,7 +4,7 @@ import { resources, bookingRequests } from '../../../shared/schema';
 import { logger } from '../logger';
 import { createPacificDate, formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { notifyMember, notifyAllStaff } from '../notificationService';
-import { refundGuestPass } from '../../routes/guestPasses';
+import { refundGuestPass } from '../billing/guestPassService';
 import { broadcastAvailabilityUpdate } from '../websocket';
 import { getCalendarIdByName, deleteCalendarEvent, CALENDAR_CONFIG } from '../calendar/index';
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';

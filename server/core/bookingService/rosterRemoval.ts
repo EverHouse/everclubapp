@@ -7,7 +7,7 @@ import {
   invalidateCachedFees,
   recalculateSessionFees,
 } from '../billing/unifiedFeeService';
-import { refundGuestPass } from '../../routes/guestPasses';
+import { refundGuestPass } from '../billing/guestPassService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { syncBookingInvoice } from '../billing/bookingInvoiceService';
 import { broadcastBookingRosterUpdate } from '../websocket';

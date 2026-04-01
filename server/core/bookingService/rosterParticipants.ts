@@ -22,7 +22,7 @@ import { isPlaceholderGuestName } from '../billing/pricingConfig';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { findConflictingBookings } from './conflictDetection';
 import { notifyMember } from '../notificationService';
-import { useGuestPass, refundGuestPass, ensureGuestPassRecord } from '../../routes/guestPasses';
+import { useGuestPass, refundGuestPass, ensureGuestPassRecord } from '../billing/guestPassService';
 import { upsertVisitor } from '../visitors/matchingService';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { syncBookingInvoice } from '../billing/bookingInvoiceService';

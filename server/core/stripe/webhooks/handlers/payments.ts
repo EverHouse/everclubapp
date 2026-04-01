@@ -383,7 +383,7 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
         }
 
         if (merchCartItems) {
-          const { restoreMerchStock } = await import('../../../../routes/merch');
+          const { restoreMerchStock } = await import('../../../merch/merchStockService');
           const items = JSON.parse(merchCartItems) as Array<{ productId?: string; quantity?: number }>;
           await restoreMerchStock(items, paymentIntentId);
           logger.info('[Stripe Webhook] Merch stock restored after full refund', { extra: { paymentIntentId } });

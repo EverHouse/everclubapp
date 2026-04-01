@@ -7,7 +7,7 @@ import { bookingEvents } from '../bookingEvents';
 import { toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { logger } from '../logger';
 import { cancelPaymentIntent } from '../stripe/payments';
-import { useGuestPass } from '../../routes/guestPasses';
+import { useGuestPass } from '../billing/guestPassService';
 import type { SessionCheckRow, PaymentIntentRow } from './constants';
 import { isPlaceholderEmail, isFutureBooking } from './constants';
 import { parseNotesForPlayers } from './parser';
