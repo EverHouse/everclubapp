@@ -271,38 +271,55 @@ export async function deductMerchStock(cartItems: Array<{ productId?: string; qu
     }
   }
 
-  let anyDeducted = false;
+  const itemMap = new Map<number, number>();
   for (const item of merchCartItems) {
     const merchId = Number(item.productId!.replace('merch_', ''));
     const qty = item.quantity || 1;
-    if (isNaN(merchId)) continue;
-
-    try {
-      const result = await db.execute(sql`
-        UPDATE merch_items 
-        SET stock_quantity = GREATEST(stock_quantity - ${qty}, 0)
-        WHERE id = ${merchId} AND stock_quantity IS NOT NULL AND stock_quantity >= ${qty}
-      `);
-      if (result.rowCount === 0) {
-        const check = await db.execute(sql`SELECT stock_quantity FROM merch_items WHERE id = ${merchId}`);
-        const currentStock = (check.rows[0] as { stock_quantity: number | null } | undefined)?.stock_quantity;
-        if (currentStock === null) {
-          logger.info('[Merch] Stock is unlimited (null) for merch item, no deduction needed', { extra: { merchId } });
-        } else {
-          logger.warn('[Merch] Insufficient stock for deduction', { extra: { merchId, requestedQty: qty, currentStock } });
-        }
-      } else {
-        anyDeducted = true;
-      }
-    } catch (err: unknown) {
-      logger.error('[Merch] Failed to deduct stock', { extra: { merchId, qty, error: getErrorMessage(err) } });
-    }
+    if (!isNaN(merchId)) itemMap.set(merchId, (itemMap.get(merchId) || 0) + qty);
   }
+  const validItems = Array.from(itemMap.entries()).map(([merchId, qty]) => ({ merchId, qty }));
+  if (validItems.length === 0) return;
 
-  if (paymentIntentId && anyDeducted) {
-    await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_deducted]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch((err) => {
-      logger.warn('[Merch] Failed to mark stock_deducted on payment intent', { extra: { paymentIntentId, error: getErrorMessage(err) } });
-    });
+  try {
+    const valuesClause = sql.join(
+      validItems.map(v => sql`(${v.merchId}::int, ${v.qty}::int)`),
+      sql`, `
+    );
+    const result = await db.execute(sql`
+      WITH deductions(item_id, qty) AS (VALUES ${valuesClause})
+      UPDATE merch_items mi
+      SET stock_quantity = GREATEST(mi.stock_quantity - d.qty, 0)
+      FROM deductions d
+      WHERE mi.id = d.item_id AND mi.stock_quantity IS NOT NULL AND mi.stock_quantity >= d.qty
+    `);
+    const anyDeducted = (result.rowCount ?? 0) > 0;
+
+    if ((result.rowCount ?? 0) < validItems.length) {
+      const checkResult = await db.execute(sql`
+        SELECT id, stock_quantity FROM merch_items
+        WHERE id IN (${sql.join(validItems.map(v => sql`${v.merchId}`), sql`, `)})
+      `);
+      const stockMap = new Map<number, number | null>();
+      for (const row of checkResult.rows as Array<{ id: number; stock_quantity: number | null }>) {
+        stockMap.set(row.id, row.stock_quantity);
+      }
+      for (const v of validItems) {
+        const currentStock = stockMap.get(v.merchId);
+        if (currentStock === null || currentStock === undefined) {
+          logger.info('[Merch] Stock is unlimited (null) for merch item, no deduction needed', { extra: { merchId: v.merchId } });
+        } else if (currentStock < v.qty) {
+          logger.warn('[Merch] Insufficient stock for deduction', { extra: { merchId: v.merchId, requestedQty: v.qty, currentStock } });
+        }
+      }
+    }
+
+    if (paymentIntentId && anyDeducted) {
+      await db.execute(sql`UPDATE stripe_payment_intents SET description = COALESCE(description, '') || ' [stock_deducted]' WHERE stripe_payment_intent_id = ${paymentIntentId}`).catch((err) => {
+        logger.warn('[Merch] Failed to mark stock_deducted on payment intent', { extra: { paymentIntentId, error: getErrorMessage(err) } });
+      });
+    }
+  } catch (err: unknown) {
+    logger.error('[Merch] Failed to deduct stock in bulk', { extra: { items: validItems, error: getErrorMessage(err) } });
   }
 
   invalidateCache(MERCH_CACHE_KEY);

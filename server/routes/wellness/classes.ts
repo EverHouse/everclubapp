@@ -172,42 +172,67 @@ router.post('/api/wellness-classes/backfill-calendar', isStaffOrAdmin, async (re
     let created = 0;
     const errors: string[] = [];
     
-    for (const wc of classesWithoutCalendar) {
-      try {
-        const calendarTitle = `${wc.title} with ${wc.instructor}`;
-        const calendarDescription = wc.description || '';
-        const startTime24 = convertTo24Hour(wc.time);
-        const endTime24 = calculateEndTime(startTime24, wc.duration);
-        
-        const extendedProps: Record<string, string> = {
-          'ehApp_type': 'wellness',
-          'ehApp_id': String(wc.id),
-        };
-        if (wc.category) extendedProps['ehApp_category'] = wc.category;
-        if (wc.duration) extendedProps['ehApp_duration'] = wc.duration;
-        if (wc.spots) extendedProps['ehApp_spots'] = wc.spots;
-        if (wc.status) extendedProps['ehApp_status'] = wc.status;
-        if (wc.imageUrl) extendedProps['ehApp_imageUrl'] = wc.imageUrl;
-        if (wc.externalUrl) extendedProps['ehApp_externalUrl'] = wc.externalUrl;
-        
-        const googleCalendarId = await createCalendarEventOnCalendar(
-          calendarId,
-          calendarTitle,
-          calendarDescription,
-          wc.date,
-          startTime24,
-          endTime24,
-          extendedProps
-        );
-        
-        if (googleCalendarId) {
-          await db.update(wellnessClasses)
-            .set({ googleCalendarId })
-            .where(eq(wellnessClasses.id, wc.id));
+    const calendarResults: Array<{ id: number; googleCalendarId: string }> = [];
+
+    const createOneEvent = async (wc: typeof classesWithoutCalendar[number]) => {
+      const calendarTitle = `${wc.title} with ${wc.instructor}`;
+      const calendarDescription = wc.description || '';
+      const startTime24 = convertTo24Hour(wc.time);
+      const endTime24 = calculateEndTime(startTime24, wc.duration);
+
+      const extendedProps: Record<string, string> = {
+        'ehApp_type': 'wellness',
+        'ehApp_id': String(wc.id),
+      };
+      if (wc.category) extendedProps['ehApp_category'] = wc.category;
+      if (wc.duration) extendedProps['ehApp_duration'] = wc.duration;
+      if (wc.spots) extendedProps['ehApp_spots'] = wc.spots;
+      if (wc.status) extendedProps['ehApp_status'] = wc.status;
+      if (wc.imageUrl) extendedProps['ehApp_imageUrl'] = wc.imageUrl;
+      if (wc.externalUrl) extendedProps['ehApp_externalUrl'] = wc.externalUrl;
+
+      const googleCalendarId = await createCalendarEventOnCalendar(
+        calendarId,
+        calendarTitle,
+        calendarDescription,
+        wc.date,
+        startTime24,
+        endTime24,
+        extendedProps
+      );
+
+      return { id: wc.id, googleCalendarId };
+    };
+
+    const concurrency = 5;
+    for (let i = 0; i < classesWithoutCalendar.length; i += concurrency) {
+      const chunk = classesWithoutCalendar.slice(i, i + concurrency);
+      const results = await Promise.allSettled(chunk.map(createOneEvent));
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === 'fulfilled' && result.value.googleCalendarId) {
+          calendarResults.push({ id: result.value.id, googleCalendarId: result.value.googleCalendarId });
           created++;
+        } else if (result.status === 'rejected') {
+          errors.push(`Class ${chunk[j].id}: ${getErrorMessage(result.reason)}`);
         }
-      } catch (err: unknown) {
-        errors.push(`Class ${wc.id}: ${getErrorMessage(err)}`);
+      }
+    }
+
+    if (calendarResults.length > 0) {
+      const batchSize = 50;
+      for (let i = 0; i < calendarResults.length; i += batchSize) {
+        const batch = calendarResults.slice(i, i + batchSize);
+        const caseWhen = sql.join(
+          batch.map(r => sql`WHEN ${r.id} THEN ${r.googleCalendarId}`),
+          sql` `
+        );
+        const ids = sql.join(batch.map(r => sql`${r.id}`), sql`, `);
+        await db.execute(sql`
+          UPDATE wellness_classes
+          SET google_calendar_id = CASE id ${caseWhen} END
+          WHERE id IN (${ids})
+        `);
       }
     }
     
@@ -384,11 +409,26 @@ router.get('/api/wellness-classes', validateQuery(wellnessClassQuerySchema), asy
     if (sqlConditions.length > 0) {
       fullQuery = sql`${baseQuery} WHERE ${sql.join(sqlConditions, sql` AND `)}`;
     }
-    fullQuery = sql`${fullQuery} ORDER BY wc.date ASC, wc.time ASC LIMIT 500`;
-    
+    const { limit: limitParam, offset: offsetParam } = req.query;
+    const pLimit = Math.min(Math.max(parseInt(limitParam as string, 10) || 50, 1), 200);
+    const pOffset = Math.max(parseInt(offsetParam as string, 10) || 0, 0);
+
+    const countQuery = sqlConditions.length > 0
+      ? sql`SELECT COUNT(*)::int as total FROM wellness_classes wc WHERE ${sql.join(sqlConditions, sql` AND `)}`
+      : sql`SELECT COUNT(*)::int as total FROM wellness_classes wc`;
+    const countResult = await db.execute(countQuery);
+    const total = (countResult.rows[0] as { total: number })?.total || 0;
+
+    fullQuery = sql`${fullQuery} ORDER BY wc.date ASC, wc.time ASC LIMIT ${pLimit} OFFSET ${pOffset}`;
     const result = await db.execute(fullQuery);
     res.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300');
-    res.json(result.rows);
+    res.json({
+      data: result.rows,
+      total,
+      limit: pLimit,
+      offset: pOffset,
+      hasMore: pOffset + pLimit < total,
+    });
   } catch (error: unknown) {
     logger.error('API error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch wellness classes' });

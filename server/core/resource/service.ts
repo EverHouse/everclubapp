@@ -8,7 +8,7 @@ import { checkDailyBookingLimit } from '../tierService';
 import { sendNotificationToUser, broadcastAvailabilityUpdate } from '../websocket';
 import { checkAllConflicts } from '../bookingValidation';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
-import { getCached, setCache } from '../queryCache';
+import { getCached, setCache, invalidateCache } from '../queryCache';
 import { AppError } from '../errors';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { ensureDateString, ensureTimeString } from '../../utils/dateTimeUtils';
@@ -499,6 +499,8 @@ export async function createBookingRequest(params: {
       status: 'pending_approval'
     })
     .returning();
+
+  invalidateCache('members_directory');
   
   return result[0];
 }

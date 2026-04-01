@@ -57,7 +57,10 @@ export const WellnessAdminContent: React.FC = () => {
 
     const { data: classes = [], isLoading, isError, error: _queryError, refetch } = useQuery({
         queryKey: ['wellness-classes'],
-        queryFn: () => fetchWithCredentials<WellnessClass[]>('/api/wellness-classes'),
+        queryFn: async () => {
+            const result = await fetchWithCredentials<{ data: WellnessClass[] } | WellnessClass[]>('/api/wellness-classes');
+            return Array.isArray(result) ? result : result.data;
+        },
         throwOnError: false
     });
 

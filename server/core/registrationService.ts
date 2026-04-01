@@ -6,6 +6,7 @@ import { formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb } from '..
 import { broadcastToStaff, broadcastWaitlistUpdate } from './websocket';
 import { logger } from './logger';
 import { getErrorMessage } from '../utils/errorUtils';
+import { invalidateCache } from './queryCache';
 
 export interface RegistrationContext {
   userEmail: string;
@@ -94,6 +95,8 @@ export async function createEventRsvp(
     eventId,
     memberEmail: userEmail
   });
+
+  invalidateCache('members_directory');
 
   return { rsvp, memberMessage, staffMessage, eventTitle: evt.title };
 }
@@ -214,6 +217,8 @@ export async function createWellnessEnrollment(
   });
 
   broadcastWaitlistUpdate({ classId, action: 'enrolled' });
+
+  invalidateCache('members_directory');
 
   return { enrollment: result.enrollment, isWaitlisted, memberMessage, staffMessage, classTitle };
 }

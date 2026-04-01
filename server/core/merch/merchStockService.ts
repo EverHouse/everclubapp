@@ -27,20 +27,29 @@ export async function restoreMerchStock(cartItems: Array<{ productId?: string; q
     }
   }
 
+  const itemMap = new Map<number, number>();
   for (const item of merchCartItems) {
     const merchId = Number(item.productId!.replace('merch_', ''));
     const qty = item.quantity || 1;
-    if (isNaN(merchId)) continue;
+    if (!isNaN(merchId)) itemMap.set(merchId, (itemMap.get(merchId) || 0) + qty);
+  }
+  const validItems = Array.from(itemMap.entries()).map(([merchId, qty]) => ({ merchId, qty }));
+  if (validItems.length === 0) return;
 
-    try {
-      await db.execute(sql`
-        UPDATE merch_items 
-        SET stock_quantity = stock_quantity + ${qty}
-        WHERE id = ${merchId} AND stock_quantity IS NOT NULL
-      `);
-    } catch (err: unknown) {
-      logger.error('[Merch] Failed to restore stock', { extra: { merchId, qty, error: getErrorMessage(err) } });
-    }
+  try {
+    const valuesClause = sql.join(
+      validItems.map(v => sql`(${v.merchId}::int, ${v.qty}::int)`),
+      sql`, `
+    );
+    await db.execute(sql`
+      WITH restorations(item_id, qty) AS (VALUES ${valuesClause})
+      UPDATE merch_items mi
+      SET stock_quantity = mi.stock_quantity + r.qty
+      FROM restorations r
+      WHERE mi.id = r.item_id AND mi.stock_quantity IS NOT NULL
+    `);
+  } catch (err: unknown) {
+    logger.error('[Merch] Failed to restore stock in bulk', { extra: { items: validItems, error: getErrorMessage(err) } });
   }
 
   if (paymentIntentId) {

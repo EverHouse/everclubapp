@@ -13,6 +13,7 @@ import { logger, logAndRespond } from '../../core/logger';
 import { getMemberDisplayName } from './shared';
 import { validateBody } from '../../middleware/validate';
 import { z } from 'zod';
+import { invalidateCache } from '../../core/queryCache';
 import { numericIdParam, requiredStringParam } from '../../middleware/paramSchemas';
 import { bookingRateLimiter } from '../../middleware/rateLimiting';
 import { createEventRsvp } from '../../core/registrationService';
@@ -358,6 +359,8 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
       status: 'confirmed',
       checkedIn: true,
     });
+
+    invalidateCache('members_directory');
     
     const eventData = await db.select({
       title: events.title,

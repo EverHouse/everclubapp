@@ -15,6 +15,8 @@ import { getErrorMessage } from '../../utils/errorUtils';
 
 const DIRECTORY_CACHE_KEY = 'members_directory';
 const DIRECTORY_CACHE_TTL = 30_000;
+const VISIT_COUNTS_CACHE_KEY = 'members_directory_visits';
+const VISIT_COUNTS_CACHE_TTL = 120_000;
 
 const router = Router();
 
@@ -266,123 +268,179 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
       : await baseQuery;
     
     const memberEmails = allMembers.map(m => m.email?.toLowerCase()).filter(Boolean) as string[];
+    const memberIds = allMembers.map(m => m.id).filter(Boolean) as string[];
     
-    const bookingCounts: Record<string, number> = {};
-    const eventCounts: Record<string, number> = {};
-    const wellnessCounts: Record<string, number> = {};
-    const lastActivityMap: Record<string, string | null> = {};
-    
-    const walkInCounts: Record<string, number> = {};
+    interface VisitCountsData {
+      bookingCounts: Record<string, number>;
+      eventCounts: Record<string, number>;
+      wellnessCounts: Record<string, number>;
+      walkInCounts: Record<string, number>;
+      lastActivityMap: Record<string, string | null>;
+    }
+
+    let visitData: VisitCountsData = {
+      bookingCounts: {},
+      eventCounts: {},
+      wellnessCounts: {},
+      walkInCounts: {},
+      lastActivityMap: {},
+    };
 
     if (memberEmails.length > 0) {
-      const [combinedBookingsActivityResult, eventsResult, wellnessResult, walkInCountResult] = await Promise.all([
-        db.execute(sql`
-          SELECT email, COUNT(DISTINCT booking_id) as booking_count, MAX(last_date) as last_date FROM (
-            SELECT LOWER(user_email) as email, id as booking_id, request_date as last_date
-            FROM booking_requests
-            WHERE LOWER(user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-              AND status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-              AND request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            UNION ALL
-            SELECT LOWER(u_bp.email) as email, br.id as booking_id, br.request_date as last_date
-            FROM booking_participants bp
-            JOIN booking_sessions bs ON bp.session_id = bs.id
-            JOIN booking_requests br ON br.session_id = bs.id
-            LEFT JOIN users u_bp ON bp.user_id = u_bp.id
-            WHERE bp.participant_type = 'guest'
-              AND LOWER(COALESCE(u_bp.email, '')) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-              AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            UNION ALL
-            SELECT LOWER(u_bp2.email) as email, br.id as booking_id, br.request_date as last_date
-            FROM booking_participants bp2
-            JOIN booking_sessions bs2 ON bp2.session_id = bs2.id
-            JOIN booking_requests br ON br.session_id = bs2.id
-            JOIN users u_bp2 ON bp2.user_id = u_bp2.id
-            WHERE bp2.participant_type = 'member'
-              AND LOWER(u_bp2.email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-              AND LOWER(u_bp2.email) != LOWER(br.user_email)
-              AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
-              AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            UNION ALL
-            SELECT LOWER(er.user_email) as email, NULL::int as booking_id, e.event_date as last_date
+      const visitCacheKey = `${VISIT_COUNTS_CACHE_KEY}_${statusFilter}`;
+      const cachedVisits = !searchQuery && !isPaginated ? getCached<VisitCountsData>(visitCacheKey) : null;
+
+      if (cachedVisits) {
+        visitData = cachedVisits;
+      } else {
+        const memberIdsSql = sql.join(memberIds.map(id => sql`${id}`), sql`, `);
+        const memberEmailsSql = sql.join(memberEmails.map(e => sql`${e}`), sql`, `);
+
+        const [combinedBookingsActivityResult, eventsResult, wellnessResult, walkInCountResult] = await Promise.all([
+          db.execute(sql`
+            SELECT email, COUNT(DISTINCT booking_id) as booking_count, MAX(last_date) as last_date FROM (
+              SELECT LOWER(u_br.email) as email, br.id as booking_id, br.request_date as last_date
+              FROM booking_requests br
+              JOIN users u_br ON br.user_id = u_br.id
+              WHERE br.user_id IN (${memberIdsSql})
+                AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
+                AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(br_fallback.user_email) as email, br_fallback.id as booking_id, br_fallback.request_date as last_date
+              FROM booking_requests br_fallback
+              WHERE br_fallback.user_id IS NULL
+                AND LOWER(br_fallback.user_email) IN (${memberEmailsSql})
+                AND br_fallback.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
+                AND br_fallback.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(u_bp.email) as email, br.id as booking_id, br.request_date as last_date
+              FROM booking_participants bp
+              JOIN booking_sessions bs ON bp.session_id = bs.id
+              JOIN booking_requests br ON br.session_id = bs.id
+              JOIN users u_bp ON bp.user_id = u_bp.id
+              WHERE bp.participant_type = 'guest'
+                AND bp.user_id IN (${memberIdsSql})
+                AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
+                AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(g_fb.email) as email, br.id as booking_id, br.request_date as last_date
+              FROM booking_participants bp_fallback
+              JOIN booking_sessions bs_fb ON bp_fallback.session_id = bs_fb.id
+              JOIN booking_requests br ON br.session_id = bs_fb.id
+              JOIN guests g_fb ON bp_fallback.guest_id = g_fb.id
+              WHERE bp_fallback.participant_type = 'guest'
+                AND bp_fallback.user_id IS NULL
+                AND bp_fallback.guest_id IS NOT NULL
+                AND LOWER(g_fb.email) IN (${memberEmailsSql})
+                AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
+                AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(u_bp2.email) as email, br.id as booking_id, br.request_date as last_date
+              FROM booking_participants bp2
+              JOIN booking_sessions bs2 ON bp2.session_id = bs2.id
+              JOIN booking_requests br ON br.session_id = bs2.id
+              JOIN users u_bp2 ON bp2.user_id = u_bp2.id
+              WHERE bp2.participant_type = 'member'
+                AND bp2.user_id IN (${memberIdsSql})
+                AND bp2.user_id != br.user_id
+                AND br.status NOT IN ('cancelled', 'declined', 'cancellation_pending', 'deleted')
+                AND br.request_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(u_er.email) as email, NULL::int as booking_id, e.event_date as last_date
+              FROM event_rsvps er
+              JOIN events e ON er.event_id = e.id
+              JOIN users u_er ON er.matched_user_id = u_er.id
+              WHERE er.matched_user_id IN (${memberIdsSql})
+                AND er.status != 'cancelled'
+                AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(er_fallback.user_email) as email, NULL::int as booking_id, e.event_date as last_date
+              FROM event_rsvps er_fallback
+              JOIN events e ON er_fallback.event_id = e.id
+              WHERE er_fallback.matched_user_id IS NULL
+                AND LOWER(er_fallback.user_email) IN (${memberEmailsSql})
+                AND er_fallback.status != 'cancelled'
+                AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+              UNION ALL
+              SELECT LOWER(we.user_email) as email, NULL::int as booking_id, wc.date as last_date
+              FROM wellness_enrollments we
+              JOIN wellness_classes wc ON we.class_id = wc.id
+              WHERE LOWER(we.user_email) IN (${memberEmailsSql})
+                AND we.status != 'cancelled'
+                AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
+            ) combined
+            GROUP BY email
+          `).catch((error: unknown) => {
+            logger.error('[Members Directory] Combined bookings/activity query error', { extra: { error: getErrorMessage(error) } });
+            return { rows: [] };
+          }),
+          db.execute(sql`
+            SELECT COALESCE(LOWER(u_er.email), LOWER(er.user_email)) as email, COUNT(*) as count
             FROM event_rsvps er
             JOIN events e ON er.event_id = e.id
-            WHERE LOWER(er.user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
+            LEFT JOIN users u_er ON er.matched_user_id = u_er.id
+            WHERE (er.matched_user_id IN (${memberIdsSql}) OR (er.matched_user_id IS NULL AND LOWER(er.user_email) IN (${memberEmailsSql})))
               AND er.status != 'cancelled'
               AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-            UNION ALL
-            SELECT LOWER(we.user_email) as email, NULL::int as booking_id, wc.date as last_date
+            GROUP BY COALESCE(LOWER(u_er.email), LOWER(er.user_email))
+          `).catch((error: unknown) => {
+            logger.error('[Members Directory] Events query error', { extra: { error: getErrorMessage(error) } });
+            return { rows: [] };
+          }),
+          db.execute(sql`
+            SELECT LOWER(we.user_email) as email, COUNT(*) as count
             FROM wellness_enrollments we
             JOIN wellness_classes wc ON we.class_id = wc.id
-            WHERE LOWER(we.user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
+            WHERE LOWER(we.user_email) IN (${memberEmailsSql})
               AND we.status != 'cancelled'
               AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          ) combined
-          GROUP BY email
-        `).catch((error: unknown) => {
-          logger.error('[Members Directory] Combined bookings/activity query error', { extra: { error: getErrorMessage(error) } });
-          return { rows: [] };
-        }),
-        db.execute(sql`
-          SELECT LOWER(user_email) as email, COUNT(*) as count
-          FROM event_rsvps er
-          JOIN events e ON er.event_id = e.id
-          WHERE LOWER(er.user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-            AND er.status != 'cancelled'
-            AND e.event_date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          GROUP BY LOWER(user_email)
-        `).catch((error: unknown) => {
-          logger.error('[Members Directory] Events query error', { extra: { error: getErrorMessage(error) } });
-          return { rows: [] };
-        }),
-        db.execute(sql`
-          SELECT LOWER(we.user_email) as email, COUNT(*) as count
-          FROM wellness_enrollments we
-          JOIN wellness_classes wc ON we.class_id = wc.id
-          WHERE LOWER(we.user_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-            AND we.status != 'cancelled'
-            AND wc.date < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Los_Angeles')::date
-          GROUP BY LOWER(we.user_email)
-        `).catch((error: unknown) => {
-          logger.error('[Members Directory] Wellness query error', { extra: { error: getErrorMessage(error) } });
-          return { rows: [] };
-        }),
-        db.execute(sql`
-          SELECT LOWER(member_email) as email, COUNT(*)::int as count
-          FROM walk_in_visits
-          WHERE LOWER(member_email) IN (${sql.join(memberEmails.map(e => sql`${e}`), sql`, `)})
-          GROUP BY LOWER(member_email)
-        `).catch((error: unknown) => {
-          logger.error('[Members Directory] Walk-in count query error', { extra: { error: getErrorMessage(error) } });
-          return { rows: [] };
-        }),
-      ]);
+            GROUP BY LOWER(we.user_email)
+          `).catch((error: unknown) => {
+            logger.error('[Members Directory] Wellness query error', { extra: { error: getErrorMessage(error) } });
+            return { rows: [] };
+          }),
+          db.execute(sql`
+            SELECT LOWER(member_email) as email, COUNT(*)::int as count
+            FROM walk_in_visits
+            WHERE LOWER(member_email) IN (${memberEmailsSql})
+            GROUP BY LOWER(member_email)
+          `).catch((error: unknown) => {
+            logger.error('[Members Directory] Walk-in count query error', { extra: { error: getErrorMessage(error) } });
+            return { rows: [] };
+          }),
+        ]);
 
-      for (const row of combinedBookingsActivityResult.rows || []) {
-        const r = row as { email: string; booking_count: number | string; last_date: Date | string | null };
-        bookingCounts[r.email] = Number(r.booking_count);
-        if (r.last_date) {
-          const dateVal = formatDateFromDb(r.last_date as Date | string);
-          lastActivityMap[r.email] = dateVal;
+        for (const row of combinedBookingsActivityResult.rows || []) {
+          const r = row as { email: string; booking_count: number | string; last_date: Date | string | null };
+          visitData.bookingCounts[r.email] = Number(r.booking_count);
+          if (r.last_date) {
+            const dateVal = formatDateFromDb(r.last_date as Date | string);
+            visitData.lastActivityMap[r.email] = dateVal;
+          }
+        }
+
+        for (const row of eventsResult.rows || []) {
+          const r = row as { email: string; count: number | string };
+          visitData.eventCounts[r.email] = Number(r.count);
+        }
+
+        for (const row of wellnessResult.rows || []) {
+          const r = row as { email: string; count: number | string };
+          visitData.wellnessCounts[r.email] = Number(r.count);
+        }
+
+        for (const row of walkInCountResult.rows || []) {
+          const r = row as { email: string; count: number };
+          visitData.walkInCounts[r.email] = r.count;
+        }
+
+        if (!searchQuery && !isPaginated) {
+          setCache(visitCacheKey, visitData, VISIT_COUNTS_CACHE_TTL);
         }
       }
-
-      for (const row of eventsResult.rows || []) {
-        const r = row as { email: string; count: number | string };
-        eventCounts[r.email] = Number(r.count);
-      }
-
-      for (const row of wellnessResult.rows || []) {
-        const r = row as { email: string; count: number | string };
-        wellnessCounts[r.email] = Number(r.count);
-      }
-
-      for (const row of walkInCountResult.rows || []) {
-        const r = row as { email: string; count: number };
-        walkInCounts[r.email] = r.count;
-      }
     }
+
+    const { bookingCounts, eventCounts, wellnessCounts, walkInCounts, lastActivityMap } = visitData;
 
     const contacts = allMembers.map(member => {
       const emailLower = member.email?.toLowerCase() || '';

@@ -120,7 +120,7 @@ export async function getBookingParticipants(
         }
       }
 
-      const updatePromises: Promise<unknown>[] = [];
+      const nameFixes: Array<{ participantId: number; resolvedName: string }> = [];
       for (let i = 0; i < participants.length; i++) {
         const p = participants[i];
         if (!p.displayName || !p.displayName.includes('@')) continue;
@@ -134,16 +134,21 @@ export async function getBookingParticipants(
 
         if (resolvedName) {
           participants[i] = { ...p, displayName: resolvedName };
-          updatePromises.push(
-            db.update(bookingParticipants)
-              .set({ displayName: resolvedName })
-              .where(eq(bookingParticipants.id, p.id))
-          );
+          nameFixes.push({ participantId: p.id, resolvedName });
         }
       }
 
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises);
+      if (nameFixes.length > 0) {
+        const caseWhen = sql.join(
+          nameFixes.map(f => sql`WHEN ${f.participantId} THEN ${f.resolvedName}`),
+          sql` `
+        );
+        const ids = sql.join(nameFixes.map(f => sql`${f.participantId}`), sql`, `);
+        await db.execute(sql`
+          UPDATE booking_participants
+          SET display_name = CASE id ${caseWhen} END
+          WHERE id IN (${ids})
+        `);
       }
     }
   }

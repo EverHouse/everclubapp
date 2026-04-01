@@ -528,60 +528,85 @@ export async function backfillWellnessToCalendar(): Promise<{ created: number; t
     
     const calendar = await getGoogleCalendarClient();
     
-    for (const wc of classesWithoutCalendarRows) {
-      try {
-        const calendarTitle = `${wc.title} with ${wc.instructor}`;
-        const calendarDescription = wc.description || '';
-        const startTime24 = convertTo24Hour(wc.time);
-        const endTime24 = calculateEndTime(startTime24, wc.duration);
-        
-        const extendedProps: Record<string, string> = {
-          'ehApp_type': 'wellness',
-          'ehApp_id': String(wc.id),
-        };
-        if (wc.category) extendedProps['ehApp_category'] = wc.category;
-        if (wc.duration) extendedProps['ehApp_duration'] = wc.duration;
-        if (wc.spots) extendedProps['ehApp_spots'] = wc.spots;
-        if (wc.status) extendedProps['ehApp_status'] = wc.status;
-        if (wc.imageUrl) extendedProps['ehApp_imageUrl'] = wc.imageUrl;
-        if (wc.externalUrl) extendedProps['ehApp_externalUrl'] = wc.externalUrl;
-        
-        const formatDateToISO = (d: Date | string): string => {
-          if (typeof d === 'string') return d;
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        };
-        const dateStr = formatDateToISO(wc.date);
-        
-        const response = await calendar.events.insert({
-          calendarId,
-          requestBody: {
-            summary: calendarTitle,
-            description: calendarDescription,
-            start: {
-              dateTime: `${dateStr}T${startTime24}`,
-              timeZone: 'America/Los_Angeles',
-            },
-            end: {
-              dateTime: `${dateStr}T${endTime24}`,
-              timeZone: 'America/Los_Angeles',
-            },
-            extendedProperties: {
-              shared: extendedProps,
-            },
+    const formatDateToISO = (d: Date | string): string => {
+      if (typeof d === 'string') return d;
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const calendarResults: Array<{ id: number; googleCalendarId: string }> = [];
+    const createOneEvent = async (wc: typeof classesWithoutCalendarRows[number]) => {
+      const calendarTitle = `${wc.title} with ${wc.instructor}`;
+      const calendarDescription = wc.description || '';
+      const startTime24 = convertTo24Hour(wc.time);
+      const endTime24 = calculateEndTime(startTime24, wc.duration);
+
+      const extendedProps: Record<string, string> = {
+        'ehApp_type': 'wellness',
+        'ehApp_id': String(wc.id),
+      };
+      if (wc.category) extendedProps['ehApp_category'] = wc.category;
+      if (wc.duration) extendedProps['ehApp_duration'] = wc.duration;
+      if (wc.spots) extendedProps['ehApp_spots'] = wc.spots;
+      if (wc.status) extendedProps['ehApp_status'] = wc.status;
+      if (wc.imageUrl) extendedProps['ehApp_imageUrl'] = wc.imageUrl;
+      if (wc.externalUrl) extendedProps['ehApp_externalUrl'] = wc.externalUrl;
+
+      const dateStr = formatDateToISO(wc.date);
+
+      const response = await calendar.events.insert({
+        calendarId,
+        requestBody: {
+          summary: calendarTitle,
+          description: calendarDescription,
+          start: {
+            dateTime: `${dateStr}T${startTime24}`,
+            timeZone: 'America/Los_Angeles',
           },
-        });
-        
-        const googleCalendarId = response.data.id || null;
-        
-        if (googleCalendarId) {
-          await db.execute(sql`UPDATE wellness_classes SET google_calendar_id = ${googleCalendarId} WHERE id = ${wc.id}`);
+          end: {
+            dateTime: `${dateStr}T${endTime24}`,
+            timeZone: 'America/Los_Angeles',
+          },
+          extendedProperties: {
+            shared: extendedProps,
+          },
+        },
+      });
+
+      return { id: wc.id, googleCalendarId: response.data.id || null };
+    };
+
+    const concurrency = 5;
+    for (let i = 0; i < classesWithoutCalendarRows.length; i += concurrency) {
+      const chunk = classesWithoutCalendarRows.slice(i, i + concurrency);
+      const results = await Promise.allSettled(chunk.map(createOneEvent));
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === 'fulfilled' && result.value.googleCalendarId) {
+          calendarResults.push({ id: result.value.id, googleCalendarId: result.value.googleCalendarId });
           created++;
+        } else if (result.status === 'rejected') {
+          errors.push(`Class ${chunk[j].id}: ${getErrorMessage(result.reason)}`);
         }
-      } catch (err: unknown) {
-        errors.push(`Class ${wc.id}: ${getErrorMessage(err)}`);
+      }
+    }
+
+    if (calendarResults.length > 0) {
+      const batchSize = 50;
+      for (let i = 0; i < calendarResults.length; i += batchSize) {
+        const batch = calendarResults.slice(i, i + batchSize);
+        const caseWhen = sql.join(
+          batch.map(r => sql`WHEN ${r.id} THEN ${r.googleCalendarId}`),
+          sql` `
+        );
+        const ids = sql.join(batch.map(r => sql`${r.id}`), sql`, `);
+        await db.execute(sql`
+          UPDATE wellness_classes
+          SET google_calendar_id = CASE id ${caseWhen} END
+          WHERE id IN (${ids})
+        `);
       }
     }
     

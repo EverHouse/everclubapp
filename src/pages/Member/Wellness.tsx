@@ -182,9 +182,10 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
   const { data: classes = [], isLoading: classesLoading, refetch: refetchClasses, error: classesError } = useQuery({
     queryKey: ['wellness-classes'],
     queryFn: async () => {
-      const { ok, data } = await apiRequest<Array<Record<string, unknown>>>('/api/wellness-classes?active_only=true');
+      const { ok, data } = await apiRequest<{ data: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>('/api/wellness-classes?active_only=true');
       if (ok && data) {
-        return data.map((c: Record<string, unknown>): WellnessClass => {
+        const rows = Array.isArray(data) ? data : data.data;
+        return rows.map((c: Record<string, unknown>): WellnessClass => {
           const spotsRemaining = c.spots_remaining !== null ? parseInt(String(c.spots_remaining), 10) : null;
           const enrolledCount = parseInt(String(c.enrolled_count), 10) || 0;
           const waitlistCount = parseInt(String(c.waitlist_count), 10) || 0;

@@ -6,6 +6,7 @@ import { notifyMember } from './notificationService';
 import { updateHubSpotContactVisitCount } from './memberSync';
 import { sendFirstVisitConfirmationEmail } from '../emails/firstVisitEmail';
 import { getErrorMessage } from '../utils/errorUtils';
+import { invalidateCache } from './queryCache';
 
 interface MemberRow {
   id: string;
@@ -89,6 +90,8 @@ export async function processWalkInCheckin(params: WalkInCheckinParams): Promise
     if (newVisitCount === null) {
       return { success: false, memberName: displayName, memberEmail: member.email, tier: member.tier, lifetimeVisits: member.lifetime_visits || 0, pinnedNotes: [], membershipStatus: member.membership_status, alreadyCheckedIn: true, error: 'This member was already checked in less than 2 minutes ago' };
     }
+
+    invalidateCache('members_directory');
 
     if (member.hubspot_id) {
       updateHubSpotContactVisitCount(String(member.hubspot_id), newVisitCount)

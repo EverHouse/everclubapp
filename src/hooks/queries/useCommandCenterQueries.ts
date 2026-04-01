@@ -78,7 +78,8 @@ export function useCommandCenterScheduling() {
 
       const tours = toursRes?.ok ? await toursRes.json() : [];
       const events = eventsRes?.ok ? await eventsRes.json() : [];
-      const wellness = wellnessRes?.ok ? await wellnessRes.json() : [];
+      const wellnessRaw = wellnessRes?.ok ? await wellnessRes.json() : [];
+      const wellness = Array.isArray(wellnessRaw) ? wellnessRaw : (wellnessRaw.data || []);
 
       return { tours, events, wellness };
     },

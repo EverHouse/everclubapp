@@ -75,14 +75,15 @@ const WhatsOn: React.FC = () => {
     try {
       const [eventsData, wellnessData] = await Promise.all([
         fetchWithCredentials<Omit<Event, 'type'>[]>('/api/events?visibility=public').catch(() => null),
-        fetchWithCredentials<Omit<WellnessClass, 'type'>[]>('/api/wellness-classes?active_only=true').catch(() => null)
+        fetchWithCredentials<{ data: Omit<WellnessClass, 'type'>[] }>('/api/wellness-classes?active_only=true').catch(() => null)
       ]);
       
       if (eventsData) {
         setEvents(eventsData.map((e) => ({ ...e, type: 'event' as const })));
       }
       if (wellnessData) {
-        setWellnessClasses(wellnessData.map((w) => ({ ...w, type: 'wellness' as const })));
+        const wellnessRows = Array.isArray(wellnessData) ? wellnessData : wellnessData.data;
+        setWellnessClasses(wellnessRows.map((w) => ({ ...w, type: 'wellness' as const })));
       }
     } catch (error: unknown) {
       console.error('Failed to fetch data:', error);
