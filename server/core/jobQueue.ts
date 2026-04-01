@@ -188,7 +188,7 @@ async function markJobFailed(jobId: number, error: string, retryCount: number, m
         3
       );
     } else {
-      const backoffMs = Math.min(1000 * Math.pow(2, retryCount), 60000);
+      const backoffMs = Math.min(60000 * Math.pow(2, retryCount), 3600000);
       const nextScheduledIso = new Date(Date.now() + backoffMs).toISOString();
       await queryFn(
         `UPDATE job_queue SET last_error = $1, retry_count = retry_count + 1, scheduled_for = $2::timestamptz, locked_at = NULL, locked_by = NULL WHERE id = $3`,
@@ -206,7 +206,7 @@ async function markJobFailed(jobId: number, error: string, retryCount: number, m
 }
 
 async function executeJob(job: { id: number; jobType: string; payload: Record<string, unknown>; retryCount: number; maxRetries: number }): Promise<void> {
-  const { jobType, payload } = job;
+  const { id: jobId, jobType, payload } = job;
   
   try {
     switch (jobType) {
@@ -289,7 +289,7 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
             email: payload.email as string
           }
         }, {
-          idempotencyKey: `credit_refund_${payload.paymentIntentId}_${payload.amountCents}`
+          idempotencyKey: `job_${jobId}_credit_refund_${payload.paymentIntentId}_${payload.amountCents}`
         });
         logger.info(`[JobQueue] Applied credit refund of $${(Number(payload.amountCents) / 100).toFixed(2)} for ${payload.email}`);
         break;
@@ -305,7 +305,7 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
             description: `Account credit applied to payment ${payload.paymentIntentId}`,
           },
           {
-            idempotencyKey: `credit_consume_${payload.paymentIntentId}_${payload.amountCents}`
+            idempotencyKey: `job_${jobId}_credit_consume_${payload.paymentIntentId}_${payload.amountCents}`
           }
         );
         logger.info(`[JobQueue] Consumed account credit of $${(Number(payload.amountCents) / 100).toFixed(2)} for ${payload.email}`);
@@ -325,7 +325,7 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
           }
           const refund = await stripeRefund.refunds.create(
             refundCreateParams,
-            { idempotencyKey: payload.idempotencyKey as string }
+            { idempotencyKey: `job_${jobId}_${payload.paymentIntentId}` }
           );
           logger.info(`[JobQueue] Auto-refund issued: ${refund.id} for PI ${payload.paymentIntentId}, amount: ${payload.amountCents || 'full'}`);
 
@@ -362,7 +362,7 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
             currency: 'usd',
             description: payload.description as string,
           },
-          { idempotencyKey: payload.idempotencyKey as string }
+          { idempotencyKey: `job_${jobId}_balance_refund_${payload.stripeCustomerId}_${payload.amountCents}` }
         );
         logger.info(`[JobQueue] Balance refund issued: ${balanceTxn.id} for customer ${payload.stripeCustomerId}, amount: $${((payload.amountCents as number) / 100).toFixed(2)}`);
         if (payload.balanceRecordId) {
@@ -482,6 +482,7 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
 }
 
 let processingInterval: ReturnType<typeof setInterval> | null = null;
+let startupTimeout: ReturnType<typeof setTimeout> | null = null;
 let isProcessingJobs = false;
 let consecutiveFailures = 0;
 const MAX_BACKOFF_MULTIPLIER = 6;
@@ -501,14 +502,15 @@ export async function processJobs(): Promise<number> {
 }
 
 export function startJobProcessor(intervalMs: number = 5000): void {
-  if (processingInterval) {
+  if (processingInterval || startupTimeout) {
     logger.info('[JobQueue] Processor already running');
     return;
   }
   
   logger.info(`[Startup] Job queue processor enabled (runs every ${intervalMs / 1000}s, starting after 15s warmup)`);
   
-  setTimeout(() => {
+  startupTimeout = setTimeout(() => {
+    startupTimeout = null;
     processJobs().catch(err => {
       logger.error('[JobQueue] Initial job scan error:', { extra: { error: getErrorMessage(err) } });
     });
@@ -553,6 +555,10 @@ export function startJobProcessor(intervalMs: number = 5000): void {
 }
 
 export function stopJobProcessor(): void {
+  if (startupTimeout) {
+    clearTimeout(startupTimeout);
+    startupTimeout = null;
+  }
   if (processingInterval) {
     clearInterval(processingInterval);
     processingInterval = null;
@@ -562,9 +568,14 @@ export function stopJobProcessor(): void {
 
 export async function cleanupOldJobs(daysToKeep: number = 7): Promise<number> {
   const result = await queryWithRetry(
-    `DELETE FROM job_queue 
-     WHERE status IN ('completed', 'failed') 
-       AND processed_at < NOW() - INTERVAL '1 day' * $1
+    `WITH to_delete AS (
+       SELECT id FROM job_queue
+       WHERE status IN ('completed', 'failed')
+         AND processed_at < NOW() - INTERVAL '1 day' * $1
+       LIMIT 5000
+     )
+     DELETE FROM job_queue
+     WHERE id IN (SELECT id FROM to_delete)
      RETURNING id`,
     [daysToKeep],
     3
