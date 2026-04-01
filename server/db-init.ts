@@ -1587,9 +1587,9 @@ export async function ensureDatabaseConstraints() {
             WHEN 'no_show' THEN
               valid := NEW.status IN ('attended', 'cancelled');
             WHEN 'cancelled' THEN
-              valid := NEW.status IN ('pending');
+              valid := NEW.status IN ('pending', 'approved');
             WHEN 'declined' THEN
-              valid := NEW.status IN ('pending', 'cancelled');
+              valid := NEW.status IN ('pending', 'cancelled', 'approved');
             WHEN 'expired' THEN
               valid := NEW.status IN ('pending');
             ELSE
