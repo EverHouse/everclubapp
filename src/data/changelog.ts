@@ -8,6 +8,23 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.10",
+    date: "2026-04-01",
+    title: "Infrastructure & Performance",
+    changes: [
+      "Fixed: Booking conflict checks were failing due to missing database column (version column for optimistic locking).",
+      "Improved: Zero TypeScript compilation errors across the entire server codebase.",
+      "Improved: Database queries optimized — bulk operations for merch stock, roster updates, and wellness calendar sync.",
+      "Improved: Wellness classes API now returns paginated results for better performance.",
+      "Improved: Member directory uses cached visit counts for faster page loads.",
+      "Improved: All API routes now validate input data to prevent bad requests.",
+      "Security: Session cookies hardened against cross-site request forgery.",
+      "Improved: Frontend bundle split for faster initial page loads (smaller JavaScript chunks).",
+      "Improved: Service worker uses smarter caching strategies for static assets.",
+      "Improved: Database connection pool tuned for production workloads.",
+    ]
+  },
+  {
     version: "8.98.9",
     date: "2026-04-01",
     title: "Critical Bug Fixes",

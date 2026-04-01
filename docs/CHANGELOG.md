@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.10] - 2026-04-01
+
+### Fix: Missing `version` column on `booking_requests`
+- The Drizzle schema defined an optimistic locking `version` column on `booking_requests`, but the column was never added to the actual database.
+- This caused all booking conflict checks (availability, double-booking prevention) to fail with `column "version" does not exist`.
+- **Fix**: Added `ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1`.
+
+### Infrastructure improvements (Tasks #351–#354)
+- **TypeScript**: All 149 server compilation errors fixed — error baseline at zero.
+- **Database optimization**: Bulk merch stock ops, roster batch updates, wellness calendar parallelized, directory visit caching, wellness classes pagination.
+- **Security**: Zod input validation on all unvalidated routes, session cookie `sameSite: lax`, npm audit fixes.
+- **Performance**: Bundle splitting (d3, supabase), service worker cache strategies (cache-first for assets, stale-while-revalidate for API), DB pool tuning with env var overrides.
+
 ## [8.98.9] - 2026-04-01
 
 ### Bugfix: Wellness class update crashes when availability blocking is enabled
