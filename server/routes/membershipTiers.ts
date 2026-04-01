@@ -13,7 +13,35 @@ import { logFromRequest } from '../core/auditLog';
 import { getErrorCode, safeErrorDetail, getErrorMessage } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache as invalidateQueryCache } from '../core/queryCache';
 import { broadcastCafeMenuUpdate } from '../core/websocket';
-import { validateBody } from '../middleware/validate';
+import { validateBody, validateQuery } from '../middleware/validate';
+
+const tiersQuerySchema = z.object({
+  active: z.enum(['true', 'false']).optional(),
+}).passthrough();
+
+const feeProductSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  price_string: z.string().optional(),
+  price_cents: z.number().int().min(0).optional(),
+  description: z.string().optional().nullable(),
+  button_text: z.string().optional().nullable(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+  product_type: z.string().optional(),
+  fee_type: z.string().optional(),
+});
+
+const feeProductUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  price_string: z.string().optional().nullable(),
+  price_cents: z.number().int().min(0).optional().nullable(),
+  description: z.string().optional().nullable(),
+  button_text: z.string().optional().nullable(),
+  sort_order: z.number().int().optional(),
+  is_active: z.boolean().optional(),
+});
 
 const tierBaseFields = {
   description: z.string().optional().nullable(),
@@ -81,7 +109,7 @@ function sanitizePassColor(value: unknown): string | null {
 const router = Router();
 
 // PUBLIC ROUTE - membership tiers displayed on public website
-router.get('/api/membership-tiers', async (req, res) => {
+router.get('/api/membership-tiers', validateQuery(tiersQuerySchema), async (req, res) => {
   try {
     const { active } = req.query;
     const cacheKey = active === 'true' ? `${TIERS_CACHE_KEY}_active` : `${TIERS_CACHE_KEY}_all`;
@@ -116,7 +144,7 @@ router.get('/api/fee-products', isStaffOrAdmin, async (_req, res) => {
   }
 });
 
-router.put('/api/fee-products/:id', isAdmin, async (req, res) => {
+router.put('/api/fee-products/:id', isAdmin, validateBody(feeProductUpdateSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, slug, description, button_text, sort_order, is_active, price_cents } = req.body;
@@ -171,14 +199,10 @@ router.put('/api/fee-products/:id', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/fee-products', isAdmin, async (req, res) => {
+router.post('/api/fee-products', isAdmin, validateBody(feeProductSchema), async (req, res) => {
   try {
     const { name, slug, description, button_text, sort_order, is_active, price_cents, product_type, fee_type } = req.body;
     let { price_string } = req.body;
-
-    if (!name || !slug) {
-      return res.status(400).json({ error: 'name and slug are required' });
-    }
 
     if (!price_string && price_cents != null && price_cents > 0) {
       price_string = `$${(Number(price_cents) / 100).toFixed(2)}`;

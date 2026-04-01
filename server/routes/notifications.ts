@@ -6,6 +6,21 @@ import { isAuthenticated, isAdminEmail } from '../core/middleware';
 import { getErrorMessage } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
 import { getSessionUser } from '../types/session';
+import { z } from 'zod';
+import { validateBody, validateQuery } from '../middleware/validate';
+
+const notificationQuerySchema = z.object({
+  user_email: z.string().optional(),
+  unread_only: z.enum(['true', 'false']).optional(),
+}).passthrough();
+
+const notificationCountQuerySchema = z.object({
+  user_email: z.string().optional(),
+}).passthrough();
+
+const notificationEmailSchema = z.object({
+  user_email: z.string().email().optional().nullable(),
+}).passthrough();
 
 const router = Router();
 
@@ -44,7 +59,7 @@ async function getEffectiveEmail(req: Request, requestedEmail?: string): Promise
   return { email: sessionEmail, isStaff };
 }
 
-router.get('/api/notifications', isAuthenticated, async (req, res) => {
+router.get('/api/notifications', isAuthenticated, validateQuery(notificationQuerySchema), async (req, res) => {
   try {
     const { user_email: rawEmail, unread_only } = req.query;
     
@@ -79,7 +94,7 @@ router.get('/api/notifications', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/api/notifications/count', isAuthenticated, async (req, res) => {
+router.get('/api/notifications/count', isAuthenticated, validateQuery(notificationCountQuerySchema), async (req, res) => {
   try {
     const { user_email: rawEmail } = req.query;
     
@@ -100,7 +115,7 @@ router.get('/api/notifications/count', isAuthenticated, async (req, res) => {
   }
 });
 
-router.put('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
+router.put('/api/notifications/:id/read', isAuthenticated, validateBody(notificationEmailSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const user_email = (req.body?.user_email as string | undefined)?.trim()?.toLowerCase();
@@ -125,7 +140,7 @@ router.put('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
   }
 });
 
-router.put('/api/notifications/mark-all-read', isAuthenticated, async (req, res) => {
+router.put('/api/notifications/mark-all-read', isAuthenticated, validateBody(notificationEmailSchema), async (req, res) => {
   try {
     const { user_email: raw_user_email } = req.body;
     const user_email = (raw_user_email as string | undefined)?.trim()?.toLowerCase();
@@ -146,7 +161,7 @@ router.put('/api/notifications/mark-all-read', isAuthenticated, async (req, res)
   }
 });
 
-router.delete('/api/notifications/dismiss-all', isAuthenticated, async (req, res) => {
+router.delete('/api/notifications/dismiss-all', isAuthenticated, validateBody(notificationEmailSchema), async (req, res) => {
   try {
     const { user_email: raw_user_email } = req.body;
     const user_email = (raw_user_email as string | undefined)?.trim()?.toLowerCase();
@@ -167,7 +182,7 @@ router.delete('/api/notifications/dismiss-all', isAuthenticated, async (req, res
   }
 });
 
-router.delete('/api/notifications/:id', isAuthenticated, async (req, res) => {
+router.delete('/api/notifications/:id', isAuthenticated, validateBody(notificationEmailSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const idParse = numericIdParam.safeParse(id);

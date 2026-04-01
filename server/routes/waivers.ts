@@ -9,6 +9,12 @@ import { logFromRequest } from '../core/auditLog';
 import { logger } from '../core/logger';
 import { safeSendEmail } from '../utils/resend';
 import { getErrorMessage } from '../utils/errorUtils';
+import { z } from 'zod';
+import { validateBody } from '../middleware/validate';
+
+const waiverVersionSchema = z.object({
+  version: z.string().regex(/^\d+\.\d+$/, 'Invalid version format. Use format like "1.0", "2.0"'),
+});
 
 const router = Router();
 
@@ -120,7 +126,7 @@ router.get('/api/waivers/current-version', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.post('/api/waivers/update-version', isStaffOrAdmin, async (req, res) => {
+router.post('/api/waivers/update-version', isStaffOrAdmin, validateBody(waiverVersionSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (sessionUser?.role !== 'admin') {
@@ -128,10 +134,6 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, async (req, res) => {
     }
 
     const { version } = req.body;
-    
-    if (!version || typeof version !== 'string' || !/^\d+\.\d+$/.test(version)) {
-      return res.status(400).json({ error: 'Invalid version format. Use format like "1.0", "2.0"' });
-    }
 
     await db.insert(systemSettings)
       .values({

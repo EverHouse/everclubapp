@@ -10,6 +10,22 @@ import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 import { isSyntheticEmail, notifyMember, notifyAllStaff } from '../core/notificationService';
 import { sendPushNotification, sendPushNotificationToStaff, isPushNotificationsEnabled } from '../core/pushService';
+import { z } from 'zod';
+import { validateBody } from '../middleware/validate';
+
+const pushSubscribeSchema = z.object({
+  subscription: z.object({
+    endpoint: z.string().url(),
+    keys: z.object({
+      p256dh: z.string().min(1),
+      auth: z.string().min(1),
+    }),
+  }),
+});
+
+const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().url(),
+});
 
 export { sendPushNotification, sendPushNotificationToStaff, isPushNotificationsEnabled };
 
@@ -79,14 +95,10 @@ router.get('/api/push/vapid-public-key', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
 });
 
-router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
+router.post('/api/push/subscribe', isAuthenticated, validateBody(pushSubscribeSchema), async (req, res) => {
   try {
     const { subscription } = req.body;
     const userEmail = req.session?.user?.email;
-    
-    if (!subscription) {
-      return res.status(400).json({ error: 'subscription is required' });
-    }
     
     const { endpoint, keys } = subscription;
     
@@ -114,14 +126,10 @@ router.post('/api/push/subscribe', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/api/push/unsubscribe', isAuthenticated, async (req, res) => {
+router.post('/api/push/unsubscribe', isAuthenticated, validateBody(pushUnsubscribeSchema), async (req, res) => {
   try {
     const { endpoint } = req.body;
     const userEmail = req.session?.user?.email;
-    
-    if (!endpoint) {
-      return res.status(400).json({ error: 'endpoint is required' });
-    }
     
     await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userEmail, userEmail!)));
     

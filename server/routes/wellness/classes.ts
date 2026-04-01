@@ -24,6 +24,73 @@ import {
   updateWellnessAvailabilityBlocks,
 } from './helpers';
 import { createWellnessEnrollment } from '../../core/registrationService';
+import { z } from 'zod';
+import { validateBody, validateQuery } from '../../middleware/validate';
+
+const wellnessClassCreateSchema = z.object({
+  title: z.string().min(1),
+  time: z.string().min(1),
+  instructor: z.string().min(1),
+  duration: z.string().min(1),
+  category: z.string().min(1),
+  date: z.string().min(1),
+  spots: z.union([z.string(), z.number()]).optional().nullable(),
+  status: z.string().optional(),
+  description: z.string().optional().nullable(),
+  image_url: z.string().optional().nullable(),
+  external_url: z.string().optional().nullable(),
+  block_bookings: z.boolean().optional(),
+  block_simulators: z.union([z.boolean(), z.string()]).optional(),
+  block_conference_room: z.union([z.boolean(), z.string()]).optional(),
+  capacity: z.number().int().optional().nullable(),
+  waitlist_enabled: z.boolean().optional(),
+});
+
+const wellnessClassUpdateSchema = z.object({
+  title: z.string().min(1).optional(),
+  time: z.string().min(1).optional(),
+  instructor: z.string().min(1).optional(),
+  duration: z.string().min(1).optional(),
+  category: z.string().min(1).optional(),
+  date: z.string().min(1).optional(),
+  spots: z.union([z.string(), z.number()]).optional().nullable(),
+  status: z.string().optional(),
+  description: z.string().optional().nullable(),
+  is_active: z.boolean().optional(),
+  image_url: z.string().optional().nullable(),
+  external_url: z.string().optional().nullable(),
+  block_bookings: z.union([z.boolean(), z.string()]).optional(),
+  block_simulators: z.union([z.boolean(), z.string()]).optional(),
+  block_conference_room: z.union([z.boolean(), z.string()]).optional(),
+  capacity: z.number().int().optional().nullable(),
+  waitlist_enabled: z.union([z.boolean(), z.string()]).optional(),
+  apply_to_recurring: z.boolean().optional(),
+});
+
+const wellnessMarkReviewedSchema = z.object({
+  applyToAll: z.boolean().optional(),
+});
+
+const wellnessEnrollmentCreateSchema = z.object({
+  class_id: z.union([z.number().int(), z.string().regex(/^\d+$/)]),
+  user_email: z.string().email(),
+});
+
+const wellnessManualEnrollSchema = z.object({
+  email: z.string().email(),
+});
+
+const wellnessClassQuerySchema = z.object({
+  active_only: z.enum(['true', 'false']).optional(),
+  include_archived: z.enum(['true', 'false']).optional(),
+  include_inactive: z.enum(['true', 'false']).optional(),
+  end_date: z.string().optional(),
+}).passthrough();
+
+const wellnessEnrollmentQuerySchema = z.object({
+  user_email: z.string().optional(),
+  include_past: z.enum(['true', 'false']).optional(),
+}).passthrough();
 
 const router = Router();
 
@@ -172,7 +239,7 @@ router.get('/api/wellness-classes/needs-review', isStaffOrAdmin, async (req, res
   }
 });
 
-router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (req, res) => {
+router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, validateBody(wellnessMarkReviewedSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const idParse = numericIdParam.safeParse(id);
@@ -266,7 +333,7 @@ router.post('/api/wellness-classes/:id/mark-reviewed', isStaffOrAdmin, async (re
 });
 
 // PUBLIC ROUTE
-router.get('/api/wellness-classes', async (req, res) => {
+router.get('/api/wellness-classes', validateQuery(wellnessClassQuerySchema), async (req, res) => {
   try {
     const { active_only, include_archived, include_inactive, end_date } = req.query;
     const sqlConditions: ReturnType<typeof sql>[] = [];
@@ -328,13 +395,9 @@ router.get('/api/wellness-classes', async (req, res) => {
   }
 });
 
-router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
+router.post('/api/wellness-classes', isStaffOrAdmin, validateBody(wellnessClassCreateSchema), async (req, res) => {
   try {
     const { title, time, instructor, duration, category, spots, status, description, date, image_url, external_url, block_bookings, block_simulators, block_conference_room, capacity, waitlist_enabled } = req.body;
-    
-    if (!title || !time || !instructor || !duration || !category || !date) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
     
     if (!capacity && !spots) {
       return res.status(400).json({ error: 'Number of spots is required' });
@@ -449,7 +512,7 @@ router.post('/api/wellness-classes', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
+router.put('/api/wellness-classes/:id', isStaffOrAdmin, validateBody(wellnessClassUpdateSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, time, instructor, duration, category, spots, status, description, date, is_active, image_url, external_url, block_bookings, block_simulators, block_conference_room, capacity, waitlist_enabled, apply_to_recurring } = req.body;
@@ -801,7 +864,7 @@ router.put('/api/wellness-classes/:id', isStaffOrAdmin, async (req, res) => {
 });
 
 // Wellness enrollments endpoints
-router.get('/api/wellness-enrollments', async (req, res) => {
+router.get('/api/wellness-enrollments', validateQuery(wellnessEnrollmentQuerySchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     
@@ -883,18 +946,12 @@ router.get('/api/wellness-enrollments', async (req, res) => {
   }
 });
 
-router.post('/api/wellness-enrollments', isAuthenticated, async (req, res) => {
+router.post('/api/wellness-enrollments', isAuthenticated, validateBody(wellnessEnrollmentCreateSchema), async (req, res) => {
   try {
     const { class_id: rawClassId, user_email: raw_user_email } = req.body;
     const user_email = raw_user_email?.trim()?.toLowerCase();
     
-    if (!rawClassId || !user_email) {
-      return res.status(400).json({ error: 'Missing class_id or user_email' });
-    }
     const class_id = parseInt(String(rawClassId), 10);
-    if (isNaN(class_id)) {
-      return res.status(400).json({ error: 'Invalid class_id' });
-    }
     
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -1191,7 +1248,7 @@ router.get('/api/wellness-classes/:id/enrollments', isStaffOrAdmin, async (req, 
   }
 });
 
-router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, async (req, res) => {
+router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, validateBody(wellnessManualEnrollSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const idParse = numericIdParam.safeParse(id);
@@ -1200,10 +1257,6 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, asyn
     if (isNaN(classId)) return res.status(400).json({ error: 'Invalid wellness class ID' });
     const { email: rawEmail } = req.body;
     const email = rawEmail?.trim()?.toLowerCase();
-    
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({ error: 'Valid email is required' });
-    }
 
     const existingEnrollment = await db.select()
       .from(wellnessEnrollments)

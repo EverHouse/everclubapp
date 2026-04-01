@@ -13,6 +13,20 @@ import { withRetry } from '../core/retry';
 import { getSessionUser } from '../types/session';
 import { logFromRequest } from '../core/auditLog';
 import { requiredStringParam } from '../middleware/paramSchemas';
+import { z } from 'zod';
+import { validateBody, validateQuery } from '../middleware/validate';
+
+const guestPassUseSchema = z.object({
+  guest_name: z.string().optional(),
+});
+
+const guestPassUpdateSchema = z.object({
+  passes_total: z.number().int().min(0),
+});
+
+const guestPassQuerySchema = z.object({
+  tier: z.string().optional(),
+}).passthrough();
 
 const router = Router();
 
@@ -30,7 +44,7 @@ async function isStaffOrAdminCheck(email: string): Promise<boolean> {
   return !!staff;
 }
 
-router.get('/api/guest-passes/:email', isAuthenticated, async (req, res) => {
+router.get('/api/guest-passes/:email', isAuthenticated, validateQuery(guestPassQuerySchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -150,7 +164,7 @@ router.get('/api/guest-passes/:email', isAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/api/guest-passes/:email/use', isAuthenticated, async (req, res) => {
+router.post('/api/guest-passes/:email/use', isAuthenticated, validateBody(guestPassUseSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {
@@ -220,7 +234,7 @@ router.post('/api/guest-passes/:email/use', isAuthenticated, async (req, res) =>
   }
 });
 
-router.put('/api/guest-passes/:email', isStaffOrAdmin, async (req, res) => {
+router.put('/api/guest-passes/:email', isStaffOrAdmin, validateBody(guestPassUpdateSchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) {

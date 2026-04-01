@@ -24,8 +24,12 @@ import { systemSettings } from '../../shared/models/system';
 import { getErrorMessage } from '../utils/errorUtils';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
 import { globalRateLimiter } from '../middleware/rateLimiting';
-import { validateBody } from '../middleware/validate';
+import { validateBody, validateQuery } from '../middleware/validate';
 import { z } from 'zod';
+
+const announcementQuerySchema = z.object({
+  active_only: z.enum(['true', 'false']).optional(),
+}).passthrough();
 
 interface AnnouncementRow {
   id: number;
@@ -60,7 +64,7 @@ const announcementSchema = z.object({
 });
 
 // PUBLIC ROUTE
-router.get('/api/announcements', globalRateLimiter, async (req, res) => {
+router.get('/api/announcements', globalRateLimiter, validateQuery(announcementQuerySchema), async (req, res) => {
   try {
     const { active_only } = req.query;
     const cacheKey = `api:announcements:${active_only || 'all'}`;

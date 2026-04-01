@@ -64,7 +64,7 @@ export function getSession() {
   const cookieConfig = {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'none' as const : 'lax' as const,
+    sameSite: 'lax' as const,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   };
   

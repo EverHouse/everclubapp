@@ -17,6 +17,41 @@ import { getAppBaseUrl } from '../utils/urlUtils';
 import { formatDatePacific, formatDateFromDb } from '../utils/dateUtils';
 import { notifyMember, notifyAllStaff } from '../core/notificationService';
 import { PRICING } from '../core/billing/pricingConfig';
+import { z } from 'zod';
+import { validateBody, validateQuery } from '../middleware/validate';
+
+const billingSourceSchema = z.object({
+  billingProvider: z.enum(['stripe', 'manual', 'family_addon', 'comped']).nullable(),
+});
+
+const billingPauseSchema = z.object({
+  durationDays: z.union([z.literal(30), z.literal(60)]),
+});
+
+const billingCancelSchema = z.object({
+  reason: z.string().max(1000).optional().nullable(),
+  immediate: z.boolean().optional(),
+});
+
+const billingCreditSchema = z.object({
+  amountCents: z.number().int().positive(),
+  description: z.string().min(1).max(500),
+});
+
+const billingDiscountSchema = z.object({
+  couponId: z.string().min(1).optional(),
+  percentOff: z.number().min(1).max(100).optional(),
+  duration: z.enum(['once', 'forever']).optional().default('once'),
+});
+
+const billingMigrateSchema = z.object({
+  billingStartDate: z.string().min(1),
+  confirmedMindBodyCancelled: z.literal(true),
+});
+
+const paymentHistoryQuerySchema = z.object({
+  limit: z.string().regex(/^\d+$/).optional(),
+}).passthrough();
 
 const router = Router();
 
@@ -424,17 +459,12 @@ router.get('/api/member-billing/:email/outstanding', isStaffOrAdmin, async (req,
   }
 });
 
-router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res) => {
+router.put('/api/member-billing/:email/source', isStaffOrAdmin, validateBody(billingSourceSchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
     const email = emailParse.data.trim().toLowerCase();
     const { billingProvider } = req.body;
-
-    const validProviders = ['stripe', 'manual', 'family_addon', 'comped', null];
-    if (!validProviders.includes(billingProvider)) {
-      return res.status(400).json({ error: 'Invalid billing provider' });
-    }
 
     const member = await getMemberByEmail(email);
     if (!member) {
@@ -522,16 +552,12 @@ router.put('/api/member-billing/:email/source', isStaffOrAdmin, async (req, res)
   }
 });
 
-router.post('/api/member-billing/:email/pause', isStaffOrAdmin, async (req, res) => {
+router.post('/api/member-billing/:email/pause', isStaffOrAdmin, validateBody(billingPauseSchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
     const email = emailParse.data.trim().toLowerCase();
     const { durationDays } = req.body;
-
-    if (!durationDays || (durationDays !== 30 && durationDays !== 60)) {
-      return res.status(400).json({ error: 'Duration must be 30 or 60 days' });
-    }
 
     const member = await getMemberByEmail(email);
 
@@ -624,7 +650,7 @@ router.post('/api/member-billing/:email/resume', isStaffOrAdmin, async (req, res
   }
 });
 
-router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, async (req, res) => {
+router.post('/api/member-billing/:email/cancel', isStaffOrAdmin, validateBody(billingCancelSchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
@@ -758,20 +784,12 @@ router.post('/api/member-billing/:email/undo-cancellation', isStaffOrAdmin, asyn
   }
 });
 
-router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res) => {
+router.post('/api/member-billing/:email/credit', isStaffOrAdmin, validateBody(billingCreditSchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
     const email = emailParse.data.trim().toLowerCase();
     const { amountCents, description } = req.body;
-
-    if (typeof amountCents !== 'number' || amountCents <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
-
-    if (!description || typeof description !== 'string') {
-      return res.status(400).json({ error: 'Description is required' });
-    }
 
     const member = await getMemberByEmail(email);
 
@@ -832,7 +850,7 @@ router.post('/api/member-billing/:email/credit', isStaffOrAdmin, async (req, res
   }
 });
 
-router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, res) => {
+router.post('/api/member-billing/:email/discount', isStaffOrAdmin, validateBody(billingDiscountSchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
@@ -841,17 +859,6 @@ router.post('/api/member-billing/:email/discount', isStaffOrAdmin, async (req, r
 
     if (!couponId && !percentOff) {
       return res.status(400).json({ error: 'Either couponId or percentOff is required' });
-    }
-
-    if (!couponId && percentOff) {
-      if (typeof percentOff !== 'number' || percentOff < 1 || percentOff > 100) {
-        return res.status(400).json({ error: 'Discount percentage must be between 1 and 100' });
-      }
-    }
-
-    const validDurations = ['once', 'forever'];
-    if (!validDurations.includes(duration)) {
-      return res.status(400).json({ error: 'Invalid duration. Must be "once" or "forever"' });
     }
 
     const member = await getMemberByEmail(email);
@@ -948,7 +955,7 @@ router.get('/api/member-billing/:email/invoices', isStaffOrAdmin, async (req, re
   }
 });
 
-router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, async (req, res) => {
+router.get('/api/member-billing/:email/payment-history', isStaffOrAdmin, validateQuery(paymentHistoryQuerySchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
@@ -1021,20 +1028,12 @@ router.post('/api/member-billing/:email/payment-link', isStaffOrAdmin, async (re
   }
 });
 
-router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, async (req, res) => {
+router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, validateBody(billingMigrateSchema), async (req, res) => {
   try {
     const emailParse = requiredStringParam.safeParse(req.params.email);
     if (!emailParse.success) return res.status(400).json({ error: 'Invalid email parameter' });
     const email = emailParse.data.trim().toLowerCase();
     const { billingStartDate, confirmedMindBodyCancelled } = req.body;
-
-    if (!billingStartDate || typeof billingStartDate !== 'string') {
-      return res.status(400).json({ error: 'billingStartDate is required (ISO date string)' });
-    }
-
-    if (!confirmedMindBodyCancelled) {
-      return res.status(400).json({ error: 'You must confirm MindBody subscription has been cancelled' });
-    }
 
     const parsedDate = new Date(billingStartDate);
     if (isNaN(parsedDate.getTime())) {

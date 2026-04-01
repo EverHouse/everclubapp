@@ -25,6 +25,16 @@ import { authRateLimiterByIp } from '../middleware/rateLimiting';
 import { logMemberAction } from '../core/auditLog';
 import { getErrorMessage } from '../utils/errorUtils';
 import { createSupabaseToken } from './auth';
+import { z } from 'zod';
+import { validateBody } from '../middleware/validate';
+
+const passkeyRegisterVerifySchema = z.object({
+  deviceName: z.string().max(100).optional(),
+}).passthrough();
+
+const passkeyAuthenticateVerifySchema = z.object({
+  id: z.string().min(1),
+}).passthrough();
 
 const router = Router();
 
@@ -103,7 +113,7 @@ router.post('/api/auth/passkey/register/options', isAuthenticated, async (req, r
   }
 });
 
-router.post('/api/auth/passkey/register/verify', isAuthenticated, async (req, res) => {
+router.post('/api/auth/passkey/register/verify', isAuthenticated, validateBody(passkeyRegisterVerifySchema), async (req, res) => {
   try {
     const sessionUser = getSessionUser(req);
     if (!sessionUser?.id || !sessionUser?.email) {
@@ -194,7 +204,7 @@ router.post('/api/auth/passkey/authenticate/options', authRateLimiterByIp, async
 });
 
 // PUBLIC ROUTE - verify passkey authentication response and create session (login flow)
-router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, async (req, res) => {
+router.post('/api/auth/passkey/authenticate/verify', authRateLimiterByIp, validateBody(passkeyAuthenticateVerifySchema), async (req, res) => {
   try {
     const challenge = req.session.webauthnChallenge;
     if (!challenge) {

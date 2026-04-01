@@ -8,8 +8,12 @@ import { db } from '../db';
 import { merchItems } from '../../shared/schema';
 import { sql, eq, and, asc } from 'drizzle-orm';
 import { getCached, setCache, invalidateCache } from '../core/queryCache';
-import { validateBody } from '../middleware/validate';
+import { validateBody, validateQuery } from '../middleware/validate';
 import { autoPushMerchItemToStripe } from '../core/stripe/autoPush';
+
+const merchQuerySchema = z.object({
+  include_inactive: z.enum(['true', 'false']).optional(),
+}).passthrough();
 import { markAppOriginated } from '../core/stripe/appOriginTracker';
 
 const merchItemSchema = z.object({
@@ -41,7 +45,7 @@ const MERCH_CACHE_TTL = 60_000;
 
 const router = Router();
 
-router.get('/api/merch', async (req, res) => {
+router.get('/api/merch', validateQuery(merchQuerySchema), async (req, res) => {
   try {
     const { include_inactive } = req.query;
     const sessionUser = (req.session as Record<string, unknown>)?.user as Record<string, unknown> | undefined;

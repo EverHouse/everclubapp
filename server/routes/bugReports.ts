@@ -9,20 +9,34 @@ import { logFromRequest } from '../core/auditLog';
 import { logAndRespond, logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
+import { z } from 'zod';
+import { validateBody, validateQuery } from '../middleware/validate';
+
+const bugReportCreateSchema = z.object({
+  description: z.string().min(1, 'Description is required').max(5000),
+  screenshotUrl: z.string().url().optional().nullable(),
+  pageUrl: z.string().max(2000).optional().nullable(),
+});
+
+const bugReportUpdateSchema = z.object({
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed', 'wont_fix']).optional(),
+  staffNotes: z.string().max(5000).optional().nullable(),
+});
+
+const bugReportQuerySchema = z.object({
+  status: z.string().optional(),
+  limit: z.string().regex(/^\d+$/).optional(),
+}).passthrough();
 
 const router = Router();
 
-router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
+router.post('/api/bug-reports', isAuthenticated, validateBody(bugReportCreateSchema), async (req, res) => {
   try {
     const { description, screenshotUrl, pageUrl } = req.body;
     const user = getSessionUser(req);
     
     if (!user?.email) {
       return logAndRespond(req, res, 401, 'Please log in to submit a bug report');
-    }
-    
-    if (!description || typeof description !== 'string' || description.trim().length === 0) {
-      return logAndRespond(req, res, 400, 'Description is required');
     }
     
     const [report] = await db.insert(bugReports).values({
@@ -51,7 +65,7 @@ router.post('/api/bug-reports', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/api/admin/bug-reports', isStaffOrAdmin, async (req, res) => {
+router.get('/api/admin/bug-reports', isStaffOrAdmin, validateQuery(bugReportQuerySchema), async (req, res) => {
   try {
     const { status, limit: limitParam } = req.query;
     const queryLimit = Math.min(Math.max(parseInt(String(limitParam), 10) || 200, 1), 2000);
@@ -96,7 +110,7 @@ router.get('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
   }
 });
 
-router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, async (req, res) => {
+router.put('/api/admin/bug-reports/:id', isStaffOrAdmin, validateBody(bugReportUpdateSchema), async (req, res) => {
   try {
     const { id } = req.params;
     const idParse = numericIdParam.safeParse(id);
