@@ -13,6 +13,7 @@ vi.mock('../server/utils/errorUtils', () => ({
 vi.mock('../server/utils/dateUtils', () => ({
   getTodayPacific: vi.fn().mockReturnValue('2026-03-31'),
   getPacificDateParts: vi.fn().mockReturnValue({ hour: 12, minute: 0 }),
+  formatDateFromDb: vi.fn((d: unknown) => String(d)),
 }));
 
 const mockDbExecute = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
