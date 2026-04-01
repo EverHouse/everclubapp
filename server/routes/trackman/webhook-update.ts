@@ -281,17 +281,15 @@ async function notifyStaffBookingCreated(
       }
     });
     
-    if (action !== 'unmatched') {
-      await notifyAllStaff(
-        title,
-        message,
-        notificationType,
-        {
-          relatedId: bookingId,
-          relatedType: 'trackman_booking'
-        }
-      );
-    }
+    await notifyAllStaff(
+      title,
+      message,
+      notificationType,
+      {
+        relatedId: bookingId,
+        relatedType: 'trackman_booking'
+      }
+    );
     
     logger.info('[Trackman Webhook] Notified staff', { 
       extra: { action, memberName, memberEmail, date: slotDate } 
