@@ -44,15 +44,21 @@ function setDefaultMocks() {
   mockDbExecute.mockResolvedValue({ rows: [] });
 }
 
-vi.mock('../server/db', () => ({
-  db: {
+vi.mock('../server/db', () => {
+  const txProxy = {
     select: (...args: unknown[]) => mockDbSelect(...args),
     insert: (...args: unknown[]) => mockDbInsert(...args),
     update: (...args: unknown[]) => mockDbUpdate(...args),
     execute: (...args: unknown[]) => mockDbExecute(...args),
     delete: (...args: unknown[]) => mockDbDelete(...args),
-  },
-}));
+  };
+  return {
+    db: {
+      ...txProxy,
+      transaction: async (fn: (tx: typeof txProxy) => Promise<unknown>) => fn(txProxy),
+    },
+  };
+});
 vi.mock('../server/core/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
   logAndRespond: vi.fn((_req: unknown, res: Pick<import('express').Response, 'status' | 'json'>, code: number, msg: string) => res.status(code).json({ error: msg })),
