@@ -177,7 +177,17 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   
   const devWebhookUrl = process.env.DEV_WEBHOOK_FORWARD_URL;
   if (devWebhookUrl && isProduction) {
-    fetch(devWebhookUrl, {
+    let forwardUrl = devWebhookUrl;
+    try {
+      const parsed = new URL(forwardUrl);
+      if (parsed.hostname.includes('.worf.replit.dev') && !parsed.port) {
+        parsed.port = '5000';
+        forwardUrl = parsed.toString();
+      }
+    } catch {
+      logger.warn('[Trackman Webhook] Could not parse DEV_WEBHOOK_FORWARD_URL', { extra: { url: forwardUrl } });
+    }
+    fetch(forwardUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -185,8 +195,12 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
         'X-Original-Signature': req.headers['x-trackman-signature'] as string || ''
       },
       body: JSON.stringify(req.body)
-    }).then(() => {
-      logger.info('[Trackman Webhook] Forwarded to dev environment');
+    }).then(resp => {
+      if (resp.ok) {
+        logger.info('[Trackman Webhook] Forwarded to dev environment', { extra: { status: resp.status } });
+      } else {
+        logger.warn('[Trackman Webhook] Dev forward returned non-OK status', { extra: { status: resp.status, url: forwardUrl } });
+      }
     }).catch(err => {
       logger.warn('[Trackman Webhook] Failed to forward to dev', { extra: { error: getErrorMessage(err) } });
     });
