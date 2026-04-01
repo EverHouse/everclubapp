@@ -1722,7 +1722,8 @@ export async function handlePaymentIntentFailed(client: PoolClient, paymentInten
 
       await notifyPaymentFailed(email, localAmount / 100, memberMessage, { 
         sendEmail: false, 
-        bookingId: !isNaN(bookingId) ? bookingId : undefined 
+        bookingId: !isNaN(bookingId) ? bookingId : undefined,
+        idempotencyKey: `payment_failed_${id}_${email}`
       });
 
       await sendPaymentFailedEmail(email, { 

@@ -164,6 +164,7 @@ async function retryFailedSideEffect(record: FailedSideEffectRow): Promise<boole
           type: (notifType || 'system_alert') as 'system_alert',
           relatedId: notifContext?.relatedId as string | undefined,
           relatedType: notifContext?.relatedType as string | undefined,
+          idempotencyKey: `failed_side_effect_${id}_booking_${bookingId}`,
         }, { sendPush: true, sendWebSocket: true });
         return true;
       }

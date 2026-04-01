@@ -445,7 +445,8 @@ export async function approveBooking(params: ApproveBookingParams) {
       type: 'booking_approved',
       relatedId: bookingId,
       relatedType: 'booking_request',
-      url: '/sims'
+      url: '/sims',
+      idempotencyKey: `booking_approved_${bookingId}_${updated.userEmail}`
     }, { sendPush: true }).catch(async (err) => {
       logger.error('[Approval] Post-commit notification failed', { extra: { error: getErrorMessage(err) } });
       await persistApprovalSideEffectFailure(bookingId, 'notification', getErrorMessage(err), { flow: 'approval', userEmail: updated.userEmail });
@@ -816,7 +817,8 @@ export async function declineBooking(params: DeclineBookingParams) {
       type: 'booking_declined',
       relatedId: bookingId,
       relatedType: 'booking_request',
-      url: '/dashboard'
+      url: '/dashboard',
+      idempotencyKey: `booking_declined_${bookingId}_${updated.userEmail}`
     }, { sendPush: true }).catch(err => logger.error('[Approval] Decline notification failed', { extra: { error: getErrorMessage(err) } }));
   }
 

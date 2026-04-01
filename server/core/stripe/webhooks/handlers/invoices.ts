@@ -167,6 +167,7 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
       title: 'Membership Renewed',
       message: `Your ${localPlanName} has been renewed successfully.`,
       type: 'membership_renewed',
+      idempotencyKey: `membership_renewed_${invoice.id}`,
     });
 
     await sendMembershipRenewalEmail(localEmail, {
@@ -354,6 +355,7 @@ export async function handleInvoicePaymentFailed(client: PoolClient, invoice: In
       title: 'Membership Payment Failed',
       message: `We were unable to process your ${localPlanName} payment (attempt ${localAttemptCount}). Please update your payment method.`,
       type: 'membership_failed',
+      idempotencyKey: `membership_failed_${invoice.id}_attempt${localAttemptCount}`,
     }, { sendPush: true });
 
     await sendMembershipFailedEmail(localEmail, {
@@ -518,6 +520,7 @@ export async function handleInvoicePaymentActionRequired(client: PoolClient, inv
             title: 'Payment Authentication Required',
             message: 'Your payment requires additional authentication. Please click the link in your email or visit your billing portal to complete the payment.',
             type: 'billing_alert',
+            idempotencyKey: `billing_alert_action_required_${invoice.id}`,
           });
         } catch (err: unknown) {
           logger.error('[Stripe Webhook] Failed to notify member about payment action required:', { extra: { error: getErrorMessage(err) } });
@@ -601,6 +604,7 @@ export async function handleInvoiceOverdue(client: PoolClient, invoice: InvoiceW
           title: 'Overdue Invoice',
           message: `You have an overdue invoice of $${(amountDue / 100).toFixed(2)}. Please update your payment method to avoid service interruption.`,
           type: 'outstanding_balance',
+          idempotencyKey: `invoice_overdue_${invoice.id}`,
         });
       } catch (err: unknown) {
         logger.error('[Stripe Webhook] Failed to notify member about overdue invoice:', { extra: { error: getErrorMessage(err) } });

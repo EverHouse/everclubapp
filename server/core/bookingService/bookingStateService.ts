@@ -1132,7 +1132,8 @@ export class BookingStateService {
         type: mn.type,
         relatedId: mn.relatedId,
         relatedType: mn.relatedType,
-        url: '/sims'
+        url: '/sims',
+        idempotencyKey: `${mn.type}_${mn.relatedId}_${mn.userEmail}`
       }, { sendPush: true, sendWebSocket: true }).catch(err => logger.error(`[BookingStateService] Member notification failed for bookingId=${mn.relatedId}`, { extra: { bookingId: mn.relatedId, error: getErrorMessage(err) } }));
     }
 

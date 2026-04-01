@@ -99,6 +99,7 @@ export interface NotificationPayload {
   relatedId?: number;
   relatedType?: string;
   url?: string;
+  idempotencyKey?: string;
 }
 
 export interface PushPayload {
@@ -248,7 +249,9 @@ export interface NotificationResult {
   allSucceeded: boolean;
 }
 
-async function insertNotificationToDatabase(payload: NotificationPayload): Promise<{ id: number } | null> {
+type InsertResult = { status: 'inserted'; id: number } | { status: 'duplicate' } | { status: 'error'; error: string };
+
+async function insertNotificationToDatabase(payload: NotificationPayload): Promise<InsertResult> {
   if (!payload?.userEmail || !payload?.title || !payload?.message || !payload?.type) {
     logger.error('[Notification] Cannot insert notification - missing required fields', {
       extra: {
@@ -259,15 +262,37 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
         hasType: !!payload?.type
       }
     });
-    return null;
+    return { status: 'error', error: 'Missing required fields' };
   }
   
   try {
-    // Defensive handling: ensure relatedId is a valid number or null
     const safeRelatedId = typeof payload.relatedId === 'number' ? payload.relatedId : null;
     const safeRelatedType = payload.relatedType && typeof payload.relatedType === 'string' ? payload.relatedType : null;
     
     const resolvedUrl = payload.url || buildDeepLink(payload.type) || null;
+    const safeIdempotencyKey = payload.idempotencyKey && typeof payload.idempotencyKey === 'string' ? payload.idempotencyKey : null;
+    
+    if (safeIdempotencyKey) {
+      const [result] = await db.insert(notifications).values({
+        userEmail: payload.userEmail,
+        title: payload.title,
+        message: payload.message,
+        type: payload.type,
+        relatedId: safeRelatedId,
+        relatedType: safeRelatedType,
+        url: resolvedUrl,
+        idempotencyKey: safeIdempotencyKey,
+      }).onConflictDoNothing({ target: notifications.idempotencyKey }).returning({ id: notifications.id });
+      
+      if (!result) {
+        logger.info(`[Notification] Duplicate suppressed via idempotency key: ${safeIdempotencyKey}`, {
+          extra: { event: 'notification.idempotency_key_duplicate', idempotencyKey: safeIdempotencyKey, type: payload.type, userEmail: payload.userEmail }
+        });
+        return { status: 'duplicate' };
+      }
+      
+      return { status: 'inserted', id: result.id };
+    }
     
     const [result] = await db.insert(notifications).values({
       userEmail: payload.userEmail,
@@ -279,12 +304,12 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
       url: resolvedUrl,
     }).returning({ id: notifications.id });
     
-    return result;
+    return result ? { status: 'inserted', id: result.id } : { status: 'error', error: 'Insert returned no result' };
   } catch (error: unknown) {
     logger.error(`[Notification] Database insert failed for ${payload.userEmail}`, {
       extra: { userEmail: payload.userEmail, error: getErrorMessage(error), event: 'notification.database_insert_failed', type: payload.type }
     });
-    return null;
+    return { status: 'error', error: getErrorMessage(error) };
   }
 }
 
@@ -560,10 +585,21 @@ export async function notifyMember(
   }
   
   const dbResult = await insertNotificationToDatabase(payload);
+  
+  if (dbResult.status === 'duplicate') {
+    return {
+      notificationId: undefined,
+      deliveryResults: [{ channel: 'database', success: true, details: { skipped: 'idempotency_key_duplicate', idempotencyKey: payload.idempotencyKey } }],
+      allSucceeded: true
+    };
+  }
+  
+  const insertedId = dbResult.status === 'inserted' ? dbResult.id : undefined;
   deliveryResults.push({
     channel: 'database',
-    success: dbResult !== null,
-    details: dbResult ? { notificationId: dbResult.id } : undefined
+    success: dbResult.status === 'inserted',
+    details: insertedId ? { notificationId: insertedId } : undefined,
+    ...(dbResult.status === 'error' ? { error: dbResult.error } : {})
   });
   
   if (sendWebSocket) {
@@ -611,14 +647,14 @@ export async function notifyMember(
     extra: {
       event: 'notification.member_complete',
       type: payload.type,
-      notificationId: dbResult?.id,
+      notificationId: insertedId,
       allSucceeded,
       channels: deliveryResults.map(r => ({ channel: r.channel, success: r.success }))
     }
   });
   
   return {
-    notificationId: dbResult?.id,
+    notificationId: insertedId,
     deliveryResults,
     allSucceeded
   };
@@ -858,7 +894,7 @@ export async function notifyPaymentSuccess(
   userEmail: string,
   amountDollars: number,
   description: string,
-  options?: { sendEmail?: boolean; bookingId?: number }
+  options?: { sendEmail?: boolean; bookingId?: number; idempotencyKey?: string }
 ): Promise<NotificationResult> {
   const formattedAmount = `$${amountDollars.toFixed(2)}`;
   
@@ -869,7 +905,8 @@ export async function notifyPaymentSuccess(
       message: `Your payment of ${formattedAmount} for ${description} was successful.`,
       type: 'payment_success',
       relatedId: options?.bookingId,
-      relatedType: options?.bookingId ? 'booking' : undefined
+      relatedType: options?.bookingId ? 'booking' : undefined,
+      idempotencyKey: options?.idempotencyKey
     },
     {
       sendEmail: options?.sendEmail,
@@ -887,7 +924,7 @@ export async function notifyPaymentFailed(
   userEmail: string,
   amountDollars: number,
   reason: string,
-  options?: { sendEmail?: boolean; bookingId?: number }
+  options?: { sendEmail?: boolean; bookingId?: number; idempotencyKey?: string }
 ): Promise<NotificationResult> {
   const formattedAmount = `$${amountDollars.toFixed(2)}`;
   
@@ -898,7 +935,8 @@ export async function notifyPaymentFailed(
       message: `Your payment of ${formattedAmount} could not be processed. Reason: ${reason}`,
       type: 'payment_failed',
       relatedId: options?.bookingId,
-      relatedType: options?.bookingId ? 'booking' : undefined
+      relatedType: options?.bookingId ? 'booking' : undefined,
+      idempotencyKey: options?.idempotencyKey
     },
     {
       sendEmail: options?.sendEmail,

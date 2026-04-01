@@ -12,12 +12,14 @@ export const notifications = pgTable("notifications", {
   relatedType: varchar("related_type"),
   url: varchar("url"),
   isRead: boolean("is_read").default(false),
+  idempotencyKey: varchar("idempotency_key", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_notifications_lower_user_email").on(sql`LOWER(${table.userEmail})`),
   index("idx_notifications_created_at").on(table.createdAt),
   index("idx_notifications_user_created").on(table.userEmail, table.createdAt),
   index("idx_notifications_user_read").on(table.userEmail, table.isRead),
+  uniqueIndex("idx_notifications_idempotency_key").on(table.idempotencyKey),
 ]);
 
 // Push subscriptions table - web push notification subscriptions
