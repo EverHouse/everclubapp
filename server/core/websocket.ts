@@ -6,6 +6,8 @@ import { unsign } from 'cookie-signature';
 import crypto from 'crypto';
 import { logger } from './logger';
 import { pool as sharedPool } from './db';
+import { getAdapter, getInstanceId, initPubSub, shutdownPubSub } from './pubsub';
+import type { BroadcastTarget } from './pubsub';
 
 interface ClientConnection {
   ws: WebSocket;
@@ -273,7 +275,7 @@ function isAllowedOrigin(origin: string | undefined): boolean {
   }
 }
 
-export function closeWebSocketServer(): void {
+export async function closeWebSocketServer(): Promise<void> {
   if (heartbeatIntervalId) {
     clearInterval(heartbeatIntervalId);
     heartbeatIntervalId = null;
@@ -282,6 +284,8 @@ export function closeWebSocketServer(): void {
     clearInterval(sessionRevalidationIntervalId);
     sessionRevalidationIntervalId = null;
   }
+
+  await shutdownPubSub();
 
   if (wss) {
     clients.forEach((connections, _email) => {
@@ -308,7 +312,7 @@ export function closeWebSocketServer(): void {
 
 }
 
-export function initWebSocketServer(server: Server) {
+export async function initWebSocketServer(server: Server) {
   wss = new WebSocketServer({ server, path: '/ws' });
   
   wss.on('error', (error) => {
@@ -637,8 +641,102 @@ export function initWebSocketServer(server: Server) {
     if (sessionRevalidationIntervalId) { clearInterval(sessionRevalidationIntervalId); sessionRevalidationIntervalId = null; }
   });
 
+  await initPubSub(sharedPool);
+  getAdapter().onRemoteMessage((message) => {
+    deliverToLocalConnections(message.target, message.payload);
+  });
+
   logger.info('[WebSocket] Server initialized on /ws with session-based authentication');
   return wss;
+}
+
+function deliverToLocalConnections(target: BroadcastTarget, payload: string): number {
+  let sent = 0;
+
+  switch (target.type) {
+    case 'all':
+      clients.forEach((connections) => {
+        connections.forEach((conn) => {
+          if (conn.ws.readyState === WebSocket.OPEN) {
+            try {
+              conn.ws.send(payload);
+              sent++;
+            } catch (err: unknown) {
+              logger.warn('[WebSocket] Error in local delivery (all)', { extra: { error: getErrorMessage(err) } });
+            }
+          }
+        });
+      });
+      break;
+
+    case 'staff':
+      clients.forEach((connections) => {
+        connections.forEach((conn) => {
+          if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
+            try {
+              conn.ws.send(payload);
+              sent++;
+            } catch (err: unknown) {
+              logger.warn('[WebSocket] Error in local delivery (staff)', { extra: { error: getErrorMessage(err) } });
+            }
+          }
+        });
+      });
+      break;
+
+    case 'user': {
+      const userConns = clients.get(target.email.toLowerCase()) || [];
+      userConns.forEach((conn) => {
+        if (conn.ws.readyState === WebSocket.OPEN) {
+          try {
+            conn.ws.send(payload);
+            sent++;
+          } catch (err: unknown) {
+            logger.warn('[WebSocket] Error in local delivery (user)', { extra: { error: getErrorMessage(err) } });
+          }
+        }
+      });
+      break;
+    }
+
+    case 'user_and_staff': {
+      const emailLower = target.email.toLowerCase();
+      const memberConns = clients.get(emailLower) || [];
+      memberConns.forEach((conn) => {
+        if (conn.ws.readyState === WebSocket.OPEN) {
+          try {
+            conn.ws.send(payload);
+            sent++;
+          } catch (err: unknown) {
+            logger.warn('[WebSocket] Error in local delivery (user_and_staff:user)', { extra: { error: getErrorMessage(err) } });
+          }
+        }
+      });
+      clients.forEach((connections) => {
+        connections.forEach((conn) => {
+          if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN && (!target.excludeUserFromStaff || conn.userEmail !== emailLower)) {
+            try {
+              conn.ws.send(payload);
+              sent++;
+            } catch (err: unknown) {
+              logger.warn('[WebSocket] Error in local delivery (user_and_staff:staff)', { extra: { error: getErrorMessage(err) } });
+            }
+          }
+        });
+      });
+      break;
+    }
+  }
+
+  return sent;
+}
+
+function publishBroadcast(target: BroadcastTarget, payload: string): void {
+  getAdapter().publishToRemote({
+    instanceId: getInstanceId(),
+    target,
+    payload,
+  });
 }
 
 export function getClientStatus(userEmail: string): { connected: boolean; connectionCount: number; activeCount: number } {
@@ -652,6 +750,14 @@ export function getClientStatus(userEmail: string): { connected: boolean; connec
   };
 }
 
+/**
+ * Send a notification to a specific user's WebSocket connections.
+ *
+ * In distributed mode (WS_PUBSUB_MODE=pg), the notification is also published
+ * to other server instances via PostgreSQL NOTIFY. The returned delivery result
+ * reflects local-instance delivery only — remote instances deliver asynchronously
+ * and their results are not captured in the return value.
+ */
 export function sendNotificationToUser(
   userEmail: string, 
   notification: {
@@ -676,6 +782,7 @@ export function sendNotificationToUser(
       }
     });
     
+    publishBroadcast({ type: 'user', email }, JSON.stringify({ ...notification }));
     return { success: false, connectionCount: 0, sentCount: 0, hasActiveSocket: false };
   }
 
@@ -683,19 +790,8 @@ export function sendNotificationToUser(
     ...notification
   });
 
-  let sent = 0;
-  connections.forEach(conn => {
-    if (conn.ws.readyState === WebSocket.OPEN) {
-      try {
-        conn.ws.send(payload);
-        sent++;
-      } catch (error: unknown) {
-        logger.warn(`[WebSocket] Error sending to ${email}`, {
-          extra: { userEmail: email, error: getErrorMessage(error), event: 'notification.delivery', status: 'send_error', notificationType: notification.type }
-        });
-      }
-    }
-  });
+  const sent = deliverToLocalConnections({ type: 'user', email }, payload);
+  publishBroadcast({ type: 'user', email }, payload);
 
   const result: NotificationDeliveryResult = {
     success: sent > 0,
@@ -737,19 +833,9 @@ export function broadcastToAllMembers(notification: {
     ...notification
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastToAllMembers send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'all' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   logger.info(`[WebSocket] Broadcast notification to ${sent} connections`);
   return sent;
@@ -773,19 +859,9 @@ export function broadcastToStaff(notification: {
     ...notification
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastToStaff send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast to staff: ${sent} connections`, {
@@ -815,31 +891,22 @@ export function broadcastBookingEvent(event: BookingEvent) {
     ...event
   });
 
-  let sent = 0;
-  let totalConnections = 0;
-  let staffConnections = 0;
-  
-  clients.forEach((connections, _email) => {
-    connections.forEach(conn => {
-      totalConnections++;
-      if (conn.isStaff) {
-        staffConnections++;
-        if (conn.ws.readyState === WebSocket.OPEN) {
-          try {
-            conn.ws.send(payload);
-            sent++;
-          } catch (err: unknown) {
-            logger.warn(`[WebSocket] Error in broadcastBookingEvent send`, { extra: { error: getErrorMessage(err) } });
-          }
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast booking event ${event.eventType} to ${sent} staff connections`);
   } else {
-    logger.info(`[WebSocket] No staff connections for booking event ${event.eventType} (total: ${totalConnections}, staff: ${staffConnections}, staffEmails: ${Array.from(staffEmails).join(', ')})`);
+    let totalConnections = 0;
+    let staffConnectionCount = 0;
+    clients.forEach((connections) => {
+      connections.forEach(conn => {
+        totalConnections++;
+        if (conn.isStaff) staffConnectionCount++;
+      });
+    });
+    logger.info(`[WebSocket] No staff connections for booking event ${event.eventType} (total: ${totalConnections}, staff: ${staffConnectionCount}, staffEmails: ${Array.from(staffEmails).join(', ')})`);
   }
   return sent;
 }
@@ -851,19 +918,9 @@ export function broadcastAnnouncementUpdate(action: 'created' | 'updated' | 'del
     announcement
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastAnnouncementUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'all' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   logger.info(`[WebSocket] Broadcast announcement ${action} to ${sent} connections`);
   return sent;
@@ -880,19 +937,9 @@ export function broadcastAvailabilityUpdate(data: {
     ...data
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastAvailabilityUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'all' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast availability ${data.action} to ${sent} connections`);
@@ -911,19 +958,9 @@ export function broadcastWaitlistUpdate(data: {
     ...data
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastWaitlistUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'all' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast waitlist ${data.action} to ${sent} connections`);
@@ -944,19 +981,9 @@ export function broadcastDirectorySyncUpdate(data: {
     ...data
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastDirectorySyncUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast directory sync ${data.status} to ${sent} staff connections`);
@@ -970,19 +997,9 @@ export function broadcastDirectoryUpdate(action: 'synced' | 'updated' | 'created
     action
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastDirectoryUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast directory ${action} to ${sent} staff connections`);
@@ -996,19 +1013,9 @@ export function broadcastCafeMenuUpdate(action: 'created' | 'updated' | 'deleted
     action
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastCafeMenuUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'all' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast cafe menu ${action} to ${sent} connections`);
@@ -1023,19 +1030,9 @@ export function broadcastClosureUpdate(action: 'created' | 'updated' | 'deleted'
     closureId
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastClosureUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'all' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast closure ${action} to ${sent} connections`);
@@ -1049,19 +1046,9 @@ export function broadcastMemberDataUpdated(changedEmails: string[] = []) {
     changedEmails
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastMemberDataUpdated send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0 && changedEmails.length > 0) {
     logger.info(`[WebSocket] Broadcast member data updated (${changedEmails.length} members) to ${sent} staff connections`);
@@ -1076,33 +1063,9 @@ export function broadcastMemberStatsUpdated(memberEmail: string, data: { guestPa
     ...data
   });
 
-  // Send to the specific member
-  const memberConnections = clients.get(memberEmail.toLowerCase()) || [];
-  let sent = 0;
-  memberConnections.forEach(conn => {
-    if (conn.ws.readyState === WebSocket.OPEN) {
-      try {
-        conn.ws.send(payload);
-        sent++;
-      } catch (err: unknown) {
-        logger.warn(`[WebSocket] Error in broadcastMemberStatsUpdated send`, { extra: { error: getErrorMessage(err) } });
-      }
-    }
-  });
-
-  // Also broadcast to staff
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastMemberStatsUpdated send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'user_and_staff', email: memberEmail };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast member stats updated for ${memberEmail} to ${sent} connections`);
@@ -1122,35 +1085,10 @@ export function broadcastTierUpdate(data: {
     ...data
   });
 
-  let sent = 0;
   const memberEmail = data.memberEmail.toLowerCase();
-
-  // Send to the member whose tier changed
-  const memberConnections = clients.get(memberEmail) || [];
-  memberConnections.forEach(conn => {
-    if (conn.ws.readyState === WebSocket.OPEN) {
-      try {
-        conn.ws.send(payload);
-        sent++;
-      } catch (err: unknown) {
-        logger.warn(`[WebSocket] Error in broadcastTierUpdate send`, { extra: { error: getErrorMessage(err) } });
-      }
-    }
-  });
-
-  // Also broadcast to all staff
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastTierUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'user_and_staff', email: memberEmail };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast tier ${data.action} for ${memberEmail} to ${sent} connections`);
@@ -1165,19 +1103,9 @@ export function broadcastDataIntegrityUpdate(action: 'check_complete' | 'issue_r
     ...details
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastDataIntegrityUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast data integrity ${action} to ${sent} staff connections`);
@@ -1207,36 +1135,16 @@ export function broadcastBillingUpdate(data: {
     ...data
   });
 
-  let sent = 0;
-
-  // Send to the affected member if memberEmail is provided
+  let sent: number;
   if (data.memberEmail) {
-    const memberConnections = clients.get(data.memberEmail.toLowerCase()) || [];
-    memberConnections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastBillingUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
+    const target: BroadcastTarget = { type: 'user_and_staff', email: data.memberEmail };
+    sent = deliverToLocalConnections(target, payload);
+    publishBroadcast(target, payload);
+  } else {
+    const target: BroadcastTarget = { type: 'staff' };
+    sent = deliverToLocalConnections(target, payload);
+    publishBroadcast(target, payload);
   }
-
-  // Also broadcast to all staff
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastBillingUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast billing ${data.action} to ${sent} connections (member: ${data.memberEmail || 'none'})`);
@@ -1259,19 +1167,9 @@ export function broadcastDayPassUpdate(data: {
     ...data
   });
 
-  let sent = 0;
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-        try {
-          conn.ws.send(payload);
-          sent++;
-        } catch (err: unknown) {
-          logger.warn(`[WebSocket] Error in broadcastDayPassUpdate send`, { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
+  const target: BroadcastTarget = { type: 'staff' };
+  const sent = deliverToLocalConnections(target, payload);
+  publishBroadcast(target, payload);
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast day pass ${data.action} to ${sent} staff connections`);
@@ -1279,7 +1177,6 @@ export function broadcastDayPassUpdate(data: {
   return sent;
 }
 
-// Debounce map for booking-scoped broadcasts (prevent event storms during batch roster edits)
 const bookingBroadcastTimers = new Map<string, NodeJS.Timeout>();
 
 export function broadcastBookingRosterUpdate(data: {
@@ -1303,29 +1200,16 @@ export function broadcastBookingRosterUpdate(data: {
       timestamp: new Date().toISOString()
     });
 
-    let sent = 0;
-
+    let sent: number;
     if (data.memberEmail) {
-      const memberConnections = clients.get(data.memberEmail.toLowerCase()) || [];
-      memberConnections.forEach(conn => {
-        if (conn.ws.readyState === WebSocket.OPEN) {
-          try { conn.ws.send(payload); sent++; } catch (err: unknown) {
-            logger.warn('[WebSocket] Error in broadcastBookingRosterUpdate send', { extra: { error: getErrorMessage(err) } });
-          }
-        }
-      });
+      const target: BroadcastTarget = { type: 'user_and_staff', email: data.memberEmail, excludeUserFromStaff: true };
+      sent = deliverToLocalConnections(target, payload);
+      publishBroadcast(target, payload);
+    } else {
+      const target: BroadcastTarget = { type: 'staff' };
+      sent = deliverToLocalConnections(target, payload);
+      publishBroadcast(target, payload);
     }
-
-    const memberEmailLower = data.memberEmail?.toLowerCase();
-    clients.forEach((connections) => {
-      connections.forEach(conn => {
-        if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN && conn.userEmail !== memberEmailLower) {
-          try { conn.ws.send(payload); sent++; } catch (err: unknown) {
-            logger.warn('[WebSocket] Error in broadcastBookingRosterUpdate send', { extra: { error: getErrorMessage(err) } });
-          }
-        }
-      });
-    });
 
     if (sent > 0) {
       logger.info(`[WebSocket] Broadcast booking roster ${data.action} for booking #${data.bookingId} to ${sent} connections`);
@@ -1349,29 +1233,16 @@ export function broadcastBookingInvoiceUpdate(data: {
     timestamp: new Date().toISOString()
   });
 
-  let sent = 0;
-
+  let sent: number;
   if (data.memberEmail) {
-    const memberConnections = clients.get(data.memberEmail.toLowerCase()) || [];
-    memberConnections.forEach(conn => {
-      if (conn.ws.readyState === WebSocket.OPEN) {
-        try { conn.ws.send(payload); sent++; } catch (err: unknown) {
-          logger.warn('[WebSocket] Error in broadcastBookingInvoiceUpdate send', { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
+    const target: BroadcastTarget = { type: 'user_and_staff', email: data.memberEmail, excludeUserFromStaff: true };
+    sent = deliverToLocalConnections(target, payload);
+    publishBroadcast(target, payload);
+  } else {
+    const target: BroadcastTarget = { type: 'staff' };
+    sent = deliverToLocalConnections(target, payload);
+    publishBroadcast(target, payload);
   }
-
-  const memberEmailLower = data.memberEmail?.toLowerCase();
-  clients.forEach((connections) => {
-    connections.forEach(conn => {
-      if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN && conn.userEmail !== memberEmailLower) {
-        try { conn.ws.send(payload); sent++; } catch (err: unknown) {
-          logger.warn('[WebSocket] Error in broadcastBookingInvoiceUpdate send', { extra: { error: getErrorMessage(err) } });
-        }
-      }
-    });
-  });
 
   if (sent > 0) {
     logger.info(`[WebSocket] Broadcast booking invoice ${data.action} for booking #${data.bookingId} to ${sent} connections`);

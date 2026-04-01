@@ -81,7 +81,7 @@ async function gracefulShutdown(signal: string) {
     if (websocketInitialized) {
       try {
         const { closeWebSocketServer } = await import('./core/websocket');
-        closeWebSocketServer();
+        await closeWebSocketServer();
       } catch (err) { logger.warn('[Shutdown] Failed to close WebSocket server:', { extra: { error: getErrorMessage(err) } }); }
     }
 
@@ -670,7 +670,7 @@ async function initializeApp() {
   }
 
   try {
-    initWebSocketServer(httpServer!);
+    await initWebSocketServer(httpServer!);
     websocketInitialized = true;
   } catch (err: unknown) {
     logger.error('[Startup] WebSocket initialization failed:', { extra: { error: getErrorMessage(err) } });
