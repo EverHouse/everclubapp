@@ -9,7 +9,7 @@ import { sql, eq } from 'drizzle-orm';
 import { broadcastMemberDataUpdated, broadcastDataIntegrityUpdate } from './websocket';
 import { alertOnHubSpotSyncComplete, alertOnSyncFailure } from './dataAlerts';
 import { retryableHubSpotRequest } from './hubspot/request';
-import pLimit from 'p-limit';
+import { createConcurrencyLimiter } from './retryUtils';
 import { logger } from './logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import {
@@ -159,7 +159,7 @@ export async function syncRelevantMembersFromHubSpot(): Promise<{ synced: number
     const skipStatuses = ['non-member', 'archived', 'cancelled', 'expired', 'terminated'];
     
     const SYNC_BATCH_SIZE = 25;
-    const syncLimit = pLimit(5);
+    const syncLimit = createConcurrencyLimiter(5);
     
     for (let i = 0; i < allContacts.length; i += SYNC_BATCH_SIZE) {
       if (i > 0) {

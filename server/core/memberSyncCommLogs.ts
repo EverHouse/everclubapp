@@ -7,7 +7,7 @@ import { getHubSpotClient } from './integrations';
 import { sql, eq } from 'drizzle-orm';
 import { retryableHubSpotRequest } from './hubspot/request';
 import { isRetryableError } from './retry';
-import pLimit from 'p-limit';
+import { createConcurrencyLimiter } from './retryUtils';
 import { logger } from './logger';
 import {
   type HubSpotCallRecord,
@@ -127,7 +127,7 @@ export async function syncCommunicationLogsFromHubSpot(): Promise<{ synced: numb
     if (!isProduction) logger.info(`[CommLogs] Fetched ${allCalls.length} calls from HubSpot`);
     
     const BATCH_SIZE = 3;
-    const callLimit = pLimit(BATCH_SIZE);
+    const callLimit = createConcurrencyLimiter(BATCH_SIZE);
     let hubspotCallAssocFailCount = 0;
     
     for (let i = 0; i < allCalls.length; i += BATCH_SIZE) {
