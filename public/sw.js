@@ -6,7 +6,6 @@ const API_CACHE = `api-cache-${BUILD_VERSION}`;
 const FONTS_CACHE = 'google-fonts-v1';
 
 const STATIC_ASSETS = [
-  '/',
   '/manifest.webmanifest',
   '/favicon.ico',
   '/assets/logos/walking-mascot-white.gif'
@@ -27,15 +26,6 @@ self.addEventListener('install', function(event) {
             if (!response.ok || response.status === 503) {
               console.log('[SW] Skipping cache for', url, '- status:', response.status);
               return;
-            }
-            if (url === '/' || url === '/index.html') {
-              return response.clone().text().then(function(html) {
-                if (html.indexOf('<div id="root">') === -1) {
-                  console.log('[SW] Skipping cache for', url, '- not app HTML');
-                  return;
-                }
-                return cache.put(url, response);
-              });
             }
             return cache.put(url, response);
           }).catch(function(err) {
@@ -68,28 +58,6 @@ self.addEventListener('activate', function(event) {
           return caches.delete(key);
         })
       );
-    }).then(function() {
-      return caches.open(CACHE_NAME).then(function(cache) {
-        return cache.keys().then(function(requests) {
-          return Promise.all(requests.map(function(cachedRequest) {
-            var cachedUrl = new URL(cachedRequest.url);
-            if (cachedUrl.pathname.startsWith('/assets/') || cachedUrl.pathname === '/manifest.webmanifest' || cachedUrl.pathname === '/favicon.ico') {
-              return;
-            }
-            return cache.match(cachedRequest).then(function(cached) {
-              if (!cached) return;
-              var contentType = cached.headers.get('content-type') || '';
-              if (!contentType.includes('text/html')) return;
-              return cached.text().then(function(html) {
-                if (html.indexOf('<div id="root">') === -1) {
-                  console.log('[SW] Cached', cachedUrl.pathname, 'is not valid app HTML, removing');
-                  return cache.delete(cachedRequest);
-                }
-              });
-            });
-          }));
-        });
-      });
     }).then(function() {
       console.log('[SW] Claiming clients');
       return clients.claim();
@@ -191,41 +159,12 @@ self.addEventListener('fetch', function(event) {
         return preloadResp || fetch(request, { cache: 'no-store' });
       })
         .then(function(response) {
-          if (response.ok && response.status !== 503) {
-            var cacheClone = response.clone();
-            var checkClone = response.clone();
-            checkClone.text().then(function(html) {
-              if (html.indexOf('<div id="root">') !== -1) {
-                caches.open(CACHE_NAME).then(function(cache) {
-                  cache.put(request, cacheClone);
-                });
-              }
-            });
-          }
-          if (response.status === 503) {
-            return caches.match(request).then(function(cachedResponse) {
-              if (cachedResponse) {
-                console.log('[SW] Server returning 503, serving cached version');
-                return cachedResponse;
-              }
-              return caches.match('/').then(function(fallback) {
-                return fallback || response;
-              });
-            });
-          }
           return response;
         })
         .catch(function() {
-          return caches.match(request).then(function(cachedResponse) {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            return caches.match('/').then(function(fallback) {
-              return fallback || new Response('App offline. Please refresh when online.', {
-                status: 503,
-                headers: { 'Content-Type': 'text/plain' }
-              });
-            });
+          return new Response('App offline. Please refresh when online.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' }
           });
         })
     );

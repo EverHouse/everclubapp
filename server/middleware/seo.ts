@@ -570,11 +570,10 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
         try {
           const { readFileSync } = require('fs') as typeof import('fs');
           const rawHtml = readFileSync(indexPath, 'utf8');
-          const nonce = res.locals.cspNonce as string;
           res.setHeader('Content-Type', 'text/html');
-          return res.send(injectCspNonce(rawHtml, nonce));
-        } catch { /* intentional: CSP nonce injection failed — fall back to raw file */
-          return res.sendFile(indexPath);
+          return res.send(rawHtml);
+        } catch {
+          return res.status(500).send('Server error: unable to load application');
         }
       }
 

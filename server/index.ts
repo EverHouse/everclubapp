@@ -499,14 +499,14 @@ async function initializeApp() {
   registerSitemapRoutes(app, isProduction);
 
   if (isProduction) {
-    app.use((req, _res, next) => {
+    app.use((req, res, next) => {
       if (/^\/index\.html(\.br|\.gz)?$/i.test(req.path)) {
         req.url = '/';
       }
       next();
     });
 
-    app.use(expressStaticGzip(distDir, {
+    const staticGzipHandler = expressStaticGzip(distDir, {
       enableBrotli: true,
       orderPreference: ['br', 'gz'],
       serveStatic: {
@@ -525,7 +525,13 @@ async function initializeApp() {
           }
         }
       }
-    }));
+    });
+    app.use((req, res, next) => {
+      if (/\.html?(\.br|\.gz)?$/i.test(req.path)) {
+        return next();
+      }
+      staticGzipHandler(req, res, next);
+    });
 
     app.use('/assets/', async (req, res, next) => {
       if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.js.br') || req.path.endsWith('.css.br')) {

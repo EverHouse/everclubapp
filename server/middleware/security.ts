@@ -92,6 +92,12 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   next();
 }
 
+function injectNonceIntoHtml(html: string, nonce: string): string {
+  return html
+    .replace(/<script(?![^>]*nonce\s*=)(?![^>]*type\s*=\s*["']application\/ld\+json["'])(?=[\s>])/gi, `<script nonce="${nonce}"`)
+    .replace(/<style(?![^>]*nonce\s*=)(?=[\s>])/gi, `<style nonce="${nonce}"`);
+}
+
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {
   const isStaticAsset = !req.path.startsWith('/api/') &&
     /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/i.test(req.path);
@@ -108,9 +114,20 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   const nonce = randomBytes(16).toString('base64');
   res.locals.cspNonce = nonce;
 
-  if (!isStaticAsset) {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-  }
+  const originalSend = res.send.bind(res);
+  res.send = function nonceInjectedSend(body?: unknown): Response {
+    if (typeof body === 'string' && body.length > 0) {
+      const contentType = res.getHeader('content-type');
+      const isHtml = typeof contentType === 'string' && contentType.includes('text/html');
+      const looksLikeHtml = !contentType && body.trimStart().startsWith('<!DOCTYPE');
+      if (isHtml || looksLikeHtml) {
+        body = injectNonceIntoHtml(body, nonce);
+      }
+    }
+    return originalSend(body);
+  } as typeof res.send;
+
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
