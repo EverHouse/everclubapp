@@ -117,7 +117,7 @@ async function gracefulShutdown(signal: string) {
 }
 
 const isProduction = process.env.NODE_ENV === 'production';
-const PORT = Number(process.env.PORT) || (isProduction ? 5001 : 3001);
+const PORT = Number(process.env.PORT) || (isProduction ? 3000 : 3001);
 
 const MAINTENANCE_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -225,6 +225,7 @@ async function initializeApp() {
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
+  const distDir = path.join(process.cwd(), 'dist');
 
   logger.info(`[Startup] Environment: ${isProduction ? 'production' : 'development'}`);
   logger.info(`[Startup] DATABASE_URL: ${process.env.DATABASE_URL ? 'configured' : 'MISSING'}`);
@@ -500,7 +501,7 @@ async function initializeApp() {
   registerSitemapRoutes(app, isProduction);
 
   if (isProduction) {
-    app.use(expressStaticGzip(path.join(__dirname, '../dist'), {
+    app.use(expressStaticGzip(distDir, {
       enableBrotli: true,
       orderPreference: ['br', 'gz'],
       serveStatic: {
@@ -524,7 +525,7 @@ async function initializeApp() {
     app.use('/assets/', async (req, res, next) => {
       if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.js.br') || req.path.endsWith('.css.br')) {
         const fs = await import('fs');
-        const filePath = path.join(__dirname, '../dist/assets', req.path);
+        const filePath = path.join(distDir, 'assets', req.path);
         if (!fs.existsSync(filePath)) {
           logger.info(`[Stale Asset] 404 for /assets${req.path} - returning 404 (error boundary will handle reload)`);
           res.status(404).setHeader('Cache-Control', 'no-store').send('');
@@ -609,7 +610,7 @@ async function initializeApp() {
       getCachedIndexHtml: () => cachedIndexHtml,
       getMainCssPath: () => mainCssPath,
       siteOrigin,
-      distDir: path.join(__dirname, '../dist'),
+      distDir,
     }));
   }
 
@@ -656,7 +657,7 @@ async function initializeApp() {
 
   if (isProduction) {
     try {
-      const indexPath = path.join(__dirname, '../dist/index.html');
+      const indexPath = path.join(distDir, 'index.html');
       const fs = await import('fs');
       cachedIndexHtml = fs.readFileSync(indexPath, 'utf8');
       const cssMatch = cachedIndexHtml.match(/href="(\/assets\/[^"]+\.css)"/);
