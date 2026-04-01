@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm';
 import { changeSubscriptionTier } from './subscriptions';
 import { syncCustomerMetadataToStripe } from './customers';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { queueJob } from '../jobQueue';
 
 import { logger } from '../logger';
 export interface TierChangePreview {
@@ -140,17 +141,66 @@ export async function commitTierChange(
       return result;
     }
     
-    // Only update DB tier immediately if this is an immediate change
-    // Scheduled changes are handled by the subscription.updated webhook when Stripe applies them
+    const changeType = immediate ? 'immediately' : 'at end of billing cycle';
+    const noteContent = `Membership tier changed from ${currentTierName} to ${tier.name} (${changeType}). Changed by staff: ${staffEmail}`;
+
+    try {
+      await db.transaction(async (tx) => {
+        if (immediate) {
+          await tx.execute(
+            sql`UPDATE users SET tier = ${tier.name}, updated_at = NOW() WHERE LOWER(email) = LOWER(${memberEmail})`
+          );
+        }
+
+        await tx.insert(memberNotes).values({
+          memberEmail: memberEmail.toLowerCase(),
+          content: noteContent,
+          createdBy: staffEmail,
+          createdByName: staffEmail.split('@')[0] || 'Staff',
+          isPinned: false,
+        });
+      });
+    } catch (txError) {
+      logger.error('[Tier Change] CRITICAL: DB transaction failed after Stripe subscription was already updated', {
+        extra: {
+          memberEmail,
+          subscriptionId,
+          newTier: tier.name,
+          error: getErrorMessage(txError),
+        },
+      });
+
+      let reconciliationQueued = false;
+      try {
+        await queueJob('tier_change_reconciliation', {
+          memberEmail,
+          expectedTier: tier.name,
+          subscriptionId,
+          staffEmail,
+          currentTierName,
+          immediate,
+          failedAt: new Date().toISOString(),
+          reason: getErrorMessage(txError),
+        }, { priority: 10, maxRetries: 5 });
+        reconciliationQueued = true;
+        logger.info(`[Tier Change] Reconciliation job queued for ${memberEmail}`);
+      } catch (queueError) {
+        logger.error('[Tier Change] CRITICAL: Failed to queue reconciliation job', {
+          extra: { memberEmail, error: getErrorMessage(queueError) },
+        });
+      }
+
+      return {
+        success: false,
+        error: reconciliationQueued
+          ? `Stripe updated but DB write failed. A reconciliation job has been queued. Details: ${getErrorMessage(txError)}`
+          : `Stripe updated but DB write failed. Reconciliation queue also failed — manual intervention required. Details: ${getErrorMessage(txError)}`,
+      };
+    }
+
     if (immediate) {
-      await db.execute(
-        sql`UPDATE users SET tier = ${tier.name}, updated_at = NOW() WHERE LOWER(email) = LOWER(${memberEmail})`
-      );
-      
-      // Sync the updated tier to Stripe customer metadata
       await syncCustomerMetadataToStripe(memberEmail);
-      
-      // Sync tier change to HubSpot
+
       try {
         const { syncMemberToHubSpot } = await import('../hubspot/stages');
         await syncMemberToHubSpot({ email: memberEmail, tier: tier.name, billingProvider: 'stripe' });
@@ -160,36 +210,9 @@ export async function commitTierChange(
       }
     }
     
-    // Add member note for audit trail using DB tier names for consistency
-    const changeType = immediate ? 'immediately' : 'at end of billing cycle';
-    const noteContent = `Membership tier changed from ${currentTierName} to ${tier.name} (${changeType}). Changed by staff: ${staffEmail}`;
-    
-    await db.insert(memberNotes).values({
-      memberEmail: memberEmail.toLowerCase(),
-      content: noteContent,
-      createdBy: staffEmail,
-      createdByName: staffEmail.split('@')[0] || 'Staff',
-      isPinned: false,
-    });
-    
     logger.info(`[Tier Change] Staff ${staffEmail} changed ${memberEmail} from ${currentTierName} to ${tier.name} (${changeType})`);
     
-    // Verification: Check if DB tier was properly updated
-    let warning: string | undefined;
-    if (immediate) {
-      const userResult = await db.execute(
-        sql`SELECT tier FROM users WHERE LOWER(email) = LOWER(${memberEmail})`
-      );
-      if (userResult.rows.length > 0) {
-        const actualTier = userResult.rows[0].tier;
-        if (actualTier !== tier.name) {
-          warning = `Expected ${tier.name} but DB shows ${actualTier}`;
-          logger.info(`[Tier Change] VERIFICATION FAILED: ${warning}`);
-        }
-      }
-    }
-    
-    return { success: true, ...(warning && { warning }) };
+    return { success: true };
   } catch (error: unknown) {
     logger.error('[Tier Change] Commit error:', { extra: { error: getErrorMessage(error) } });
     return { success: false, error: getErrorMessage(error) };

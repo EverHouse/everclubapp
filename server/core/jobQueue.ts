@@ -57,6 +57,7 @@ export type JobType =
   | 'stripe_balance_refund'
   | 'stripe_cancel_payment_intent'
   | 'wellhub_report_event'
+  | 'tier_change_reconciliation'
   | 'generic_async_task';
 
 interface QueueJobOptions {
@@ -426,6 +427,44 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         } else {
           throw new Error(reportResult.error || 'Unknown error reporting Wellhub event');
         }
+        break;
+      }
+      case 'tier_change_reconciliation': {
+        const email = payload.memberEmail as string;
+        const expectedTier = payload.expectedTier as string;
+        const subscriptionId = payload.subscriptionId as string;
+        const staffEmail = payload.staffEmail as string;
+        const isImmediate = payload.immediate as boolean;
+        logger.info(`[JobQueue] Reconciling tier change for ${email} → ${expectedTier} (immediate=${isImmediate})`);
+        const { memberNotes } = await import('../../shared/schema');
+
+        if (isImmediate) {
+          const userRow = await db.execute(sql`SELECT tier FROM users WHERE LOWER(email) = LOWER(${email})`);
+          const currentTier = userRow.rows.length > 0 ? (userRow.rows[0] as { tier: string }).tier : null;
+          if (currentTier !== expectedTier) {
+            await db.execute(
+              sql`UPDATE users SET tier = ${expectedTier}, updated_at = NOW() WHERE LOWER(email) = LOWER(${email})`
+            );
+            logger.info(`[JobQueue] Tier reconciliation corrected ${email}: ${currentTier} → ${expectedTier}`);
+          } else {
+            logger.info(`[JobQueue] Tier reconciliation skipped for ${email}: already at ${expectedTier}`);
+          }
+        }
+
+        const reconciliationNote = `[Auto-Reconciliation] ${isImmediate ? `Tier corrected to ${expectedTier}` : `Audit note restored for scheduled change to ${expectedTier}`} after failed DB transaction. Stripe subscription ${subscriptionId} was already updated. Original change by: ${staffEmail}`;
+        const existingNote = await db.execute(
+          sql`SELECT id FROM member_notes WHERE LOWER(member_email) = LOWER(${email}) AND content = ${reconciliationNote} LIMIT 1`
+        );
+        if (existingNote.rows.length === 0) {
+          await db.insert(memberNotes).values({
+            memberEmail: email.toLowerCase(),
+            content: reconciliationNote,
+            createdBy: 'system',
+            createdByName: 'System Reconciliation',
+            isPinned: false,
+          });
+        }
+        logger.info(`[JobQueue] Tier reconciliation completed for ${email}`);
         break;
       }
       case 'generic_async_task':
