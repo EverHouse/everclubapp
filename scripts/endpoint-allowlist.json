@@ -7996,5 +7996,11 @@
     "method": "POST",
     "path": "/api/wellness-classes/:id/enrollments/manual",
     "reason": "pre-existing: missing rate-limit"
+  },
+  {
+    "file": "server/routes/wellhub/webhook.ts",
+    "method": "POST",
+    "path": "*",
+    "reason": "external webhook — protected by HMAC signature verification (verifyWellhubSignature)"
   }
 ]
