@@ -348,8 +348,15 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
     
     const shouldNotifyMembers = affected_areas !== 'none' ? true : !!notify_members;
     
-    const [[result], affectedBayIds, internalCalendarId] = await Promise.all([
-      db.insert(facilityClosures).values({
+    const [affectedBayIds, internalCalendarId] = await Promise.all([
+      getAffectedBayIds(affected_areas),
+      getCalendarIdByName(CALENDAR_CONFIG.internal.name).catch(() => null),
+    ]);
+    
+    const dates = getDatesBetween(start_date, end_date || start_date);
+    
+    const result = await db.transaction(async (tx) => {
+      const [inserted] = await tx.insert(facilityClosures).values({
         title: title || 'Facility Closure',
         reason,
         memberNotice: member_notice || null,
@@ -364,33 +371,30 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
         notifyMembers: shouldNotifyMembers,
         isActive: true,
         createdBy: created_by
-      }).returning(),
-      getAffectedBayIds(affected_areas),
-      getCalendarIdByName(CALENDAR_CONFIG.internal.name).catch(() => null),
-    ]);
+      }).returning();
+      
+      if (affectedBayIds.length > 0) {
+        await createAvailabilityBlocksForClosure(
+          inserted.id,
+          affectedBayIds,
+          dates,
+          start_time,
+          end_time,
+          reason,
+          created_by,
+          tx
+        );
+      }
+      
+      return inserted;
+    });
     
     const closureId = result.id;
-    const dates = getDatesBetween(start_date, end_date || start_date);
-    
-    if (affectedBayIds.length > 0) {
-      await createAvailabilityBlocksForClosure(
-        closureId,
-        affectedBayIds,
-        dates,
-        start_time,
-        end_time,
-        reason,
-        created_by
-      );
-    }
     
     let internalEventIds: string | null = null;
     
     try {
-      
       if (internalCalendarId) {
-        // Use notice_type for bracket prefix in calendar title
-        // Default to NOTICE for non-blocking (affected_areas='none'), CLOSURE otherwise
         const defaultType = affected_areas === 'none' ? 'NOTICE' : 'CLOSURE';
         const typePrefix = notice_type ? `[${notice_type.toUpperCase()}]` : `[${defaultType}]`;
         const eventTitle = `${typePrefix}: ${title || 'Facility Notice'}`;
@@ -422,13 +426,25 @@ router.post('/api/closures', isStaffOrAdmin, async (req, res) => {
             .set({ internalCalendarId: internalEventIds })
             .where(eq(facilityClosures.id, closureId));
         } else {
-          logger.error('[Closures] Failed to create Internal Calendar event for closure #', { extra: { closureId } });
+          logger.warn('[Closures] Calendar event creation returned null for closure #, flagging for background sync', { extra: { closureId } });
+          await db
+            .update(facilityClosures)
+            .set({ locallyEdited: true, appLastModifiedAt: new Date() })
+            .where(eq(facilityClosures.id, closureId));
         }
       } else {
-        logger.error('[Closures] Internal Calendar not found - cannot create event for closure #', { extra: { closureId } });
+        logger.warn('[Closures] Internal Calendar not found — closure # created without calendar event, flagging for background sync', { extra: { closureId } });
+        await db
+          .update(facilityClosures)
+          .set({ locallyEdited: true, appLastModifiedAt: new Date() })
+          .where(eq(facilityClosures.id, closureId));
       }
     } catch (calError: unknown) {
-      logger.error('[Closures] Failed to create Internal Calendar event', { extra: { calError: getErrorMessage(calError) } });
+      logger.error('[Closures] Failed to create Internal Calendar event for closure #, flagging for background sync', { extra: { closureId, calError: getErrorMessage(calError) } });
+      await db
+        .update(facilityClosures)
+        .set({ locallyEdited: true, appLastModifiedAt: new Date() })
+        .where(eq(facilityClosures.id, closureId));
     }
     
     if (notify_members) {
@@ -504,6 +520,19 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
       .from(facilityClosures)
       .where(eq(facilityClosures.id, closureId));
     
+    await db.transaction(async (tx) => {
+      await deleteAvailabilityBlocksForClosure(closureId, tx);
+      
+      await tx
+        .delete(announcements)
+        .where(eq(announcements.closureId, closureId));
+      
+      await tx
+        .update(facilityClosures)
+        .set({ isActive: false })
+        .where(eq(facilityClosures.id, closureId));
+    });
+    
     try {
       const [internalCalendarId, conferenceCalendarId] = await Promise.all([
         closure?.internalCalendarId ? getCalendarIdByName(CALENDAR_CONFIG.internal.name) : Promise.resolve(null),
@@ -521,24 +550,8 @@ router.delete('/api/closures/:id', isStaffOrAdmin, async (req, res) => {
           : Promise.resolve(),
       ]);
     } catch (calError: unknown) {
-      logger.error('[Closures] Failed to delete calendar event', { extra: { error: getErrorMessage(calError) } });
+      logger.error('[Closures] Failed to delete calendar event(s) for closure # — orphan event(s) may remain on calendar until next background sync', { extra: { closureId, error: getErrorMessage(calError) } });
     }
-    
-    await deleteAvailabilityBlocksForClosure(closureId);
-    
-    try {
-      await db
-        .delete(announcements)
-        .where(eq(announcements.closureId, closureId));
-      logger.info('[Closures] Deleted announcement(s) for closure #', { extra: { closureId } });
-    } catch (announcementError: unknown) {
-      logger.error('[Closures] Failed to delete announcement', { extra: { error: getErrorMessage(announcementError) } });
-    }
-    
-    await db
-      .update(facilityClosures)
-      .set({ isActive: false })
-      .where(eq(facilityClosures.id, closureId));
     
     clearClosureCache();
     

@@ -128,6 +128,7 @@ interface ClosureRow {
   notify_members: boolean;
   reason: string | null;
   internal_calendar_id: string | null;
+  is_active: boolean;
 }
 
 async function getAllResourceIds(): Promise<number[]> {
@@ -422,17 +423,64 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       let existing = await db.execute(
         sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review, notice_type,
                locally_edited, app_last_modified_at, google_event_updated_at, title, notes, notify_members, reason,
-               internal_calendar_id
+               internal_calendar_id, is_active
          FROM facility_closures
          WHERE internal_calendar_id = ${internalCalendarId}
             OR POSITION(${internalCalendarId} IN internal_calendar_id) > 0`
       );
       
+      if (existing.rows.length > 0) {
+        const matchedClosure = existing.rows[0] as unknown as ClosureRow;
+        if (!matchedClosure.is_active) {
+          try {
+            const allLinkedIds = matchedClosure.internal_calendar_id
+              ? matchedClosure.internal_calendar_id.split(',').map(id => id.trim()).filter(Boolean)
+              : [event.id!];
+            
+            const deletedIds: string[] = [];
+            for (const linkedEventId of allLinkedIds) {
+              try {
+                await withCalendarRetry(() => calendar.events.delete({
+                  calendarId,
+                  eventId: linkedEventId,
+                }), `closures-cleanup-orphan-${matchedClosure.id}-${linkedEventId}`);
+                deletedIds.push(linkedEventId);
+              } catch (perEventErr: unknown) {
+                const errMsg = getErrorMessage(perEventErr);
+                const isNotFound = errMsg.includes('404') || errMsg.toLowerCase().includes('not found');
+                if (isNotFound) {
+                  deletedIds.push(linkedEventId);
+                  logger.info(`[Calendar Sync] Orphan event ${linkedEventId} already deleted for closure #${matchedClosure.id}`);
+                } else {
+                  logger.warn(`[Calendar Sync] Failed to delete orphan event ${linkedEventId} for deactivated closure #${matchedClosure.id}, will retry next sync`, { extra: { error: errMsg } });
+                }
+              }
+            }
+            
+            const remainingIds = allLinkedIds.filter(id => !deletedIds.includes(id));
+            if (remainingIds.length === 0) {
+              await db.execute(
+                sql`UPDATE facility_closures SET internal_calendar_id = NULL WHERE id = ${matchedClosure.id}`
+              );
+              logger.info(`[Calendar Sync] Cleaned up all ${deletedIds.length} orphan calendar event(s) for deactivated closure #${matchedClosure.id}: ${event.summary}`);
+            } else {
+              await db.execute(
+                sql`UPDATE facility_closures SET internal_calendar_id = ${remainingIds.join(',')} WHERE id = ${matchedClosure.id}`
+              );
+              logger.warn(`[Calendar Sync] Partially cleaned orphan events for deactivated closure #${matchedClosure.id}: ${deletedIds.length} deleted, ${remainingIds.length} remaining for retry`);
+            }
+          } catch (cleanupErr: unknown) {
+            logger.warn(`[Calendar Sync] Failed to clean up orphan calendar events for deactivated closure #${matchedClosure.id}`, { extra: { error: getErrorMessage(cleanupErr) } });
+          }
+          continue;
+        }
+      }
+      
       if (existing.rows.length === 0) {
         const adoptable = await db.execute(
           sql`SELECT id, start_date, end_date, start_time, end_time, affected_areas, needs_review, notice_type,
                  locally_edited, app_last_modified_at, google_event_updated_at, title, notes, notify_members, reason,
-                 internal_calendar_id
+                 internal_calendar_id, is_active
            FROM facility_closures
            WHERE title = ${title}
              AND is_active = true
@@ -682,7 +730,103 @@ export async function syncInternalCalendarToClosures(): Promise<{ synced: number
       }
     }
     
-    return { synced: events.length, created, updated, deleted, pushedToCalendar };
+    let calendarEventsCreated = 0;
+    try {
+      const orphanedClosures = await db.execute(
+        sql`SELECT id, title, reason, notes, notice_type, start_date, start_time, end_date, end_time,
+               affected_areas, notify_members
+         FROM facility_closures
+         WHERE is_active = true
+           AND locally_edited = true
+           AND internal_calendar_id IS NULL`
+      );
+      
+      interface OrphanedClosureRow {
+        id: number; title: string; reason: string | null; notes: string | null;
+        notice_type: string | null; start_date: string; start_time: string | null;
+        end_date: string; end_time: string | null; affected_areas: string | null;
+        notify_members: boolean;
+      }
+      
+      for (const row of orphanedClosures.rows as unknown as OrphanedClosureRow[]) {
+        try {
+          const dbAffectedAreas = row.affected_areas || 'none';
+          const defaultType = dbAffectedAreas === 'none' ? 'NOTICE' : 'CLOSURE';
+          const typePrefix = row.notice_type ? `[${row.notice_type.toUpperCase()}]` : `[${defaultType}]`;
+          const calendarTitle = `${typePrefix}: ${row.title}`;
+          const calendarDescription = row.reason || 'Scheduled notice';
+          
+          const extendedProps: Record<string, string> = {
+            'ehApp_type': 'closure',
+            'ehApp_id': String(row.id),
+          };
+          if (dbAffectedAreas) extendedProps['ehApp_affectedAreas'] = dbAffectedAreas;
+          extendedProps['ehApp_notifyMembers'] = row.notify_members ? 'true' : 'false';
+          if (row.notes) extendedProps['ehApp_notes'] = row.notes;
+          
+          const dbStartDate = row.start_date;
+          const dbEndDate = row.end_date || dbStartDate;
+          const dbStartTime = row.start_time;
+          const dbEndTime = row.end_time;
+          
+          let newEventIds: string | null = null;
+          
+          if (dbStartTime && dbEndTime) {
+            const dayDates = getDayDatesBetween(dbStartDate, dbEndDate);
+            const eventIdList: string[] = [];
+            for (let di = 0; di < dayDates.length; di++) {
+              const desc = dayDates.length > 1
+                ? `${calendarDescription}\n\n(Day ${di + 1} of ${dayDates.length})`
+                : calendarDescription;
+              const insertRes = await withCalendarRetry(() => calendar.events.insert({
+                calendarId,
+                requestBody: {
+                  summary: calendarTitle,
+                  description: desc,
+                  extendedProperties: { shared: extendedProps },
+                  start: { dateTime: `${dayDates[di]}T${dbStartTime}`, timeZone: 'America/Los_Angeles' },
+                  end: { dateTime: `${dayDates[di]}T${dbEndTime}`, timeZone: 'America/Los_Angeles' },
+                },
+              }), `closures-create-orphan-timed-${row.id}-${di}`);
+              if (insertRes.data.id) eventIdList.push(insertRes.data.id);
+            }
+            if (eventIdList.length > 0) newEventIds = eventIdList.join(',');
+          } else {
+            const gcEndDate = addDaysToPacificDate(dbEndDate, 1);
+            const insertRes = await withCalendarRetry(() => calendar.events.insert({
+              calendarId,
+              requestBody: {
+                summary: calendarTitle,
+                description: calendarDescription,
+                extendedProperties: { shared: extendedProps },
+                start: { date: dbStartDate },
+                end: { date: gcEndDate },
+              },
+            }), `closures-create-orphan-allday-${row.id}`);
+            if (insertRes.data.id) newEventIds = insertRes.data.id;
+          }
+          
+          if (newEventIds) {
+            await db.execute(
+              sql`UPDATE facility_closures SET
+                internal_calendar_id = ${newEventIds},
+                locally_edited = false,
+                app_last_modified_at = NULL,
+                last_synced_at = NOW()
+                WHERE id = ${row.id}`
+            );
+            calendarEventsCreated++;
+            logger.info(`[Calendar Sync] Created missing calendar event(s) for closure #${row.id}: ${row.title}`);
+          }
+        } catch (createErr: unknown) {
+          logger.warn(`[Calendar Sync] Failed to create calendar event for orphaned closure #${row.id}`, { extra: { error: getErrorMessage(createErr) } });
+        }
+      }
+    } catch (orphanErr: unknown) {
+      logger.warn('[Calendar Sync] Failed to process orphaned closures', { extra: { error: getErrorMessage(orphanErr) } });
+    }
+    
+    return { synced: events.length, created, updated, deleted, pushedToCalendar: pushedToCalendar + calendarEventsCreated };
   } catch (error: unknown) {
     logger.error('Error syncing Internal Calendar to closures:', { extra: { error: getErrorMessage(error) } });
     return { synced: 0, created: 0, updated: 0, deleted: 0, pushedToCalendar: 0, error: 'Failed to sync closures' };

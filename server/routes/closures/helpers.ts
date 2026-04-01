@@ -212,10 +212,12 @@ export async function createAvailabilityBlocksForClosure(
   startTime: string | null,
   endTime: string | null,
   reason: string | null,
-  createdBy: string | null
+  createdBy: string | null,
+  txClient?: Parameters<Parameters<typeof db.transaction>[0]>[0]
 ): Promise<void> {
   const blockStartTime = startTime || '08:00:00';
   const blockEndTime = endTime || '22:00:00';
+  const dbClient = txClient ?? db;
   
   const insertValues = [];
   for (const resourceId of bayIds) {
@@ -234,13 +236,17 @@ export async function createAvailabilityBlocksForClosure(
   }
   
   if (insertValues.length > 0) {
-    await db.insert(availabilityBlocks).values(insertValues).onConflictDoNothing();
+    await dbClient.insert(availabilityBlocks).values(insertValues).onConflictDoNothing();
     logger.info('[Closures] Created availability blocks for closure #', { extra: { insertValuesLength: insertValues.length, closureId } });
   }
 }
 
-export async function deleteAvailabilityBlocksForClosure(closureId: number): Promise<void> {
-  await db
+export async function deleteAvailabilityBlocksForClosure(
+  closureId: number,
+  txClient?: Parameters<Parameters<typeof db.transaction>[0]>[0]
+): Promise<void> {
+  const dbClient = txClient ?? db;
+  await dbClient
     .delete(availabilityBlocks)
     .where(eq(availabilityBlocks.closureId, closureId));
   
