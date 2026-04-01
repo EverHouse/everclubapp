@@ -149,8 +149,11 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) {
+            if (id.includes('recharts') || id.includes('victory-vendor')) {
               return 'vendor-recharts';
+            }
+            if (id.includes('d3-')) {
+              return 'vendor-d3';
             }
             if (id.includes('react-dom')) {
               return 'vendor-react-dom';
@@ -158,8 +161,11 @@ export default defineConfig({
             if (id.includes('react-router')) {
               return 'vendor-react-router';
             }
+            if (id.includes('@supabase/realtime') || id.includes('@supabase/functions')) {
+              return 'vendor-supabase-realtime';
+            }
             if (id.includes('@supabase')) {
-              return 'vendor-supabase';
+              return 'vendor-supabase-core';
             }
             if (id.includes('@stripe/stripe-js') || id.includes('@stripe/react-stripe-js')) {
               return 'vendor-stripe';

@@ -14,6 +14,8 @@ const STATIC_ASSETS = [
 
 const CACHEABLE_API_ENDPOINTS = ['events', 'wellness-classes', 'cafe-menu', 'hours', 'faqs', 'announcements', 'gallery'];
 
+var API_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
+
 self.addEventListener('install', function(event) {
   console.log('[SW] Installing new version:', BUILD_VERSION);
   self.skipWaiting();
@@ -57,6 +59,7 @@ self.addEventListener('activate', function(event) {
     return caches.keys().then(function(keys) {
       return Promise.all(
         keys.filter(function(key) {
+          if (key === FONTS_CACHE) return false;
           return key.startsWith('ever-club-') || key.startsWith('ever-house-') || key.startsWith('api-cache-');
         }).filter(function(key) {
           return key !== CACHE_NAME && key !== API_CACHE;
@@ -141,16 +144,42 @@ self.addEventListener('fetch', function(event) {
   if (url.pathname.startsWith('/api/')) {
     if (CACHEABLE_API_ENDPOINTS.some(function(ep) { return url.pathname.includes(ep); })) {
       event.respondWith(
-        fetch(request).then(function(response) {
-          if (response.ok) {
-            var contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              var clone = response.clone();
-              caches.open(API_CACHE).then(function(cache) { cache.put(request, clone); });
+        caches.open(API_CACHE).then(function(cache) {
+          return cache.match(request).then(function(cachedResponse) {
+            var networkFetch = fetch(request).then(function(response) {
+              if (response.ok) {
+                var contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                  var headers = new Headers(response.headers);
+                  headers.set('sw-cache-time', String(Date.now()));
+                  var cachedResp = new Response(response.clone().body, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: headers
+                  });
+                  cache.put(request, cachedResp);
+                }
+              }
+              return response;
+            }).catch(function() {
+              return cachedResponse || new Response('{"error":"offline"}', {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' }
+              });
+            });
+
+            if (cachedResponse) {
+              var cacheTime = parseInt(cachedResponse.headers.get('sw-cache-time') || '0', 10);
+              var age = Date.now() - cacheTime;
+              if (age < API_CACHE_MAX_AGE_MS) {
+                networkFetch.catch(function() {});
+                return cachedResponse;
+              }
             }
-          }
-          return response;
-        }).catch(function() { return caches.match(request); })
+
+            return networkFetch;
+          });
+        })
       );
     }
     return;
@@ -205,15 +234,20 @@ self.addEventListener('fetch', function(event) {
 
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      fetch(request)
-        .then(function(response) {
+      caches.match(request).then(function(cachedResponse) {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then(function(response) {
           if (response.ok) {
             var clone = response.clone();
             caches.open(CACHE_NAME).then(function(cache) { cache.put(request, clone); });
           }
           return response;
-        })
-        .catch(function() { return caches.match(request); })
+        }).catch(function() {
+          return new Response('', { status: 503, statusText: 'Asset unavailable offline' });
+        });
+      })
     );
     return;
   }

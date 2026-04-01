@@ -79,22 +79,28 @@ function appendSearchPath(connString: string | undefined): string | undefined {
 
 const mainConnString = appendSearchPath(usingPooler ? poolerUrl : directUrl);
 
-const defaultPoolMax = isProduction ? 25 : 25;
+const defaultPoolMax = isProduction ? 20 : 10;
 const poolMax = parseInt(process.env.DB_POOL_MAX || String(defaultPoolMax), 10);
+
+const defaultIdleTimeout = isProduction ? 20000 : 30000;
+const idleTimeoutMs = parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS || String(defaultIdleTimeout), 10);
+
+const defaultConnTimeout = isProduction ? 10000 : 30000;
+const connectionTimeoutMs = parseInt(process.env.DB_POOL_CONN_TIMEOUT_MS || String(defaultConnTimeout), 10);
 
 const basePool = new Pool({
   connectionString: mainConnString,
-  connectionTimeoutMillis: 30000,
-  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: connectionTimeoutMs,
+  idleTimeoutMillis: idleTimeoutMs,
   max: poolMax,
   ssl: needsSsl ? sslConfig : undefined,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  allowExitOnIdle: true,
+  allowExitOnIdle: !isProduction,
   statement_timeout: 60000,
 });
 
-logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=30s, idle=30s`);
+logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=${connectionTimeoutMs}ms, idle=${idleTimeoutMs}ms, env=${isProduction ? 'production' : 'development'}`);
 
 let lastPoolWarnTime = 0;
 basePool.on('connect', () => {
@@ -399,9 +405,27 @@ export function getPoolStatus() {
   return {
     total: pool.totalCount,
     idle: pool.idleCount,
-    waiting: pool.waitingCount
+    waiting: pool.waitingCount,
+    active: pool.totalCount - pool.idleCount,
+    max: poolMax,
   };
 }
+
+const POOL_MONITOR_INTERVAL_MS = isProduction ? 60_000 : 300_000;
+const poolMonitorTimer = setInterval(() => {
+  const { totalCount, idleCount, waitingCount } = basePool;
+  const active = totalCount - idleCount;
+  const utilization = poolMax > 0 ? ((active / poolMax) * 100).toFixed(1) : '0';
+  logger.info('[Database] Pool utilization', {
+    extra: { total: totalCount, idle: idleCount, active, waiting: waitingCount, max: poolMax, utilization: `${utilization}%` },
+  });
+  if (waitingCount > 0) {
+    logger.warn('[Database] Clients waiting for connections', {
+      extra: { waiting: waitingCount, active, max: poolMax },
+    });
+  }
+}, POOL_MONITOR_INTERVAL_MS);
+poolMonitorTimer.unref();
 
 export function safeRelease(client: PoolClient): void {
   try {
