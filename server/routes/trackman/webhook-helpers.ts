@@ -1,7 +1,7 @@
 import { logger } from '../../core/logger';
 import { formatDatePacific, formatTimePacific } from '../../utils/dateUtils';
 
-export const isProduction = process.env.NODE_ENV === 'production';
+export const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
 
 export function calculateDurationMinutes(startTime: string, endTime: string): number {
   const startParts = startTime.split(':').map(Number);

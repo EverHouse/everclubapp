@@ -187,14 +187,17 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
     } catch {
       logger.warn('[Trackman Webhook] Could not parse DEV_WEBHOOK_FORWARD_URL', { extra: { url: forwardUrl } });
     }
+    const internalSecret = process.env.INTERNAL_API_SECRET;
     fetch(forwardUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Forwarded-From': 'production',
+        ...(internalSecret ? { 'X-Forward-Secret': internalSecret } : {}),
         'X-Original-Signature': req.headers['x-trackman-signature'] as string || ''
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(10_000)
     }).then(resp => {
       if (resp.ok) {
         logger.info('[Trackman Webhook] Forwarded to dev environment', { extra: { status: resp.status } });
@@ -208,6 +211,12 @@ router.post('/api/webhooks/trackman', async (req: Request, res: Response) => {
   
   const isForwardedFromProduction = req.headers['x-forwarded-from'] === 'production';
   if (isForwardedFromProduction && !isProduction) {
+    const expectedSecret = process.env.INTERNAL_API_SECRET;
+    const receivedSecret = req.headers['x-forward-secret'] as string;
+    if (expectedSecret && receivedSecret !== expectedSecret) {
+      logger.warn('[Trackman Webhook] Rejected forwarded webhook — invalid forward secret');
+      return res.status(401).json({ error: 'Invalid forward secret' });
+    }
     logger.info('[Trackman Webhook] Processing forwarded webhook from production');
   } else if (!validateTrackmanWebhookSignature(req)) {
     return res.status(401).json({ error: 'Invalid signature' });
