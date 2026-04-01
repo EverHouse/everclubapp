@@ -99,6 +99,9 @@ router.get('/api/push/vapid-public-key', (req, res) => {
 router.post('/api/push/subscribe', isAuthenticated, validateBody(pushSubscribeSchema), async (req, res) => {
   try {
     const { subscription } = req.body;
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ error: 'subscription is required' });
+    }
     const userEmail = req.session?.user?.email;
     
     const { endpoint, keys } = subscription;
@@ -130,6 +133,9 @@ router.post('/api/push/subscribe', isAuthenticated, validateBody(pushSubscribeSc
 router.post('/api/push/unsubscribe', isAuthenticated, validateBody(pushUnsubscribeSchema), async (req, res) => {
   try {
     const { endpoint } = req.body;
+    if (!endpoint) {
+      return res.status(400).json({ error: 'endpoint is required' });
+    }
     const userEmail = req.session?.user?.email;
     
     await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userEmail, userEmail!)));

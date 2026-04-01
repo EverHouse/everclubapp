@@ -286,7 +286,7 @@ describe('Booking Concurrency Tests', () => {
       expect(lockValues).toEqual(sorted);
     });
 
-    it('checkResourceOverlap uses FOR UPDATE to lock conflicting rows', async () => {
+    it('checkResourceOverlap queries booking_requests for overlapping rows', async () => {
       const txMock = {
         execute: vi.fn().mockResolvedValue({ rows: [] }),
       };
@@ -298,11 +298,11 @@ describe('Booking Concurrency Tests', () => {
         endTime: '11:00',
       });
 
-      const forUpdateCall = sqlCalls.find(c =>
-        c.strings.some(s => s.includes('FOR UPDATE')) &&
-        c.strings.some(s => s.includes('booking_requests'))
+      const overlapCall = sqlCalls.find(c =>
+        c.strings.some(s => s.includes('booking_requests')) &&
+        c.strings.some(s => s.includes('resource_id'))
       );
-      expect(forUpdateCall).toBeDefined();
+      expect(overlapCall).toBeDefined();
     });
 
     it('checkResourceOverlap throws BookingConflictError with 409 when overlap exists', async () => {

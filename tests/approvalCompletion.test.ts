@@ -303,6 +303,7 @@ describe('Approval Completion — devConfirmBooking', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'member-id', first_name: 'Member', last_name: 'One' }] })
       .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [], rowCount: 1 })
       .mockResolvedValueOnce({ rowCount: 1 })
       .mockResolvedValueOnce({ rows: [] });
@@ -313,7 +314,7 @@ describe('Approval Completion — devConfirmBooking', () => {
     const result = await devConfirmBooking({ bookingId: 1, staffEmail: 'staff@example.com' });
 
     expect(result.success).toBe(true);
-    expect(txExecute).toHaveBeenCalledTimes(8);
+    expect(txExecute).toHaveBeenCalledTimes(9);
   });
 
   it('sends notifications to booking owner after confirmation', async () => {
