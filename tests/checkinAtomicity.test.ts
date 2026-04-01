@@ -156,6 +156,7 @@ vi.mock('../server/utils/dateUtils', () => ({
   formatNotificationDateTime: vi.fn().mockReturnValue('June 15, 2025 10:00 AM'),
   formatDateDisplayWithDay: vi.fn().mockReturnValue('Sunday, June 15'),
   formatTime12Hour: vi.fn().mockReturnValue('10:00 AM'),
+  formatDateFromDb: vi.fn((d: unknown) => String(d)),
 }));
 
 vi.mock('../server/routes/bays/helpers', () => ({

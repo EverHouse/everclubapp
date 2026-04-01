@@ -174,6 +174,7 @@ vi.mock('../server/utils/dateUtils', () => ({
   formatNotificationDateTime: vi.fn(() => 'Jan 1 at 10:00 AM'),
   formatDateDisplayWithDay: vi.fn(() => 'Wed, Jan 1'),
   formatTime12Hour: vi.fn(() => '10:00 AM'),
+  formatDateFromDb: vi.fn((d: unknown) => String(d)),
 }));
 
 vi.mock('../server/routes/push', () => ({

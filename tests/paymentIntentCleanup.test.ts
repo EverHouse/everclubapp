@@ -144,6 +144,7 @@ vi.mock('../server/utils/dateUtils', () => ({
   getTodayPacific: vi.fn(() => '2025-06-15'),
   formatTimePacific: vi.fn(() => '14:00'),
   createPacificDate: (...args: unknown[]) => mockCreatePacificDate(...args),
+  formatDateFromDb: vi.fn((d: unknown) => String(d)),
 }));
 
 vi.mock('../server/routes/push', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));

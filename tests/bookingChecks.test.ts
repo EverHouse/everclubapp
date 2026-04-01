@@ -19,6 +19,7 @@ vi.mock('../server/utils/errorUtils', () => ({
 
 vi.mock('../server/utils/dateUtils', () => ({
   getTodayPacific: vi.fn(() => '2026-03-31'),
+  formatDateFromDb: vi.fn((d: unknown) => String(d)),
 }));
 
 import { db } from '../server/db';
