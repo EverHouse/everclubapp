@@ -6,6 +6,7 @@ import { db } from '../../db';
     cancelPaymentIntent,
     createPaymentIntent,
     type BookingFeeLineItem,
+    type PaymentPurpose,
   } from '../stripe';
   import { getStripeClient } from '../stripe/client';
   import { resolveUserByEmail } from '../stripe/customers';
@@ -372,7 +373,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
 
     return { status: 200, body: {
       paymentIntentId: invoiceResult.paymentIntentId,
-      clientSecret: invoiceResult.clientSecret,
+      clientSecret: invoiceResult.clientSecret ?? undefined,
       customerId: stripeCustomerId,
       invoiceId: invoiceResult.invoiceId,
       paidInFull: false,
@@ -398,10 +399,10 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
       email,
       memberName: memberName || email.split('@')[0],
       amountCents: serverTotal,
-      purpose,
+      purpose: purpose as PaymentPurpose,
       bookingId,
       sessionId,
-      description: finalDescription,
+      description: finalDescription || '',
       metadata: Object.keys(metadata).length > 0 ? metadata : undefined
     });
   } catch (stripeErr: unknown) {

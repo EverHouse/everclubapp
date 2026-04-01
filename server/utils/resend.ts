@@ -138,7 +138,7 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
       replyTo: options.replyTo
     };
     if (options.text) sendPayload.text = options.text;
-    const result = await client.emails.send(sendPayload as Parameters<typeof client.emails.send>[0]);
+    const result = await client.emails.send(sendPayload as unknown as Parameters<typeof client.emails.send>[0]);
     
     const emailId = result.data?.id || null;
     const finalRecipients = Array.isArray(options.to) ? options.to : [options.to];

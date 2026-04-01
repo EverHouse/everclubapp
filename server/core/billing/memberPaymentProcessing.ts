@@ -420,14 +420,13 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
       overageCents: f.overageCents,
       guestCents: f.guestCents,
       participantType: f.participantType,
-      minutesAllocated: f.minutesAllocated,
     })),
     resolvedUserId,
     stripeCustomerId,
     trackmanId,
   });
   if (existingInvoiceResult) {
-    return { status: 200, body: existingInvoiceResult as PayFeesResult };
+    return { status: 200, body: existingInvoiceResult as unknown as PayFeesResult };
   }
 
   const feeLineItems: BookingFeeLineItem[] = [];

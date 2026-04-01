@@ -6,7 +6,7 @@ import { schedulerTracker } from '../core/schedulerTracker';
 import { getSettingValue, isSchedulerEnabled } from '../core/settingsHelper';
 import { getErrorMessage } from '../utils/errorUtils';
 
-let cronTask: cron.ScheduledTask | null = null;
+let cronTask: ReturnType<typeof cron.schedule> | null = null;
 let isRunning = false;
 
 async function cleanupNotificationTables(): Promise<void> {

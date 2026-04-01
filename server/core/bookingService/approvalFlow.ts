@@ -655,8 +655,7 @@ async function notifyLinkedMembers(bookingId: number, updated: BookingUpdateResu
           title: 'Booking Confirmed',
           message: linkedMessage,
           data: { bookingId, eventType: 'booking_approved' }
-        }, { action: 'booking_approved_linked', bookingId, triggerSource: 'approval.ts' })
-        .catch(err => logger.error('[Approval] linked sendNotificationToUser failed', { extra: { error: getErrorMessage(err) } }));
+        }, { action: 'booking_approved_linked', bookingId, triggerSource: 'approval.ts' });
       }
     }
   } catch (err: unknown) {

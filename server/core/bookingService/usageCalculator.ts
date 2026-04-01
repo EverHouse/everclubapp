@@ -770,7 +770,7 @@ export async function recalculateSessionFees(
         })
       );
 
-      const filteredBillings = resolvedBillings.filter(b => b !== null && b.memberId && b.memberId.trim() !== '');
+      const filteredBillings = resolvedBillings.filter((b): b is NonNullable<typeof b> => b !== null && !!b.memberId && b.memberId.trim() !== '');
       const aggregatedMap = new Map<string, { memberId: string; minutesCharged: number; overageFee: number; guestFee: number; tierAtBooking: string }>();
       for (const b of filteredBillings) {
         const normalizedId = b.memberId.trim().toLowerCase();

@@ -260,7 +260,7 @@ async function retryFailedSideEffect(record: FailedSideEffectRow): Promise<boole
           logger.warn('[FailedSideEffects] Push notification retry missing userEmail', { extra: { id, bookingId } });
           return true;
         }
-        const { sendPushNotification } = await import('../core/notificationService');
+        const { sendPushNotification } = await import('../core/pushService');
         await sendPushNotification(pushUserEmail, {
           title: (pushCtx?.title as string) || 'Booking Update',
           body: (pushCtx?.message as string) || `Booking #${bookingId} update.`,

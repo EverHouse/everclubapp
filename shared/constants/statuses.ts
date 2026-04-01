@@ -57,6 +57,7 @@ export const MEMBERSHIP_STATUS = {
   UNPAID: 'unpaid',
   DECLINED: 'declined',
   UNKNOWN: 'unknown',
+  DELETED: 'deleted',
 } as const;
 
 export type MembershipStatus = typeof MEMBERSHIP_STATUS[keyof typeof MEMBERSHIP_STATUS];
@@ -156,7 +157,7 @@ export const EVENT_CATEGORIES = [
 
 export type EventCategory = typeof EVENT_CATEGORIES[number];
 
-export const USER_ROLES = ['member', 'staff', 'admin'] as const;
+export const USER_ROLES = ['member', 'staff', 'admin', 'visitor'] as const;
 export type UserRole = typeof USER_ROLES[number];
 
 export const TOUR_STATUS = {
@@ -237,6 +238,8 @@ export const STRIPE_PAYMENT_INTENT_STATUS = {
   CANCELLED: 'cancelled',
   REQUIRES_ACTION: 'requires_action',
   REQUIRES_PAYMENT_METHOD: 'requires_payment_method',
+  REQUIRES_CAPTURE: 'requires_capture',
+  REQUIRES_CONFIRMATION: 'requires_confirmation',
   REFUNDED: 'refunded',
   REFUNDING: 'refunding',
 } as const;
@@ -268,6 +271,7 @@ export const FORM_SUBMISSION_STATUS = {
   CONVERTED: 'converted',
   CLOSED: 'closed',
   SPAM: 'spam',
+  ARCHIVED: 'archived',
 } as const;
 
 export type FormSubmissionStatus = typeof FORM_SUBMISSION_STATUS[keyof typeof FORM_SUBMISSION_STATUS];
@@ -285,6 +289,7 @@ export const WELLNESS_ENROLLMENT_STATUS = {
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   WAITLISTED: 'waitlisted',
+  ATTENDED: 'attended',
 } as const;
 
 export type WellnessEnrollmentStatus = typeof WELLNESS_ENROLLMENT_STATUS[keyof typeof WELLNESS_ENROLLMENT_STATUS];

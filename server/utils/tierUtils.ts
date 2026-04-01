@@ -212,7 +212,7 @@ export async function denormalizeTierForHubSpotAsync(rawName: string | null | un
     const { getSettingValue } = await import('../core/settingsHelper');
     const baseName = _canonicalTierNames[slug] ?? slug;
     const defaultTier = `${baseName} Membership`;
-    return getSettingValue(`hubspot.tier.${slug}`, defaultTier);
+    return (await getSettingValue(`hubspot.tier.${slug}`, defaultTier)) ?? null;
   }
 
   const trimmed = rawName.trim();

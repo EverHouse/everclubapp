@@ -317,7 +317,34 @@ export type AuditAction =
   | 'checkin_booking'
   | 'payment_retry'
   | 'update_guest_email'
-  | 'bulk_tier_update';
+  | 'bulk_tier_update'
+  | 'update_overage_rate'
+  | 'update_guest_fee'
+  | 'unmatched_dispute_closed'
+  | 'unmatched_dispute_created'
+  | 'web_dispute_closed'
+  | 'web_payment_disputed'
+  | 'complete_cancellation_blocked'
+  | 'bulk_delete_inactive_cafe'
+  | 'bulk_recalculate_usage_ledger'
+  | 'recalculate_session_fees'
+  | 'backfill_hubspot_last_modified'
+  | 'bulk_change_billing_provider'
+  | 'bulk_reconnect_stripe'
+  | 'link_stripe_customer_only'
+  | 'reconcile_all_guest_passes'
+  | 'reconnect_stripe_subscription'
+  | 'relink_stripe_customer'
+  | 'repair_jan2026_status_dates'
+  | 'dev_resync_from_production'
+  | 'kiosk_checkin'
+  | 'create_merch_item'
+  | 'update_merch_item'
+  | 'delete_merch_item'
+  | 'apply_balance'
+  | 'reset_participant_payment'
+  | 'create_promotion_code'
+  | 'seed_promo_code';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
@@ -387,7 +414,13 @@ export type ResourceType =
   | 'event_rsvp'
   | 'payment_intent'
   | 'membership_tier'
-  | 'fee_product';
+  | 'fee_product'
+  | 'pricing'
+  | 'merch'
+  | 'booking_sessions'
+  | 'usage_ledger'
+  | 'promotion_code'
+  | 'promo_code';
 
 interface AuditLogParams {
   staffEmail: string;

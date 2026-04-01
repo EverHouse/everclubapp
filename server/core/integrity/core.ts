@@ -372,7 +372,7 @@ export interface IssueContext {
   tourDate?: string;
   guestName?: string;
   linkedBookingId?: number;
-  syncType?: 'hubspot' | 'calendar' | 'stripe';
+  syncType?: 'hubspot' | 'calendar' | 'stripe' | 'cross_system';
   syncComparison?: SyncComparisonData[];
   hubspotContactId?: string;
   stripeCustomerId?: string;
@@ -413,6 +413,18 @@ export interface IssueContext {
   member2Email?: string;
   member2Name?: string;
   bookingIds?: number[];
+  bookingId?: number;
+  sessionDate?: string;
+  checkinId?: number;
+  previousCount?: number;
+  billingSyncPending?: boolean;
+  participantCount?: number;
+  membershipStatus?: string;
+  wellhubUserId?: string;
+  createdAt?: string | Date;
+  totalUnreported?: number;
+  ledgerCount?: number;
+  requestDate?: string;
 }
 
 export interface IntegrityIssue {
@@ -434,11 +446,13 @@ export interface IntegrityIssue {
 
 export interface IntegrityCheckResult {
   checkName: string;
-  status: 'pass' | 'warning' | 'fail' | 'info';
+  name?: string;
+  status: 'pass' | 'warning' | 'fail' | 'info' | 'error';
   issueCount: number;
   issues: IntegrityIssue[];
   lastRun: Date;
   durationMs?: number;
+  error?: string;
 }
 
 export interface IntegritySummary {
