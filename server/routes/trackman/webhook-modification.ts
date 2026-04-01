@@ -444,7 +444,7 @@ export async function handleBookingModification(
     broadcastToStaff({
       type: 'trackman_booking_modified',
       title: 'Booking Modified via Trackman',
-      message: `${memberName}'s booking on ${newDate} was modified: ${changesSummary}${conflictWarning ? ` ⚠️ ${conflictWarning}` : ''}`,
+      message: `${memberName}'s booking on ${newDate} was modified: ${changesSummary}`,
       data: {
         bookingId,
         memberName,
@@ -458,7 +458,7 @@ export async function handleBookingModification(
 
     await notifyAllStaff(
       'Booking Modified via Trackman',
-      `${memberName}'s booking was modified: ${changesSummary}${conflictWarning ? ` — ${conflictWarning}` : ''}`,
+      `${memberName}'s booking was modified: ${changesSummary}`,
       'trackman_booking',
       {
         relatedId: bookingId,
