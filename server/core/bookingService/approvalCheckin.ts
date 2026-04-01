@@ -98,7 +98,7 @@ const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
   pending: ['approved', 'declined', 'cancelled', 'cancellation_pending'],
   approved: ['attended', 'no_show', 'cancelled', 'cancellation_pending', 'confirmed'],
   confirmed: ['attended', 'no_show', 'cancelled', 'cancellation_pending'],
-  cancellation_pending: ['cancelled', 'approved'],
+  cancellation_pending: ['approved'],
   declined: ['pending'],
   attended: [],
   cancelled: [],
