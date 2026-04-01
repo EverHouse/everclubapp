@@ -44,6 +44,7 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (!req.path.startsWith('/api/')) return next();
   if (req.path.startsWith('/api/webhooks/') || req.path.startsWith('/api/stripe-webhook') || req.path.startsWith('/api/stripe/webhook')) return next();
   if (req.path.startsWith('/api/hubspot/webhooks')) return next();
+  if (req.path === '/api/wallet/v1/log') return next();
   if (req.path.startsWith('/api/wallet/v1/') && req.headers.authorization?.startsWith('ApplePass ')) return next();
 
   const internalHeader = req.headers['x-internal-request'] as string | undefined;
