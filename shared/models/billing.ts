@@ -136,9 +136,6 @@ export const dayPassPurchases = pgTable(
   },
   (table) => [
     index("idx_day_pass_purchases_user_id").on(table.userId),
-    index("idx_day_pass_purchases_stripe_payment_intent_id").on(
-      table.stripePaymentIntentId,
-    ),
     index("idx_day_pass_purchases_purchaser_email").on(table.purchaserEmail),
     index("idx_day_pass_purchases_purchased_at").on(table.purchasedAt),
     index("idx_day_pass_purchases_status").on(table.status),
@@ -218,6 +215,7 @@ export const conferencePrepayments = pgTable(
     index("idx_conference_prepayments_status").on(table.status),
     index("idx_conference_prepayments_payment_intent").on(table.paymentIntentId),
     index("idx_conference_prepayments_booking_date").on(table.bookingDate),
+    index("idx_conference_prepayments_booking_id").on(table.bookingId),
   ],
 );
 
@@ -251,7 +249,6 @@ export const terminalPayments = pgTable(
   },
   (table) => [
     index("idx_terminal_payments_user_id").on(table.userId),
-    index("idx_terminal_payments_payment_intent_id").on(table.stripePaymentIntentId),
     index("idx_terminal_payments_subscription_id").on(table.stripeSubscriptionId),
     index("idx_terminal_payments_status").on(table.status),
     index("idx_terminal_payments_lower_user_email").on(sql`LOWER(${table.userEmail})`),

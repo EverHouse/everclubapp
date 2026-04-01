@@ -184,8 +184,6 @@ export const stripeProducts = pgTable("stripe_products", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  index("stripe_products_hubspot_product_id_idx").on(table.hubspotProductId),
-  index("stripe_products_stripe_product_id_idx").on(table.stripeProductId),
   index("stripe_products_is_active_idx").on(table.isActive),
 ]);
 
@@ -214,7 +212,6 @@ export const stripePaymentIntents = pgTable("stripe_payment_intents", {
   index("stripe_payment_intents_user_id_idx").on(table.userId),
   index("stripe_payment_intents_booking_id_idx").on(table.bookingId),
   index("stripe_payment_intents_status_idx").on(table.status),
-  index("idx_stripe_payment_intents_booking_id").on(table.bookingId),
 ]);
 
 export type StripePaymentIntent = typeof stripePaymentIntents.$inferSelect;
@@ -245,7 +242,6 @@ export const billingGroups = pgTable("billing_groups", {
   createdBy: varchar("created_by"),
   createdByName: varchar("created_by_name"),
 }, (table) => [
-  index("billing_groups_primary_email_idx").on(table.primaryEmail),
   index("idx_billing_groups_lower_primary_email").on(sql`LOWER(${table.primaryEmail})`),
 ]);
 
@@ -304,9 +300,7 @@ export const familyAddOnProducts = pgTable("family_add_on_products", {
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-}, (table) => [
-  index("family_add_on_products_tier_name_idx").on(table.tierName),
-]);
+});
 
 export type BillingGroup = typeof billingGroups.$inferSelect;
 export type InsertBillingGroup = typeof billingGroups.$inferInsert;

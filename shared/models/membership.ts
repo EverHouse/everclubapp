@@ -92,7 +92,6 @@ export const guestPasses = pgTable("guest_passes", {
   lastResetDate: date("last_reset_date"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
-  index("guest_passes_member_email_idx").on(table.memberEmail),
   index("idx_guest_passes_lower_email").on(sql`LOWER(${table.memberEmail})`),
   check("guest_passes_usage_check", sql`passes_used <= passes_total`),
   check("guest_passes_non_negative_check", sql`passes_used >= 0`),
@@ -135,7 +134,6 @@ export const communicationLogs = pgTable("communication_logs", {
   index("idx_communication_logs_created_at").on(table.createdAt),
   index("idx_communication_logs_member").on(table.memberEmail, table.createdAt),
   index("idx_communication_logs_occurred_at").on(table.occurredAt),
-  index("idx_communication_logs_email").on(table.memberEmail),
 ]);
 
 // Guest check-ins table - tracking guest visits by member

@@ -60,7 +60,7 @@ export type InsertIntegrityIssuesTracking = typeof integrityIssuesTracking.$infe
 
 export const integrityIgnores = pgTable("integrity_ignores", {
   id: serial("id").primaryKey(),
-  issueKey: text("issue_key").notNull().unique(),
+  issueKey: text("issue_key").notNull(),
   ignoredBy: text("ignored_by").notNull(),
   ignoredAt: timestamp("ignored_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -129,8 +129,6 @@ export const adminAuditLog = pgTable("admin_audit_log", {
   createdAtIdx: index("admin_audit_log_created_at_idx").on(table.createdAt),
   actorTypeIdx: index("admin_audit_log_actor_type_idx").on(table.actorType),
   actorEmailIdx: index("admin_audit_log_actor_email_idx").on(table.actorEmail),
-  actionDateIdx: index("idx_admin_audit_log_action_date").on(table.action, table.createdAt),
-  legacyCreatedIdx: index("idx_admin_audit_log_created").on(table.createdAt),
 }));
 
 export type AdminAuditLog = typeof adminAuditLog.$inferSelect;
@@ -157,7 +155,7 @@ export type InsertDataExportRequest = typeof dataExportRequests.$inferInsert;
 
 export const rateLimits = pgTable("rate_limits", {
   id: serial("id").primaryKey(),
-  key: varchar("key", { length: 500 }).notNull().unique(),
+  key: varchar("key", { length: 500 }).notNull(),
   limitType: varchar("limit_type", { length: 50 }).notNull(),
   count: integer("count").notNull().default(0),
   resetAt: timestamp("reset_at").notNull(),

@@ -125,7 +125,6 @@ export const bookingRequests = pgTable("booking_requests", {
   index("booking_requests_status_idx").on(table.status),
   index("booking_requests_status_date_idx").on(table.status, table.requestDate),
   index("idx_booking_requests_lower_email").on(sql`LOWER(${table.userEmail})`),
-  index("idx_booking_requests_status").on(table.status),
   index("idx_booking_requests_user_email").on(table.userEmail),
   index("idx_booking_requests_resource_date").on(table.resourceId, table.startTime),
   index("idx_booking_requests_start_time").on(table.startTime),
@@ -292,8 +291,6 @@ export const usageLedger = pgTable("usage_ledger", {
   index("usage_ledger_member_idx").on(table.memberId),
   index("usage_ledger_stripe_payment_intent_idx").on(table.stripePaymentIntentId),
   uniqueIndex("usage_ledger_session_member_source_uniq").on(table.sessionId, table.memberId, table.source),
-  index("idx_usage_ledger_member").on(table.memberId, table.createdAt),
-  index("idx_usage_ledger_member_id").on(table.memberId),
 ]);
 
 // Booking participants table - unified table for all participants (replaces booking_members/booking_guests)
@@ -423,7 +420,6 @@ export const bookingWalletPasses = pgTable("booking_wallet_passes", {
 }, (table) => [
   index("booking_wallet_passes_booking_idx").on(table.bookingId),
   index("booking_wallet_passes_member_idx").on(table.memberId),
-  index("booking_wallet_passes_serial_idx").on(table.serialNumber),
 ]);
 
 export type BookingWalletPass = typeof bookingWalletPasses.$inferSelect;
