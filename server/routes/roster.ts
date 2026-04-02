@@ -391,6 +391,7 @@ router.post('/api/admin/booking/:bookingId/recalculate-fees', isStaffOrAdmin, as
           });
 
           if (prepayResult?.paidInFull) {
+            // BYPASS: PaymentStatusService — credit/balance prepayment has no Stripe PI; paid via account credit at roster update
             await db.execute(
               sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${booking.session_id} AND payment_status IN ('pending', 'refunded')`
             );

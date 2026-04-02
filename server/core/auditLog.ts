@@ -560,7 +560,7 @@ export async function logBillingAudit(params: BillingAuditParams): Promise<void>
 }
 
 interface PaymentAuditParams {
-  bookingId: number;
+  bookingId: number | null;
   sessionId?: number | null;
   participantId?: number | null;
   action: string;

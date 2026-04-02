@@ -187,6 +187,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
                 feeBreakdown: { overageCents, guestCents }
               });
               if (prepayResult?.paidInFull) {
+                // BYPASS: PaymentStatusService — credit/balance prepayment has no Stripe PI; paid via account credit at staff check-in
                 await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
                 logger.info('[Staff Add Member] Prepayment fully covered by credit', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
               } else {
@@ -283,6 +284,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
               feeBreakdown: { overageCents, guestCents }
             });
             if (prepayResult?.paidInFull) {
+              // BYPASS: PaymentStatusService — credit/balance prepayment has no Stripe PI; paid via account credit at staff guest-add
               await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
               logger.info('[Staff Add Guest] Prepayment fully covered by credit', { extra: { sessionId, amountDollars: (totalCents/100).toFixed(2) } });
             } else {

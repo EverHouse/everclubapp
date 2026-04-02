@@ -15,6 +15,7 @@ import Stripe from 'stripe';
   import type { DeferredAction } from '../types';
   import { upsertTransactionCache } from '../framework';
   import { getErrorMessage } from '../../../../utils/errorUtils';
+  import { PaymentStatusService } from '../../../billing/PaymentStatusService';
 
   const MAX_RETRY_ATTEMPTS = 3;
   
@@ -225,26 +226,18 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     );
     
     if (validatedParticipantIds.length > 0) {
-      await client.query(
-        `UPDATE booking_participants
-         SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $2, cached_fee_cents = 0
-         WHERE id = ANY($1::int[])`,
-        [validatedParticipantIds, id]
-      );
-      logger.info(`[Stripe Webhook] Updated ${validatedParticipantIds.length} participant(s) to paid within transaction`);
-      
-      for (const pf of participantFees) {
-        await logPaymentAudit({
-          bookingId,
-          sessionId: isNaN(sessionId) ? null : sessionId,
-          participantId: pf.id,
-          action: 'payment_confirmed',
-          staffEmail: 'system',
-          staffName: 'Stripe Webhook',
-          amountAffected: pf.amountCents / 100,
-          paymentMethod: 'stripe',
-          metadata: { stripePaymentIntentId: id },
-        });
+      const paidResult = await PaymentStatusService.markPaymentSucceeded({
+        paymentIntentId: id,
+        preValidatedParticipants: participantFees,
+        bookingId,
+        sessionId: isNaN(sessionId) ? undefined : sessionId,
+        feeSnapshotId,
+        skipSnapshotUpdate: true,
+        staffEmail: 'system',
+        staffName: 'Stripe Webhook',
+      }, client);
+      if (!paidResult.success) {
+        throw new Error(`PaymentStatusService.markPaymentSucceeded failed for PI ${id}: ${paidResult.error}`);
       }
       
       const localBookingId = bookingId;
@@ -260,7 +253,7 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
       });
     }
     
-    logger.info(`[Stripe Webhook] Snapshot ${feeSnapshotId} processed (validation + payment update + audit)`);
+    logger.info(`[Stripe Webhook] Snapshot ${feeSnapshotId} processed via PaymentStatusService`);
     validatedParticipantIds = [];
     participantFees = [];
   } else if (metadata?.participantFees) {
@@ -389,21 +382,18 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
   }
 
   if (validatedParticipantIds.length > 0) {
-    const feeMap = new Map(participantFees.map(pf => [pf.id, pf.amountCents]));
-    let updatedCount = 0;
-    for (const pid of validatedParticipantIds) {
-      const paidAmount = feeMap.get(pid) ?? 0;
-      const result = await client.query(
-        `UPDATE booking_participants
-         SET payment_status = 'paid', paid_at = NOW(), stripe_payment_intent_id = $1,
-             cached_fee_cents = 0, amount_paid_cents = $2
-         WHERE id = $3
-         RETURNING id`,
-        [id, paidAmount, pid]
-      );
-      updatedCount += result.rowCount ?? 0;
+    const fallbackPaidResult = await PaymentStatusService.markPaymentSucceeded({
+      paymentIntentId: id,
+      preValidatedParticipants: participantFees,
+      bookingId,
+      sessionId: isNaN(sessionId) ? undefined : sessionId,
+      staffEmail: 'system',
+      staffName: 'Stripe Webhook',
+      persistAmountPaid: true,
+    }, client);
+    if (!fallbackPaidResult.success) {
+      throw new Error(`PaymentStatusService.markPaymentSucceeded failed for PI ${id} (fallback): ${fallbackPaidResult.error}`);
     }
-    logger.info(`[Stripe Webhook] Updated ${updatedCount} participant(s) to paid with persisted fee amounts for intent ${id}`);
     
     const localBookingId = bookingId;
     const localSessionId = sessionId;
@@ -418,36 +408,19 @@ export async function handlePaymentIntentSucceeded(client: PoolClient, paymentIn
     });
   }
 
-  if (!isNaN(bookingId) && bookingId > 0) {
-    if (participantFees.length > 0) {
-      for (const pf of participantFees) {
-        await logPaymentAudit({
-          bookingId,
-          sessionId: isNaN(sessionId) ? null : sessionId,
-          participantId: pf.id,
-          action: 'payment_confirmed',
-          staffEmail: 'system',
-          staffName: 'Stripe Webhook',
-          amountAffected: pf.amountCents / 100,
-          paymentMethod: 'stripe',
-          metadata: { stripePaymentIntentId: id },
-        });
-      }
-      logger.info(`[Stripe Webhook] Created ${participantFees.length} audit record(s) for booking ${bookingId}`);
-    } else {
-      await logPaymentAudit({
-        bookingId,
-        sessionId: isNaN(sessionId) ? null : sessionId,
-        participantId: null,
-        action: 'payment_confirmed',
-        staffEmail: 'system',
-        staffName: 'Stripe Webhook',
-        amountAffected: parseFloat(amountDollars),
-        paymentMethod: 'stripe',
-        metadata: { stripePaymentIntentId: id },
-      });
-      logger.info(`[Stripe Webhook] Created payment audit record for booking ${bookingId}`);
-    }
+  if (!isNaN(bookingId) && bookingId > 0 && participantFees.length === 0) {
+    await logPaymentAudit({
+      bookingId,
+      sessionId: isNaN(sessionId) ? null : sessionId,
+      participantId: null,
+      action: 'payment_confirmed',
+      staffEmail: 'system',
+      staffName: 'Stripe Webhook',
+      amountAffected: parseFloat(amountDollars),
+      paymentMethod: 'stripe',
+      metadata: { stripePaymentIntentId: id },
+    });
+    logger.info(`[Stripe Webhook] Created payment audit record for booking ${bookingId}`);
   }
 
   const pendingCreditRefund = metadata?.pendingCreditRefund ? parseInt(metadata.pendingCreditRefund, 10) : 0;

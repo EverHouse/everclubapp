@@ -482,6 +482,7 @@ export async function createSessionWithUsageTracking(
           .map(p => p.id);
         
         if (guestParticipantIds.length > 0) {
+          // BYPASS: PaymentStatusService — guest pass consumption marks guest participants paid without Stripe PI
           await tx.execute(sql`
             UPDATE booking_participants 
             SET used_guest_pass = true, payment_status = 'paid', cached_fee_cents = 0

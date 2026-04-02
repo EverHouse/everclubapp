@@ -3,7 +3,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { logAndRespond } from '../../core/logger';
-import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { computeFeeBreakdown, recalculateSessionFees, invalidateCachedFees } from '../../core/billing/unifiedFeeService';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -115,6 +115,10 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
             `);
           }
           
+          await invalidateCachedFees(
+            (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+            'checkin_context_session_create'
+          );
           await recalculateSessionFees(sessionId, 'checkin');
           syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
             logger.warn('[Checkin Context] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
@@ -149,6 +153,10 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           `);
           
           logger.info('[Checkin Context Sync] Cleaned up orphaned participants for booking', { extra: { length: orphanedIds.length, bookingId, orphanedNames } });
+          await invalidateCachedFees(
+            (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+            'checkin_context_sync_cleanup'
+          );
           await recalculateSessionFees(sessionId, 'sync_cleanup');
           syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
             logger.warn('[Checkin Context Sync] Invoice sync failed after cleanup', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });

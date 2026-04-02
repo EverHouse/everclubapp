@@ -4,7 +4,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { pool, safeRelease } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
-import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateCachedFees } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
 import { getStripeClient } from '../../core/stripe/client';
 import { listCustomerPaymentMethods } from '../../core/stripe/customers';
@@ -564,6 +564,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                     const todayPacific = getTodayPacific();
                     const isPastBooking = otherDateStr < todayPacific;
                     if (isPastBooking) {
+                      // BYPASS: PaymentStatusService — Trackman past-booking auto-resolve marks participants paid without Stripe PI
                       await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${otherSessionId} AND payment_status IN ('pending', 'refunded')`);
                     }
                     await recordUsage(otherSessionId as number, {
@@ -571,6 +572,10 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                       minutesCharged: Number(otherBD.duration_minutes) || 60,
                     });
                     try {
+                      await invalidateCachedFees(
+                        (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${otherSessionId}`)).rows.map((r: { id: number }) => r.id),
+                        'trackman_auto_resolve_email_learning'
+                      );
                       await recalculateSessionFees(otherSessionId as number, 'checkin');
                       const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
                       syncBookingInvoice(otherBooking.id as number, otherSessionId as number).catch((err: unknown) => {
@@ -772,6 +777,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           const todayPacific = getTodayPacific();
           const isPastBooking = bookingDateStr < todayPacific;
           if (isPastBooking) {
+            // BYPASS: PaymentStatusService — Trackman past-booking visitor resolution marks participants paid without Stripe PI
             await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
           }
           
@@ -823,6 +829,10 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
              WHERE session_id = ${sessionId} AND participant_type = 'owner'`);
           
           try {
+            await invalidateCachedFees(
+              (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+              'trackman_resolve_member'
+            );
             await recalculateSessionFees(sessionId as number, 'checkin');
             logger.info('[Trackman Resolve] Recalculated fees for session', { extra: { sessionId } });
             const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
@@ -834,6 +844,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           const todayPacific = getTodayPacific();
           const isPastBooking = bookingDateStr < todayPacific;
           if (isPastBooking) {
+            // BYPASS: PaymentStatusService — Trackman past-booking member resolution marks participants paid without Stripe PI
             await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
           }
           
@@ -1036,6 +1047,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
                 const todayPacific = getTodayPacific();
                 const isPastBooking = sameEmailDateStr < todayPacific;
                 if (isPastBooking) {
+                  // BYPASS: PaymentStatusService — Trackman past-booking auto-resolve marks participants paid without Stripe PI
                   await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${sameEmailSessionId} AND payment_status IN ('pending', 'refunded')`);
                 }
                 await recordUsage(sameEmailSessionId as number, {
@@ -1043,6 +1055,10 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
                   minutesCharged: Number(sameEmailBD.duration_minutes) || 60,
                 });
                 try {
+                  await invalidateCachedFees(
+                    (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sameEmailSessionId}`)).rows.map((r: { id: number }) => r.id),
+                    'trackman_auto_resolve_same_email'
+                  );
                   await recalculateSessionFees(sameEmailSessionId as number, 'checkin');
                   const { syncBookingInvoice } = await import('../../core/billing/bookingInvoiceService');
                   syncBookingInvoice(booking.id as number, sameEmailSessionId as number).catch((err: unknown) => {
@@ -1426,6 +1442,10 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     
     if (sessionId) {
       try {
+        await invalidateCachedFees(
+          (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+          'trackman_reassign'
+        );
         await recalculateSessionFees(sessionId as number, 'roster_update');
       } catch (feeErr: unknown) {
         logger.warn('[Reassign] Fee recalculation failed', { extra: { sessionId, feeErr } });

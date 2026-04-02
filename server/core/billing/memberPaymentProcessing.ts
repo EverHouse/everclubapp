@@ -329,6 +329,7 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     if (balanceResult.paidInFull) {
       const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
       if (paidParticipantIds.length > 0) {
+        // BYPASS: PaymentStatusService — credit/balance payment has no Stripe PI; paid via account credit
         await db.execute(sql`
           UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
           WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])

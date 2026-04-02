@@ -96,6 +96,21 @@ After calling recalculateSessionFees()?
 
 The `'trackman_import'` source (v8.87.52) is used for fee recalculations triggered by Trackman CSV import paths in `server/core/trackman/service.ts`.
 
+## PaymentStatusService Bypass Paths
+
+The following locations intentionally bypass `PaymentStatusService` for payment status writes. Each is marked with a `// BYPASS: PaymentStatusService — reason` comment in code.
+
+| File | Reason |
+|---|---|
+| `server/core/billing/memberPaymentProcessing.ts` | Credit payment — no Stripe PI; paid via account credit |
+| `server/routes/staffCheckin/directAdd.ts` (×2) | Credit/balance prepayment at staff check-in and staff guest-add |
+| `server/routes/staffCheckin/billing.ts` (×4) | Staff confirm/waive single & bulk, credit full & partial — staff-initiated status changes |
+| `server/routes/trackman/admin-resolution.ts` (×3) | Visitor auto-waiver, past-booking member resolution, past-booking auto-resolve |
+| `server/core/trackman/trackmanImport.ts` (×2) | Past-booking import marks paid, ghost auto-waiver |
+| `server/routes/trackman/webhook-billing.ts` (×5) | Ghost auto-waiver (×3 paths), credit prepayment, credit prepayment at createBookingForMember |
+| `server/routes/roster.ts` | Credit/balance prepayment at roster update |
+| `server/core/bookingService/sessionOrchestrator.ts` | Guest pass consumption marks guest participants paid |
+
 ## Cross-References
 
 - **Booking lifecycle (triggers fee calc)** → `booking-flow` skill

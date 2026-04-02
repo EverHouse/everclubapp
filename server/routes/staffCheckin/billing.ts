@@ -292,6 +292,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         });
       }
 
+      // BYPASS: PaymentStatusService — staff manual confirm/waive has no Stripe PI; status set by staff action
       await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus} WHERE id = ${participantId}`);
 
       await logPaymentAudit({
@@ -608,6 +609,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const pendingIds = typedPending.map(p => p.id);
       const previousStatuses = typedPending.map(p => p.payment_status);
       if (pendingIds.length > 0) {
+        // BYPASS: PaymentStatusService — staff bulk confirm/waive has no Stripe PI; status set by staff action
         await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus} WHERE id = ANY(${toIntArrayLiteral(pendingIds)}::int[])`);
 
         const auditAction = action === 'confirm_all' ? 'payment_confirmed' : 'payment_waived';
@@ -806,6 +808,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       if (balanceResult.paidInFull) {
         const paidIds = typedPending.map(p => p.id);
+        // BYPASS: PaymentStatusService — credit/balance payment has no Stripe PI; paid via account balance at check-in
         await db.execute(sql`
           UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
           WHERE id = ANY(${toIntArrayLiteral(paidIds)}::int[])
@@ -885,6 +888,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       }
 
       if (fullyPaidIds.length > 0) {
+        // BYPASS: PaymentStatusService — partial credit/balance payment has no Stripe PI; paid via account balance
         await db.execute(sql`
           UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
           WHERE id = ANY(${toIntArrayLiteral(fullyPaidIds)}::int[])

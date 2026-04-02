@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getTodayPacific, formatNotificationDateTime, formatDateFromDb } from '../../utils/dateUtils';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
-import { recalculateSessionFees } from '../billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateCachedFees } from '../billing/unifiedFeeService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
 import { useGuestPass } from '../billing/guestPassService';
 import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
@@ -748,6 +748,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         } else if (isWebhookCreated && existing.sessionId && parsedBayId && matchedEmail && existing.isUnmatched) {
           if (!financiallyFrozen) {
             try {
+              await invalidateCachedFees(
+                (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${existing.sessionId}`)).rows.map((r: { id: number }) => r.id),
+                'trackman_import_member_match'
+              );
               await recalculateSessionFees(existing.sessionId, 'approval');
               logger.info(`[Trackman Import] Recalculated fees for webhook booking #${existing.id} after member match (session #${existing.sessionId})`);
             } catch (recalcErr: unknown) {
@@ -758,6 +762,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           }
           if (!isUpcoming && existing.sessionId && !hasCompletedPayments) {
             try {
+              // BYPASS: PaymentStatusService — Trackman past-booking import marks participants paid without Stripe PI
               await db.execute(sql`
                 UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
                 WHERE session_id = ${existing.sessionId} AND payment_status = 'pending'
@@ -882,6 +887,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                     extra: { participantId: currentOwner.id, userId: mergeUserId, email: matchedEmail }
                   });
                   try {
+                    await invalidateCachedFees(
+                      (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${placeholder.session_id}`)).rows.map((r: { id: number }) => r.id),
+                      'trackman_import_owner_reassign'
+                    );
                     await recalculateSessionFees(placeholder.session_id, 'trackman_import');
                     logger.info(`[Trackman Import] Recalculated fees after owner reassignment (merged placeholder #${placeholder.id}, session #${placeholder.session_id})`);
                   } catch (feeErr: unknown) {
@@ -1289,6 +1298,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                         extra: { participantId: currentOwner.id, userId: newOwnerUser.id, email: matchedEmail }
                       });
                       try {
+                        await invalidateCachedFees(
+                          (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${existingGhost.sessionId}`)).rows.map((r: { id: number }) => r.id),
+                          'trackman_import_ghost_owner_reassign'
+                        );
                         await recalculateSessionFees(existingGhost.sessionId, 'trackman_import');
                         logger.info(`[Trackman Import] Recalculated fees after owner reassignment (ghost booking #${existingGhost.id}, session #${existingGhost.sessionId})`);
                       } catch (feeErr: unknown) {
@@ -1961,9 +1974,14 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             });
             if (sessionResult.sessionId) {
               targetSessionId = sessionResult.sessionId;
+              // BYPASS: PaymentStatusService — Trackman ghost auto-waiver sets ghosts (user_id IS NULL AND guest_id IS NULL) to 'waived'
               await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${targetSessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
               logger.info(`[Trackman Import]   Created session #${targetSessionId} for auto-approved booking #${approved.id}`);
               try {
+                await invalidateCachedFees(
+                  (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${targetSessionId}`)).rows.map((r: { id: number }) => r.id),
+                  'trackman_import_auto_approved'
+                );
                 await recalculateSessionFees(targetSessionId, 'trackman_import');
                 logger.info(`[Trackman Import]   Recalculated fees for auto-approved booking #${approved.id} (session #${targetSessionId})`);
               } catch (feeErr: unknown) {
@@ -1989,6 +2007,10 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           }
           if (transferred > 0) {
             try {
+              await invalidateCachedFees(
+                (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${targetSessionId}`)).rows.map((r: { id: number }) => r.id),
+                'trackman_import_participant_transfer'
+              );
               await recalculateSessionFees(targetSessionId, 'trackman_import');
               logger.info(`[Trackman Import]   Recalculated fees after participant transfer for booking #${approved.id} (session #${targetSessionId}, transferred: ${transferred})`);
             } catch (feeErr: unknown) {

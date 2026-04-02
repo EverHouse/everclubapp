@@ -337,6 +337,7 @@ export async function createBookingForMember(
           }
           
           if (newSessionId && !sessionResult.error) {
+            // BYPASS: PaymentStatusService — Trackman ghost auto-waiver sets ghosts (user_id IS NULL AND guest_id IS NULL) to 'waived'
             await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${newSessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
             logger.info('[Trackman Webhook] Auto-linked session: ghost participants waived, real members kept pending', {
               extra: { bookingId: pendingBookingId, sessionId: newSessionId, trackmanBookingId }
@@ -391,6 +392,7 @@ export async function createBookingForMember(
                   feeBreakdown: { overageCents: feeBreakdown.totals.overageCents, guestCents: feeBreakdown.totals.guestCents }
                 });
                 if (prepayResult?.paidInFull) {
+                  // BYPASS: PaymentStatusService — credit/balance prepayment has no Stripe PI; paid via account credit
                   await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${newSessionId} AND payment_status IN ('pending', 'refunded')`);
                   logger.info('[Trackman Webhook] Prepayment fully covered by credit', { extra: { sessionId: newSessionId, bookingId: pendingBookingId } });
                 }
@@ -587,6 +589,7 @@ export async function createBookingForMember(
         sessionId = sessionResult.sessionId || null;
         
         if (sessionId && !sessionResult.error) {
+          // BYPASS: PaymentStatusService — Trackman ghost auto-waiver sets ghosts (user_id IS NULL AND guest_id IS NULL) to 'waived'
           await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
           logger.info('[Trackman Webhook] createBookingForMember: ghost participants waived, real members kept pending', {
             extra: { bookingId, sessionId, trackmanBookingId }
@@ -862,6 +865,7 @@ export async function tryMatchByBayDateTime(
       }
 
       if (sessionResult.sessionId && !sessionResult.error) {
+        // BYPASS: PaymentStatusService — Trackman ghost auto-waiver sets ghosts (user_id IS NULL AND guest_id IS NULL) to 'waived'
         await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
         logger.info('[Trackman Webhook] tryMatchByBayDateTime: ghost participants waived, real members kept pending', {
           extra: { bookingId, sessionId: sessionResult.sessionId, trackmanBookingId }
