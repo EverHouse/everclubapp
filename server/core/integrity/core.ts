@@ -526,6 +526,7 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Unreported Wellhub Events': 'medium',
   'Negative Merch Stock': 'medium',
   'Merch & Cafe Stripe Product Sync': 'medium',
+  'Usage Ledger Gaps': 'high',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -816,7 +817,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
     () => safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
     () => safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
-    () => safeCheck(checkUsageLedgerGaps, 'Usage Ledger Gaps'),
+    () => safeCheck(() => checkUsageLedgerGaps({ autoFix: triggeredBy === 'scheduled' }), 'Usage Ledger Gaps'),
     () => safeCheck(checkUnresolvedFailedSideEffects, 'Unresolved Failed Side Effects'),
     () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
     () => safeCheck(checkNegativeMerchStock, 'Negative Merch Stock'),

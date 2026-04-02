@@ -815,19 +815,25 @@ export async function checkStaleCheckedInBookings(): Promise<IntegrityCheckResul
 interface UsageLedgerGapRow {
   session_id: number;
   session_date: string;
+  start_time: string;
+  end_time: string;
   resource_name: string;
   participant_count: number;
   ledger_count: number;
 }
 
-export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
+export async function checkUsageLedgerGaps(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   try {
     const gapSessions = await db.execute(sql`
       SELECT
         bs.id as session_id,
         bs.session_date,
+        bs.start_time,
+        bs.end_time,
         COALESCE(r.name, 'Unknown') as resource_name,
         (SELECT COUNT(*)::int FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member')) as participant_count,
         (SELECT COUNT(*)::int FROM usage_ledger ul WHERE ul.session_id = bs.id) as ledger_count
@@ -854,27 +860,44 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
     const total = (totalCount.rows[0] as unknown as CountRow)?.count || 0;
 
     for (const row of gapSessions.rows as unknown as UsageLedgerGapRow[]) {
-      issues.push({
-        category: 'billing_issue',
-        severity: 'warning',
-        table: 'usage_ledger',
-        recordId: row.session_id,
-        description: `Session #${row.session_id} on ${row.session_date} (${row.resource_name}) has ${row.participant_count} member participant(s) but no usage ledger entries`,
-        suggestion: 'Run fee recalculation for this session to generate missing usage records',
-        context: {
-          sessionId: row.session_id,
-          sessionDate: row.session_date,
-          resourceName: row.resource_name,
-          participantCount: row.participant_count,
-          ledgerCount: row.ledger_count,
-        }
-      });
+      const wasFixed = shouldAutoFix
+        ? await autoFixUsageLedgerGap(row)
+        : false;
+
+      if (wasFixed) {
+        autoFixedCount++;
+      }
+
+      if (!wasFixed) {
+        issues.push({
+          category: 'billing_issue',
+          severity: 'error',
+          table: 'usage_ledger',
+          recordId: row.session_id,
+          description: `Session #${row.session_id} on ${row.session_date} (${row.resource_name}) has ${row.participant_count} member participant(s) but no usage ledger entries`,
+          suggestion: 'Run fee recalculation for this session to generate missing usage records',
+          context: {
+            sessionId: row.session_id,
+            sessionDate: row.session_date,
+            resourceName: row.resource_name,
+            participantCount: row.participant_count,
+            ledgerCount: row.ledger_count,
+          }
+        });
+      }
     }
+
+    if (autoFixedCount > 0) {
+      logger.info(`[DataIntegrity] Auto-fixed ${autoFixedCount} of ${Number(total)} usage ledger gaps with placeholder entries`);
+    }
+
+    const detectedCount = Number(total);
+    const remainingCount = detectedCount - autoFixedCount;
 
     return {
       checkName: 'Usage Ledger Gaps',
-      status: Number(total) === 0 ? 'pass' : Number(total) > 20 ? 'fail' : 'warning',
-      issueCount: Number(total),
+      status: remainingCount <= 0 ? 'pass' : remainingCount > 20 ? 'fail' : 'warning',
+      issueCount: Math.max(0, remainingCount),
       issues,
       lastRun: new Date()
     };
@@ -894,6 +917,83 @@ export async function checkUsageLedgerGaps(): Promise<IntegrityCheckResult> {
       }],
       lastRun: new Date()
     };
+  }
+}
+
+async function autoFixUsageLedgerGap(row: UsageLedgerGapRow): Promise<boolean> {
+  try {
+    const participants = await db.execute(sql`
+      SELECT bp.user_id, bp.display_name, bp.participant_type, u.email
+      FROM booking_participants bp
+      LEFT JOIN users u ON bp.user_id = u.id
+      WHERE bp.session_id = ${row.session_id}
+        AND bp.participant_type IN ('owner', 'member')
+        AND bp.user_id IS NOT NULL
+    `);
+
+    if (participants.rows.length === 0) {
+      return false;
+    }
+
+    const { recordUsage } = await import('../bookingService/sessionCore');
+    const { logIntegrityAudit } = await import('../auditLog');
+
+    let createdCount = 0;
+    let failedCount = 0;
+
+    for (const p of participants.rows as unknown as Array<{ user_id: string; display_name: string; participant_type: string; email: string | null }>) {
+      const memberId = p.email || p.user_id;
+      if (!memberId) continue;
+
+      try {
+        const result = await recordUsage(
+          row.session_id,
+          {
+            memberId,
+            minutesCharged: 0,
+            overageFee: 0,
+            guestFee: 0,
+            tierAtBooking: undefined,
+            paymentMethod: 'unpaid',
+          },
+          'staff_manual',
+        );
+
+        if (result.success && !result.alreadyRecorded) {
+          createdCount++;
+        } else if (result.success && result.alreadyRecorded) {
+          createdCount++;
+        }
+      } catch (recordErr: unknown) {
+        failedCount++;
+        logger.error('[DataIntegrity] Auto-fix: failed to create placeholder usage entry', {
+          extra: { sessionId: row.session_id, memberId, error: getErrorMessage(recordErr) }
+        });
+      }
+    }
+
+    const allFixed = failedCount === 0 && createdCount > 0;
+
+    if (createdCount > 0) {
+      await logIntegrityAudit({
+        issueKey: `usage_ledger_${row.session_id}`,
+        action: 'auto-fix',
+        actionBy: 'system',
+        resolutionMethod: 'auto-fix',
+        notes: `Created placeholder zero-fee usage ledger entries for session #${row.session_id} on ${row.session_date} (${row.resource_name}) with ${row.participant_count} participant(s)`,
+      }).catch((auditErr: unknown) => {
+        logger.error('[DataIntegrity] Auto-fix: failed to log audit entry', {
+          extra: { sessionId: row.session_id, error: getErrorMessage(auditErr) }
+        });
+      });
+    }
+
+    return allFixed;
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Auto-fix usage ledger gap failed for session', {
+      extra: { sessionId: row.session_id, error: getErrorMessage(error) }
+    });
+    return false;
   }
 }
 
