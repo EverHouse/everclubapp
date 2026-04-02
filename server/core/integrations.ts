@@ -35,6 +35,10 @@ let googleCalendarConnectionSettings: ConnectionItem | null = null;
 let hubspotTokenRefreshPromise: Promise<string> | null = null;
 let googleCalendarTokenRefreshPromise: Promise<string> | null = null;
 
+const CONNECTOR_COOLDOWN_MS = 5 * 60 * 1000;
+let googleCalendarConnectorFailedAt: number | null = null;
+let hubspotConnectorFailedAt: number | null = null;
+
 export async function getHubSpotAccessToken() {
   const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
   
@@ -125,10 +129,19 @@ async function fetchHubSpotToken(): Promise<string> {
 }
 
 export async function getHubSpotClient() {
+  if (hubspotConnectorFailedAt && Date.now() - hubspotConnectorFailedAt < CONNECTOR_COOLDOWN_MS) {
+    const privateAppClient = await getHubSpotPrivateAppClient();
+    if (privateAppClient) {
+      return privateAppClient;
+    }
+  }
+
   try {
     const accessToken = await getHubSpotAccessToken();
+    hubspotConnectorFailedAt = null;
     return new Client({ accessToken: accessToken as string });
   } catch (connectorError: unknown) {
+    hubspotConnectorFailedAt = Date.now();
     const privateAppClient = await getHubSpotPrivateAppClient();
     if (privateAppClient) {
       logger.info('[HubSpot] Connector unavailable, using private app token fallback', {
@@ -269,12 +282,33 @@ export function isUsingServiceAccount(): boolean {
 }
 
 export async function getGoogleCalendarClient() {
+  if (_usingServiceAccount && process.env.GOOGLE_CALENDAR_CREDENTIALS) {
+    if (!googleCalendarConnectorFailedAt || Date.now() - googleCalendarConnectorFailedAt < CONNECTOR_COOLDOWN_MS) {
+      try {
+        const credentials = JSON.parse(process.env.GOOGLE_CALENDAR_CREDENTIALS);
+        const auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'],
+        });
+        return google.calendar({ version: 'v3', auth });
+      } catch (parseError: unknown) {
+        logger.error('[Google Calendar] Failed to parse service account credentials during cooldown — clearing service account flag', { extra: { error: getErrorMessage(parseError) } });
+        _usingServiceAccount = false;
+        throw parseError;
+      }
+    }
+    googleCalendarConnectorFailedAt = null;
+    _usingServiceAccount = false;
+  }
+
   try {
     const accessToken = await getGoogleCalendarAccessToken();
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: accessToken as string });
+    googleCalendarConnectorFailedAt = null;
     return google.calendar({ version: 'v3', auth: oauth2Client });
   } catch (connectorError: unknown) {
+    googleCalendarConnectorFailedAt = Date.now();
     if (process.env.GOOGLE_CALENDAR_CREDENTIALS) {
       logger.info('[Google Calendar] Connector unavailable, using service account fallback', {
         extra: { connectorError: getErrorMessage(connectorError) }
