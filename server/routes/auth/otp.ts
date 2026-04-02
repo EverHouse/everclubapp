@@ -402,14 +402,10 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       ).catch((importErr: unknown) => logger.error('[Auth] Failed to import HubSpot stages module', { extra: { error: getErrorMessage(importErr) } }));
     }
     
-    try {
-      const suppressed = await checkEmailSuppression([normalizedEmail]);
-      if (suppressed.length > 0) {
-        logger.warn('[Auth] OTP email suppressed (bounced/complained recipient)', { extra: { normalizedEmail } });
-        return res.status(400).json({ error: 'We are unable to deliver emails to this address. Please contact us for assistance.' });
-      }
-    } catch {
-      // suppression check failed — proceed with send
+    const suppressed = await checkEmailSuppression([normalizedEmail]);
+    if (suppressed.length > 0) {
+      logger.warn('[Auth] OTP email suppressed (bounced/complained recipient)', { extra: { normalizedEmail } });
+      return res.status(400).json({ error: 'We are unable to deliver emails to this address. Please contact us for assistance.' });
     }
 
     const emailHtml = getOtpEmailHtml({ code: otpCode, firstName, logoUrl: 'https://everclub.app/images/everclub-logo-dark.png' });
@@ -421,7 +417,8 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       to: normalizedEmail,
       subject: `${otpCode} - Your Ever Club Login Code`,
       html: emailHtml,
-      text: emailText
+      text: emailText,
+      skipSuppressionCheck: true
     }).then((sendResult) => {
       if (!sendResult.success) {
         logger.error('[Auth] OTP email send failed (async)', { extra: { normalizedEmail } });

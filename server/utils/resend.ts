@@ -100,6 +100,7 @@ export interface SafeSendOptions {
   text?: string;
   from?: string;
   replyTo?: string;
+  skipSuppressionCheck?: boolean;
 }
 
 export async function safeSendEmail(options: SafeSendOptions): Promise<{ success: boolean; blocked?: boolean; suppressed?: boolean; id?: string }> {
@@ -126,20 +127,22 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
     }
   }
   
-  try {
-    const suppressedRecipients = await checkEmailSuppression(recipients);
-    if (suppressedRecipients.length > 0) {
-      const remaining = recipients.filter(e => !suppressedRecipients.includes(e.toLowerCase()));
-      logger.info('[Email] Suppressed delivery to bounced/complained recipients', {
-        extra: { suppressed: suppressedRecipients, subject: options.subject }
-      });
-      if (remaining.length === 0) {
-        return { success: true, suppressed: true };
+  if (!options.skipSuppressionCheck) {
+    try {
+      const suppressedRecipients = await checkEmailSuppression(recipients);
+      if (suppressedRecipients.length > 0) {
+        const remaining = recipients.filter(e => !suppressedRecipients.includes(e.toLowerCase()));
+        logger.info('[Email] Suppressed delivery to bounced/complained recipients', {
+          extra: { suppressed: suppressedRecipients, subject: options.subject }
+        });
+        if (remaining.length === 0) {
+          return { success: true, suppressed: true };
+        }
+        options.to = remaining;
       }
-      options.to = remaining;
+    } catch (suppressErr: unknown) {
+      logger.warn('[Email] Suppression list check failed, proceeding with send', { extra: { error: getErrorMessage(suppressErr) } });
     }
-  } catch (suppressErr: unknown) {
-    logger.warn('[Email] Suppression list check failed, proceeding with send', { extra: { error: getErrorMessage(suppressErr) } });
   }
 
   try {
