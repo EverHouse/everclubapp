@@ -8,6 +8,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.18",
+    date: "2026-04-02",
+    title: "Data Integrity Hardening (10 Tasks)",
+    isMajor: true,
+    changes: [
+      "New: Database trigger prevents overbooking — participants cannot exceed a bay's physical capacity, even under concurrent requests.",
+      "New: Missing usage ledger entries for attended sessions are now auto-repaired during nightly integrity checks, closing billing gaps.",
+      "New: Fee snapshot vs Stripe charge drift detection — alerts staff when the calculated fee differs from what Stripe actually charged.",
+      "New: Wallet pass sync check — detects and auto-fixes passes that don't match their booking's status (e.g., active pass for a cancelled booking).",
+      "Improved: Checked-in bookings that are past their end time now auto-complete to 'attended', just like approved/confirmed bookings.",
+      "New: Session overlap detection across all resource types (simulators, conference rooms) catches any double-bookings that slipped through.",
+      "New: Wellness class availability block coverage check ensures blocked time windows fully cover class durations.",
+      "New: Merch stock integrity checks detect negative stock and Stripe product/price drift.",
+      "Improved: Expired guest pass holds are now cleaned up on a schedule (every 6 hours) instead of accumulating indefinitely.",
+      "New: Push notification delivery tracking — each notification now records whether the push was sent, failed, or skipped.",
+      "Improved: Stale push subscriptions (inactive 90+ days) are now proactively cleaned up weekly instead of only when delivery fails.",
+    ]
+  },
+  {
     version: "8.98.17",
     date: "2026-04-02",
     title: "Console Log Cleanup",

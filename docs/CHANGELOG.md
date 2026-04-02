@@ -2,6 +2,22 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.18] - 2026-04-02
+
+### Data Integrity Hardening (10 Tasks)
+- **DB trigger: participant capacity guard** — `trg_guard_participant_capacity` on `booking_participants` prevents adding more participants than a resource's capacity. Uses `SELECT ... FOR UPDATE` for race condition safety. Integrity check `checkSessionsExceedingResourceCapacity` detects legacy violations.
+- **Usage ledger auto-fix** — `checkUsageLedgerGaps` now auto-creates placeholder entries for attended sessions missing usage records during nightly runs. Severity upgraded to `high`.
+- **Fee snapshot vs Stripe drift** — `checkFeeSnapshotStripeDrift` compares `booking_fee_snapshots.total_cents` against Stripe PI `amount_received`. Configurable threshold (default $0.50), batched API calls, 90-day lookback.
+- **Wallet pass sync** — `checkWalletPassBookingSync` detects un-voided passes on terminal bookings and voided passes on active bookings. Auto-fixes by calling `voidBookingPass` with post-fix verification.
+- **Stale checked-in auto-complete** — Booking auto-complete scheduler now processes `checked_in` bookings past end time (same 30-min grace period). Integrity check flags checked-in bookings >24 hours stale.
+- **Session overlap detection** — `checkSessionOverlaps` uses `tsrange` overlap detection across all resource types with cross-midnight handling. `checkWellnessBlockGaps` verifies availability blocks fully cover class durations.
+- **Merch integrity** — `checkNegativeMerchStock` detects negative stock. `checkMerchStripeProductSync` verifies Stripe product/price sync for active merch and cafe items.
+- **Guest pass hold cleanup** — `cleanupExpiredHolds()` wired to run every 6 hours. Booking expiry scheduler explicitly releases holds. `checkStaleExpiredGuestPassHolds` flags holds expired >48 hours.
+- **Push notification delivery tracking** — Added `delivery_channel`, `push_sent_at`, `push_delivery_status` columns to `notifications`. Push service updates status on send. `checkStuckPushNotifications` flags notifications stuck in pending >24 hours.
+- **Stale push subscription cleanup** — Added `last_active_at` to `push_subscriptions`, updated on successful delivery. Weekly cleanup removes subscriptions inactive >90 days (configurable). `checkStalePushSubscriptions` reports counts.
+
+Files changed across 10 tasks: `server/db-init.ts`, `server/core/integrity/bookingChecks.ts`, `server/core/integrity/stripeChecks.ts`, `server/core/integrity/externalSystemChecks.ts`, `server/core/integrity/core.ts`, `server/schedulers/bookingAutoCompleteScheduler.ts`, `server/schedulers/integrityScheduler.ts`, `server/schedulers/bookingExpiryScheduler.ts`, `server/schedulers/notificationCleanupScheduler.ts`, `server/core/notificationService.ts`, `server/core/pushService.ts`, `server/core/billing/guestPassHoldService.ts`, `shared/models/notifications.ts`
+
 ## [8.98.17] - 2026-04-02
 
 ### Cleanup: Remove noisy console.log statements from frontend

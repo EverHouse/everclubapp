@@ -73,7 +73,7 @@ What type of alert?
 6. **DB lock for multi-instance safety.** Integrity scheduler uses `system_settings` upsert with `IS DISTINCT FROM` guard.
 7. **Auto-fix tiers run every 24h (reduced scope).** Linked-email tier cleanup and HubSpot tier candidates only. Email normalization, status case normalization, billing provider auto-set, staff role sync, and participant user_id linking are now handled exclusively by DB triggers (`normalize_email_trigger`, `users_membership_status_lowercase_check`, `trg_auto_billing_provider`, `trg_sync_staff_role`, `trg_link_participant_user_id`).
 8. **6 integrity checks eliminated by DB constraints.** Participant User Relationships (FK), Booking Time Validity (CHECK), Members Without Email (CHECK), HubSpot ID Duplicates (unique index), Guest Passes Without Members (trigger), Email Cascade Orphans (trigger). These issues are now impossible at the DB level.
-9. **Scheduled runs reduced to 8 external-system checks.** Only Stripe (4: subscription sync, billing orphans, orphaned subscriptions, tier reconciliation), HubSpot (1), Trackman (1), MindBody (2) remain in scheduled runs. All 15 DB-enforced/internal checks (including orphaned PI, invoice recon, billing hybrid) moved to legacy mode — only run on manual trigger (`includeLegacy: true`, default for `triggeredBy: 'manual'`). Stale pending auto-expiry is handled by `bookingExpiryScheduler`, not integrity checks.
+9. **Scheduled runs expanded to 24 external-system checks (v8.98.18).** Stripe (6: subscription sync, billing orphans, orphaned subscriptions, tier reconciliation, negative merch stock, merch Stripe product sync, fee snapshot drift), HubSpot (1), Trackman (1), MindBody (2), Booking (6: usage ledger gaps w/ auto-fix, session overlaps, wellness block coverage, stuck unpaid, stale checked-in, wallet pass sync, stale guest pass holds, overcapacity sessions), Notifications (3: stuck push, stale push subscriptions, email delivery health), plus cross-system drift and Wellhub. All 15+ DB-enforced/internal checks (including orphaned PI, invoice recon, billing hybrid) remain in legacy mode — only run on manual trigger (`includeLegacy: true`, default for `triggeredBy: 'manual'`). Stale pending auto-expiry is handled by `bookingExpiryScheduler`, not integrity checks.
 10. **Items Needing Review removed from integrity checks.** This was a workflow queue (needs_review flag), not a data integrity issue. It remains accessible via the admin dashboard's existing needs-review UI but is no longer part of `runAllIntegrityChecks()`.
 11. **DB-level state machines enforce status transitions.** `trg_booking_status_machine` (booking_requests) and `trg_membership_status_machine` (users) reject invalid status transitions at INSERT/UPDATE time. Terminal statuses (attended/no_show/cancelled/declined/expired for bookings; archived/merged for memberships) cannot be transitioned out of without the `SET app.bypass_status_check = 'true'` escape hatch.
 12. **DB-level guards for stale/unpaid bookings.** `trg_guard_stale_pending` rejects approving bookings >2hr past start time. `trg_guard_attended_unpaid` blocks transition to attended if unpaid fee snapshots exist.
@@ -83,13 +83,19 @@ What type of alert?
 16. **6 checks downgraded from critical/high to medium.** Duplicate Stripe Customers, Orphaned Payment Intents, Invoice-Booking Reconciliation, Guest Pass Accounting Drift, Stale Pending Bookings, Archived Member Lingering Data — DB now prevents new occurrences; remaining issues are legacy data only. 5 of these are excluded from scheduled runs entirely (legacy mode only).
 17. **parseConstraintError utility.** `server/utils/errorUtils.ts` exports `parseConstraintError(error)` to parse PostgreSQL trigger/constraint errors into structured `{ table, message, isConstraintError, constraintName }` objects. Handles RAISE EXCEPTION `[table] message` format, CHECK violations, and unique constraint violations.
 18. **Default billing_provider is `'stripe'`.** Schema default + db-init ALTER + explicit creation paths.
-19. **Booking auto-complete runs every 1 hr.** Marks approved/confirmed as `attended` 30 min after end time for same-day, or next day for overnight. Fee guard: blocks if unpaid fees exist.
+19. **Booking auto-complete runs every 1 hr.** Marks approved/confirmed/checked_in as `attended` 30 min after end time for same-day, or next day for overnight. Fee guard: blocks if unpaid fees exist. (v8.98.18: added `checked_in` status).
 20. **Abandoned pending cleanup (every 6h).** Delete users pending >24h with no Stripe subscription, cascade-deleting related records in transaction.
 21. **Drizzle SQL null safety.** All optional values in `sql` template literals MUST use `?? null`. Prevents empty placeholder syntax errors.
 22. **Webhook dedup cleanup.** `cleanupOldProcessedEvents()` runs probabilistically (5% of webhooks).
 23. **FK constraints must NOT use `.references()` unless already in production.**
 24. **Duplicate index cleanup (v8.97.23, Task #212).** 15 duplicate database indexes removed that were created by overlapping migration scripts. Reduces write amplification. Run `SELECT indexname, tablename FROM pg_indexes WHERE schemaname = 'public' GROUP BY tablename, indexdef HAVING count(*) > 1` to detect future duplicates.
 25. **Advisory lock serialization for session creation (v8.97.34).** `ensureSessionForBooking` uses `pg_advisory_xact_lock` on `resourceId:sessionDate` to prevent concurrent booking approvals from creating overlapping sessions. Combined with HubSpot dedup guards and tightened membership status constraints.
+26. **DB-level participant capacity guard (v8.98.18).** `trg_guard_participant_capacity` on `booking_participants` (BEFORE INSERT OR UPDATE OF session_id) prevents adding more participants than a resource's physical capacity. Uses `SELECT ... FOR UPDATE` on the session row. Supports `app.bypass_status_check` escape hatch.
+27. **Guest pass hold scheduled cleanup (v8.98.18).** `cleanupExpiredHolds()` runs every 6h in `guardedCleanup()`. Booking expiry scheduler explicitly releases holds for expired bookings. `checkStaleExpiredGuestPassHolds` flags holds expired >48 hours.
+28. **Push notification delivery tracking (v8.98.18).** `notifications` table has `delivery_channel`, `push_sent_at`, `push_delivery_status` columns. Push service updates status after send. `checkStuckPushNotifications` flags pending >24 hours.
+29. **Push subscription proactive cleanup (v8.98.18).** `push_subscriptions.last_active_at` updated on successful delivery. Weekly cleanup removes subscriptions inactive >90 days (configurable via `cleanup.push_subscription_stale_days`).
+30. **Fee snapshot Stripe drift detection (v8.98.18).** `checkFeeSnapshotStripeDrift` compares `booking_fee_snapshots.total_cents` against Stripe PI `amount_received`. Configurable threshold via `integrity.fee_snapshot_drift_threshold_cents` (default 50 cents). Batched API calls (10 concurrent).
+31. **Usage ledger auto-fix (v8.98.18).** `checkUsageLedgerGaps` creates placeholder zero-fee entries for attended sessions missing usage records when `autoFix: true` (scheduled runs only). Logged in integrity audit log.
 
 ## Anti-Patterns (NEVER)
 
@@ -111,7 +117,7 @@ What type of alert?
 
 ## Detailed Reference
 
-- **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 21 active integrity checks with detection logic, severity, and recommended actions. Webhook, job queue, and HubSpot queue monitors.
+- **[references/integrity-checks.md](references/integrity-checks.md)** — Complete list of all 31 active integrity checks with detection logic, severity, and recommended actions. Webhook, job queue, and HubSpot queue monitors.
 - **[references/scheduler-map.md](references/scheduler-map.md)** — All 28 scheduled tasks with frequencies, execution windows, multi-instance safety.
 
 ---
@@ -123,9 +129,9 @@ What type of alert?
 | Severity | Behavior | Examples |
 |---|---|---|
 | **Critical** | Notify staff every run | Stripe Sub Sync, Active Bookings Without Sessions, Stuck Transitional Members, Billing Orphans, Orphaned Stripe Subscriptions, Auth Linking Data Integrity |
-| **High** | Notify when count > threshold (10) | Tier Reconciliation, Billing Provider Hybrid State, Lingering Payment Intents on Terminal Bookings |
-| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Active Members Without Waivers, Unreported Wellhub Events, Duplicate Stripe Customers (DB-guarded), Orphaned Payment Intents (DB-guarded), Invoice-Booking Recon (DB-guarded), Guest Pass Drift (DB-guarded), Stale Pending (DB-guarded), Archived Lingering (DB-guarded) |
-| **Low** | Informational | Sessions Without Participants, Overlapping Bookings, Stale Past Tours |
+| **High** | Notify when count > threshold (10) | Tier Reconciliation, Billing Provider Hybrid State, Lingering Payment Intents on Terminal Bookings, Usage Ledger Gaps (auto-fix), Sessions Exceeding Resource Capacity, Fee Snapshot Stripe Drift, Session Overlaps (All Resources), Wellness Block Coverage, Stuck Unpaid Bookings, Unresolved Failed Side Effects |
+| **Medium** | Dashboard only, no proactive alert | Unmatched Trackman, MindBody Stale/Quality, Active Members Without Waivers, Unreported Wellhub Events, Duplicate Stripe Customers (DB-guarded), Orphaned Payment Intents (DB-guarded), Invoice-Booking Recon (DB-guarded), Guest Pass Drift (DB-guarded), Stale Pending (DB-guarded), Archived Lingering (DB-guarded), Negative Merch Stock, Merch & Cafe Stripe Product Sync, Stuck Push Notifications, Wallet Pass Booking Sync |
+| **Low** | Informational | Sessions Without Participants, Overlapping Bookings, Stale Past Tours, Stale Push Subscriptions |
 
 ### Error Alert Email Types
 
