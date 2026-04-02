@@ -1159,6 +1159,13 @@ router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, 
         AND bp.user_id IS NOT NULL
     `);
 
+    const stalePaidResult = await db.execute(sql`
+      SELECT bp.id, bp.display_name, bp.cached_fee_cents
+      FROM booking_participants bp
+      WHERE bp.payment_status = 'paid'
+        AND bp.cached_fee_cents > 0
+    `);
+
     if (!dryRun) {
       await db.execute(sql`
         UPDATE booking_participants bp
@@ -1182,24 +1189,33 @@ router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, 
           AND bp.user_id IS NOT NULL
       `);
 
+      await db.execute(sql`
+        UPDATE booking_participants
+        SET cached_fee_cents = 0
+        WHERE payment_status = 'paid'
+          AND cached_fee_cents > 0
+      `);
+
       logFromRequest(req, {
         action: 'cleanup_ghost_fees',
         resourceType: 'booking_participants',
-        details: { summary: `Waived ${ghostResult.rows.length} ghost fees, marked ${pastPendingResult.rows.length} past fees as paid` }
+        details: { summary: `Waived ${ghostResult.rows.length} ghost fees, marked ${pastPendingResult.rows.length} past fees as paid, zeroed ${stalePaidResult.rows.length} stale paid fees` }
       });
     }
 
     const ghostTotal = ghostResult.rows.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.cached_fee_cents) || 0), 0);
     const pastTotal = pastPendingResult.rows.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.cached_fee_cents) || 0), 0);
+    const stalePaidTotal = stalePaidResult.rows.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.cached_fee_cents) || 0), 0);
 
     const ghostAction = dryRun ? 'would waive' : 'waived';
     const pastAction = dryRun ? 'would mark paid' : 'marked paid';
+    const staleAction = dryRun ? 'would zero' : 'zeroed';
 
     res.json({
       success: true,
       message: dryRun
-        ? `Dry run: Would waive ${ghostResult.rows.length} ghost fees ($${(ghostTotal / 100).toFixed(2)}), would mark ${pastPendingResult.rows.length} past fees as paid ($${(pastTotal / 100).toFixed(2)})`
-        : `Waived ${ghostResult.rows.length} ghost fees ($${(ghostTotal / 100).toFixed(2)}), marked ${pastPendingResult.rows.length} past fees as paid ($${(pastTotal / 100).toFixed(2)})`,
+        ? `Dry run: Would waive ${ghostResult.rows.length} ghost fees ($${(ghostTotal / 100).toFixed(2)}), would mark ${pastPendingResult.rows.length} past fees as paid ($${(pastTotal / 100).toFixed(2)}), would zero ${stalePaidResult.rows.length} stale paid fees ($${(stalePaidTotal / 100).toFixed(2)})`
+        : `Waived ${ghostResult.rows.length} ghost fees ($${(ghostTotal / 100).toFixed(2)}), marked ${pastPendingResult.rows.length} past fees as paid ($${(pastTotal / 100).toFixed(2)}), zeroed ${stalePaidResult.rows.length} stale paid fees ($${(stalePaidTotal / 100).toFixed(2)})`,
       dryRun,
       ghostFees: {
         count: ghostResult.rows.length,
@@ -1210,6 +1226,11 @@ router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, 
         count: pastPendingResult.rows.length,
         totalDollars: pastTotal / 100,
         action: pastAction,
+      },
+      stalePaidFees: {
+        count: stalePaidResult.rows.length,
+        totalDollars: stalePaidTotal / 100,
+        action: staleAction,
       },
     });
   } catch (error: unknown) {
