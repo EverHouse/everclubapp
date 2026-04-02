@@ -1286,6 +1286,10 @@ export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
           bookingDate: row.session_date || undefined,
           startTime: row.s1_start || undefined,
           endTime: row.s1_end || undefined,
+          session1Id: Number(row.session1_id),
+          session2Id: Number(row.session2_id),
+          s2Start: row.s2_start || undefined,
+          s2End: row.s2_end || undefined,
         }
       });
     }

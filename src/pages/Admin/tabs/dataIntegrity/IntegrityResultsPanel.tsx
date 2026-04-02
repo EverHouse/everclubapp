@@ -1887,6 +1887,40 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           )}
                                         </button>
                                       )}
+                                      {issue.context?.session1Id && !issue.context?.booking1Id && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setBookingSheet({
+                                            isOpen: true,
+                                            bookingId: null,
+                                            sessionId: String(issue.context!.session1Id),
+                                            bayName: issue.context?.resourceName as string,
+                                            bookingDate: issue.context?.bookingDate as string,
+                                            timeSlot: `${formatTimeForSheet(issue.context?.startTime as string)} - ${formatTimeForSheet(issue.context?.endTime as string)}`,
+                                          })}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors"
+                                          title={`View session #${issue.context.session1Id}`}
+                                        >
+                                          <Icon name="open_in_new" className="text-[16px]" />
+                                        </button>
+                                      )}
+                                      {issue.context?.session2Id && !issue.context?.booking2Id && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setBookingSheet({
+                                            isOpen: true,
+                                            bookingId: null,
+                                            sessionId: String(issue.context!.session2Id),
+                                            bayName: issue.context?.resourceName as string,
+                                            bookingDate: issue.context?.bookingDate as string,
+                                            timeSlot: `${formatTimeForSheet(issue.context?.s2Start as string)} - ${formatTimeForSheet(issue.context?.s2End as string)}`,
+                                          })}
+                                          className="p-1.5 text-green-600 hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/30 rounded transition-colors"
+                                          title={`View session #${issue.context.session2Id}`}
+                                        >
+                                          <Icon name="open_in_new" className="text-[16px]" />
+                                        </button>
+                                      )}
                                     </>
                                   )}
                                   {!issue.ignored && issue.table === 'booking_requests' && issue.category === 'billing_issue' && typeof issue.recordId === 'number' && (

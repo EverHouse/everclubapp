@@ -81,6 +81,11 @@ export interface IssueContext {
   stripeEmail?: string;
   databaseEmail?: string;
   subscriptionStatus?: string;
+  session1Id?: number;
+  session2Id?: number;
+  s2Start?: string;
+  s2End?: string;
+  resourceType?: string;
 }
 
 export interface IgnoreInfo {
