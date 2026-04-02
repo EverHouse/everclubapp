@@ -2,6 +2,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { getErrorMessage, getErrorCode, isStripeError, isStripeResourceMissing } from '../../utils/errorUtils';
+import { getSettingValue } from '../settingsHelper';
 import { logger } from '../logger';
 import { isProduction } from '../db';
 import { getStripeClient } from '../stripe/client';
@@ -1441,6 +1442,181 @@ export async function checkMerchStripeProductSync(): Promise<IntegrityCheckResul
 
   return {
     checkName: 'Merch & Cafe Stripe Product Sync',
+    status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+const DEFAULT_FEE_SNAPSHOT_DRIFT_THRESHOLD_CENTS = 50;
+
+interface FeeSnapshotDriftRow {
+  id: number;
+  booking_id: number;
+  total_cents: number;
+  stripe_payment_intent_id: string;
+  status: string;
+  user_email: string;
+  first_name: string;
+  last_name: string;
+}
+
+export async function checkFeeSnapshotStripeDrift(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  let stripe: Stripe;
+  try {
+    stripe = await getStripeClient();
+  } catch (err: unknown) {
+    logger.error('[DataIntegrity] Stripe API error:', { extra: { error: getErrorMessage(err) } });
+    return {
+      checkName: 'Fee Snapshot Stripe Drift',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_fee_snapshots',
+        recordId: 'stripe_error',
+        description: `Cannot connect to Stripe API: ${getErrorMessage(err)}`,
+        suggestion: 'Check Stripe API key configuration'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  try {
+    const thresholdStr = await getSettingValue('integrity.fee_snapshot_drift_threshold_cents', String(DEFAULT_FEE_SNAPSHOT_DRIFT_THRESHOLD_CENTS));
+    const driftThresholdCents = Math.max(0, parseInt(thresholdStr || String(DEFAULT_FEE_SNAPSHOT_DRIFT_THRESHOLD_CENTS), 10) || DEFAULT_FEE_SNAPSHOT_DRIFT_THRESHOLD_CENTS);
+
+    const paidSnapshotsResult = await db.execute(sql`
+      SELECT bfs.id, bfs.booking_id, bfs.total_cents, bfs.stripe_payment_intent_id, bfs.status,
+             br.user_email,
+             u.first_name, u.last_name
+      FROM booking_fee_snapshots bfs
+      INNER JOIN booking_requests br ON bfs.booking_id = br.id
+      LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+      WHERE bfs.stripe_payment_intent_id IS NOT NULL
+        AND bfs.status IN ('completed', 'paid')
+        AND br.status NOT IN ('cancelled', 'declined', 'denied', 'expired')
+        AND bfs.created_at > NOW() - INTERVAL '90 days'
+      ORDER BY bfs.created_at DESC
+      LIMIT 200
+    `);
+
+    const paidSnapshots = paidSnapshotsResult.rows as unknown as FeeSnapshotDriftRow[];
+
+    if (paidSnapshots.length === 0) {
+      return {
+        checkName: 'Fee Snapshot Stripe Drift',
+        status: 'pass',
+        issueCount: 0,
+        issues: [],
+        lastRun: new Date()
+      };
+    }
+
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY_MS = 100;
+    let apiErrorCount = 0;
+
+    for (let i = 0; i < paidSnapshots.length; i += BATCH_SIZE) {
+      const batch = paidSnapshots.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(batch.map(async (snapshot) => {
+        try {
+          const pi = await stripe.paymentIntents.retrieve(snapshot.stripe_payment_intent_id);
+
+          const stripeAmountCents = pi.amount_received;
+          const snapshotAmountCents = Number(snapshot.total_cents);
+          const driftCents = Math.abs(stripeAmountCents - snapshotAmountCents);
+
+          if (driftCents > driftThresholdCents) {
+            const memberName = [snapshot.first_name, snapshot.last_name].filter(Boolean).join(' ') || 'Unknown';
+            const snapshotDollars = (snapshotAmountCents / 100).toFixed(2);
+            const stripeDollars = (stripeAmountCents / 100).toFixed(2);
+            const driftDollars = (driftCents / 100).toFixed(2);
+
+            issues.push({
+              category: 'billing_issue',
+              severity: 'error',
+              table: 'booking_fee_snapshots',
+              recordId: snapshot.id,
+              description: `Fee snapshot #${snapshot.id} for booking #${snapshot.booking_id} (${memberName}, ${snapshot.user_email}) expected $${snapshotDollars} but Stripe received $${stripeDollars} (drift: $${driftDollars})`,
+              suggestion: 'Review manually — the fee snapshot amount and the Stripe received amount have diverged. This may indicate a manual Stripe edit, partial refund, or API glitch.',
+              context: {
+                memberName,
+                memberEmail: snapshot.user_email || undefined,
+                bookingId: snapshot.booking_id,
+                stripePaymentIntentId: snapshot.stripe_payment_intent_id,
+                status: snapshot.status,
+                syncType: 'stripe',
+                syncComparison: [
+                  { field: 'Fee Amount (cents)', appValue: snapshotAmountCents, externalValue: stripeAmountCents }
+                ]
+              }
+            });
+          }
+        } catch (err: unknown) {
+          if (isStripeResourceMissing(err)) {
+            issues.push({
+              category: 'data_quality',
+              severity: 'warning',
+              table: 'booking_fee_snapshots',
+              recordId: snapshot.id,
+              description: `Fee snapshot #${snapshot.id} references payment intent ${snapshot.stripe_payment_intent_id} which no longer exists in Stripe`,
+              suggestion: 'Clean up orphaned payment intent reference on this fee snapshot',
+              context: {
+                stripePaymentIntentId: snapshot.stripe_payment_intent_id,
+                bookingId: snapshot.booking_id,
+                status: snapshot.status,
+              }
+            });
+          } else {
+            apiErrorCount++;
+            logger.warn(`[DataIntegrity] Error fetching Stripe PI for drift check:`, {
+              extra: { piId: snapshot.stripe_payment_intent_id, error: getErrorMessage(err) }
+            });
+          }
+        }
+      }));
+
+      if (i + BATCH_SIZE < paidSnapshots.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+      }
+    }
+
+    if (apiErrorCount > 0) {
+      issues.push({
+        category: 'system_error',
+        severity: 'warning',
+        table: 'booking_fee_snapshots',
+        recordId: 'api_errors',
+        description: `${apiErrorCount} Stripe API error(s) occurred while checking fee snapshot drift — some snapshots could not be verified`,
+        suggestion: 'Check Stripe API status and retry. Some fee snapshots may have undetected drift.'
+      });
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking fee snapshot Stripe drift:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Fee Snapshot Stripe Drift',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_fee_snapshots',
+        recordId: 'check_error',
+        description: `Failed to check fee snapshot Stripe drift: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  return {
+    checkName: 'Fee Snapshot Stripe Drift',
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
