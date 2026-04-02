@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.17",
+    date: "2026-04-02",
+    title: "Console Log Cleanup",
+    changes: [
+      "Improved: Cleaned up noisy debug logging throughout the app for a quieter browser console experience.",
+    ]
+  },
+  {
     version: "8.98.16",
     date: "2026-04-02",
     title: "Staff Portal Performance Boost",

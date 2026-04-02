@@ -2,6 +2,17 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.17] - 2026-04-02
+
+### Cleanup: Remove noisy console.log statements from frontend
+- Removed ~50 dev-only `console.log` statements from `useStaffWebSocket.ts` (WebSocket lifecycle: connect, disconnect, scheduling, cleanup, every message type received). Kept `console.error` for connection errors and `console.warn` for auth failures and max reconnect attempts.
+- Removed ~19 dev-only `console.log` statements from `useWebSocketQuerySync.ts` (one for every query cache invalidation event).
+- Removed `[StaffWebSocketContext] Provider mounted` log from `StaffWebSocketContext.tsx`.
+- Removed `[TabButton] click fired for "..."` debug log from `TabButton.tsx`.
+- All `console.warn` in catch blocks (error handling) and `console.error` calls kept intact — only removed verbose debug/trace-level logging.
+- Prefixed unused `reason` param in `connect()` with underscore to satisfy TypeScript.
+- Files changed: `src/hooks/useStaffWebSocket.ts`, `src/hooks/useWebSocketQuerySync.ts`, `src/contexts/StaffWebSocketContext.tsx`, `src/components/TabButton.tsx`
+
 ## [8.98.16] - 2026-04-02
 
 ### Performance: Parallelize approved-bookings enrichment queries

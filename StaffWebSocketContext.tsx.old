@@ -23,6 +23,10 @@ export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = (
   if (mountIdRef.current === 0) {
     // eslint-disable-next-line react-hooks/refs
     mountIdRef.current = 1;
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.log(`[StaffWebSocketContext] Provider mounted`);
+    }
   }
 
   const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
