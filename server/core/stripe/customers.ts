@@ -93,7 +93,7 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    const directMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, mt.name as tier, u.first_name, u.last_name
+    const directMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, COALESCE(mt.name, u.tier) as tier, u.first_name, u.last_name
        FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE LOWER(u.email) = ${normalizedEmail} AND u.archived_at IS NULL`);
     if (directMatch.rows.length > 0) {
       const u = directMatch.rows[0] as unknown as UserRow;
@@ -113,7 +113,7 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
   }
 
   try {
-    const linkedMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, mt.name as tier, u.first_name, u.last_name
+    const linkedMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, COALESCE(mt.name, u.tier) as tier, u.first_name, u.last_name
        FROM user_linked_emails ule
        INNER JOIN users u ON LOWER(u.email) = LOWER(ule.primary_email)
        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
@@ -137,7 +137,7 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
   }
 
   try {
-    const manualMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, mt.name as tier, u.first_name, u.last_name
+    const manualMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, COALESCE(mt.name, u.tier) as tier, u.first_name, u.last_name
        FROM users u
        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
        WHERE COALESCE(u.manually_linked_emails, '[]'::jsonb) @> ${JSON.stringify([normalizedEmail])}::jsonb

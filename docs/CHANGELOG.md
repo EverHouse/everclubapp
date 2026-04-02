@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.15] - 2026-04-02
+
+### Fix: useEffect race conditions in staff booking modals
+- Added cancellation tokens (`mountedRef`/`isActive`) to 13+ async `useEffect` hooks in `useUnifiedBookingLogic.ts` to prevent stale state updates when rapidly switching between bookings or unmounting components.
+- Added `isActive` guard to `PaymentSection.tsx` member balance fetch to prevent stale data flashing when the modal is closed and reopened quickly.
+- Files changed: `src/components/staff-command-center/modals/useUnifiedBookingLogic.ts`, `src/components/staff-command-center/modals/PaymentSection.tsx`
+
+### Improvement: Tier field consolidation with defensive fallback
+- Migrated ~15 critical server-side SQL queries from reading the legacy `users.tier` text column to using `tier_id` FK joins with `membership_tiers` table, with `COALESCE(mt.name, u.tier)` defensive fallback.
+- Affected paths: session orchestration, booking approval, roster loading, Trackman reconciliation, Stripe customer resolution, email change sync, auth session building.
+- Data validation confirmed zero active members have tier/tier_id mismatch — the fallback is a safety net for future edge cases.
+- Files changed: `server/core/bookingService/sessionOrchestrator.ts`, `server/core/bookingService/approvalCompletion.ts`, `server/core/bookingService/rosterTypes.ts`, `server/core/bookingService/trackmanReconciliation.ts`, `server/core/stripe/customers.ts`, `server/core/memberService/emailChangeService.ts`, `server/core/memberService/MemberService.ts`, `server/replit_integrations/auth/routes.ts`
+
 ## [8.98.14] - 2026-04-01
 
 ### Fix: Phantom participant foreign key crash (Bug #1)

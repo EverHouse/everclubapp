@@ -38,7 +38,7 @@ export function registerAuthRoutes(app: Express): void {
       const isAdmin = await isAdminEmail(user.email);
       
       const userResult = await db.execute(sql`
-        SELECT u.id, u.tags, mt.name as tier_name
+        SELECT u.id, u.tags, COALESCE(mt.name, u.tier) as tier_name
         FROM users u
         LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
         WHERE LOWER(u.email) = LOWER(${user.email})

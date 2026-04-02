@@ -331,7 +331,7 @@ export async function adjustLedgerForReconciliation(
 ): Promise<{ success: boolean; adjustmentAmount: number }> {
   try {
     const bookingResult = await db.execute(sql`SELECT br.id, br.declared_player_count, br.trackman_player_count, br.duration_minutes,
-              br.user_email, br.session_id, mt.name as tier
+              br.user_email, br.session_id, COALESCE(mt.name, u.tier) as tier
        FROM booking_requests br
        LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id

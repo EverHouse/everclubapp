@@ -170,7 +170,7 @@ export async function cascadeEmailChange(
 
     try {
       const userRow = await db.execute(
-        sql`SELECT u.stripe_customer_id, u.hubspot_id, u.first_name, u.last_name, u.phone, mt.name as tier, u.id FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE LOWER(u.email) = ${normalizedNewEmailForSync}`
+        sql`SELECT u.stripe_customer_id, u.hubspot_id, u.first_name, u.last_name, u.phone, COALESCE(mt.name, u.tier) as tier, u.id FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE LOWER(u.email) = ${normalizedNewEmailForSync}`
       );
       const user = userRow.rows[0] as unknown as UserSyncRow | undefined;
 

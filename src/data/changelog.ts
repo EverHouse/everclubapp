@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.15",
+    date: "2026-04-02",
+    title: "Race Condition Fixes & Tier Data Hardening",
+    changes: [
+      "Fixed: Staff booking modals no longer flash stale data when switching quickly between bookings.",
+      "Fixed: Payment section no longer shows incorrect balance info if the modal is closed and reopened rapidly.",
+      "Improved: Membership tier lookups across booking, billing, and check-in now use the authoritative tier configuration table with a defensive fallback, preventing edge-case mismatches.",
+    ]
+  },
+  {
     version: "8.98.14",
     date: "2026-04-01",
     title: "Booking Validation Hardening",
