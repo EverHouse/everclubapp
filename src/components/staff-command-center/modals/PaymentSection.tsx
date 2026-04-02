@@ -416,17 +416,20 @@ export function InlinePaymentBody({
 
   React.useEffect(() => {
     if (!showInlinePayment || !bookingId) return;
+    let isActive = true;
     import('../../../hooks/queries/useFetch').then(({ fetchWithCredentials }) => {
       fetchWithCredentials<{ memberAccountBalance?: { availableCreditCents: number; availableCreditDollars: number } }>(`/api/bookings/${bookingId}/staff-checkin-context`)
         .then(data => {
+          if (!isActive) return;
           if (data.memberAccountBalance && data.memberAccountBalance.availableCreditCents > 0) {
             setMemberBalance(data.memberAccountBalance);
           } else {
             setMemberBalance(null);
           }
         })
-        .catch((err) => { console.error('[PaymentSection] Failed to fetch member balance:', err); setMemberBalance(null); });
+        .catch((err) => { if (!isActive) return; console.error('[PaymentSection] Failed to fetch member balance:', err); setMemberBalance(null); });
     });
+    return () => { isActive = false; };
   }, [showInlinePayment, bookingId]);
 
   const scrollRef = React.useCallback((node: HTMLDivElement | null) => {

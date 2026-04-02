@@ -80,12 +80,12 @@ export async function autoFixMissingTiers(): Promise<{
 
     const clearedLinkedTiers = await db.execute(sql`
       UPDATE users u
-      SET tier = NULL, membership_status = ${MEMBERSHIP_STATUS.INACTIVE}, membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.INACTIVE} THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
+      SET tier = NULL, tier_id = NULL, membership_status = ${MEMBERSHIP_STATUS.INACTIVE}, membership_status_changed_at = CASE WHEN membership_status IS DISTINCT FROM ${MEMBERSHIP_STATUS.INACTIVE} THEN NOW() ELSE membership_status_changed_at END, updated_at = NOW()
       FROM user_linked_emails ule
       WHERE LOWER(ule.linked_email) = LOWER(u.email)
         AND LOWER(ule.primary_email) != LOWER(ule.linked_email)
         AND u.role = 'member'
-        AND (u.tier IS NOT NULL OR u.membership_status = ${MEMBERSHIP_STATUS.ACTIVE})
+        AND (u.tier_id IS NOT NULL OR u.membership_status = ${MEMBERSHIP_STATUS.ACTIVE})
         AND u.email NOT LIKE '%test%'
         AND u.email NOT LIKE '%example.com'
         AND (u.last_manual_fix_at IS NULL OR u.last_manual_fix_at < NOW() - INTERVAL '1 hour')
@@ -95,7 +95,7 @@ export async function autoFixMissingTiers(): Promise<{
             AND p.archived_at IS NULL
             AND p.membership_status != 'merged'
         )
-      RETURNING u.email, u.tier
+      RETURNING u.email
     `);
 
     fixedFromAlternateEmail = (clearedLinkedTiers as { rowCount?: number }).rowCount || 0;
@@ -108,15 +108,16 @@ export async function autoFixMissingTiers(): Promise<{
     const hubspotTierCandidates = await db.execute(sql`
       SELECT DISTINCT ON (u1.id)
         u1.id, u1.email as user_email, u1.hubspot_id,
-        alt_user.email as alt_email, alt_user.tier as suggested_tier
+        alt_user.email as alt_email, alt_mt.name as suggested_tier
       FROM users u1
       JOIN users alt_user ON u1.hubspot_id IS NOT NULL 
         AND alt_user.hubspot_id = u1.hubspot_id 
         AND alt_user.email != u1.email 
-        AND alt_user.tier IS NOT NULL
+        AND alt_user.tier_id IS NOT NULL
+      LEFT JOIN membership_tiers alt_mt ON alt_user.tier_id = alt_mt.id
       WHERE u1.role = 'member' 
         AND u1.membership_status = ${MEMBERSHIP_STATUS.ACTIVE} 
-        AND u1.tier IS NULL
+        AND u1.tier_id IS NULL
         AND u1.email NOT LIKE '%test%'
         AND u1.email NOT LIKE '%example.com'
       ORDER BY u1.id, alt_user.updated_at DESC NULLS LAST
@@ -134,7 +135,7 @@ export async function autoFixMissingTiers(): Promise<{
       FROM users 
       WHERE role = 'member' 
         AND membership_status = ${MEMBERSHIP_STATUS.ACTIVE} 
-        AND tier IS NULL
+        AND tier_id IS NULL
         AND email NOT LIKE '%test%'
         AND email NOT LIKE '%example.com'
     `);
@@ -147,7 +148,7 @@ export async function autoFixMissingTiers(): Promise<{
         FROM users 
         WHERE role = 'member' 
           AND membership_status = ${MEMBERSHIP_STATUS.ACTIVE} 
-          AND tier IS NULL
+          AND tier_id IS NULL
           AND email NOT LIKE '%test%'
           AND email NOT LIKE '%example.com'
         ORDER BY created_at DESC

@@ -37,10 +37,13 @@ export function registerAuthRoutes(app: Express): void {
       const isStaff = await isStaffEmail(user.email);
       const isAdmin = await isAdminEmail(user.email);
       
-      const userResult = await db.select({ id: users.id, tags: users.tags })
-        .from(users)
-        .where(sql`LOWER(${users.email}) = LOWER(${user.email})`);
-      const dbUser = userResult.length > 0 ? userResult[0] : null;
+      const userResult = await db.execute(sql`
+        SELECT u.id, u.tags, mt.name as tier_name
+        FROM users u
+        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
+        WHERE LOWER(u.email) = LOWER(${user.email})
+      `);
+      const dbUser = userResult.rows.length > 0 ? userResult.rows[0] as { id: string; tags: unknown; tier_name: string | null } : null;
       
       // Count past bookings using UNION for deduplication
       // Include: host (owner), player (booking_members), guest (booking_guests)
@@ -132,7 +135,7 @@ export function registerAuthRoutes(app: Express): void {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        tier: user.tier,
+        tier: dbUser?.tier_name ?? null,
         role: user.role,
         isStaff,
         isAdmin,

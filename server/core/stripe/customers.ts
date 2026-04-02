@@ -93,8 +93,8 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    const directMatch = await db.execute(sql`SELECT id, email, stripe_customer_id, membership_status, tier, first_name, last_name
-       FROM users WHERE LOWER(email) = ${normalizedEmail} AND archived_at IS NULL`);
+    const directMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, mt.name as tier, u.first_name, u.last_name
+       FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE LOWER(u.email) = ${normalizedEmail} AND u.archived_at IS NULL`);
     if (directMatch.rows.length > 0) {
       const u = directMatch.rows[0] as unknown as UserRow;
       return {
@@ -113,9 +113,10 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
   }
 
   try {
-    const linkedMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, u.tier, u.first_name, u.last_name
+    const linkedMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, mt.name as tier, u.first_name, u.last_name
        FROM user_linked_emails ule
        INNER JOIN users u ON LOWER(u.email) = LOWER(ule.primary_email)
+       LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
        WHERE LOWER(ule.linked_email) = ${normalizedEmail} AND u.archived_at IS NULL
        LIMIT 1`);
     if (linkedMatch.rows.length > 0) {
@@ -136,10 +137,11 @@ export async function resolveUserByEmail(email: string): Promise<ResolvedUser | 
   }
 
   try {
-    const manualMatch = await db.execute(sql`SELECT id, email, stripe_customer_id, membership_status, tier, first_name, last_name
-       FROM users
-       WHERE COALESCE(manually_linked_emails, '[]'::jsonb) @> ${JSON.stringify([normalizedEmail])}::jsonb
-         AND archived_at IS NULL
+    const manualMatch = await db.execute(sql`SELECT u.id, u.email, u.stripe_customer_id, u.membership_status, mt.name as tier, u.first_name, u.last_name
+       FROM users u
+       LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
+       WHERE COALESCE(u.manually_linked_emails, '[]'::jsonb) @> ${JSON.stringify([normalizedEmail])}::jsonb
+         AND u.archived_at IS NULL
        LIMIT 1`);
     if (manualMatch.rows.length > 0) {
       const u = manualMatch.rows[0] as unknown as UserRow;
@@ -173,7 +175,7 @@ export async function getOrCreateStripeCustomer(
     throw new Error(`Cannot create Stripe customer for placeholder email: ${email}`);
   }
   
-  const userResult = await db.execute(sql`SELECT stripe_customer_id, tier, first_name, last_name, email, phone, archived_at FROM users WHERE id = ${userId}`);
+  const userResult = await db.execute(sql`SELECT u.stripe_customer_id, mt.name as tier, u.first_name, u.last_name, u.email, u.phone, u.archived_at FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE u.id = ${userId}`);
   
   const userRow = (userResult.rows as unknown as UserRow[])[0];
   const userTier = tier || userRow?.tier;
@@ -470,7 +472,7 @@ export async function updateCustomerPaymentMethod(
 export async function syncCustomerMetadataToStripe(
   email: string
 ): Promise<{ success: boolean; error?: string }> {
-  const userResult = await db.execute(sql`SELECT id, tier, stripe_customer_id, first_name, last_name, phone FROM users WHERE LOWER(email) = LOWER(${email})`);
+  const userResult = await db.execute(sql`SELECT u.id, mt.name as tier, u.stripe_customer_id, u.first_name, u.last_name, u.phone FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE LOWER(u.email) = LOWER(${email})`);
   
   if (userResult.rows.length === 0) {
     return { success: false, error: 'User not found' };
@@ -519,7 +521,7 @@ export async function syncCustomerMetadataToStripe(
 }
 
 export async function syncAllCustomerMetadata(): Promise<{ synced: number; failed: number }> {
-  const result = await db.execute(sql`SELECT id, email, tier, stripe_customer_id, first_name, last_name, phone FROM users WHERE stripe_customer_id IS NOT NULL LIMIT 10000`);
+  const result = await db.execute(sql`SELECT u.id, u.email, mt.name as tier, u.stripe_customer_id, u.first_name, u.last_name, u.phone FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE u.stripe_customer_id IS NOT NULL LIMIT 10000`);
   
   let synced = 0;
   let failed = 0;

@@ -284,7 +284,7 @@ export async function createSessionWithUsageTracking(
                 const tierResult = await tx.execute(sql`
                   SELECT mt.guest_passes_per_year 
                   FROM users u 
-                  JOIN membership_tiers mt ON u.tier = mt.name 
+                  JOIN membership_tiers mt ON u.tier_id = mt.id 
                   WHERE LOWER(u.email) = ${emailLower}
                 `);
                 const yearlyAllocation = tierResult.rows?.[0] 
@@ -378,7 +378,7 @@ export async function createSessionWithUsageTracking(
               const tierResult = await tx.execute(sql`
                 SELECT mt.guest_passes_per_year 
                 FROM users u 
-                JOIN membership_tiers mt ON u.tier = mt.name 
+                JOIN membership_tiers mt ON u.tier_id = mt.id 
                 WHERE LOWER(u.email) = ${emailLower}
               `);
               const yearlyAllocation = tierResult.rows?.[0] 
@@ -448,7 +448,7 @@ export async function createSessionWithUsageTracking(
             const tierResult = await tx.execute(sql`
               SELECT mt.guest_passes_per_year 
               FROM users u 
-              JOIN membership_tiers mt ON u.tier = mt.name 
+              JOIN membership_tiers mt ON u.tier_id = mt.id 
               WHERE LOWER(u.email) = ${emailLower}
             `);
             const yearlyAllocation = tierResult.rows?.[0] 

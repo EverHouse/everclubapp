@@ -94,7 +94,7 @@ export async function createPrepaymentIntent(
 
   if (userEmail) {
     const exemptCheck = await db.execute(
-      sql`SELECT u.role, u.tier, COALESCE(mt.unlimited_access, false) as unlimited_access
+      sql`SELECT u.role, mt.name as tier, COALESCE(mt.unlimited_access, false) as unlimited_access
        FROM users u 
        LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
        WHERE LOWER(u.email) = LOWER(${userEmail}) LIMIT 1`

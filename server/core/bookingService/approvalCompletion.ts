@@ -40,9 +40,10 @@ export async function devConfirmBooking(params: DevConfirmParams) {
   const { bookingId, staffEmail: _staffEmail } = params;
 
   const bookingResult = await db.execute(sql`
-    SELECT br.*, u.id as user_id, u.stripe_customer_id, u.tier
+    SELECT br.*, u.id as user_id, u.stripe_customer_id, mt.name as tier
      FROM booking_requests br
      LEFT JOIN users u ON LOWER(u.email) = LOWER(br.user_email)
+     LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
      WHERE br.id = ${bookingId}
   `);
 

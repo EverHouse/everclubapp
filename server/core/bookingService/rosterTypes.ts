@@ -302,10 +302,11 @@ export async function getBookingWithSession(bookingId: number): Promise<BookingW
       br.roster_version,
       br.trackman_booking_id,
       r.name as resource_name,
-      u.tier as owner_tier
+      mt.name as owner_tier
     FROM booking_requests br
     LEFT JOIN resources r ON br.resource_id = r.id
     LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email)
+    LEFT JOIN membership_tiers mt ON u.tier_id = mt.id
     WHERE br.id = ${bookingId}`);
   return (result.rows[0] as unknown as BookingWithSession) || null;
 }

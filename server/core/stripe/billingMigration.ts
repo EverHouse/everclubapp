@@ -33,12 +33,12 @@ export async function executePendingMigration(userId: string, email: string): Pr
 
   try {
     const userResult = await db.execute(sql`
-      SELECT id, email, tier, membership_status, billing_provider,
-             stripe_customer_id, stripe_subscription_id,
-             first_name, last_name,
-             migration_status, migration_billing_start_date,
-             migration_requested_by, migration_tier_snapshot
-      FROM users WHERE id = ${userId} AND LOWER(email) = LOWER(${email})
+      SELECT u.id, u.email, mt.name as tier, u.membership_status, u.billing_provider,
+             u.stripe_customer_id, u.stripe_subscription_id,
+             u.first_name, u.last_name,
+             u.migration_status, u.migration_billing_start_date,
+             u.migration_requested_by, u.migration_tier_snapshot
+      FROM users u LEFT JOIN membership_tiers mt ON u.tier_id = mt.id WHERE u.id = ${userId} AND LOWER(u.email) = LOWER(${email})
     `);
 
     if (userResult.rows.length === 0) {

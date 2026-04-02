@@ -133,6 +133,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   const rosterFetchIdRef = useRef(0);
   const checkCardFetchIdRef = useRef(0);
   const billingModalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
 
   const isManageMode = mode === 'manage';
 
@@ -173,7 +174,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
       clearTimeout(timeoutId);
-      if (fetchId !== rosterFetchIdRef.current) return;
+      if (fetchId !== rosterFetchIdRef.current || !mountedRef.current) return;
       setRosterData(data);
       membersSnapshotRef.current = [...data.members];
 
@@ -248,13 +249,16 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
 
       setSlots(newSlots);
     } catch (err: unknown) {
+      if (!mountedRef.current) return;
       if (err instanceof DOMException && err.name === 'AbortError') {
         setRosterError('Request timed out. Please try again.');
       } else {
         setRosterError((err instanceof Error ? err.message : String(err)) || 'Failed to load roster data');
       }
     } finally {
-      setIsLoadingRoster(false);
+      if (mountedRef.current) {
+        setIsLoadingRoster(false);
+      }
     }
   }, [bookingId]);
 
@@ -324,10 +328,11 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     pollingCountRef.current = 0;
     isPollingFetchingRef.current = false;
     pollingTimerRef.current = setInterval(async () => {
-      if (isPollingFetchingRef.current) return;
+      if (isPollingFetchingRef.current || !mountedRef.current) return;
       pollingCountRef.current++;
       if (pollingCountRef.current > 5) {
         stopPaymentPolling();
+        if (!mountedRef.current) return;
         setProcessingPayment(false);
         await fetchRosterData();
         return;
@@ -338,6 +343,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         const data = await fetchWithCredentials<ManageModeRosterData>(`/api/admin/booking/${bookingId}/members`, {
           headers: { 'Cache-Control': 'no-cache' }
         });
+        if (!mountedRef.current) return;
         if (data.financialSummary?.allPaid) {
           setRosterData(data);
           membersSnapshotRef.current = [...data.members];
@@ -417,7 +423,9 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
   }, [bookingId, stopPaymentPolling]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       if (pollingTimerRef.current) {
         clearInterval(pollingTimerRef.current);
         pollingTimerRef.current = null;
@@ -426,6 +434,11 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         clearTimeout(billingModalTimerRef.current);
         billingModalTimerRef.current = null;
       }
+      if (wsRefreshTimerRef.current) {
+        clearTimeout(wsRefreshTimerRef.current);
+        wsRefreshTimerRef.current = null;
+      }
+      pollingCountRef.current = 0;
     };
   }, []);
 
@@ -440,13 +453,13 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     try {
       setCheckingCard(true);
       const data = await fetchWithCredentials<{ hasSavedCard: boolean; last4?: string; brand?: string }>(`/api/stripe/staff/check-saved-card/${encodeURIComponent(email)}`);
-      if (fetchId !== checkCardFetchIdRef.current) return;
+      if (fetchId !== checkCardFetchIdRef.current || !mountedRef.current) return;
       setSavedCardInfo(data);
     } catch (err: unknown) {
-      if (fetchId !== checkCardFetchIdRef.current) return;
+      if (fetchId !== checkCardFetchIdRef.current || !mountedRef.current) return;
       console.error('Failed to check saved card:', err);
     } finally {
-      if (fetchId === checkCardFetchIdRef.current) {
+      if (fetchId === checkCardFetchIdRef.current && mountedRef.current) {
         setCheckingCard(false);
       }
     }
@@ -461,6 +474,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         status?: string; user_name?: string; user_email?: string; user_id?: number;
         duration_minutes?: number; notes?: string;
       }>(`/api/booking-requests/${bookingId}`);
+      if (!mountedRef.current) return;
       const formatTime = (t: string | null) => {
         if (!t) return '';
         const [h, m] = t.split(':').map(Number);
@@ -487,6 +501,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         checkSavedCard(data.user_email);
       }
     } catch (err: unknown) {
+      if (!mountedRef.current) return;
       console.error('[UnifiedBooking] Failed to fetch booking context:', err);
     }
   }, [bookingId, checkSavedCard]);
