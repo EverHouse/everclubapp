@@ -1229,6 +1229,37 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
         );
       }
 
+      case 'Session Overlaps (All Resources)': {
+        const overlapResult = results.find(r => r.checkName.replace(/^\[DEV\]\s*/, '') === 'Session Overlaps (All Resources)');
+        const overlapIssues = overlapResult?.issues.filter(i => !i.ignored) || [];
+        const today = new Date().toISOString().split('T')[0];
+        const pastOverlaps = overlapIssues.filter(i => {
+          const d = i.context?.bookingDate;
+          return d && String(d) < today;
+        });
+
+        return (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+              <strong>About:</strong> Legacy session overlaps that existed before the DB trigger was added. The trigger now prevents new overlaps. Past overlaps are historical and cannot be changed.
+            </p>
+            {pastOverlaps.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => openBulkIgnoreModal(checkName, pastOverlaps)}
+                  disabled={fixIssueMutation.isPending || isBulkActionRunning}
+                  className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Icon name="visibility_off" className="text-[14px]" />
+                  Dismiss Past Overlaps ({pastOverlaps.length})
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
       default:
         return null;
     }

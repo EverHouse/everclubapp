@@ -1367,7 +1367,7 @@ export async function checkWellnessBlockGaps(): Promise<IntegrityCheckResult> {
       FROM expected_blocks eb
       JOIN block_coverage bc ON bc.class_id = eb.class_id AND bc.resource_id = eb.resource_id
       WHERE bc.block_count = 0
-        OR bc.earliest_block_start > eb.class_time
+        OR bc.earliest_block_start > eb.class_time::time
         OR bc.latest_block_end < eb.class_end_time
       ORDER BY eb.class_date, eb.class_time
       LIMIT 200
