@@ -527,6 +527,7 @@ export async function createTrackmanSessionAndParticipants(input: SessionCreatio
           .set({ sessionId: fallbackSession.id })
           .where(eq(bookingRequests.id, input.bookingId));
 
+        // BYPASS: PaymentStatusService — Trackman import ghost auto-waive and real member pending reset
         await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${fallbackSession.id} AND user_id IS NULL AND guest_id IS NULL`);
         await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending' WHERE session_id = ${fallbackSession.id} AND (user_id IS NOT NULL OR guest_id IS NOT NULL)`);
         logger.info('[TrackmanImport] Fallback session: real participants set to pending, ghosts waived', {

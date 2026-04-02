@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { logAndRespond, logger } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
-import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateCachedFees, invalidateSessionCachedFees } from '../../core/billing/unifiedFeeService';
 import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
 import { logFromRequest, logPaymentAudit } from '../../core/auditLog';
 import { PRICING } from '../../core/billing/pricingConfig';
@@ -153,6 +153,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
         });
 
         try {
+          await invalidateSessionCachedFees(sessionId, 'staff_add_member');
           await recalculateSessionFees(sessionId, 'staff_add_member');
           syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
             logger.warn('[Staff Add Member] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
@@ -250,6 +251,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
       });
 
       try {
+        await invalidateSessionCachedFees(sessionId, 'staff_add_guest');
         await recalculateSessionFees(sessionId, 'staff_add_guest');
         syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
           logger.warn('[Staff Add Guest] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
@@ -392,6 +394,7 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
       });
 
       try {
+        await invalidateSessionCachedFees(sessionId, 'staff_add_member');
         await recalculateSessionFees(sessionId, 'staff_add_member');
         syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
           logger.warn('[Staff Add Member] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });

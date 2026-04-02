@@ -397,6 +397,7 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
           logger.error(`[JobQueue] Failed to cancel payment intent: ${payload.paymentIntentId}`, { extra: { error: cancelResult.error } });
         }
         if (payload.markParticipantsRefunded) {
+          // BYPASS: PaymentStatusService — job queue refund finalization after Stripe refund is confirmed
           await queryWithRetry(
             `UPDATE booking_participants SET payment_status = 'refunded', refunded_at = NOW() WHERE stripe_payment_intent_id = $1 AND payment_status = 'refund_pending'`,
             [payload.paymentIntentId as string],

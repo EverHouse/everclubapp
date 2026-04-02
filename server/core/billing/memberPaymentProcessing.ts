@@ -151,6 +151,7 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
             extra: { bookingId, piId }
           });
           await db.execute(sql`UPDATE stripe_payment_intents SET status = 'canceled', updated_at = NOW() WHERE stripe_payment_intent_id = ${piId}`);
+          // BYPASS: PaymentStatusService — correcting synthetic/non-Stripe PI back to pending for re-collection
           await db.execute(sql`UPDATE booking_participants SET payment_status = 'pending', stripe_payment_intent_id = NULL, paid_at = NULL
              WHERE stripe_payment_intent_id = ${piId} AND payment_status = 'paid'`);
           await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'stale' WHERE stripe_payment_intent_id = ${piId} AND status IN ('completed', 'paid')`);

@@ -12,7 +12,7 @@ import { sendNotificationToUser, broadcastAvailabilityUpdate, broadcastMemberSta
 import { refundGuestPass } from '../billing/guestPassService';
 import { updateHubSpotContactVisitCount } from '../memberSync';
 import { createSessionWithUsageTracking, ensureSessionForBooking, createOrFindGuest } from './sessionManager';
-import { recalculateSessionFees } from '../billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateSessionCachedFees } from '../billing/unifiedFeeService';
 import { PaymentStatusService } from '../billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../stripe';
 import { cancelPendingPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
@@ -71,6 +71,7 @@ export async function revertToApproved(params: { bookingId: number; staffEmail: 
     reverted = true;
 
     if (existing.sessionId) {
+      // BYPASS: PaymentStatusService — revert-to-approved resets waivers to pending for re-evaluation
       await tx.execute(
         sql`UPDATE booking_participants bp SET payment_status = 'pending'
          FROM booking_sessions bs
@@ -276,6 +277,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       });
       if (sessionResult.sessionId) {
         existing.session_id = sessionResult.sessionId;
+        await invalidateSessionCachedFees(sessionResult.sessionId, 'checkin_session_ensure');
         await recalculateSessionFees(sessionResult.sessionId, 'checkin');
         syncBookingInvoice(bookingId, sessionResult.sessionId).catch((err: unknown) => {
           logger.warn('[Checkin] Invoice sync failed after session creation', { extra: { bookingId, sessionId: sessionResult.sessionId, error: getErrorMessage(err) } });
@@ -354,6 +356,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
 
     if (parseInt((nullFeesCheck.rows[0] as unknown as { null_count: string })?.null_count, 10) > 0) {
       try {
+        await invalidateSessionCachedFees(existing.session_id as number, 'checkin_null_fees_guard');
         await recalculateSessionFees(existing.session_id as number, 'checkin');
         logger.info('[Check-in Guard] Recalculated fees for session - some participants had NULL or zero cached_fee_cents', { extra: { existingSession_id: existing.session_id } });
         syncBookingInvoice(bookingId, existing.session_id as number).catch((err: unknown) => {

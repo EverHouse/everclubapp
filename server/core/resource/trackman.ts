@@ -2,7 +2,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { resources, users, bookingRequests, trackmanUnmatchedBookings, userLinkedEmails } from '../../../shared/schema';
 import { logger } from '../logger';
-import { recalculateSessionFees } from '../billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateSessionCachedFees } from '../billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { AppError } from '../errors';
 import { resolveValidUserId } from './staffActions';
@@ -346,6 +346,7 @@ export async function linkTrackmanToMember(
       });
       if (sessionResult.sessionId) {
         finalSessionId = sessionResult.sessionId;
+        // BYPASS: PaymentStatusService — Trackman link ghost auto-waive (no real payment involved)
         await db.execute(sql`UPDATE booking_participants SET payment_status = 'waived' WHERE session_id = ${sessionResult.sessionId} AND (payment_status = 'pending' OR payment_status IS NULL) AND user_id IS NULL AND guest_id IS NULL`);
         await db.update(bookingRequests).set({ sessionId: sessionResult.sessionId }).where(eq(bookingRequests.id, booking.id));
         logger.info('[link-trackman-to-member] Created new session after member assignment — real members kept pending, ghosts waived', {
@@ -397,6 +398,7 @@ export async function linkTrackmanToMember(
 
   if (finalSessionId) {
     try {
+      await invalidateSessionCachedFees(finalSessionId, 'trackman_member_assignment');
       await recalculateSessionFees(finalSessionId, 'approval');
       logger.info('[link-trackman-to-member] Recalculated fees after member assignment', {
         extra: { bookingId: result.booking.id, sessionId: finalSessionId, newOwner: ownerEmail }

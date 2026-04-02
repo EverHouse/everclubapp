@@ -1246,6 +1246,26 @@ export async function invalidateCachedFees(
   }
 }
 
+export async function invalidateSessionCachedFees(
+  sessionId: number,
+  reason: string
+): Promise<void> {
+  try {
+    await db.execute(
+      sql`UPDATE booking_participants 
+       SET cached_fee_cents = 0 
+       WHERE session_id = ${sessionId} AND (payment_status IS NULL OR payment_status NOT IN ('paid', 'waived', 'refunded'))`
+    );
+    
+    logger.info('[UnifiedFeeService] Invalidated session cached fees', {
+      sessionId,
+      reason
+    });
+  } catch (error: unknown) {
+    logger.error('[UnifiedFeeService] Error invalidating session cached fees:', { extra: { error: getErrorMessage(error), sessionId } });
+  }
+}
+
 export async function recalculateSessionFees(
   sessionId: number,
   source: FeeComputeParams['source'],

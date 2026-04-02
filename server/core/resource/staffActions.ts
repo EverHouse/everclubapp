@@ -5,7 +5,7 @@ import { logger } from '../logger';
 import { notifyMember, notifyAllStaff } from '../notificationService';
 import { checkAllConflicts } from '../bookingValidation';
 import { bookingEvents } from '../bookingEvents';
-import { recalculateSessionFees } from '../billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateSessionCachedFees } from '../billing/unifiedFeeService';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { ensureSessionForBooking, createTxQueryClient } from '../bookingService/sessionManager';
 import { acquireBookingLocks, BookingConflictError } from '../bookingService/bookingCreationGuard';
@@ -304,6 +304,7 @@ export async function assignWithPlayers(
 
   if (sessionId) {
     try {
+      await invalidateSessionCachedFees(sessionId, 'staff_member_assignment');
       await recalculateSessionFees(sessionId, 'approval');
       logger.info('[assign-with-players] Recalculated fees after member assignment', {
         extra: { bookingId, sessionId, newOwner: owner.email }
@@ -342,6 +343,7 @@ export async function assignWithPlayers(
         });
         
         if (prepayResult?.paidInFull) {
+          // BYPASS: PaymentStatusService — prepayment fully covered by account credit, no Stripe PI involved
           await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
           logger.info('[assign-with-players] Prepayment fully covered by credit', {
             extra: { bookingId, sessionId, totalCents }

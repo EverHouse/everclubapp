@@ -5,7 +5,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { logAndRespond, logger } from '../../core/logger';
 import { getSessionUser } from '../../types/session';
 import { notifyMember } from '../../core/notificationService';
-import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { computeFeeBreakdown, recalculateSessionFees, invalidateCachedFees, invalidateSessionCachedFees } from '../../core/billing/unifiedFeeService';
 import { canUseGuestPass } from '../../core/billing/guestPassConsumer';
 import { processGuestPass } from '../../core/billing/guestPassProcessor';
 import { formatDateFromDb } from '../../utils/dateUtils';
@@ -78,6 +78,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
     if (sessionId) {
       try {
+        await invalidateSessionCachedFees(sessionId, 'staff_payment_action');
         await recalculateSessionFees(sessionId, 'staff_action');
         syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
           logger.warn('[StaffCheckin] Invoice sync failed after fee recalculation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
@@ -155,6 +156,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       if (sessionId) {
         try {
+          await invalidateSessionCachedFees(sessionId, 'staff_participant_reset');
           await recalculateSessionFees(sessionId, 'staff_action');
           syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
             logger.warn('[StaffCheckin] Invoice sync failed after participant reset', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });
@@ -442,6 +444,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       if (sessionId) {
         try {
+          await invalidateSessionCachedFees(sessionId, 'void_all_payments');
           await recalculateSessionFees(sessionId, 'void_all');
           logger.info('[StaffCheckin] Recalculated fees after voiding all payments', { extra: { sessionId, bookingId } });
         } catch (recalcErr: unknown) {
@@ -537,6 +540,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
               `);
             }
 
+            await invalidateSessionCachedFees(sessionId, 'staff_session_creation');
             await recalculateSessionFees(sessionId, 'staff_action');
             syncBookingInvoice(bookingId, sessionId).catch((err: unknown) => {
               logger.warn('[StaffCheckin] Invoice sync failed after session creation', { extra: { bookingId, sessionId, error: getErrorMessage(err) } });

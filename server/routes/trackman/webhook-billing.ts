@@ -6,7 +6,7 @@ import { sendNotificationToUser, broadcastToStaff, broadcastAvailabilityUpdate }
 import { notifyMember } from '../../core/notificationService';
 import { refundGuestPass } from '../guestPasses';
 import { calculateFullSessionBilling, Participant } from '../../core/bookingService/usageCalculator';
-import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateSessionCachedFees } from '../../core/billing/unifiedFeeService';
 import { recordUsage, ensureSessionForBooking } from '../../core/bookingService/sessionManager';
 import { getMemberTierByEmail } from '../../core/tierService';
 import { linkAndNotifyParticipants } from '../../core/bookingEvents';
@@ -135,6 +135,7 @@ export async function createBookingForMember(
         
         if (sessionId) {
           try {
+            await invalidateSessionCachedFees(sessionId, 'trackman_duration_change');
             await recalculateSessionFees(sessionId, 'trackman_webhook');
             logger.info('[Trackman Webhook] Recalculated fees after duration change', {
               extra: { sessionId, bayChanged }
@@ -300,6 +301,7 @@ export async function createBookingForMember(
         if (wasTimeTolerance) {
           try {
             await db.execute(sql`UPDATE booking_sessions SET start_time = ${startTime}, end_time = ${endTime} WHERE id = ${(sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id}`);
+            await invalidateSessionCachedFees((sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id as number, 'trackman_time_update');
             await recalculateSessionFees((sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id as number, 'trackman_webhook');
             syncBookingInvoice(pendingBookingId, (sessionCheck.rows as Array<Record<string, unknown>>)[0].session_id as number).catch((syncErr: unknown) => {
               logger.warn('[Trackman Webhook] Invoice sync failed after time update', { extra: { bookingId: pendingBookingId, error: getErrorMessage(syncErr) } });
@@ -368,6 +370,7 @@ export async function createBookingForMember(
                 VALUES (${newSessionId}, NULL, 'guest', ${`Guest ${transferredCount + i + 2}`}, 'pending', ${slotDuration})`);
             }
             
+            await invalidateSessionCachedFees(newSessionId, 'trackman_new_session');
             const feeBreakdown = await recalculateSessionFees(newSessionId, 'trackman_webhook');
             syncBookingInvoice(pendingBookingId, newSessionId).catch((syncErr: unknown) => {
               logger.warn('[Trackman Webhook] Invoice sync failed after session creation', { extra: { bookingId: pendingBookingId, sessionId: newSessionId, error: getErrorMessage(syncErr) } });
@@ -662,6 +665,7 @@ export async function createBookingForMember(
                   VALUES (${sessionId}, NULL, 'guest', ${`Guest ${i + 1}`}, 'pending', ${slotDuration})`);
               }
               
+              await invalidateSessionCachedFees(sessionId, 'trackman_guest_creation');
               await recalculateSessionFees(sessionId, 'trackman_webhook');
               syncBookingInvoice(bookingId, sessionId).catch((syncErr: unknown) => {
                 logger.warn('[Trackman Webhook] Invoice sync failed after guest creation', { extra: { bookingId, sessionId, error: getErrorMessage(syncErr) } });
@@ -895,6 +899,7 @@ export async function tryMatchByBayDateTime(
             VALUES (${sessionResult.sessionId}, NULL, 'guest', ${`Guest ${transferredCount + i + 2}`}, 'pending', ${slotDuration})`);
         }
 
+        await invalidateSessionCachedFees(sessionResult.sessionId, 'trackman_auto_match');
         await recalculateSessionFees(sessionResult.sessionId, 'trackman_auto_match');
         syncBookingInvoice(bookingId, sessionResult.sessionId).catch((syncErr: unknown) => {
           logger.warn('[Trackman Webhook] Invoice sync failed after auto-match', { extra: { bookingId, sessionId: sessionResult.sessionId, error: getErrorMessage(syncErr) } });

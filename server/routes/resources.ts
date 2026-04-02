@@ -8,7 +8,7 @@ import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
 import { processBookingDayPassRedemptions } from '../core/billing/dayPassRedemption';
-import { recalculateSessionFees } from '../core/billing/unifiedFeeService';
+import { recalculateSessionFees, invalidateSessionCachedFees } from '../core/billing/unifiedFeeService';
 import { memberCancelSchema } from '../../shared/validators/roster';
 import {
   assignMemberSchema,
@@ -277,6 +277,7 @@ router.post('/api/bookings/link-trackman-to-member', isStaffOrAdmin, validateBod
       );
       if (dayPassResult.redeemed > 0) {
         try {
+          await invalidateSessionCachedFees(finalSessionId, 'day_pass_redemption');
           await recalculateSessionFees(finalSessionId, 'staff_action');
           logger.info('[link-trackman] Recalculated fees after day pass redemption', {
             extra: { bookingId: result.booking.id, sessionId: finalSessionId, redeemed: dayPassResult.redeemed }
@@ -369,6 +370,7 @@ router.put('/api/bookings/:id/assign-with-players', isStaffOrAdmin, validateBody
       );
       if (dayPassResult.redeemed > 0) {
         try {
+          await invalidateSessionCachedFees(result.sessionId, 'day_pass_redemption');
           await recalculateSessionFees(result.sessionId, 'staff_action');
           logger.info('[assign-with-players] Recalculated fees after day pass redemption', {
             extra: { bookingId, sessionId: result.sessionId, redeemed: dayPassResult.redeemed }
