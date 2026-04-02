@@ -838,6 +838,16 @@ export async function ensureDatabaseConstraints() {
     try { await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_notifications_push_delivery_status ON notifications (push_delivery_status)`); } catch { logger.debug('[DB Init] idx_notifications_push_delivery_status already exists or failed'); }
     logger.info('[DB Init] Notifications url and delivery tracking columns verified');
 
+    try { await db.execute(sql`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP DEFAULT NOW()`); } catch (e) { logger.error('[DB Init] Failed to add push_subscriptions.last_active_at column:', { extra: { error: String(e) } }); }
+    const colCheck = await db.execute(sql`SELECT 1 FROM information_schema.columns WHERE table_name = 'push_subscriptions' AND column_name = 'last_active_at'`);
+    if (colCheck.rowCount === 0) {
+      logger.error('[DB Init] CRITICAL: push_subscriptions.last_active_at column still missing after ALTER — integrity checks and notification cleanup will fail');
+    } else {
+      try { await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_push_subscriptions_last_active_at ON push_subscriptions (last_active_at)`); } catch { logger.debug('[DB Init] idx_push_subscriptions_last_active_at already exists or failed'); }
+      try { await db.execute(sql`UPDATE push_subscriptions SET last_active_at = COALESCE(created_at, NOW()) WHERE last_active_at IS NULL`); } catch { logger.debug('[DB Init] push_subscriptions.last_active_at backfill skipped'); }
+      logger.info('[DB Init] Push subscriptions last_active_at column verified');
+    }
+
     try {
       await db.execute(sql`
         DO $$
