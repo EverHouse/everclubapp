@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { getErrorMessage, getErrorCode, isStripeError, isStripeResourceMissing } from '../../utils/errorUtils';
 import { getSettingValue } from '../settingsHelper';
 import { logger } from '../logger';
+import { getTodayPacific } from '../../utils/dateUtils';
 import { isProduction } from '../db';
 import { getStripeClient } from '../stripe/client';
 import { notifyAllStaff } from '../notificationService';
@@ -682,7 +683,7 @@ export async function checkInvoiceBookingReconciliation(): Promise<IntegrityChec
       JOIN booking_participants bp ON bp.session_id = bs.id
       WHERE br.status = 'attended'
         AND br.stripe_invoice_id IS NULL
-        AND br.request_date > CURRENT_DATE - INTERVAL '30 days'
+        AND br.request_date > ${getTodayPacific()}::date - INTERVAL '30 days'
         AND br.user_email NOT LIKE '%@trackman.local'
         AND br.user_email NOT LIKE 'private-event@%'
         AND br.is_event IS NOT TRUE

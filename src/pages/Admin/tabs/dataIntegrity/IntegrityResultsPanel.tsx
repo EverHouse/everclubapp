@@ -741,6 +741,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
         );
 
       case 'Stale Mindbody IDs':
+      case 'MindBody Stale Sync':
         return (
           <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-4">
             <p className="text-xs text-purple-700 dark:text-purple-300 mb-2">

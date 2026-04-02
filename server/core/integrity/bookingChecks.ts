@@ -328,7 +328,7 @@ export async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResu
       AND br.is_event IS NOT TRUE
       AND (
         br.status = 'attended'
-        OR br.request_date < CURRENT_DATE
+        OR br.request_date < ${getTodayPacific()}
       )
     ORDER BY br.request_date DESC
     LIMIT 100
@@ -384,7 +384,7 @@ export async function checkSessionsWithoutParticipants(): Promise<IntegrityCheck
     LEFT JOIN resources r ON bs.resource_id = r.id
     LEFT JOIN booking_requests br ON br.session_id = bs.id
     WHERE bp.id IS NULL
-      AND bs.session_date >= CURRENT_DATE - INTERVAL '30 days'
+      AND bs.session_date >= ${getTodayPacific()}::date - INTERVAL '30 days'
     LIMIT 100
   `);
 
@@ -441,7 +441,7 @@ export async function checkOverlappingBookings(): Promise<IntegrityCheckResult> 
       LEFT JOIN users u1 ON br1.user_id = u1.id
       LEFT JOIN users u2 ON br2.user_id = u2.id
       LEFT JOIN resources r ON bs1.resource_id = r.id
-      WHERE bs1.session_date >= CURRENT_DATE - INTERVAL '30 days'
+      WHERE bs1.session_date >= ${getTodayPacific()}::date - INTERVAL '30 days'
     `);
 
     for (const row of overlapsResult.rows as unknown as OverlapRow[]) {
@@ -732,7 +732,7 @@ export async function checkStalePendingBookings(): Promise<IntegrityCheckResult>
       FROM booking_requests br
       WHERE br.status IN ('pending', 'approved')
         AND (br.request_date + br.start_time::time) < ((NOW() AT TIME ZONE 'America/Los_Angeles') - INTERVAL '24 hours')
-        AND br.request_date >= CURRENT_DATE - INTERVAL '7 days'
+        AND br.request_date >= ${getTodayPacific()}::date - INTERVAL '7 days'
         AND br.user_email NOT LIKE '%@trackman.local'
       ORDER BY br.request_date DESC
     `);
@@ -804,7 +804,7 @@ export async function checkStaleCheckedInBookings(): Promise<IntegrityCheckResul
       FROM booking_requests br
       WHERE br.status = 'checked_in'
         AND (br.request_date + COALESCE(br.end_time, br.start_time)::time) < ((NOW() AT TIME ZONE 'America/Los_Angeles') - INTERVAL '24 hours')
-        AND br.request_date >= CURRENT_DATE - INTERVAL '14 days'
+        AND br.request_date >= ${getTodayPacific()}::date - INTERVAL '14 days'
       ORDER BY br.request_date DESC
     `);
 
@@ -1247,7 +1247,7 @@ export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
           END AS range_end
         FROM booking_sessions bs
         WHERE bs.start_time != bs.end_time
-          AND bs.session_date >= CURRENT_DATE - INTERVAL '90 days'
+          AND bs.session_date >= ${getTodayPacific()}::date - INTERVAL '90 days'
       )
       SELECT
         sr1.id AS session1_id,
@@ -1337,7 +1337,7 @@ export async function checkWellnessBlockGaps(): Promise<IntegrityCheckResult> {
         FROM wellness_classes wc
         CROSS JOIN resources r
         WHERE wc.is_active = true
-          AND wc.date >= CURRENT_DATE
+          AND wc.date >= ${getTodayPacific()}
           AND (
             (wc.block_simulators = true AND r.type = 'simulator')
             OR (wc.block_conference_room = true AND r.type = 'conference_room')
