@@ -37,7 +37,9 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
       return { sent: false, reason: 'No push subscriptions' };
     }
     
-    const notifications = subs.map(async (sub) => {
+    let successCount = 0;
+    let failCount = 0;
+    const pushResults = subs.map(async (sub) => {
       const pushSubscription = {
         endpoint: sub.endpoint,
         keys: {
@@ -49,15 +51,18 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
       const enrichedPayload = { ...payload, icon: payload.icon || PUSH_ICON, badge: payload.badge || PUSH_BADGE };
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(enrichedPayload));
+        successCount++;
       } catch (err: unknown) {
+        failCount++;
         if (getErrorStatusCode(err) === 410) {
           await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
         }
       }
     });
     
-    await Promise.all(notifications);
-    return { sent: true };
+    await Promise.all(pushResults);
+    const allFailed = successCount === 0 && subs.length > 0;
+    return { sent: !allFailed, reason: allFailed ? 'All push subscriptions failed' : undefined };
   } catch (error: unknown) {
     logger.error('Failed to send push notification', { extra: { error: getErrorMessage(error) } });
     return { sent: false, reason: 'Error sending push' };

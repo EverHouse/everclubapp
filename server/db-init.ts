@@ -832,7 +832,11 @@ export async function ensureDatabaseConstraints() {
     logger.info('[DB Init] Cafe items Stripe columns verified');
 
     try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS url VARCHAR`); } catch { logger.debug('[DB Init] notifications.url already exists or failed'); }
-    logger.info('[DB Init] Notifications url column verified');
+    try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS delivery_channel VARCHAR(20) DEFAULT 'in_app'`); } catch { logger.debug('[DB Init] notifications.delivery_channel already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS push_sent_at TIMESTAMP`); } catch { logger.debug('[DB Init] notifications.push_sent_at already exists or failed'); }
+    try { await db.execute(sql`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS push_delivery_status VARCHAR(20) DEFAULT 'skipped'`); } catch { logger.debug('[DB Init] notifications.push_delivery_status already exists or failed'); }
+    try { await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_notifications_push_delivery_status ON notifications (push_delivery_status)`); } catch { logger.debug('[DB Init] idx_notifications_push_delivery_status already exists or failed'); }
+    logger.info('[DB Init] Notifications url and delivery tracking columns verified');
 
     try {
       await db.execute(sql`

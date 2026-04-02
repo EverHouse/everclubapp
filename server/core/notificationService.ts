@@ -254,7 +254,7 @@ export interface NotificationResult {
 
 type InsertResult = { status: 'inserted'; id: number } | { status: 'duplicate' } | { status: 'error'; error: string };
 
-async function insertNotificationToDatabase(payload: NotificationPayload): Promise<InsertResult> {
+async function insertNotificationToDatabase(payload: NotificationPayload, trackingOptions?: { deliveryChannel?: string; pushDeliveryStatus?: string }): Promise<InsertResult> {
   if (!payload?.userEmail || !payload?.title || !payload?.message || !payload?.type) {
     logger.error('[Notification] Cannot insert notification - missing required fields', {
       extra: {
@@ -285,6 +285,8 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
         relatedType: safeRelatedType,
         url: resolvedUrl,
         idempotencyKey: safeIdempotencyKey,
+        deliveryChannel: trackingOptions?.deliveryChannel || 'in_app',
+        pushDeliveryStatus: trackingOptions?.pushDeliveryStatus || 'skipped',
       }).onConflictDoNothing({ target: notifications.idempotencyKey }).returning({ id: notifications.id });
       
       if (!result) {
@@ -305,6 +307,8 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
       relatedId: safeRelatedId,
       relatedType: safeRelatedType,
       url: resolvedUrl,
+      deliveryChannel: trackingOptions?.deliveryChannel || 'in_app',
+      pushDeliveryStatus: trackingOptions?.pushDeliveryStatus || 'skipped',
     }).returning({ id: notifications.id });
     
     return result ? { status: 'inserted', id: result.id } : { status: 'error', error: 'Insert returned no result' };
@@ -313,6 +317,22 @@ async function insertNotificationToDatabase(payload: NotificationPayload): Promi
       extra: { userEmail: payload.userEmail, error: getErrorMessage(error), event: 'notification.database_insert_failed', type: payload.type }
     });
     return { status: 'error', error: getErrorMessage(error) };
+  }
+}
+
+async function updatePushDeliveryStatus(notificationId: number, status: 'pending' | 'sent' | 'failed' | 'skipped'): Promise<void> {
+  try {
+    const updateValues: Record<string, unknown> = { pushDeliveryStatus: status };
+    if (status === 'sent' || status === 'failed') {
+      updateValues.pushSentAt = new Date();
+    }
+    await db.update(notifications)
+      .set(updateValues)
+      .where(eq(notifications.id, notificationId));
+  } catch (error: unknown) {
+    logger.warn('[Notification] Failed to update push delivery status', {
+      extra: { notificationId, status, error: getErrorMessage(error), event: 'notification.push_status_update_failed' }
+    });
   }
 }
 
@@ -558,6 +578,8 @@ export async function notifyMember(
 
   const { sendPush = true, sendWebSocket = true, sendEmail = false, emailSubject, emailHtml } = options;
   const deliveryResults: DeliveryResult[] = [];
+
+  const deliveryChannel = sendPush ? (sendWebSocket ? 'both' : 'push') : 'in_app';
   
   if (payload.relatedId && payload.relatedType) {
     try {
@@ -587,7 +609,8 @@ export async function notifyMember(
     }
   }
   
-  const dbResult = await insertNotificationToDatabase(payload);
+  const pushDeliveryStatus = sendPush ? 'pending' : 'skipped';
+  const dbResult = await insertNotificationToDatabase(payload, { deliveryChannel, pushDeliveryStatus });
   
   if (dbResult.status === 'duplicate') {
     return {
@@ -625,6 +648,9 @@ export async function notifyMember(
         success: true,
         details: { skipped: 'wallet_pass_dedupe', type: payload.type }
       });
+      if (insertedId) {
+        await updatePushDeliveryStatus(insertedId, 'skipped');
+      }
     } else {
       const pushResult = await deliverViaPush(payload.userEmail, {
         title: payload.title,
@@ -635,6 +661,11 @@ export async function notifyMember(
         tag: buildPushTag(payload.type, payload.relatedId)
       });
       deliveryResults.push(pushResult);
+      if (insertedId) {
+        const noSubscriptions = pushResult.details?.reason === 'no_subscriptions';
+        const status = noSubscriptions ? 'skipped' : (pushResult.success ? 'sent' : 'failed');
+        await updatePushDeliveryStatus(insertedId, status);
+      }
     }
   }
   
@@ -714,6 +745,8 @@ export async function notifyAllStaff(
     
     const resolvedUrl = options.url && typeof options.url === 'string' ? options.url : buildStaffRoute(type);
     
+    const staffDeliveryChannel = sendPush ? (sendWebSocket ? 'both' : 'push') : 'in_app';
+    const staffPushStatus = sendPush ? 'pending' : 'skipped';
     const notificationValues = staffEmails.map(({ email }) => ({
       userEmail: email,
       title,
@@ -722,9 +755,12 @@ export async function notifyAllStaff(
       relatedId: safeRelatedId,
       relatedType: safeRelatedType,
       url: resolvedUrl,
+      deliveryChannel: staffDeliveryChannel,
+      pushDeliveryStatus: staffPushStatus,
     }));
     
-    await db.insert(notifications).values(notificationValues);
+    const insertedStaffNotifs = await db.insert(notifications).values(notificationValues).returning({ id: notifications.id });
+    const insertedStaffIds = insertedStaffNotifs.map(r => r.id);
     
     deliveryResults.push({
       channel: 'database',
@@ -765,6 +801,19 @@ export async function notifyAllStaff(
         tag: buildPushTag(type, options.relatedId)
       });
       deliveryResults.push(pushResult);
+      const noStaffSubs = pushResult.details?.reason === 'no_staff_subscriptions';
+      const finalStatus = noStaffSubs ? 'skipped' : (pushResult.success ? 'sent' : 'failed');
+      if (insertedStaffIds.length > 0) {
+        try {
+          await db.update(notifications)
+            .set({ pushDeliveryStatus: finalStatus, pushSentAt: new Date() })
+            .where(inArray(notifications.id, insertedStaffIds));
+        } catch (statusErr: unknown) {
+          logger.warn('[Notification] Failed to update staff push delivery status', {
+            extra: { error: getErrorMessage(statusErr), event: 'notification.staff_push_status_update_failed' }
+          });
+        }
+      }
     }
     
     logger.info(`[Notification] Staff notification complete: ${staffEmails.length} staff (${type})`, {

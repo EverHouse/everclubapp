@@ -378,3 +378,63 @@ export async function reconcileRecentlyActivatedHubSpotSync(): Promise<{
 
   return result;
 }
+
+export async function checkStuckPushNotifications(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const result = await db.execute(sql`
+      SELECT COUNT(*)::int as count
+      FROM notifications
+      WHERE push_delivery_status = 'pending'
+        AND created_at < NOW() - INTERVAL '24 hours'
+    `);
+    const stuckCount = (result.rows[0] as { count: number }).count;
+
+    if (stuckCount > 0) {
+      const stuckRows = await db.execute(sql`
+        SELECT id, user_email, type, title, created_at
+        FROM notifications
+        WHERE push_delivery_status = 'pending'
+          AND created_at < NOW() - INTERVAL '24 hours'
+        ORDER BY created_at ASC
+        LIMIT 10
+      `);
+
+      for (const row of stuckRows.rows as unknown as Array<{ id: number; user_email: string; type: string; title: string; created_at: string }>) {
+        issues.push({
+          category: 'system_error',
+          severity: 'warning',
+          table: 'notifications',
+          recordId: String(row.id),
+          description: `Notification #${row.id} for ${row.user_email} (${row.type}: "${row.title}") stuck in pending push delivery for >24h`,
+          suggestion: 'Investigate push delivery pipeline — notification was created but push was never attempted or status was never updated',
+          context: {
+            userEmail: row.user_email,
+            issueType: 'stuck_push_delivery',
+            createdAt: row.created_at,
+            count: stuckCount,
+          }
+        });
+      }
+    }
+
+    return {
+      checkName: 'Stuck Push Notifications',
+      status: stuckCount === 0 ? 'pass' : 'warning',
+      issueCount: stuckCount,
+      issues,
+      lastRun: new Date(),
+    };
+  } catch (error: unknown) {
+    logger.error('[Integrity] Stuck Push Notifications check failed', { extra: { error: getErrorMessage(error) } });
+    return {
+      checkName: 'Stuck Push Notifications',
+      status: 'error',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date(),
+      error: getErrorMessage(error),
+    };
+  }
+}

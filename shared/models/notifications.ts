@@ -13,6 +13,9 @@ export const notifications = pgTable("notifications", {
   url: varchar("url"),
   isRead: boolean("is_read").default(false),
   idempotencyKey: varchar("idempotency_key", { length: 255 }),
+  deliveryChannel: varchar("delivery_channel", { length: 20 }).default("in_app"),
+  pushSentAt: timestamp("push_sent_at"),
+  pushDeliveryStatus: varchar("push_delivery_status", { length: 20 }).default("skipped"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_notifications_lower_user_email").on(sql`LOWER(${table.userEmail})`),
@@ -20,6 +23,7 @@ export const notifications = pgTable("notifications", {
   index("idx_notifications_user_created").on(table.userEmail, table.createdAt),
   index("idx_notifications_user_read").on(table.userEmail, table.isRead),
   uniqueIndex("idx_notifications_idempotency_key").on(table.idempotencyKey),
+  index("idx_notifications_push_delivery_status").on(table.pushDeliveryStatus),
 ]);
 
 // Push subscriptions table - web push notification subscriptions
