@@ -72,15 +72,16 @@ async function getCredentialsFromConnector(): Promise<{ apiKey: string; fromEmai
 }
 
 async function getCredentials(): Promise<{ apiKey: string; fromEmail?: string }> {
+  if (process.env.RESEND_API_KEY) {
+    return { apiKey: process.env.RESEND_API_KEY, fromEmail: undefined };
+  }
+
   try {
     return await getCredentialsFromConnector();
   } catch (connectorError: unknown) {
-    if (process.env.RESEND_API_KEY) {
-      logger.info('[Resend] Connector unavailable, using RESEND_API_KEY fallback', {
-        extra: { connectorError: getErrorMessage(connectorError) }
-      });
-      return { apiKey: process.env.RESEND_API_KEY, fromEmail: undefined };
-    }
+    logger.error('[Resend] Connector unavailable and no RESEND_API_KEY configured', {
+      extra: { connectorError: getErrorMessage(connectorError) }
+    });
     throw connectorError;
   }
 }
