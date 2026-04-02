@@ -251,6 +251,12 @@ async function getGoogleCalendarAccessToken() {
   }
 }
 
+let _usingServiceAccount = false;
+
+export function isUsingServiceAccount(): boolean {
+  return _usingServiceAccount;
+}
+
 export async function getGoogleCalendarClient() {
   try {
     const accessToken = await getGoogleCalendarAccessToken();
@@ -268,6 +274,7 @@ export async function getGoogleCalendarClient() {
           credentials,
           scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'],
         });
+        _usingServiceAccount = true;
         return google.calendar({ version: 'v3', auth });
       } catch (parseError: unknown) {
         logger.error('[Google Calendar] Failed to parse service account credentials', { extra: { error: getErrorMessage(parseError) } });
