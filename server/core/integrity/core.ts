@@ -298,6 +298,16 @@ export interface StuckUnpaidBookingRow {
   unpaid_cents: number;
 }
 
+export interface OvercapacitySessionRow {
+  session_id: number;
+  session_date: string;
+  start_time: string;
+  end_time: string;
+  resource_name: string;
+  resource_capacity: number;
+  participant_count: number;
+}
+
 export interface AuditLogDetailsRow {
   issueKey?: string;
   resolutionMethod?: string;
@@ -786,7 +796,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps } = await import('./bookingChecks');
+  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync } = await import('./stripeChecks');
@@ -827,6 +837,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkActiveMembersWithoutWaivers, 'Active Members Without Waivers'),
     () => safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
     () => safeCheck(checkAuthLinkingDataIntegrity, 'Auth Linking Data Integrity'),
+    () => safeCheck(checkSessionsExceedingResourceCapacity, 'Sessions Exceeding Resource Capacity'),
     () => safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
     () => safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
     () => safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),

@@ -21,6 +21,7 @@ import type {
   ExpiredHoldRow,
   StaleBookingRow,
   StuckUnpaidBookingRow,
+  OvercapacitySessionRow,
 } from './core';
 
 export async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
@@ -1008,6 +1009,70 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
         table: 'booking_requests',
         recordId: 'check_error',
         description: `Failed to check approved bookings for inactive members: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+}
+
+export async function checkSessionsExceedingResourceCapacity(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const overcapacityResult = await db.execute(sql`
+      SELECT bs.id as session_id, bs.session_date, bs.start_time, bs.end_time,
+             r.name as resource_name, r.capacity as resource_capacity,
+             COUNT(bp.id)::int as participant_count
+      FROM booking_sessions bs
+      JOIN resources r ON bs.resource_id = r.id
+      JOIN booking_participants bp ON bp.session_id = bs.id
+      WHERE r.capacity IS NOT NULL
+      GROUP BY bs.id, bs.session_date, bs.start_time, bs.end_time, r.name, r.capacity
+      HAVING COUNT(bp.id) > r.capacity
+      ORDER BY bs.session_date DESC
+      LIMIT 100
+    `);
+
+    for (const row of overcapacityResult.rows as unknown as OvercapacitySessionRow[]) {
+      issues.push({
+        category: 'data_quality',
+        severity: 'warning',
+        table: 'booking_sessions',
+        recordId: row.session_id,
+        description: `Session #${row.session_id} on ${row.session_date} (${row.resource_name}) has ${row.participant_count} participants but resource capacity is ${row.resource_capacity}`,
+        suggestion: 'Review participant roster and remove excess participants, or increase resource capacity if appropriate. DB trigger now prevents new overcapacity inserts.',
+        context: {
+          sessionId: row.session_id,
+          bookingDate: row.session_date,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          resourceName: row.resource_name,
+          resourceCapacity: row.resource_capacity,
+          participantCount: row.participant_count
+        }
+      });
+    }
+
+    return {
+      checkName: 'Sessions Exceeding Resource Capacity',
+      status: issues.length === 0 ? 'pass' : 'warning',
+      issueCount: issues.length,
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking sessions exceeding resource capacity:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Sessions Exceeding Resource Capacity',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_sessions',
+        recordId: 'check_error',
+        description: `Failed to check sessions exceeding resource capacity: ${getErrorMessage(error)}`,
         suggestion: 'Review server logs for details and retry'
       }],
       lastRun: new Date()

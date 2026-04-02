@@ -445,6 +445,66 @@ export async function ensureDatabaseConstraints() {
 
     try {
       await db.execute(sql`
+        CREATE OR REPLACE FUNCTION guard_participant_capacity()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          current_count INTEGER;
+          resource_capacity INTEGER;
+          session_resource_id INTEGER;
+          bypass TEXT;
+        BEGIN
+          bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+          IF bypass = 'true' THEN
+            RETURN NEW;
+          END IF;
+
+          PERFORM 1 FROM public.booking_sessions WHERE id = NEW.session_id FOR UPDATE;
+
+          SELECT bs.resource_id INTO session_resource_id
+          FROM public.booking_sessions bs
+          WHERE bs.id = NEW.session_id;
+
+          IF session_resource_id IS NULL THEN
+            RETURN NEW;
+          END IF;
+
+          SELECT r.capacity INTO resource_capacity
+          FROM public.resources r
+          WHERE r.id = session_resource_id;
+
+          IF resource_capacity IS NULL THEN
+            RETURN NEW;
+          END IF;
+
+          SELECT COUNT(*) INTO current_count
+          FROM public.booking_participants bp
+          WHERE bp.session_id = NEW.session_id;
+
+          IF current_count >= resource_capacity THEN
+            RAISE EXCEPTION 'Participant capacity exceeded: session % already has % participants (resource capacity: %)',
+              NEW.session_id, current_count, resource_capacity;
+          END IF;
+
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_guard_participant_capacity ON booking_participants;
+        CREATE TRIGGER trg_guard_participant_capacity
+        BEFORE INSERT OR UPDATE OF session_id ON booking_participants
+        FOR EACH ROW
+        EXECUTE FUNCTION guard_participant_capacity();
+      `);
+      logger.info('[DB Init] Participant capacity guard trigger created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping participant capacity trigger: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
         CREATE OR REPLACE FUNCTION normalize_tier_value()
         RETURNS TRIGGER
         LANGUAGE plpgsql
