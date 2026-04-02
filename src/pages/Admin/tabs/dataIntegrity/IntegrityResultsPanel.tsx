@@ -1233,7 +1233,8 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
       case 'Session Overlaps (All Resources)': {
         const overlapResult = results.find(r => r.checkName.replace(/^\[DEV\]\s*/, '') === 'Session Overlaps (All Resources)');
         const overlapIssues = overlapResult?.issues.filter(i => !i.ignored) || [];
-        const today = new Date().toISOString().split('T')[0];
+        const pacificNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+        const today = `${pacificNow.getFullYear()}-${String(pacificNow.getMonth() + 1).padStart(2, '0')}-${String(pacificNow.getDate()).padStart(2, '0')}`;
         const pastOverlaps = overlapIssues.filter(i => {
           const d = i.context?.bookingDate;
           return d && String(d) < today;
