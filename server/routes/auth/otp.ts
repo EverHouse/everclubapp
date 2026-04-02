@@ -8,7 +8,7 @@ import { getHubSpotClient } from '../../core/integrations';
 import { retryableHubSpotRequest } from '../../core/hubspot/request';
 import { normalizeTierName } from '../../../shared/constants/tiers';
 import type { MembershipStatus } from '../../../shared/constants/statuses';
-import { safeSendEmail } from '../../utils/resend';
+import { safeSendEmail, checkEmailSuppression } from '../../utils/resend';
 import { getSessionUser, SessionUser } from '../../types/session';
 import { sendWelcomeEmail } from '../../emails/welcomeEmail';
 import { normalizeEmail, getAlternateDomainEmail } from '../../core/utils/emailNormalization';
@@ -402,29 +402,35 @@ otpRouter.post('/api/auth/request-otp', ...authRateLimiter, async (req, res) => 
       ).catch((importErr: unknown) => logger.error('[Auth] Failed to import HubSpot stages module', { extra: { error: getErrorMessage(importErr) } }));
     }
     
+    try {
+      const suppressed = await checkEmailSuppression([normalizedEmail]);
+      if (suppressed.length > 0) {
+        logger.warn('[Auth] OTP email suppressed (bounced/complained recipient)', { extra: { normalizedEmail } });
+        return res.status(400).json({ error: 'We are unable to deliver emails to this address. Please contact us for assistance.' });
+      }
+    } catch {
+      // suppression check failed — proceed with send
+    }
+
     const emailHtml = getOtpEmailHtml({ code: otpCode, firstName, logoUrl: 'https://everclub.app/images/everclub-logo-dark.png' });
     const emailText = getOtpEmailText({ code: otpCode, firstName });
-    
-    const sendResult = await safeSendEmail({
+
+    res.json({ success: true, message: 'Login code sent' });
+
+    void safeSendEmail({
       to: normalizedEmail,
       subject: `${otpCode} - Your Ever Club Login Code`,
       html: emailHtml,
       text: emailText
+    }).then((sendResult) => {
+      if (!sendResult.success) {
+        logger.error('[Auth] OTP email send failed (async)', { extra: { normalizedEmail } });
+      } else {
+        logger.info('[Auth] OTP sent to', { extra: { normalizedEmail } });
+      }
+    }).catch((err: unknown) => {
+      logger.error('[Auth] OTP email send error (async)', { extra: { normalizedEmail, error: getErrorMessage(err) } });
     });
-    
-    if (!sendResult.success) {
-      logger.error('[Auth] OTP email send failed', { extra: { normalizedEmail } });
-      return res.status(500).json({ error: 'Unable to send login code. Please try again.' });
-    }
-    
-    if (sendResult.suppressed) {
-      logger.warn('[Auth] OTP email suppressed (bounced/complained recipient)', { extra: { normalizedEmail } });
-      return res.status(400).json({ error: 'We are unable to deliver emails to this address. Please contact us for assistance.' });
-    }
-    
-    logger.info('[Auth] OTP sent to', { extra: { normalizedEmail } });
-    
-    res.json({ success: true, message: 'Login code sent' });
   } catch (error: unknown) {
     const errorMsg = getErrorMessage(error);
     logger.error('OTP request error', { extra: { error: errorMsg } });

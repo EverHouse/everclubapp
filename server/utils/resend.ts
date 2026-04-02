@@ -3,13 +3,17 @@ import { logger } from '../core/logger';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getErrorMessage } from '../utils/errorUtils';
+import { withResendRetry } from '../core/retryUtils';
 
 interface ResendConnectionSettings {
   api_key: string;
   from_email?: string;
 }
 
-let connectionSettings: Record<string, unknown> | null = null;
+const CREDENTIAL_CACHE_TTL_MS = 5 * 60 * 1000;
+let cachedClient: { client: Resend; fromEmail: string } | null = null;
+let cachedAt = 0;
+let inflightCredentialFetch: Promise<{ client: Resend; fromEmail: string }> | null = null;
 
 const isDevelopment = process.env.NODE_ENV !== 'production' && !process.env.WEB_REPL_RENEWAL;
 
@@ -55,7 +59,7 @@ async function getCredentials() {
     throw new Error(`Resend connector API error (HTTP ${connectorResponse.status}): ${errorText.substring(0, 200)}`);
   }
 
-  connectionSettings = await connectorResponse.json().then((data: unknown) => {
+  const connectionSettings = await connectorResponse.json().then((data: unknown) => {
     const parsed = data as Record<string, unknown>;
     return (parsed.items as Record<string, unknown>[] | undefined)?.[0] ?? null;
   });
@@ -68,13 +72,25 @@ async function getCredentials() {
 }
 
 export async function getResendClient(): Promise<{ client: Resend; fromEmail: string }> {
-  const { apiKey, fromEmail } = await getCredentials();
-  const rawEmail = fromEmail || 'noreply@everclub.app';
-  const formattedFrom = rawEmail.includes('<') ? rawEmail : `Ever Club <${rawEmail}>`;
-  return {
-    client: new Resend(apiKey),
-    fromEmail: formattedFrom
-  };
+  if (cachedClient && Date.now() - cachedAt < CREDENTIAL_CACHE_TTL_MS) {
+    return cachedClient;
+  }
+  if (inflightCredentialFetch) {
+    return inflightCredentialFetch;
+  }
+  inflightCredentialFetch = (async () => {
+    try {
+      const { apiKey, fromEmail } = await getCredentials();
+      const rawEmail = fromEmail || 'noreply@everclub.app';
+      const formattedFrom = rawEmail.includes('<') ? rawEmail : `Ever Club <${rawEmail}>`;
+      cachedClient = { client: new Resend(apiKey), fromEmail: formattedFrom };
+      cachedAt = Date.now();
+      return cachedClient;
+    } finally {
+      inflightCredentialFetch = null;
+    }
+  })();
+  return inflightCredentialFetch;
 }
 
 export interface SafeSendOptions {
@@ -138,7 +154,9 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
       replyTo: options.replyTo
     };
     if (options.text) sendPayload.text = options.text;
-    const result = await client.emails.send(sendPayload as unknown as Parameters<typeof client.emails.send>[0]);
+    const result = await withResendRetry(() =>
+      client.emails.send(sendPayload as unknown as Parameters<typeof client.emails.send>[0])
+    );
     
     const emailId = result.data?.id || null;
     const finalRecipients = Array.isArray(options.to) ? options.to : [options.to];
@@ -170,7 +188,7 @@ export async function safeSendEmail(options: SafeSendOptions): Promise<{ success
   }
 }
 
-async function checkEmailSuppression(emails: string[]): Promise<string[]> {
+export async function checkEmailSuppression(emails: string[]): Promise<string[]> {
   if (emails.length === 0) return [];
   const lowerEmails = emails.map(e => e.toLowerCase());
   try {
