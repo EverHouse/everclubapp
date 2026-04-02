@@ -129,7 +129,7 @@ describe('checkStuckTransitionalMembers', () => {
       })
       .mockResolvedValueOnce({ rows: [] });
 
-    const result = await checkStuckTransitionalMembers();
+    const result = await checkStuckTransitionalMembers({ autoFix: true });
     expect(result.status).toBe('pass');
     expect(mockStripe.subscriptions.retrieve).toHaveBeenCalledWith('sub_dead');
   });
