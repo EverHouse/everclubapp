@@ -158,12 +158,15 @@ async function checkResend(): Promise<ServiceHealth> {
     const { latencyMs, error } = await checkWithTimeout(
       async () => {
         const { getResendClient } = await import('../utils/resend');
-        const { client } = await getResendClient();
+        const { client, source } = await getResendClient();
+        if (source === 'env_key') {
+          return { source };
+        }
         const response = await client.domains.list();
         if (!response.data) {
           throw new Error('Failed to list domains');
         }
-        return response;
+        return { data: response.data, source };
       },
       5000
     );

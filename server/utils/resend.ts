@@ -13,7 +13,7 @@ interface ResendConnectionSettings {
 const CREDENTIAL_CACHE_TTL_MS = 5 * 60 * 1000;
 let cachedClient: { client: Resend; fromEmail: string } | null = null;
 let cachedAt = 0;
-let inflightCredentialFetch: Promise<{ client: Resend; fromEmail: string }> | null = null;
+let inflightCredentialFetch: Promise<{ client: Resend; fromEmail: string; source: 'connector' | 'env_key' }> | null = null;
 
 const isDevelopment = process.env.NODE_ENV !== 'production' && !process.env.WEB_REPL_RENEWAL;
 
@@ -85,9 +85,11 @@ async function getCredentials(): Promise<{ apiKey: string; fromEmail?: string }>
   }
 }
 
-export async function getResendClient(): Promise<{ client: Resend; fromEmail: string }> {
+let cachedSource: 'connector' | 'env_key' = 'connector';
+
+export async function getResendClient(): Promise<{ client: Resend; fromEmail: string; source: 'connector' | 'env_key' }> {
   if (cachedClient && Date.now() - cachedAt < CREDENTIAL_CACHE_TTL_MS) {
-    return cachedClient;
+    return { ...cachedClient, source: cachedSource };
   }
   if (inflightCredentialFetch) {
     return inflightCredentialFetch;
@@ -98,8 +100,9 @@ export async function getResendClient(): Promise<{ client: Resend; fromEmail: st
       const rawEmail = fromEmail || 'noreply@everclub.app';
       const formattedFrom = rawEmail.includes('<') ? rawEmail : `Ever Club <${rawEmail}>`;
       cachedClient = { client: new Resend(apiKey), fromEmail: formattedFrom };
+      cachedSource = process.env.RESEND_API_KEY === apiKey ? 'env_key' : 'connector';
       cachedAt = Date.now();
-      return cachedClient;
+      return { ...cachedClient, source: cachedSource };
     } finally {
       inflightCredentialFetch = null;
     }
