@@ -299,7 +299,8 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
           await tx.execute(sql`UPDATE booking_participants 
              SET payment_status = 'paid', 
                  stripe_payment_intent_id = ${invoiceResult!.paymentIntentId},
-                 paid_at = NOW()
+                 paid_at = NOW(),
+                 cached_fee_cents = 0
              WHERE id IN (${sql.join(participantIds.map(id => sql`${id}`), sql`, `)})`);
         }
 

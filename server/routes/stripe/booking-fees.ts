@@ -575,7 +575,8 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
           await tx.execute(sql`UPDATE booking_participants 
              SET payment_status = 'paid', 
                  stripe_payment_intent_id = ${invoiceResult.paymentIntentId},
-                 paid_at = NOW()
+                 paid_at = NOW(),
+                 cached_fee_cents = 0
              WHERE id IN (${sql.join(safeParticipantIds.map((id: number) => sql`${id}`), sql`, `)})`);
           logger.info('[Stripe] Staff charged via invoice: $ for', { extra: { totalDollars: (authoritativeAmountCents / 100).toFixed(2), memberEmail: member.email, participantIdsLength: participantIds.length, invoiceId: invoiceResult.invoiceId } });
         }
