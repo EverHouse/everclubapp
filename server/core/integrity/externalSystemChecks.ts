@@ -438,3 +438,47 @@ export async function checkStuckPushNotifications(): Promise<IntegrityCheckResul
     };
   }
 }
+
+export async function checkStalePushSubscriptions(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+  const STALE_DAYS = 90;
+
+  try {
+    const result = await db.execute(sql`
+      SELECT COUNT(*)::int AS count
+      FROM push_subscriptions
+      WHERE last_active_at < NOW() - CAST(${STALE_DAYS + ' days'} AS INTERVAL)
+    `);
+    const staleCount = (result.rows[0] as { count: number }).count;
+
+    if (staleCount > 0) {
+      issues.push({
+        category: 'data_quality',
+        severity: 'info',
+        table: 'push_subscriptions',
+        recordId: 'stale_subscriptions',
+        description: `${staleCount} push subscription(s) have not been active in over ${STALE_DAYS} days and will be cleaned up by the notification cleanup scheduler`,
+        suggestion: 'No action needed — stale subscriptions are automatically removed by the scheduled cleanup.',
+        context: { count: staleCount },
+      });
+    }
+  } catch (error: unknown) {
+    logger.error('[Integrity] Stale push subscription check failed:', { extra: { error: getErrorMessage(error) } });
+    issues.push({
+      category: 'system_error',
+      severity: 'error',
+      table: 'push_subscriptions',
+      recordId: 'check_error',
+      description: `Failed to check stale push subscriptions: ${getErrorMessage(error)}`,
+    });
+  }
+
+  const hasError = issues.some(i => i.category === 'system_error');
+  return {
+    checkName: 'Stale Push Subscriptions',
+    status: hasError ? 'warning' : issues.length === 0 ? 'pass' : 'info',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date(),
+  };
+}

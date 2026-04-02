@@ -577,6 +577,7 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Fee Snapshot Stripe Drift': 'high',
   'Session Overlaps (All Resources)': 'high',
   'Wellness Block Coverage': 'high',
+  'Stale Push Subscriptions': 'low',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -849,7 +850,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
   const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync, checkSessionOverlaps, checkWellnessBlockGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
-  const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications } = await import('./externalSystemChecks');
+  const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications, checkStalePushSubscriptions } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync, checkFeeSnapshotStripeDrift } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
@@ -874,6 +875,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
     () => safeCheck(checkNegativeMerchStock, 'Negative Merch Stock'),
     () => safeCheck(checkMerchStripeProductSync, 'Merch & Cafe Stripe Product Sync'),
+    () => safeCheck(checkStalePushSubscriptions, 'Stale Push Subscriptions'),
     () => safeCheck(checkStaleExpiredGuestPassHolds, 'Stale Expired Guest Pass Holds'),
     () => safeCheck(checkStuckPushNotifications, 'Stuck Push Notifications'),
     () => safeCheck(checkWalletPassBookingSync, 'Wallet Pass Booking Sync'),

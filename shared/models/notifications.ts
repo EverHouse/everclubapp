@@ -34,8 +34,10 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  lastActiveAt: timestamp("last_active_at").defaultNow(),
 }, (table) => [
   index("idx_push_subscriptions_lower_user_email").on(sql`LOWER(${table.userEmail})`),
+  index("idx_push_subscriptions_last_active_at").on(table.lastActiveAt),
 ]);
 
 // Notice types table - preset and custom notice categories for display to members

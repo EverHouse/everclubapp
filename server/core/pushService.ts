@@ -2,7 +2,7 @@ import { logger } from './logger';
 import webpush from 'web-push';
 import { db } from '../db';
 import { pushSubscriptions, users } from '../../shared/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { getErrorMessage, getErrorStatusCode } from '../utils/errorUtils';
 
 const vapidConfigured = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
@@ -52,6 +52,9 @@ export async function sendPushNotification(userEmail: string, payload: { title: 
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(enrichedPayload));
         successCount++;
+        await db.update(pushSubscriptions)
+          .set({ lastActiveAt: sql`NOW()` })
+          .where(eq(pushSubscriptions.endpoint, sub.endpoint));
       } catch (err: unknown) {
         failCount++;
         if (getErrorStatusCode(err) === 410) {
@@ -103,6 +106,9 @@ export async function sendPushNotificationToStaff(payload: { title: string; body
       const enrichedPayload = { ...payload, icon: payload.icon || PUSH_ICON, badge: payload.badge || PUSH_BADGE };
       try {
         await webpush.sendNotification(pushSubscription, JSON.stringify(enrichedPayload));
+        await db.update(pushSubscriptions)
+          .set({ lastActiveAt: sql`NOW()` })
+          .where(eq(pushSubscriptions.endpoint, sub.endpoint));
       } catch (err: unknown) {
         if (getErrorStatusCode(err) === 410) {
           await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));

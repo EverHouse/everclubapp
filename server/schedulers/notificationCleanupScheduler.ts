@@ -26,8 +26,11 @@ async function cleanupNotificationTables(): Promise<void> {
       sql`DELETE FROM notifications WHERE created_at < NOW() - CAST(${retentionDays + ' days'} AS INTERVAL)`
     );
 
+    const stalePushDaysStr = await getSettingValue('cleanup.push_subscription_stale_days', '90') ?? '90';
+    const stalePushDays = Math.max(1, parseInt(stalePushDaysStr, 10) || 90);
+
     const pushSubscriptionsResult = await db.execute(
-      sql`DELETE FROM push_subscriptions WHERE created_at < NOW() - CAST(${retentionDays + ' days'} AS INTERVAL)`
+      sql`DELETE FROM push_subscriptions WHERE last_active_at < NOW() - CAST(${stalePushDays + ' days'} AS INTERVAL)`
     );
 
     const dismissedNoticesResult = await db.execute(
@@ -35,7 +38,7 @@ async function cleanupNotificationTables(): Promise<void> {
     );
 
     const durationMs = Date.now() - startTime;
-    logger.info(`[Notification Cleanup] Completed in ${durationMs}ms — deleted ${notificationsResult.rowCount} notifications, ${pushSubscriptionsResult.rowCount} push subscriptions, ${dismissedNoticesResult.rowCount} dismissed notices (retention: ${retentionDays} days)`);
+    logger.info(`[Notification Cleanup] Completed in ${durationMs}ms — deleted ${notificationsResult.rowCount} notifications, ${pushSubscriptionsResult.rowCount} stale push subscriptions (>${stalePushDays}d), ${dismissedNoticesResult.rowCount} dismissed notices (notification retention: ${retentionDays}d)`);
     schedulerTracker.recordRun('Notification Cleanup', true, undefined, durationMs);
   } catch (error: unknown) {
     const durationMs = Date.now() - startTime;
