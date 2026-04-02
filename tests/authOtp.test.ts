@@ -73,6 +73,7 @@ vi.mock('../server/core/hubspot/request', () => ({
 }));
 vi.mock('../server/utils/resend', () => ({
   safeSendEmail: vi.fn().mockResolvedValue({ success: true, suppressed: false }),
+  checkEmailSuppression: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('../server/emails/otpEmail', () => ({
   getOtpEmailHtml: vi.fn().mockReturnValue('<html>OTP</html>'),
@@ -218,15 +219,15 @@ describe('OTP Route — POST /api/auth/request-otp', () => {
         results: [{ id: 'hs-1', properties: { membership_status: 'active', email: 'bounced@example.com' } }],
       }) } } },
     });
-    const { safeSendEmail } = await import('../server/utils/resend');
-    (safeSendEmail as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ success: true, suppressed: true });
+    const { checkEmailSuppression } = await import('../server/utils/resend');
+    (checkEmailSuppression as ReturnType<typeof vi.fn>).mockResolvedValueOnce(['bounced@example.com']);
 
     const res = await request(app).post('/api/auth/request-otp').send({ email: 'bounced@example.com' });
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('unable to deliver');
   });
 
-  it('returns 500 when email send fails', async () => {
+  it('responds 200 immediately even when async email send fails', async () => {
     const { getHubSpotClient } = await import('../server/core/integrations');
     (getHubSpotClient as ReturnType<typeof vi.fn>).mockResolvedValue({
       crm: { contacts: { searchApi: { doSearch: vi.fn().mockResolvedValue({
@@ -237,8 +238,8 @@ describe('OTP Route — POST /api/auth/request-otp', () => {
     (safeSendEmail as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ success: false });
 
     const res = await request(app).post('/api/auth/request-otp').send({ email: 'fail@example.com' });
-    expect(res.status).toBe(500);
-    expect(res.body.error).toContain('Unable to send login code');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 });
 
