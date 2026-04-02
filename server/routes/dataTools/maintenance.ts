@@ -750,7 +750,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           participants.push({
             email: undefined as unknown as string,
             participantType: 'guest' as 'owner',
-            displayName: `Guest ${i + 1}`
+            displayName: 'Guest (info pending)'
           });
         }
         
@@ -823,7 +823,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
           for (let i = 1; i < booking.playerCount; i++) {
             await db.execute(sql`
               INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${sessionId}, NULL, 'guest', ${`Guest ${i + 1}`}, 'waived', ${slotDuration})
+              VALUES (${sessionId}, NULL, 'guest', 'Guest (info pending)', 'pending', ${slotDuration})
             `);
           }
           

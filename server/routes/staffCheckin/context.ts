@@ -91,29 +91,8 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
         sessionId = sessionResult.sessionId || null;
         
         if (sessionId) {
-          const playerCount = booking.declared_player_count || 1;
-          await db.execute(sql`
-            DELETE FROM booking_participants
-            WHERE session_id = ${sessionId}
-              AND participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot'
-              AND COALESCE(payment_status, 'pending') = 'pending'
-          `);
-          const existingGuests = await db.execute(sql`
-            SELECT COUNT(*) as count FROM booking_participants 
-            WHERE session_id = ${sessionId} AND participant_type = 'guest'
-          `);
-          const existingGuestCount = parseInt((existingGuests.rows as unknown as CountRow[])[0]?.count || '0', 10);
-          
-          const guestsToCreate = playerCount - 1 - existingGuestCount;
-          if (guestsToCreate > 0) {
-            const guestNumbers = Array.from({length: guestsToCreate}, (_, i) => existingGuestCount + i + 2);
-            const guestNames = guestNumbers.map(n => `Guest ${n}`);
-            await db.execute(sql`
-              INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              SELECT ${sessionId}, NULL, 'guest', name, 'pending', ${bookingDuration}
-              FROM unnest(${toTextArrayLiteral(guestNames)}::text[]) AS t(name)
-            `);
-          }
+          const { syncGuestPlaceholders } = await import('../../core/billing/unifiedFeeService');
+          await syncGuestPlaceholders(sessionId);
           
           await invalidateCachedFees(
             (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),

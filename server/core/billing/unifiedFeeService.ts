@@ -257,7 +257,6 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          FROM booking_participants bp
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE bp.session_id = ${session.session_id}
-         AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = participantsResult.rows.map(row => ({
@@ -288,7 +287,6 @@ async function loadSessionData(sessionId?: number, bookingId?: number): Promise<
          JOIN booking_requests br ON br.session_id = bp.session_id
          LEFT JOIN users u ON bp.user_id = u.id
          WHERE br.id = ${session.booking_id}
-         AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
          ORDER BY bp.participant_type = 'owner' DESC, bp.created_at ASC`
       );
       participants = bpFallbackResult.rows.map(row => ({
@@ -961,11 +959,9 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
   const actualGuestCount = participants.filter(p => p.participantType === 'guest' && !p.userId).length;
   const actualMemberCount = participants.filter(p => p.participantType === 'member').length;
   const ownerCount = participants.filter(p => p.participantType === 'owner').length;
-  const emptySlots = Math.max(0, effectivePlayerCount - ownerCount - actualMemberCount - actualGuestCount);
 
-  const emptySlotMinutes = emptySlots > 0 ? emptySlots * minutesPerParticipant : 0;
   const guestSlotMinutes = actualGuestCount > 0 ? actualGuestCount * minutesPerParticipant : 0;
-  const nonMemberMinutes = emptySlotMinutes + guestSlotMinutes;
+  const nonMemberMinutes = guestSlotMinutes;
 
   if (nonMemberMinutes > 0 && !isConferenceRoom) {
     const ownerLineItem = lineItems.find(li => li.participantType === 'owner') ||
@@ -992,10 +988,8 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
         ownerLineItem.totalCents = ownerLineItem.overageCents;
         totalOverageCents += ownerLineItem.overageCents;
 
-        logger.info('[FeeBreakdown] Owner overage recalculated with empty slot and guest slot time', {
+        logger.info('[FeeBreakdown] Owner overage recalculated with guest slot time', {
           extra: {
-            emptySlots,
-            emptySlotMinutes,
             guestCount: actualGuestCount,
             guestSlotMinutes,
             totalNonMemberMinutes: nonMemberMinutes,
@@ -1010,27 +1004,6 @@ export async function computeFeeBreakdown(params: FeeComputeParams): Promise<Fee
     }
   }
 
-  if (emptySlots > 0 && !isConferenceRoom) {
-    for (let i = 0; i < emptySlots; i++) {
-      const emptyGuestFee = PRICING.GUEST_FEE_CENTS;
-      const emptyLineItem: FeeLineItem = {
-        participantId: undefined,
-        userId: undefined,
-        displayName: 'Empty Slot',
-        participantType: 'guest',
-        minutesAllocated: minutesPerParticipant,
-        overageCents: 0,
-        guestCents: emptyGuestFee,
-        totalCents: emptyGuestFee,
-        guestPassUsed: false,
-        dayPassCovered: false
-      };
-
-      totalGuestCents += emptyGuestFee;
-      lineItems.push(emptyLineItem);
-    }
-  }
-  
   return {
     totals: {
       totalCents: totalOverageCents + totalGuestCents,
@@ -1058,75 +1031,6 @@ export async function applyFeeBreakdownToParticipants(
   try {
     await db.transaction(async (tx) => {
       const participantsWithIds = breakdown.participants.filter(p => p.participantId);
-      const emptySlotItems = breakdown.participants
-        .filter(p => !p.participantId && p.totalCents > 0 && p.displayName === 'Empty Slot');
-
-      if (emptySlotItems.length > 0) {
-        const existingSlots = await tx.execute(
-          sql`SELECT id, cached_fee_cents, payment_status FROM booking_participants
-           WHERE session_id = ${sessionId}
-           AND participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot'
-           ORDER BY id ASC`
-        );
-        const existingRows = existingSlots.rows as { id: number; cached_fee_cents: number; payment_status: string }[];
-
-        const unpaidExisting = existingRows.filter(r => r.payment_status !== 'paid');
-        const paidExisting = existingRows.filter(r => r.payment_status === 'paid');
-
-        const slotsNeeded = emptySlotItems.length;
-        const slotsToReuse = Math.min(unpaidExisting.length, slotsNeeded);
-        const slotsToCreate = Math.max(0, slotsNeeded - unpaidExisting.length - paidExisting.length);
-        const slotsToRemove = Math.max(0, unpaidExisting.length - slotsNeeded);
-
-        for (let i = 0; i < slotsToReuse; i++) {
-          const row = unpaidExisting[i];
-          const fee = emptySlotItems[i].totalCents;
-          if (row.cached_fee_cents !== fee) {
-            await tx.execute(
-              sql`UPDATE booking_participants SET cached_fee_cents = ${fee} WHERE id = ${row.id}`
-            );
-          }
-        }
-
-        if (slotsToRemove > 0) {
-          const removeIds = unpaidExisting.slice(slotsToReuse).map(r => r.id);
-          await tx.execute(
-            sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(removeIds)}::int[])`
-          );
-          logger.info('[UnifiedFeeService] Removed excess empty slot participant rows', {
-            extra: { sessionId, removedCount: removeIds.length, removedIds: removeIds }
-          });
-        }
-
-        const slotDuration = breakdown.metadata.sessionDuration || 60;
-        for (let i = 0; i < slotsToCreate; i++) {
-          const fee = emptySlotItems[slotsToReuse + paidExisting.length + i]?.totalCents ?? emptySlotItems[0].totalCents;
-          await tx.execute(
-            sql`INSERT INTO booking_participants (session_id, user_id, guest_id, participant_type, display_name, payment_status, cached_fee_cents, used_guest_pass, slot_duration)
-             VALUES (${sessionId}, NULL, NULL, 'guest', 'Empty Slot', 'pending', ${fee}, false, ${slotDuration})`
-          );
-        }
-
-        logger.info('[UnifiedFeeService] Synced empty slot participant rows', {
-          extra: { sessionId, needed: slotsNeeded, reused: slotsToReuse, created: slotsToCreate, removed: slotsToRemove, paidKept: paidExisting.length }
-        });
-      } else {
-        const staleSlots = await tx.execute(
-          sql`SELECT id FROM booking_participants
-           WHERE session_id = ${sessionId}
-           AND participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot'
-           AND payment_status != 'paid'`
-        );
-        const staleIds = (staleSlots.rows as { id: number }[]).map(r => r.id);
-        if (staleIds.length > 0) {
-          await tx.execute(
-            sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(staleIds)}::int[])`
-          );
-          logger.info('[UnifiedFeeService] Cleaned up stale empty slot rows (no longer needed)', {
-            extra: { sessionId, removedCount: staleIds.length }
-          });
-        }
-      }
 
       const idsToUpdate = participantsWithIds.map(p => p.participantId!);
       const feesToUpdate = participantsWithIds.map(p => p.totalCents);
@@ -1266,11 +1170,101 @@ export async function invalidateSessionCachedFees(
   }
 }
 
+export async function syncGuestPlaceholders(sessionId: number): Promise<void> {
+  try {
+    const bookingInfo = await db.execute(sql`
+      SELECT br.declared_player_count, br.duration_minutes
+      FROM booking_requests br
+      WHERE br.session_id = ${sessionId}
+      LIMIT 1
+    `);
+    const booking = bookingInfo.rows[0] as { declared_player_count: number | null; duration_minutes: number | null } | undefined;
+    if (!booking) return;
+
+    const declaredPlayerCount = booking.declared_player_count || 1;
+    const durationMinutes = booking.duration_minutes || 60;
+    const slotDuration = Math.floor(durationMinutes / Math.max(declaredPlayerCount, 1));
+
+    const nonPlaceholderResult = await db.execute(sql`
+      SELECT COUNT(*) as cnt FROM booking_participants
+      WHERE session_id = ${sessionId}
+        AND NOT (
+          participant_type = 'guest'
+          AND user_id IS NULL
+          AND guest_id IS NULL
+          AND (display_name = 'Guest (info pending)' OR display_name ~ '^Guest \\d+$' OR lower(display_name) = 'empty slot')
+          AND payment_status NOT IN ('paid', 'refunded')
+        )
+    `);
+    const realParticipants = parseInt((nonPlaceholderResult.rows[0] as { cnt: string }).cnt, 10);
+
+    const placeholderResult = await db.execute(sql`
+      SELECT id, display_name, payment_status FROM booking_participants
+      WHERE session_id = ${sessionId}
+        AND participant_type = 'guest'
+        AND user_id IS NULL
+        AND guest_id IS NULL
+        AND (display_name = 'Guest (info pending)' OR display_name ~ '^Guest \\d+$' OR lower(display_name) = 'empty slot')
+        AND payment_status NOT IN ('paid', 'refunded')
+      ORDER BY created_at ASC
+    `);
+    const currentPlaceholders = placeholderResult.rows.length;
+
+    const legacyPlaceholders = (placeholderResult.rows as { id: number; display_name: string; payment_status: string | null }[])
+      .filter(r => r.display_name !== 'Guest (info pending)' || (r.payment_status !== 'pending' && r.payment_status !== null));
+    if (legacyPlaceholders.length > 0) {
+      const legacyIds = legacyPlaceholders.map(r => r.id);
+      await db.execute(sql`
+        UPDATE booking_participants
+        SET display_name = 'Guest (info pending)', payment_status = 'pending'
+        WHERE id = ANY(ARRAY[${sql.join(legacyIds.map(id => sql`${id}`), sql`, `)}]::int[])
+      `);
+      logger.info('[syncGuestPlaceholders] Normalized legacy placeholder rows', {
+        extra: { sessionId, count: legacyIds.length }
+      });
+    }
+
+    const desiredPlaceholders = Math.max(0, declaredPlayerCount - realParticipants);
+
+    if (currentPlaceholders < desiredPlaceholders) {
+      const toAdd = desiredPlaceholders - currentPlaceholders;
+      await db.execute(sql`
+        INSERT INTO booking_participants (session_id, user_id, guest_id, participant_type, display_name, payment_status, used_guest_pass, slot_duration, created_at)
+        SELECT ${sessionId}, NULL, NULL, 'guest', 'Guest (info pending)', 'pending', false, ${slotDuration}, NOW()
+        FROM generate_series(1, ${toAdd})
+      `);
+      logger.info('[syncGuestPlaceholders] Auto-filled unfilled slots with guest placeholders', {
+        extra: { sessionId, declaredPlayerCount, realParticipants, added: toAdd }
+      });
+    } else if (currentPlaceholders > desiredPlaceholders) {
+      const excess = currentPlaceholders - desiredPlaceholders;
+      const idsToDelete = (placeholderResult.rows as { id: number }[])
+        .slice(-excess)
+        .map(r => r.id);
+      if (idsToDelete.length > 0) {
+        await db.execute(sql`
+          DELETE FROM booking_participants
+          WHERE id = ANY(ARRAY[${sql.join(idsToDelete.map(id => sql`${id}`), sql`, `)}]::int[])
+        `);
+        logger.info('[syncGuestPlaceholders] Trimmed surplus placeholders to match declared count', {
+          extra: { sessionId, declaredPlayerCount, realParticipants, removed: idsToDelete.length }
+        });
+      }
+    }
+  } catch (err: unknown) {
+    logger.warn('[syncGuestPlaceholders] Failed to sync guest placeholders (non-blocking)', {
+      extra: { sessionId, error: getErrorMessage(err) }
+    });
+  }
+}
+
 export async function recalculateSessionFees(
   sessionId: number,
   source: FeeComputeParams['source'],
   options?: { skipCascade?: boolean }
 ): Promise<FeeBreakdown> {
+  await syncGuestPlaceholders(sessionId);
+
   const breakdown = await computeFeeBreakdown({
     sessionId,
     source,
@@ -1314,6 +1308,7 @@ export async function recalculateSessionFees(
           }
           for (const later of laterSessions.rows as { id: number }[]) {
             try {
+              await syncGuestPlaceholders(later.id);
               const laterBreakdown = await computeFeeBreakdown({
                 sessionId: later.id,
                 source,

@@ -190,7 +190,7 @@ export async function processStaffPayFees(params: StaffPayFeesParams): Promise<{
 
     const requestedIds: number[] = clientParticipantFees.map((pf: { id: number }) => pf.id);
 
-    const participantCountResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${sessionId} AND NOT (participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')`);
+    const participantCountResult = await db.execute(sql`SELECT COUNT(*) as count FROM booking_participants WHERE session_id = ${sessionId}`);
     const actualParticipantCount = parseInt((participantCountResult.rows[0] as { count: string })?.count || '1', 10);
     const effectivePlayerCount = getEffectivePlayerCount(actualParticipantCount, actualParticipantCount);
 

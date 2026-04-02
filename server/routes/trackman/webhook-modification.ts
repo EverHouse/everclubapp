@@ -340,7 +340,7 @@ export async function handleBookingModification(
     const effectiveSessionId = newSessionIdForFees || sessionId;
     if (effectiveSessionId && incoming.playerCount > 1) {
       try {
-        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${effectiveSessionId} AND NOT (participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')`);
+        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${effectiveSessionId}`);
         const currentParticipants = Number((existingCount.rows as Array<Record<string, unknown>>)[0]?.cnt || 0);
         const targetTotal = incoming.playerCount;
         const slotsToFill = Math.max(0, targetTotal - currentParticipants);
@@ -348,7 +348,7 @@ export async function handleBookingModification(
           const slotDuration = newDuration || 60;
           for (let i = 0; i < slotsToFill; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${effectiveSessionId}, NULL, ${PARTICIPANT_TYPE.GUEST}, ${`Guest ${currentParticipants + i + 1}`}, ${PAYMENT_STATUS.WAIVED}, ${slotDuration})`);
+              VALUES (${effectiveSessionId}, NULL, ${PARTICIPANT_TYPE.GUEST}, 'Guest (info pending)', 'pending', ${slotDuration})`);
           }
           logger.info('[Trackman Webhook] Backfilled guest slots after modification', {
             extra: { bookingId, sessionId: effectiveSessionId, slotsToFill, currentParticipants, targetTotal }

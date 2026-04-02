@@ -121,7 +121,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         LEFT JOIN guests g ON bp.guest_id = g.id
         JOIN booking_sessions bs ON bp.session_id = bs.id
         WHERE bp.participant_type = 'guest'
-          AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
+          AND (bp.user_id IS NOT NULL OR bp.guest_id IS NOT NULL)
         GROUP BY LOWER(COALESCE(g.email, ''))
       ),
       user_participant_appearances AS (
@@ -131,7 +131,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         JOIN booking_sessions bs ON bp.session_id = bs.id
         JOIN users u2 ON bp.user_id = u2.id
         WHERE bp.participant_type = 'guest'
-          AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
+          AND bp.user_id IS NOT NULL
         GROUP BY LOWER(u2.email)
       ),
       booking_requestors AS (
@@ -185,7 +185,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         LEFT JOIN guests g ON bp.guest_id = g.id
         JOIN booking_sessions bs ON bp.session_id = bs.id
         WHERE bp.participant_type = 'guest'
-          AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
+          AND (bp.user_id IS NOT NULL OR bp.guest_id IS NOT NULL)
         GROUP BY LOWER(COALESCE(g.email, ''))
       ),
       user_participant_appearances AS (
@@ -195,7 +195,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
         JOIN booking_sessions bs ON bp.session_id = bs.id
         JOIN users u2 ON bp.user_id = u2.id
         WHERE bp.participant_type = 'guest'
-          AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
+          AND bp.user_id IS NOT NULL
         GROUP BY LOWER(u2.email)
       ),
       booking_requestors AS (
@@ -253,7 +253,7 @@ router.get('/api/visitors', isStaffOrAdmin, validateQuery(visitorsQuerySchema), 
           JOIN booking_sessions bs ON bp.session_id = bs.id
           LEFT JOIN guests g ON bp.guest_id = g.id
           WHERE bp.participant_type = 'guest'
-            AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
+            AND (bp.user_id IS NOT NULL OR bp.guest_id IS NOT NULL)
           GROUP BY LOWER(COALESCE(g.email, ''))
         ) guest_agg ON LOWER(u.email) = guest_agg.email
         WHERE (u.role = 'visitor' OR u.membership_status = 'visitor' OR u.membership_status = 'non-member')

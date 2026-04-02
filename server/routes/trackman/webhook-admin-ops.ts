@@ -392,7 +392,7 @@ router.post('/api/admin/trackman-webhook/:eventId/auto-match', isStaffOrAdmin, a
           const remainingSlots = Math.max(0, (playerCount - 1) - transferredCount);
           for (let i = 0; i < remainingSlots; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${sessionResult.sessionId}, NULL, 'guest', ${`Guest ${transferredCount + i + 2}`}, 'pending', ${slotDuration})`);
+              VALUES (${sessionResult.sessionId}, NULL, 'guest', 'Guest (info pending)', 'pending', ${slotDuration})`);
           }
           if (transferredCount > 0 || remainingSlots > 0) {
             await recalculateSessionFees(sessionResult.sessionId, 'staff_auto_match');

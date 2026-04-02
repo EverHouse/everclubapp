@@ -197,8 +197,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           END,
           bp.created_at`);
 
-      const isEmptySlot = (r: DbRow) => r.participant_type === 'guest' && !r.user_id && !r.guest_id && r.display_name === 'Empty Slot';
-      const filteredRows = (bpResult.rows as DbRow[]).filter(r => !isEmptySlot(r));
+      const filteredRows = bpResult.rows as DbRow[];
       participantsCount = filteredRows.length;
 
       const ownerParticipants = filteredRows.filter(r => r.participant_type === 'owner');
@@ -247,7 +246,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         const membershipStatus = (row.membership_status as string) || null;
         const _hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
 
-        let memberName = 'Empty Slot';
+        let memberName = 'Guest (info pending)';
         if (row.first_name && row.last_name) {
           memberName = `${row.first_name} ${row.last_name}`;
         } else if (row.display_name && !String(row.display_name).includes('@')) {
@@ -315,7 +314,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         const membershipStatus = (row.membership_status as string) || null;
         const hasActiveMembership = membershipStatus && ['active', 'trialing', 'past_due'].includes(membershipStatus);
 
-        let memberName = 'Empty Slot';
+        let memberName = 'Guest (info pending)';
         if (row.first_name && row.last_name) {
           memberName = `${row.first_name} ${row.last_name}`;
         } else if (row.display_name && !String(row.display_name).includes('@')) {
@@ -455,17 +454,17 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
         }
       }
 
-      let emptySlotId = -1;
+      let placeholderSlotId = -1;
       while (membersWithFees.length < expectedPlayerCount) {
         membersWithFees.push({
-          id: emptySlotId,
+          id: placeholderSlotId,
           bookingId,
           userEmail: null,
           slotNumber: slotNumber,
           isPrimary: false,
           linkedAt: null,
           linkedBy: null,
-          memberName: 'Empty Slot',
+          memberName: 'Guest (info pending)',
           tier: null,
           fee: PRICING.GUEST_FEE_DOLLARS,
           feeNote: `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`,
@@ -475,7 +474,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           isStaff: false,
           guestInfo: null
         });
-        emptySlotId--;
+        placeholderSlotId--;
         slotNumber++;
       }
 
@@ -504,7 +503,6 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
          INNER JOIN booking_requests br2 ON br2.session_id = bp.session_id
          LEFT JOIN guests g ON g.id = bp.guest_id
          WHERE br2.id = ${id} AND bp.participant_type = 'guest'
-           AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')
          ORDER BY bp.id`);
 
       const legacyTotalMemberSlots = membersResult.rows.length;
@@ -646,7 +644,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           linkedBy: row.linked_by as string | null,
           memberName: row.first_name && row.last_name
             ? `${row.first_name} ${row.last_name}`
-            : (row.user_email as string) || 'Empty Slot',
+            : (row.user_email as string) || 'Guest (info pending)',
           tier,
           fee,
           feeNote,
@@ -782,17 +780,17 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       let legacySlotNumber = membersWithFees.length > 0
         ? Math.max(...membersWithFees.map(m => m.slotNumber)) + 1
         : (membersWithFees.length === 0 ? 2 : 1);
-      let legacyEmptySlotId = -1;
+      let legacyPlaceholderId = -1;
       while (membersWithFees.length < expectedPlayerCount) {
         membersWithFees.push({
-          id: legacyEmptySlotId,
+          id: legacyPlaceholderId,
           bookingId,
           userEmail: null,
           slotNumber: legacySlotNumber,
           isPrimary: false,
           linkedAt: null,
           linkedBy: null,
-          memberName: 'Empty Slot',
+          memberName: 'Guest (info pending)',
           tier: null,
           fee: PRICING.GUEST_FEE_DOLLARS,
           feeNote: `Pending assignment - $${PRICING.GUEST_FEE_DOLLARS}`,
@@ -802,7 +800,7 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
           isStaff: false,
           guestInfo: null
         });
-        legacyEmptySlotId--;
+        legacyPlaceholderId--;
         legacySlotNumber++;
       }
 

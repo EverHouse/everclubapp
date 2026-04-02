@@ -102,19 +102,24 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       });
     }
 
-    const allExistingParticipants = await getSessionParticipants(sessionId);
-    const existingParticipants = allExistingParticipants.filter(p =>
-      !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
-    );
+    const existingParticipants = await getSessionParticipants(sessionId);
     const declaredCount = booking.declared_player_count || 1;
     const ownerInParticipants = existingParticipants.some(p => p.participantType === 'owner');
     const effectiveCount = ownerInParticipants ? existingParticipants.length : (1 + existingParticipants.length);
 
     if (effectiveCount >= declaredCount) {
-      throw createServiceError('Cannot add more participants. Maximum slot limit reached.', 400, {
-        declaredPlayerCount: declaredCount,
-        currentCount: effectiveCount
-      });
+      const placeholders = existingParticipants.filter(p =>
+        p.participantType === 'guest' && !p.userId && !p.guestId && isPlaceholderGuestName(p.displayName)
+      );
+      if (placeholders.length > 0) {
+        const toRemove = placeholders[placeholders.length - 1];
+        await tx.execute(sql`DELETE FROM booking_participants WHERE id = ${toRemove.id}`);
+      } else {
+        throw createServiceError('Cannot add more participants. Maximum slot limit reached.', 400, {
+          declaredPlayerCount: declaredCount,
+          currentCount: effectiveCount
+        });
+      }
     }
 
     let memberInfo: { id: string; email: string; firstName: string; lastName: string } | null = null;

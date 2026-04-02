@@ -532,9 +532,8 @@ const RosterManager: React.FC<RosterManagerProps> = ({
             
             <div className="space-y-2">
               {feePreview.timeAllocation.allocations.map((alloc, idx) => {
-                const isEmptySlot = alloc.displayName === 'Empty Slot';
-                const isGuestWithPass = alloc.type === 'guest' && !isEmptySlot && alloc.guestPassUsed;
-                const isGuestWithFee = alloc.type === 'guest' && !isEmptySlot && !alloc.guestPassUsed && (alloc.feeCents ?? 0) > 0;
+                const isGuestWithPass = alloc.type === 'guest' && alloc.guestPassUsed;
+                const isGuestWithFee = alloc.type === 'guest' && !alloc.guestPassUsed && (alloc.feeCents ?? 0) > 0;
 
                 return (
                   <div key={idx} className="flex items-center justify-between">
@@ -543,11 +542,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                         <Icon name="confirmation_number" className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                       )}
                       {alloc.displayName}
-                      {isEmptySlot && (
-                        <span className={`text-xs ${isDark ? 'text-amber-400/70' : 'text-amber-600/70'}`}>
-                          (${guestFeeDollars.toFixed(0)} fee)
-                        </span>
-                      )}
                       {isGuestWithPass && (
                         <span className={`text-xs ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>
                           (pass)
@@ -682,7 +676,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                         Estimated Fees
                       </p>
                       <p className={`text-xs ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                        Fill empty slots or pay at check-in
+                        Assign players or pay at check-in
                       </p>
                     </div>
                     <span className={`text-lg font-bold ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>

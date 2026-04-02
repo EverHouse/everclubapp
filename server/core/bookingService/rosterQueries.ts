@@ -77,9 +77,7 @@ export async function getBookingParticipants(
       .from(bookingParticipants)
       .where(eq(bookingParticipants.sessionId, booking.session_id));
 
-    participants = participantRows.filter(p =>
-      !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
-    );
+    participants = participantRows;
 
     const needsNameFix = participants.filter(p => p.displayName && p.displayName.includes('@'));
     if (needsNameFix.length > 0) {
@@ -232,9 +230,7 @@ export async function previewRosterFees(
   let existingParticipants: BookingParticipant[] = [];
   if (booking.session_id) {
     const rawParticipants = await getSessionParticipants(booking.session_id);
-    existingParticipants = rawParticipants.filter(p =>
-      !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
-    );
+    existingParticipants = rawParticipants;
   }
 
   const allParticipants: Array<{ participantType: string; displayName: string; email?: string; userId?: string | null }> = [];
@@ -433,7 +429,7 @@ export async function previewRosterFees(
   const ownerLineItem = breakdown.participants.find(p => p.participantType === 'owner');
   const ownerMinutes = ownerLineItem?.minutesAllocated || breakdown.metadata.sessionDuration;
   const realGuestMinutes = breakdown.participants
-    .filter(p => p.participantType === 'guest' && p.participantId !== undefined && p.displayName !== 'Empty Slot')
+    .filter(p => p.participantType === 'guest' && p.participantId !== undefined)
     .reduce((sum, p) => sum + p.minutesAllocated, 0);
   const totalOwnerResponsibleMinutes = ownerMinutes;
   const guestMinutes = realGuestMinutes;

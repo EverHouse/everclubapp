@@ -213,9 +213,8 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
             br.id as booking_id,
             CASE 
               WHEN br.session_id IS NOT NULL AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = br.session_id)
-              THEN (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot'))
-              ELSE (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type IN ('member', 'owner') AND bp.user_id IS NOT NULL)
-                   + (SELECT COUNT(*) FROM booking_participants bp2 WHERE bp2.session_id = br.session_id AND bp2.participant_type = 'guest' AND NOT (bp2.user_id IS NULL AND bp2.guest_id IS NULL AND bp2.display_name = 'Empty Slot'))
+              THEN (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id)
+              ELSE (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id)
             END as filled_count
           FROM booking_requests br
           WHERE br.id = ANY(${bookingIdsLiteral}::int[])

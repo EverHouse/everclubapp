@@ -258,7 +258,7 @@ router.post('/api/admin/bookings/:id/simulate-confirm', isStaffOrAdmin, async (r
           const remainingSlots = Math.max(0, (Number(playerCount) - 1) - transferredCount);
           for (let i = 0; i < remainingSlots; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${sessionId}, ${null}, ${'guest'}, ${`Guest ${transferredCount + i + 2}`}, ${'pending'}, ${sessionDuration})`);
+              VALUES (${sessionId}, ${null}, ${'guest'}, ${'Guest (info pending)'}, ${'pending'}, ${sessionDuration})`);
           }
 
           if (transferredCount > 0 || remainingSlots > 0) {

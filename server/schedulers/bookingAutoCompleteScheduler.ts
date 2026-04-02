@@ -347,7 +347,7 @@ async function autoCompletePastBookings(): Promise<void> {
              AND bp.participant_type = 'guest'
              AND bp.used_guest_pass IS NOT TRUE
              AND bp.payment_status = 'pending'
-             AND NOT (bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')`,
+`,
           [resolvedSessionId]
         );
 

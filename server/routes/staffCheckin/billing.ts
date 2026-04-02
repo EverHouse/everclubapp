@@ -509,11 +509,6 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           return res.status(400).json({ error: 'Booking is missing required fields to create a session' });
         }
         try {
-          const bookingDuration = Math.round(
-            (new Date(`2000-01-01T${booking.end_time}`).getTime() - 
-             new Date(`2000-01-01T${booking.start_time}`).getTime()) / 60000
-          );
-
           const userResult = await db.execute(sql`SELECT id FROM users WHERE LOWER(email) = LOWER(${booking.owner_email})`);
           const userId = (userResult.rows as unknown as UserIdRow[])[0]?.id || null;
 
@@ -535,28 +530,8 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           sessionId = sessionResult.sessionId || null;
 
           if (sessionId) {
-            const playerCount = booking.declared_player_count || 1;
-            await db.execute(sql`
-              DELETE FROM booking_participants
-              WHERE session_id = ${sessionId}
-                AND participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot'
-                AND COALESCE(payment_status, 'pending') = 'pending'
-            `);
-            const existingGuests = await db.execute(sql`
-              SELECT COUNT(*) as count FROM booking_participants 
-              WHERE session_id = ${sessionId} AND participant_type = 'guest'
-            `);
-            const existingGuestCount = parseInt((existingGuests.rows as unknown as CountRow[])[0]?.count || '0', 10);
-            const guestsToCreate = playerCount - 1 - existingGuestCount;
-            if (guestsToCreate > 0) {
-              const guestNumbers = Array.from({length: guestsToCreate}, (_, i) => existingGuestCount + i + 2);
-              const guestNames = guestNumbers.map(n => `Guest ${n}`);
-              await db.execute(sql`
-                INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-                SELECT ${sessionId}, NULL, 'guest', name, 'pending', ${bookingDuration}
-                FROM unnest(${toTextArrayLiteral(guestNames)}::text[]) AS t(name)
-              `);
-            }
+            const { syncGuestPlaceholders } = await import('../../core/billing/unifiedFeeService');
+            await syncGuestPlaceholders(sessionId);
 
             await invalidateSessionCachedFees(sessionId, 'staff_session_creation');
             await recalculateSessionFees(sessionId, 'staff_action');
@@ -686,7 +661,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
                   id: null,
                   amountCents: emptySlotTotal,
                   type: 'guest_fee',
-                  description: `${slotCount} empty slot${slotCount > 1 ? 's' : ''}${perSlot ? ` × $${perSlot}` : ''}`
+                  description: `${slotCount} unfilled slot${slotCount > 1 ? 's' : ''}${perSlot ? ` × $${perSlot}` : ''}`
                 });
               }
             }

@@ -367,7 +367,7 @@ export async function createBookingForMember(
             const remainingSlots = Math.max(0, (playerCount - 1) - transferredCount);
             for (let i = 0; i < remainingSlots; i++) {
               await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-                VALUES (${newSessionId}, NULL, 'guest', ${`Guest ${transferredCount + i + 2}`}, 'pending', ${slotDuration})`);
+                VALUES (${newSessionId}, NULL, 'guest', 'Guest (info pending)', 'pending', ${slotDuration})`);
             }
             
             await invalidateSessionCachedFees(newSessionId, 'trackman_new_session');
@@ -608,7 +608,7 @@ export async function createBookingForMember(
               participants.push({
                 email: undefined,
                 participantType: 'guest',
-                displayName: `Guest ${i + 1}`
+                displayName: 'Guest (info pending)'
               });
             }
             
@@ -662,7 +662,7 @@ export async function createBookingForMember(
               
               for (let i = 1; i < playerCount; i++) {
                 await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-                  VALUES (${sessionId}, NULL, 'guest', ${`Guest ${i + 1}`}, 'pending', ${slotDuration})`);
+                  VALUES (${sessionId}, NULL, 'guest', 'Guest (info pending)', 'pending', ${slotDuration})`);
               }
               
               await invalidateSessionCachedFees(sessionId, 'trackman_guest_creation');
@@ -896,7 +896,7 @@ export async function tryMatchByBayDateTime(
         const remainingSlots = Math.max(0, (playerCount - 1) - transferredCount);
         for (let i = 0; i < remainingSlots; i++) {
           await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-            VALUES (${sessionResult.sessionId}, NULL, 'guest', ${`Guest ${transferredCount + i + 2}`}, 'pending', ${slotDuration})`);
+            VALUES (${sessionResult.sessionId}, NULL, 'guest', 'Guest (info pending)', 'pending', ${slotDuration})`);
         }
 
         await invalidateSessionCachedFees(sessionResult.sessionId, 'trackman_auto_match');

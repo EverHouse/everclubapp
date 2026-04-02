@@ -584,7 +584,6 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
           FROM booking_participants
           WHERE session_id = ANY(ARRAY[${sessionIdsSql}]::int[])
             AND participant_type = 'guest'
-            AND NOT (user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')
           GROUP BY session_id
         )
         SELECT 
@@ -888,7 +887,7 @@ router.get('/api/members/:email/guests', isStaffOrAdmin, async (req, res) => {
       .where(and(
         sql`LOWER(${bookingRequests.userEmail}) = ${normalizedEmail}`,
         eq(bookingParticipants.participantType, 'guest'),
-        sql`NOT (${bookingParticipants.userId} IS NULL AND ${bookingParticipants.guestId} IS NULL AND ${bookingParticipants.displayName} = 'Empty Slot')`
+        sql`(${bookingParticipants.userId} IS NOT NULL OR ${bookingParticipants.guestId} IS NOT NULL)`
       ))
       .orderBy(desc(bookingRequests.requestDate), desc(bookingRequests.startTime));
     

@@ -100,13 +100,8 @@ export async function calculateFeeEstimate(params: {
     });
   }
   
-  const namedGuestCount = params.guestsWithInfo ?? guestCount;
   for (let i = 0; i < guestCount; i++) {
-    if (i < namedGuestCount) {
-      participants.push({ displayName: `Estimated Guest ${i + 1}`, participantType: 'guest' });
-    } else {
-      participants.push({ displayName: `Guest ${i + 1}`, participantType: 'guest' });
-    }
+    participants.push({ displayName: 'Guest (info pending)', participantType: 'guest' });
   }
   
   const dayPassEmailsSet = new Set((params.dayPassEmails || []).map(e => e.toLowerCase()));

@@ -268,10 +268,7 @@ export async function applyRosterBatch(params: BatchRosterUpdateParams): Promise
             }
 
             if (ownerTier) {
-              const rawParticipants = await getSessionParticipants(sessionId!);
-              const existingParticipants = rawParticipants.filter(p =>
-                !(p.participantType === 'guest' && !p.userId && !p.guestId && p.displayName === 'Empty Slot')
-              );
+              const existingParticipants = await getSessionParticipants(sessionId!);
               const participantsForValidation: ParticipantForValidation[] = [
                 ...existingParticipants.map(p => ({
                   type: p.participantType as 'owner' | 'member' | 'guest',

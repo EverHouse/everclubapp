@@ -516,12 +516,7 @@ export function InlinePaymentBody({
         }
       }
       if (fs.guestFeesWithoutPass > 0) {
-        const slotCount = rosterData?.validation?.emptySlots || 0;
-        if (slotCount > 0) {
-          feeLines.push(`Empty slots (${slotCount}) — $${fs.guestFeesWithoutPass.toFixed(2)}`);
-        } else {
-          feeLines.push(`Guest fees — $${fs.guestFeesWithoutPass.toFixed(2)}`);
-        }
+        feeLines.push(`Guest fees — $${fs.guestFeesWithoutPass.toFixed(2)}`);
       }
       const feeBreakdownStr = feeLines.join('; ');
       const baseDesc = `${bayName || fetchedContext?.bayName || 'Booking'} • ${bookingDate || fetchedContext?.bookingDate || ''}`;

@@ -95,9 +95,32 @@ router.post('/api/admin/booking/:id/guests', isStaffOrAdmin, async (req, res) =>
         }
       }
 
-      await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, payment_status, used_guest_pass, slot_duration)
-         VALUES (${sessionId}, 'guest', ${trimmedName}, ${passUsed ? 'paid' : 'pending'}, ${passUsed}, ${slotDuration})`);
-      logger.info('[AddGuest] Created booking_participant for guest in session', { extra: { bookingId, sessionId, guestName: trimmedName, guestPassUsed: passUsed } });
+      const existingPlaceholder = await db.execute(sql`
+        SELECT id, payment_status FROM booking_participants
+        WHERE session_id = ${sessionId}
+          AND participant_type = 'guest'
+          AND user_id IS NULL AND guest_id IS NULL
+          AND (display_name = 'Guest (info pending)' OR display_name ~ '^Guest \\d+$' OR lower(display_name) = 'empty slot')
+        ORDER BY
+          CASE WHEN payment_status IN ('pending') OR payment_status IS NULL THEN 0 ELSE 1 END,
+          created_at ASC
+        LIMIT 1
+      `);
+
+      if (existingPlaceholder.rows.length > 0) {
+        const placeholder = existingPlaceholder.rows[0] as { id: number; payment_status: string | null };
+        const placeholderId = placeholder.id;
+        const preservePaidStatus = placeholder.payment_status === 'paid';
+        const newPaymentStatus = preservePaidStatus ? 'paid' : (passUsed ? 'paid' : 'pending');
+        await db.execute(sql`UPDATE booking_participants
+          SET display_name = ${trimmedName}, payment_status = ${newPaymentStatus}, used_guest_pass = ${passUsed || preservePaidStatus}, slot_duration = ${slotDuration}
+          WHERE id = ${placeholderId}`);
+        logger.info('[AddGuest] Replaced placeholder with guest in session', { extra: { bookingId, sessionId, placeholderId, guestName: trimmedName, guestPassUsed: passUsed } });
+      } else {
+        await db.execute(sql`INSERT INTO booking_participants (session_id, participant_type, display_name, payment_status, used_guest_pass, slot_duration)
+           VALUES (${sessionId}, 'guest', ${trimmedName}, ${passUsed ? 'paid' : 'pending'}, ${passUsed}, ${slotDuration})`);
+        logger.info('[AddGuest] Created booking_participant for guest in session', { extra: { bookingId, sessionId, guestName: trimmedName, guestPassUsed: passUsed } });
+      }
 
       if (req.body.deferFeeRecalc !== true) {
         const allParticipants = await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`);
@@ -378,7 +401,7 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
             }
           }
 
-          logger.info('[Link Member] Linked member to existing empty slot', { extra: { slotId, userId, displayName, sessionId, slotType: slot.participant_type } });
+          logger.info('[Link Member] Linked member to existing slot', { extra: { slotId, userId, displayName, sessionId, slotType: slot.participant_type } });
 
           if (bookingResult.rows[0]) {
             const bookingForNotif = bookingResult.rows[0] as DbRow;

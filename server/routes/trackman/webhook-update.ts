@@ -518,7 +518,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
     
     if (autoApproveResult.sessionId && normalized.playerCount > 1) {
       try {
-        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${autoApproveResult.sessionId} AND NOT (participant_type = 'guest' AND user_id IS NULL AND guest_id IS NULL AND display_name = 'Empty Slot')`);
+        const existingCount = await db.execute(sql`SELECT COUNT(*) as cnt FROM booking_participants WHERE session_id = ${autoApproveResult.sessionId}`);
         const currentParticipants = Number((existingCount.rows as Array<Record<string, unknown>>)[0]?.cnt || 0);
         const targetTotal = normalized.playerCount;
         const slotsToFill = Math.max(0, targetTotal - currentParticipants);
@@ -531,7 +531,7 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
             : 60;
           for (let i = 0; i < slotsToFill; i++) {
             await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
-              VALUES (${autoApproveResult.sessionId}, NULL, ${PARTICIPANT_TYPE.GUEST}, ${`Guest ${currentParticipants + i + 1}`}, ${PAYMENT_STATUS.WAIVED}, ${slotDuration})`);
+              VALUES (${autoApproveResult.sessionId}, NULL, ${PARTICIPANT_TYPE.GUEST}, 'Guest (info pending)', 'pending', ${slotDuration})`);
           }
           await recalculateSessionFees(autoApproveResult.sessionId, 'trackman_webhook');
           syncBookingInvoice(autoApproveResult.bookingId, autoApproveResult.sessionId).catch((syncErr: unknown) => {

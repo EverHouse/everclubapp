@@ -1231,7 +1231,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, validateQuery(paginate
         COALESCE(br.trackman_player_count, 1) = 1
         OR (
           br.session_id IS NOT NULL
-          AND (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot')) >= COALESCE(br.trackman_player_count, 1)
+          AND (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id) >= COALESCE(br.trackman_player_count, 1)
         )
       )`
     ];
