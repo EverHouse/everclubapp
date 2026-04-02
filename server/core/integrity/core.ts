@@ -514,6 +514,8 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Stuck Unpaid Bookings': 'high',
   'Unresolved Failed Side Effects': 'high',
   'Unreported Wellhub Events': 'medium',
+  'Negative Merch Stock': 'medium',
+  'Merch & Cafe Stripe Product Sync': 'medium',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -787,7 +789,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents } = await import('./externalSystemChecks');
-  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects } = await import('./stripeChecks');
+  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
   const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
@@ -807,6 +809,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkUsageLedgerGaps, 'Usage Ledger Gaps'),
     () => safeCheck(checkUnresolvedFailedSideEffects, 'Unresolved Failed Side Effects'),
     () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
+    () => safeCheck(checkNegativeMerchStock, 'Negative Merch Stock'),
+    () => safeCheck(checkMerchStripeProductSync, 'Merch & Cafe Stripe Product Sync'),
   ];
 
   const dbEnforcedChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [

@@ -1176,3 +1176,274 @@ export async function checkUnresolvedFailedSideEffects(): Promise<IntegrityCheck
     lastRun: new Date()
   };
 }
+
+export async function checkNegativeMerchStock(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const result = await db.execute(sql`
+      SELECT id, name, stock_quantity, is_active
+      FROM merch_items
+      WHERE stock_quantity IS NOT NULL AND stock_quantity < 0
+      ORDER BY stock_quantity ASC
+      LIMIT 50
+    `);
+
+    for (const row of result.rows as unknown as Array<{ id: number; name: string; stock_quantity: number; is_active: boolean }>) {
+      issues.push({
+        category: 'data_quality',
+        severity: 'warning',
+        table: 'merch_items',
+        recordId: String(row.id),
+        description: `Merch item "${row.name}" has negative stock quantity (${row.stock_quantity})${row.is_active ? '' : ' [inactive]'}`,
+        suggestion: 'Investigate possible race condition in stock deduction and correct the quantity',
+        context: {
+          itemName: row.name,
+          stockQuantity: row.stock_quantity,
+          isActive: row.is_active,
+        }
+      });
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Failed to check negative merch stock:', { extra: { error: getErrorMessage(error) } });
+    issues.push({
+      category: 'system_error',
+      severity: 'warning',
+      table: 'merch_items',
+      recordId: 'check_error',
+      description: `Failed to check negative merch stock: ${getErrorMessage(error)}`,
+      suggestion: 'Review server logs for details'
+    });
+  }
+
+  return {
+    checkName: 'Negative Merch Stock',
+    status: issues.length === 0 ? 'pass' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+export async function checkMerchStripeProductSync(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  let stripe: Stripe;
+  try {
+    stripe = await getStripeClient();
+  } catch (err: unknown) {
+    logger.error('[DataIntegrity] Stripe API error for merch sync check:', { extra: { error: getErrorMessage(err) } });
+    issues.push({
+      category: 'sync_mismatch',
+      severity: 'info',
+      table: 'merch_items',
+      recordId: 'stripe_api',
+      description: 'Unable to connect to Stripe for merch/cafe product sync check',
+      suggestion: 'Check Stripe integration connection'
+    });
+    return {
+      checkName: 'Merch & Cafe Stripe Product Sync',
+      status: 'warning',
+      issueCount: issues.length,
+      issues,
+      lastRun: new Date()
+    };
+  }
+
+  let merchResult, cafeResult;
+  try {
+    merchResult = await db.execute(sql`
+      SELECT id, name, price, stripe_product_id, stripe_price_id, is_active
+      FROM merch_items
+      WHERE is_active = true
+        AND stripe_product_id IS NOT NULL
+        AND stripe_product_id != ''
+      ORDER BY id
+    `);
+
+    cafeResult = await db.execute(sql`
+      SELECT id, name, price, stripe_product_id, stripe_price_id, is_active
+      FROM cafe_items
+      WHERE is_active = true
+        AND stripe_product_id IS NOT NULL
+        AND stripe_product_id != ''
+      ORDER BY id
+    `);
+  } catch (dbErr: unknown) {
+    logger.error('[DataIntegrity] Failed to query merch/cafe items for Stripe sync check:', { extra: { error: getErrorMessage(dbErr) } });
+    issues.push({
+      category: 'system_error',
+      severity: 'warning',
+      table: 'merch_items',
+      recordId: 'check_error',
+      description: `Failed to query merch/cafe items: ${getErrorMessage(dbErr)}`,
+      suggestion: 'Review server logs for details'
+    });
+    return {
+      checkName: 'Merch & Cafe Stripe Product Sync',
+      status: 'warning',
+      issueCount: issues.length,
+      issues,
+      lastRun: new Date()
+    };
+  }
+
+  type ItemRow = {
+    id: number;
+    name: string;
+    price: string;
+    stripe_product_id: string;
+    stripe_price_id: string | null;
+    is_active: boolean;
+  };
+
+  const allItems: Array<ItemRow & { source: 'merch' | 'cafe' }> = [
+    ...(merchResult.rows as unknown as ItemRow[]).map(r => ({ ...r, source: 'merch' as const })),
+    ...(cafeResult.rows as unknown as ItemRow[]).map(r => ({ ...r, source: 'cafe' as const })),
+  ];
+
+  const BATCH_SIZE = 10;
+  const BATCH_DELAY_MS = 100;
+
+  for (let i = 0; i < allItems.length; i += BATCH_SIZE) {
+    const batch = allItems.slice(i, i + BATCH_SIZE);
+
+    await Promise.all(batch.map(async (item) => {
+      const label = item.source === 'merch' ? 'Merch' : 'Cafe';
+      const table = item.source === 'merch' ? 'merch_items' : 'cafe_items';
+
+      try {
+        const product = await stripe.products.retrieve(item.stripe_product_id);
+
+        if (!product.active) {
+          issues.push({
+            category: 'sync_mismatch',
+            severity: 'warning',
+            table,
+            recordId: String(item.id),
+            description: `${label} item "${item.name}" is active locally but its Stripe product (${item.stripe_product_id}) is archived/inactive`,
+            suggestion: 'Re-activate the Stripe product or deactivate the local item',
+            context: {
+              itemName: item.name,
+              stripeProductId: item.stripe_product_id,
+              source: item.source,
+            }
+          });
+        }
+
+        if (item.stripe_price_id) {
+          try {
+            const price = await stripe.prices.retrieve(item.stripe_price_id);
+            const localPriceCents = Math.round(parseFloat(item.price) * 100);
+
+            if (!price.active) {
+              issues.push({
+                category: 'sync_mismatch',
+                severity: 'warning',
+                table,
+                recordId: String(item.id),
+                description: `${label} item "${item.name}" references an inactive Stripe price (${item.stripe_price_id})`,
+                suggestion: 'Create a new Stripe price or update the local reference',
+                context: {
+                  itemName: item.name,
+                  stripePriceId: item.stripe_price_id,
+                  source: item.source,
+                }
+              });
+            } else if (price.unit_amount !== null && price.unit_amount !== localPriceCents) {
+              issues.push({
+                category: 'sync_mismatch',
+                severity: 'warning',
+                table,
+                recordId: String(item.id),
+                description: `${label} item "${item.name}" local price ($${item.price}) differs from Stripe price ($${(price.unit_amount / 100).toFixed(2)})`,
+                suggestion: 'Update the local price or push the new price to Stripe',
+                context: {
+                  itemName: item.name,
+                  localPrice: item.price,
+                  stripePrice: (price.unit_amount / 100).toFixed(2),
+                  stripePriceId: item.stripe_price_id,
+                  source: item.source,
+                }
+              });
+            }
+          } catch (priceErr: unknown) {
+            if (isStripeError(priceErr) && isStripeResourceMissing(priceErr)) {
+              issues.push({
+                category: 'sync_mismatch',
+                severity: 'warning',
+                table,
+                recordId: String(item.id),
+                description: `${label} item "${item.name}" references a Stripe price (${item.stripe_price_id}) that no longer exists`,
+                suggestion: 'Clear the stored price ID and re-sync to Stripe',
+                context: {
+                  itemName: item.name,
+                  stripePriceId: item.stripe_price_id,
+                  source: item.source,
+                }
+              });
+            } else {
+              logger.warn(`[DataIntegrity] Error checking Stripe price for ${label} item ${item.id}:`, { extra: { error: getErrorMessage(priceErr) } });
+              issues.push({
+                category: 'sync_mismatch',
+                severity: 'warning',
+                table,
+                recordId: String(item.id),
+                description: `${label} item "${item.name}" — could not verify Stripe price (${item.stripe_price_id}): ${getErrorMessage(priceErr)}`,
+                suggestion: 'Check Stripe API access and retry',
+                context: {
+                  itemName: item.name,
+                  stripePriceId: item.stripe_price_id,
+                  source: item.source,
+                }
+              });
+            }
+          }
+        }
+      } catch (prodErr: unknown) {
+        if (isStripeError(prodErr) && isStripeResourceMissing(prodErr)) {
+          issues.push({
+            category: 'sync_mismatch',
+            severity: 'error',
+            table,
+            recordId: String(item.id),
+            description: `${label} item "${item.name}" references a Stripe product (${item.stripe_product_id}) that no longer exists`,
+            suggestion: 'Clear the stored product/price IDs and re-sync to Stripe',
+            context: {
+              itemName: item.name,
+              stripeProductId: item.stripe_product_id,
+              source: item.source,
+            }
+          });
+        } else {
+          logger.warn(`[DataIntegrity] Error checking Stripe product for ${label} item ${item.id}:`, { extra: { error: getErrorMessage(prodErr) } });
+          issues.push({
+            category: 'sync_mismatch',
+            severity: 'warning',
+            table,
+            recordId: String(item.id),
+            description: `${label} item "${item.name}" — could not verify Stripe product (${item.stripe_product_id}): ${getErrorMessage(prodErr)}`,
+            suggestion: 'Check Stripe API access and retry',
+            context: {
+              itemName: item.name,
+              stripeProductId: item.stripe_product_id,
+              source: item.source,
+            }
+          });
+        }
+      }
+    }));
+
+    if (i + BATCH_SIZE < allItems.length) {
+      await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+    }
+  }
+
+  return {
+    checkName: 'Merch & Cafe Stripe Product Sync',
+    status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
