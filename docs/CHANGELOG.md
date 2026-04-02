@@ -2,6 +2,21 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.16] - 2026-04-02
+
+### Performance: Parallelize approved-bookings enrichment queries
+- Changed 3 sequential DB queries (payment status, fee snapshots, filled slots) in `/api/approved-bookings` to run in parallel via `Promise.all()`. Production logs showed this endpoint consistently taking 3-4 seconds; parallel execution should cut ~1-2 seconds.
+- Moved Google Calendar API fetch to run concurrently with enrichment queries using a fire-and-forget promise pattern (awaited at final assembly). Calendar fetch + `getConferenceRoomId()` also parallelized internally.
+- Files changed: `server/routes/bays/calendar.ts`
+
+### Performance: Parallelize booking members endpoint
+- Started `staffEmailsPromise` early (before owner tier lookups) and parallelized `getTierLimits` + `getAvailableGuestPasses` in `/api/admin/booking/:id/members`. Production logs showed 1.5-2.8s response times.
+- Files changed: `server/routes/trackman/admin-roster.ts`
+
+### Fix: Reduce normalizeTierSlug log noise
+- Downgraded `normalizeTierSlug` empty/null input warning from `warn` to `debug` level. Production logs showed frequent warnings from records with legitimately empty tier names (e.g. visitors, unmatched bookings). The error-level log for truly unmatched tier names remains unchanged.
+- Files changed: `server/utils/tierUtils.ts`
+
 ## [8.98.15] - 2026-04-02
 
 ### Fix: useEffect race conditions in staff booking modals

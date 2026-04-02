@@ -80,7 +80,7 @@ export function setServerTierData(
 
 export function normalizeTierSlug(rawName: string | null | undefined): string | null {
   if (!rawName || typeof rawName !== 'string') {
-    logger.warn('[normalizeTierSlug] Empty or invalid tier name, returning null', { rawName });
+    logger.debug('[normalizeTierSlug] Empty or invalid tier name, returning null', { rawName });
     return null;
   }
 

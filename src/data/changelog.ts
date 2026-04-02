@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.16",
+    date: "2026-04-02",
+    title: "Staff Portal Performance Boost",
+    changes: [
+      "Improved: The staff booking calendar now loads significantly faster by running multiple data lookups in parallel instead of one-by-one.",
+      "Improved: Booking detail panels now load member roster data faster with parallelized lookups.",
+      "Fixed: Reduced unnecessary warning noise in server logs from empty tier name lookups.",
+    ]
+  },
+  {
     version: "8.98.15",
     date: "2026-04-02",
     title: "Race Condition Fixes & Tier Data Hardening",

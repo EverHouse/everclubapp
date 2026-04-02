@@ -126,87 +126,102 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     .where(and(...conditions))
     .orderBy(asc(bookingRequests.requestDate), asc(bookingRequests.startTime));
     
-    let calendarBookings: Array<Record<string, unknown>> = [];
-    try {
-      const calendarEvents = await getConferenceRoomBookingsFromCalendar();
-      
-      const dbCalendarEventIds = new Set(
-        dbResult
-          .filter(r => r.calendar_event_id)
-          .map(r => r.calendar_event_id)
-      );
-      
-      const confRoomId = await getConferenceRoomId();
-      calendarBookings = calendarEvents
-        .filter(event => {
-          if (dbCalendarEventIds.has(event.id)) return false;
-          if (event.date < (defaultStartDate as string)) return false;
-          if (event.date > (defaultEndDate as string)) return false;
-          return true;
-        })
-        .map(event => ({
-          id: `cal_${event.id}`,
-          user_email: null,
-          user_name: event.memberName ?? '',
-          resource_id: confRoomId,
-          resource_preference: null,
-          request_date: event.date,
-          start_time: event.startTime + ':00',
-          duration_minutes: null,
-          end_time: event.endTime + ':00',
-          notes: event.description,
-          status: 'approved',
-          staff_notes: null,
-          suggested_time: null,
-          reviewed_by: null,
-          reviewed_at: null,
-          created_at: null,
-          updated_at: null,
-          calendar_event_id: event.id,
-          resource_name: 'Conference Room',
-          resource_type: 'conference_room',
-          source: 'calendar'
-        }));
-    } catch (calError) {
-      logger.error('Failed to fetch calendar conference bookings (non-blocking)', { extra: { error: getErrorMessage(calError) } });
-    }
-    
     const bookingIds = dbResult.map(b => b.id).filter(Boolean);
+    const bookingIdsLiteral = toIntArrayLiteral(bookingIds);
+    const dbCalendarEventIds = new Set(
+      dbResult
+        .filter(r => r.calendar_event_id)
+        .map(r => r.calendar_event_id)
+    );
     
     const paymentStatusMap = new Map<number, { hasUnpaidFees: boolean; totalOwed: number }>();
     const filledSlotsMap = new Map<number, number>();
     let feeSnapshotPaidSet = new Set<number>();
-    
-    const bookingIdsLiteral = toIntArrayLiteral(bookingIds);
+
+    const calendarPromise = (async () => {
+      try {
+        const [calendarEvents, confRoomId] = await Promise.all([
+          getConferenceRoomBookingsFromCalendar(),
+          getConferenceRoomId(),
+        ]);
+        return calendarEvents
+          .filter(event => {
+            if (dbCalendarEventIds.has(event.id)) return false;
+            if (event.date < (defaultStartDate as string)) return false;
+            if (event.date > (defaultEndDate as string)) return false;
+            return true;
+          })
+          .map(event => ({
+            id: `cal_${event.id}`,
+            user_email: null,
+            user_name: event.memberName ?? '',
+            resource_id: confRoomId,
+            resource_preference: null,
+            request_date: event.date,
+            start_time: event.startTime + ':00',
+            duration_minutes: null,
+            end_time: event.endTime + ':00',
+            notes: event.description,
+            status: 'approved',
+            staff_notes: null,
+            suggested_time: null,
+            reviewed_by: null,
+            reviewed_at: null,
+            created_at: null,
+            updated_at: null,
+            calendar_event_id: event.id,
+            resource_name: 'Conference Room',
+            resource_type: 'conference_room',
+            source: 'calendar'
+          }));
+      } catch (calError) {
+        logger.error('Failed to fetch calendar conference bookings (non-blocking)', { extra: { error: getErrorMessage(calError) } });
+        return [] as Array<Record<string, unknown>>;
+      }
+    })();
+
     if (bookingIds.length > 0) {
-      const paymentStatusResult = await db.execute(sql`
-        SELECT 
-          br.id as booking_id,
-          COALESCE(pending_fees.total_owed, 0)::numeric as total_owed,
-          CASE 
-            WHEN br.session_id IS NOT NULL 
-              AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = br.session_id)
-              AND NOT EXISTS (SELECT 1 FROM booking_participants bp3 WHERE bp3.session_id = br.session_id AND bp3.payment_status IN ('pending', 'refunded') AND COALESCE(bp3.cached_fee_cents, 0) > 0)
-            THEN true
-            ELSE false
-          END as all_participants_paid
-        FROM booking_requests br
-        LEFT JOIN LATERAL (
-          /* Convert cached_fee_cents to dollars for frontend display */
-          SELECT SUM(COALESCE(bp.cached_fee_cents, 0)) / 100.0 as total_owed
-          FROM booking_participants bp
-          WHERE bp.session_id = br.session_id
-            AND bp.payment_status IN ('pending', 'refunded')
-        ) pending_fees ON true
-        WHERE br.id = ANY(${bookingIdsLiteral}::int[])
-      `);
-      
-      const feeSnapshotResult = await db.execute(sql`
-        SELECT br.id as booking_id, bfs.created_at as snapshot_created_at
-        FROM booking_requests br
-        INNER JOIN booking_fee_snapshots bfs ON bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')
-        WHERE br.id = ANY(${bookingIdsLiteral}::int[])
-      `);
+      const [paymentStatusResult, feeSnapshotResult, filledSlotsResult] = await Promise.all([
+        db.execute(sql`
+          SELECT 
+            br.id as booking_id,
+            COALESCE(pending_fees.total_owed, 0)::numeric as total_owed,
+            CASE 
+              WHEN br.session_id IS NOT NULL 
+                AND EXISTS (SELECT 1 FROM booking_participants bp2 WHERE bp2.session_id = br.session_id)
+                AND NOT EXISTS (SELECT 1 FROM booking_participants bp3 WHERE bp3.session_id = br.session_id AND bp3.payment_status IN ('pending', 'refunded') AND COALESCE(bp3.cached_fee_cents, 0) > 0)
+              THEN true
+              ELSE false
+            END as all_participants_paid
+          FROM booking_requests br
+          LEFT JOIN LATERAL (
+            SELECT SUM(COALESCE(bp.cached_fee_cents, 0)) / 100.0 as total_owed
+            FROM booking_participants bp
+            WHERE bp.session_id = br.session_id
+              AND bp.payment_status IN ('pending', 'refunded')
+          ) pending_fees ON true
+          WHERE br.id = ANY(${bookingIdsLiteral}::int[])
+        `),
+        db.execute(sql`
+          SELECT br.id as booking_id, bfs.created_at as snapshot_created_at
+          FROM booking_requests br
+          INNER JOIN booking_fee_snapshots bfs ON bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')
+          WHERE br.id = ANY(${bookingIdsLiteral}::int[])
+        `),
+        db.execute(sql`
+          SELECT 
+            br.id as booking_id,
+            CASE 
+              WHEN br.session_id IS NOT NULL AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = br.session_id)
+              THEN (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot'))
+              ELSE (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type IN ('member', 'owner') AND bp.user_id IS NOT NULL)
+                   + (SELECT COUNT(*) FROM booking_participants bp2 WHERE bp2.session_id = br.session_id AND bp2.participant_type = 'guest' AND NOT (bp2.user_id IS NULL AND bp2.guest_id IS NULL AND bp2.display_name = 'Empty Slot'))
+            END as filled_count
+          FROM booking_requests br
+          WHERE br.id = ANY(${bookingIdsLiteral}::int[])
+        `),
+      ]);
+
       feeSnapshotPaidSet = new Set<number>((feeSnapshotResult.rows as unknown as FeeSnapshotRow[]).map(r => r.booking_id));
 
       for (const row of paymentStatusResult.rows as unknown as PaymentStatusRow[]) {
@@ -220,19 +235,6 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
           feeSnapshotPaidSet.add(row.booking_id);
         }
       }
-      
-      const filledSlotsResult = await db.execute(sql`
-        SELECT 
-          br.id as booking_id,
-          CASE 
-            WHEN br.session_id IS NOT NULL AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = br.session_id)
-            THEN (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND NOT (bp.participant_type = 'guest' AND bp.user_id IS NULL AND bp.guest_id IS NULL AND bp.display_name = 'Empty Slot'))
-            ELSE (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id AND bp.participant_type IN ('member', 'owner') AND bp.user_id IS NOT NULL)
-                 + (SELECT COUNT(*) FROM booking_participants bp2 WHERE bp2.session_id = br.session_id AND bp2.participant_type = 'guest' AND NOT (bp2.user_id IS NULL AND bp2.guest_id IS NULL AND bp2.display_name = 'Empty Slot'))
-          END as filled_count
-        FROM booking_requests br
-        WHERE br.id = ANY(${bookingIdsLiteral}::int[])
-      `);
       
       for (const row of filledSlotsResult.rows as unknown as FilledSlotsRow[]) {
         filledSlotsMap.set(row.booking_id, parseInt(row.filled_count, 10) || 0);
@@ -257,6 +259,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       };
     });
     
+    const calendarBookings = await calendarPromise;
     const allBookings = ([...enrichedDbResult, ...calendarBookings] as Array<Record<string, unknown>>)
       .sort((a, b) => {
         const dateCompare = (String(a.request_date || '')).localeCompare(String(b.request_date || ''));

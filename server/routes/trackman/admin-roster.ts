@@ -74,14 +74,6 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
     let ownerTierLimits: Awaited<ReturnType<typeof getTierLimits>> | null = null;
     let ownerGuestPassesRemaining = 0;
     
-    if (ownerEmail && !String(ownerEmail).includes('unmatched')) {
-      ownerTier = await getMemberTierByEmail(ownerEmail as string);
-      if (ownerTier) {
-        ownerTierLimits = await getTierLimits(ownerTier);
-      }
-      ownerGuestPassesRemaining = await getAvailableGuestPasses(ownerEmail as string, ownerTier || undefined);
-    }
-    
     const _targetPlayerCount = declaredPlayerCount || trackmanPlayerCount || 1;
     const isUnmatchedOwner = !ownerEmail || String(ownerEmail).includes('unmatched@') || String(ownerEmail).includes('@trackman.import');
     const bookingData = bookingResult.rows[0] as DbRow;
@@ -92,7 +84,19 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       return res.status(400).json({ error: 'Invalid booking ID' });
     }
 
-    const staffEmailsResult = await db.execute(sql`SELECT LOWER(email) as email FROM staff_users WHERE is_active = true`);
+    const staffEmailsPromise = db.execute(sql`SELECT LOWER(email) as email FROM staff_users WHERE is_active = true`);
+
+    if (ownerEmail && !String(ownerEmail).includes('unmatched')) {
+      ownerTier = await getMemberTierByEmail(ownerEmail as string);
+      const [tierLimitsResult, guestPassesResult] = await Promise.all([
+        ownerTier ? getTierLimits(ownerTier) : Promise.resolve(null),
+        getAvailableGuestPasses(ownerEmail as string, ownerTier || undefined),
+      ]);
+      ownerTierLimits = tierLimitsResult;
+      ownerGuestPassesRemaining = guestPassesResult;
+    }
+
+    const staffEmailsResult = await staffEmailsPromise;
     const staffEmailSet = new Set(staffEmailsResult.rows.map((r: DbRow) => r.email));
 
     type FeeBreakdownObj = {
