@@ -308,6 +308,18 @@ export interface OvercapacitySessionRow {
   participant_count: number;
 }
 
+export interface WalletPassSyncRow {
+  pass_id: number;
+  serial_number: string;
+  booking_id: number;
+  member_id: string;
+  voided_at: Date | null;
+  booking_status: string;
+  user_email: string | null;
+  user_name: string | null;
+  request_date: string | null;
+}
+
 export interface AuditLogDetailsRow {
   issueKey?: string;
   resolutionMethod?: string;
@@ -437,6 +449,9 @@ export interface IssueContext {
   totalUnreported?: number;
   ledgerCount?: number;
   requestDate?: string;
+  serialNumber?: string;
+  passId?: number;
+  voidedAt?: string | Date;
 }
 
 export interface IntegrityIssue {
@@ -528,6 +543,8 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Merch & Cafe Stripe Product Sync': 'medium',
   'Usage Ledger Gaps': 'high',
   'Stuck Push Notifications': 'medium',
+  'Wallet Pass Booking Sync': 'medium',
+  'Sessions Exceeding Resource Capacity': 'high',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -798,7 +815,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity } = await import('./bookingChecks');
+  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync } = await import('./stripeChecks');
@@ -825,6 +842,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkMerchStripeProductSync, 'Merch & Cafe Stripe Product Sync'),
     () => safeCheck(checkStaleExpiredGuestPassHolds, 'Stale Expired Guest Pass Holds'),
     () => safeCheck(checkStuckPushNotifications, 'Stuck Push Notifications'),
+    () => safeCheck(checkWalletPassBookingSync, 'Wallet Pass Booking Sync'),
   ];
 
   const dbEnforcedChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [

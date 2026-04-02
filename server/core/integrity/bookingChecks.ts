@@ -22,6 +22,7 @@ import type {
   StaleBookingRow,
   StuckUnpaidBookingRow,
   OvercapacitySessionRow,
+  WalletPassSyncRow,
 } from './core';
 
 export async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
@@ -1224,6 +1225,126 @@ export async function checkSessionsExceedingResourceCapacity(): Promise<Integrit
         table: 'booking_sessions',
         recordId: 'check_error',
         description: `Failed to check sessions exceeding resource capacity: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+}
+
+export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const unvoidedForTerminal = await db.execute(sql`
+      SELECT bwp.id as pass_id, bwp.serial_number, bwp.booking_id, bwp.member_id,
+             bwp.voided_at, br.status as booking_status,
+             br.user_email, br.user_name, br.request_date
+      FROM booking_wallet_passes bwp
+      JOIN booking_requests br ON bwp.booking_id = br.id
+      WHERE bwp.voided_at IS NULL
+        AND br.status IN ('cancelled', 'declined', 'expired', 'cancellation_pending')
+      ORDER BY br.request_date DESC
+      LIMIT 100
+    `);
+
+    for (const row of unvoidedForTerminal.rows as unknown as WalletPassSyncRow[]) {
+      issues.push({
+        category: 'sync_mismatch',
+        severity: 'warning',
+        table: 'booking_wallet_passes',
+        recordId: row.pass_id,
+        description: `Wallet pass "${row.serial_number}" for booking #${row.booking_id} is still active but booking is "${row.booking_status}"`,
+        suggestion: 'Auto-fix will void the pass and re-trigger a push update to the member\'s device',
+        context: {
+          serialNumber: row.serial_number,
+          bookingId: row.booking_id,
+          bookingStatus: row.booking_status,
+          memberEmail: row.user_email || undefined,
+          memberName: row.user_name || undefined,
+          bookingDate: row.request_date || undefined,
+          passId: row.pass_id,
+        }
+      });
+    }
+
+    if (unvoidedForTerminal.rows.length > 0) {
+      const { voidBookingPass } = await import('../../walletPass/bookingPassService');
+      for (const row of unvoidedForTerminal.rows as unknown as WalletPassSyncRow[]) {
+        try {
+          await voidBookingPass(row.booking_id);
+          const [verifyRow] = (await db.execute(sql`
+            SELECT voided_at FROM booking_wallet_passes WHERE id = ${row.pass_id}
+          `)).rows as unknown as Array<{ voided_at: Date | null }>;
+          if (verifyRow?.voided_at) {
+            logger.info('[DataIntegrity] Auto-fixed: voided wallet pass for terminal booking', {
+              extra: { bookingId: row.booking_id, serialNumber: row.serial_number, bookingStatus: row.booking_status }
+            });
+          } else {
+            logger.warn('[DataIntegrity] voidBookingPass completed but pass still not voided', {
+              extra: { bookingId: row.booking_id, serialNumber: row.serial_number, passId: row.pass_id }
+            });
+          }
+        } catch (fixErr: unknown) {
+          logger.error('[DataIntegrity] Failed to auto-void wallet pass for terminal booking', {
+            extra: { bookingId: row.booking_id, serialNumber: row.serial_number, error: getErrorMessage(fixErr) }
+          });
+        }
+      }
+    }
+
+    const voidedForActive = await db.execute(sql`
+      SELECT bwp.id as pass_id, bwp.serial_number, bwp.booking_id, bwp.member_id,
+             bwp.voided_at, br.status as booking_status,
+             br.user_email, br.user_name, br.request_date
+      FROM booking_wallet_passes bwp
+      JOIN booking_requests br ON bwp.booking_id = br.id
+      WHERE bwp.voided_at IS NOT NULL
+        AND br.status IN ('approved', 'confirmed', 'attended', 'checked_in')
+      ORDER BY br.request_date DESC
+      LIMIT 100
+    `);
+
+    for (const row of voidedForActive.rows as unknown as WalletPassSyncRow[]) {
+      issues.push({
+        category: 'sync_mismatch',
+        severity: 'warning',
+        table: 'booking_wallet_passes',
+        recordId: row.pass_id,
+        description: `Wallet pass "${row.serial_number}" for booking #${row.booking_id} was voided but booking is still "${row.booking_status}"`,
+        suggestion: 'Review and un-void the pass manually or verify the booking status is correct',
+        context: {
+          serialNumber: row.serial_number,
+          bookingId: row.booking_id,
+          bookingStatus: row.booking_status,
+          memberEmail: row.user_email || undefined,
+          memberName: row.user_name || undefined,
+          bookingDate: row.request_date || undefined,
+          passId: row.pass_id,
+          voidedAt: row.voided_at || undefined,
+        }
+      });
+    }
+
+    return {
+      checkName: 'Wallet Pass Booking Sync',
+      status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
+      issueCount: issues.length,
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking wallet pass booking sync:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Wallet Pass Booking Sync',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_wallet_passes',
+        recordId: 'check_error',
+        description: `Failed to check wallet pass booking sync: ${getErrorMessage(error)}`,
         suggestion: 'Review server logs for details and retry'
       }],
       lastRun: new Date()
