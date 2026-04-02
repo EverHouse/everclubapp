@@ -759,7 +759,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           if (!isUpcoming && existing.sessionId && !hasCompletedPayments) {
             try {
               await db.execute(sql`
-                UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW()
+                UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
                 WHERE session_id = ${existing.sessionId} AND payment_status = 'pending'
               `);
             } catch (payErr: unknown) {
@@ -2005,7 +2005,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   try {
     const pastPaidResult = await db.execute(sql`
       UPDATE booking_participants bp
-      SET payment_status = 'paid', paid_at = NOW()
+      SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
       FROM booking_sessions bs
       WHERE bp.session_id = bs.id
         AND bp.payment_status = 'pending'

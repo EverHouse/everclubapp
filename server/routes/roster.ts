@@ -392,7 +392,7 @@ router.post('/api/admin/booking/:bookingId/recalculate-fees', isStaffOrAdmin, as
 
           if (prepayResult?.paidInFull) {
             await db.execute(
-              sql`UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = ${booking.session_id} AND payment_status IN ('pending', 'refunded')`
+              sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${booking.session_id} AND payment_status IN ('pending', 'refunded')`
             );
           }
           prepaymentCreated = true;

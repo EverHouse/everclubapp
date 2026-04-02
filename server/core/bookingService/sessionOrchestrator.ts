@@ -484,7 +484,7 @@ export async function createSessionWithUsageTracking(
         if (guestParticipantIds.length > 0) {
           await tx.execute(sql`
             UPDATE booking_participants 
-            SET used_guest_pass = true, payment_status = 'paid'
+            SET used_guest_pass = true, payment_status = 'paid', cached_fee_cents = 0
             WHERE id = ANY(${toIntArrayLiteral(guestParticipantIds)}::int[])
           `);
           

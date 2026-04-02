@@ -330,7 +330,7 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
       const paidParticipantIds = pendingFees.map(f => f.participantId!).filter(Boolean);
       if (paidParticipantIds.length > 0) {
         await db.execute(sql`
-          UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW()
+          UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
           WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
         `);
       }
@@ -502,7 +502,7 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     if (paidParticipantIds.length > 0) {
       await db.execute(sql`
         UPDATE booking_participants
-         SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+         SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(), cached_fee_cents = 0
          WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
       `);
     }

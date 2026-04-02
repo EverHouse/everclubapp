@@ -391,7 +391,7 @@ export async function createBookingForMember(
                   feeBreakdown: { overageCents: feeBreakdown.totals.overageCents, guestCents: feeBreakdown.totals.guestCents }
                 });
                 if (prepayResult?.paidInFull) {
-                  await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = ${newSessionId} AND payment_status IN ('pending', 'refunded')`);
+                  await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${newSessionId} AND payment_status IN ('pending', 'refunded')`);
                   logger.info('[Trackman Webhook] Prepayment fully covered by credit', { extra: { sessionId: newSessionId, bookingId: pendingBookingId } });
                 }
               } catch (prepayError: unknown) {

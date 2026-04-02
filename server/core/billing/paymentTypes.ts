@@ -354,7 +354,7 @@ export async function handleExistingInvoicePayment(params: {
         if (paidParticipantIds.length > 0) {
           await db.execute(sql`
             UPDATE booking_participants
-             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(), cached_fee_cents = 0
              WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
           `);
         }
@@ -509,7 +509,7 @@ export async function handleExistingInvoicePayment(params: {
         if (paidParticipantIds.length > 0) {
           await db.execute(sql`
             UPDATE booking_participants
-             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(), cached_fee_cents = 0
              WHERE id = ANY(${toIntArrayLiteral(paidParticipantIds)}::int[])
           `);
         }

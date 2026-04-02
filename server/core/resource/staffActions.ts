@@ -342,7 +342,7 @@ export async function assignWithPlayers(
         });
         
         if (prepayResult?.paidInFull) {
-          await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid' WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
+          await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
           logger.info('[assign-with-players] Prepayment fully covered by credit', {
             extra: { bookingId, sessionId, totalCents }
           });

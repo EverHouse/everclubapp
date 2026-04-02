@@ -564,7 +564,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                     const todayPacific = getTodayPacific();
                     const isPastBooking = otherDateStr < todayPacific;
                     if (isPastBooking) {
-                      await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW() WHERE session_id = ${otherSessionId} AND payment_status IN ('pending', 'refunded')`);
+                      await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${otherSessionId} AND payment_status IN ('pending', 'refunded')`);
                     }
                     await recordUsage(otherSessionId as number, {
                       memberId: (member.email as string).toLowerCase(),
@@ -772,7 +772,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           const todayPacific = getTodayPacific();
           const isPastBooking = bookingDateStr < todayPacific;
           if (isPastBooking) {
-            await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW() WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
+            await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
           }
           
           await recordUsage(sessionId as number, {
@@ -834,7 +834,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           const todayPacific = getTodayPacific();
           const isPastBooking = bookingDateStr < todayPacific;
           if (isPastBooking) {
-            await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW() WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
+            await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${sessionId} AND payment_status IN ('pending', 'refunded')`);
           }
           
           const existingUsage = await db.execute(sql`SELECT id, member_id FROM usage_ledger WHERE session_id = ${sessionId} AND (guest_fee IS NULL OR guest_fee = 0) AND source = 'trackman_import' LIMIT 1`);
@@ -1036,7 +1036,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
                 const todayPacific = getTodayPacific();
                 const isPastBooking = sameEmailDateStr < todayPacific;
                 if (isPastBooking) {
-                  await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW() WHERE session_id = ${sameEmailSessionId} AND payment_status IN ('pending', 'refunded')`);
+                  await db.execute(sql`UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0 WHERE session_id = ${sameEmailSessionId} AND payment_status IN ('pending', 'refunded')`);
                 }
                 await recordUsage(sameEmailSessionId as number, {
                   memberId: (member.email as string).toLowerCase(),

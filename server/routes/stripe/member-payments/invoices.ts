@@ -96,7 +96,7 @@ router.post('/api/member/invoices/:invoiceId/pay', isAuthenticated, async (req: 
         if (metaBookingId) {
           await db.execute(sql`
             UPDATE booking_participants
-             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW()
+             SET payment_status = 'paid', paid_at = NOW(), updated_at = NOW(), cached_fee_cents = 0
              WHERE booking_id = ${metaBookingId}
                AND payment_status IN ('pending', 'refunded')
           `);

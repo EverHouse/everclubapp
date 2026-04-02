@@ -1173,7 +1173,7 @@ router.post('/api/data-tools/cleanup-ghost-fees', isAdmin, async (req: Request, 
 
       await db.execute(sql`
         UPDATE booking_participants bp
-        SET payment_status = 'paid', paid_at = NOW()
+        SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
         FROM booking_sessions bs
         WHERE bp.session_id = bs.id
           AND bp.payment_status = 'pending'

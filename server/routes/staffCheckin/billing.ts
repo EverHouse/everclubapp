@@ -807,7 +807,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       if (balanceResult.paidInFull) {
         const paidIds = typedPending.map(p => p.id);
         await db.execute(sql`
-          UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW()
+          UPDATE booking_participants SET payment_status = 'paid', paid_at = NOW(), cached_fee_cents = 0
           WHERE id = ANY(${toIntArrayLiteral(paidIds)}::int[])
         `);
 
