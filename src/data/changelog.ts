@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.23",
+    date: "2026-04-02",
+    title: "Billing System Hardening",
+    changes: [
+      "Fixed: Refund processing now only marks participants as refunded if they were actually paid — prevents accidentally reverting waived or pending statuses.",
+      "Fixed: Payment confirmation fallback now safely handles edge case where payment amount data is missing, instead of silently miscounting.",
+      "Fixed: Refund processing now finds and updates the correct participants even when no fee snapshot exists, with proper audit logging.",
+    ]
+  },
+  {
     version: "8.98.22",
     date: "2026-04-02",
     title: "Payment Status Fix",

@@ -86,6 +86,12 @@ export class PaymentStatusService {
           const piRows = piLookup.rows as unknown as PaymentIntentRow[];
           if (piRows.length > 0 && piRows[0].booking_id) {
             const piRow = piRows[0];
+
+            if (piRow.amount_cents == null) {
+              logger.warn(`[PaymentStatusService] No-snapshot fallback: amount_cents is null for PI ${paymentIntentId} — skipping participant auto-update`);
+              return { success: true, participantsUpdated: 0, snapshotsUpdated: 0 } as PaymentStatusResult;
+            }
+
             const sessionLookup = await tx.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${piRow.booking_id}`);
             const resolvedSessionId = piRow.session_id || (sessionLookup.rows as unknown as SessionIdRow[])[0]?.session_id;
 
@@ -249,15 +255,18 @@ export class PaymentStatusService {
             const participantIds = participantFees.map((f: { id?: number; amountCents?: number }) => f.id).filter((id): id is number => id != null);
             
             if (participantIds.length > 0) {
-              await tx.execute(
+              const refundedResult = await tx.execute(
                 sql`UPDATE booking_participants 
                  SET payment_status = 'refunded'
-                 WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])`
+                 WHERE id = ANY(${toIntArrayLiteral(participantIds)}::int[])
+                 AND payment_status = 'paid'
+                 RETURNING id`
               );
               
+              const refundedIds = new Set((refundedResult.rows as unknown as { id: number }[]).map(r => r.id));
               for (const fee of participantFees) {
                 const participantId = fee.id;
-                if (participantId) {
+                if (participantId && refundedIds.has(participantId)) {
                   await logPaymentAudit({
                     bookingId: snapshot.booking_id,
                     sessionId: snapshot.session_id,
@@ -274,6 +283,40 @@ export class PaymentStatusService {
                 }
               }
             }
+          }
+        } else {
+          const fallbackResult = await tx.execute(
+            sql`SELECT bp.id, bp.session_id FROM booking_participants bp
+             WHERE bp.stripe_payment_intent_id = ${paymentIntentId} AND bp.payment_status = 'paid'
+             ORDER BY bp.id ASC
+             FOR UPDATE`
+          );
+          const fallbackRows = fallbackResult.rows as unknown as { id: number; session_id: number | null }[];
+          if (fallbackRows.length > 0) {
+            const fallbackIds = fallbackRows.map(r => r.id);
+            await tx.execute(
+              sql`UPDATE booking_participants SET payment_status = 'refunded'
+               WHERE id = ANY(${toIntArrayLiteral(fallbackIds)}::int[])
+               AND payment_status = 'paid'`
+            );
+            for (const row of fallbackRows) {
+              await logPaymentAudit({
+                bookingId: null,
+                sessionId: row.session_id,
+                participantId: row.id,
+                action: 'payment_refunded',
+                staffEmail: staffEmail || 'system',
+                staffName: staffName || 'Refund',
+                amountAffected: amountCents || 0,
+                previousStatus: 'paid',
+                newStatus: 'refunded',
+                paymentMethod: 'stripe',
+                metadata: { stripePaymentIntentId: paymentIntentId },
+              });
+            }
+            logger.info(`[PaymentStatusService] No-snapshot refund fallback: updated ${fallbackRows.length} participant(s) for PI ${paymentIntentId}`);
+          } else {
+            logger.warn(`[PaymentStatusService] No snapshot and no participants found for refunded PI ${paymentIntentId}`);
           }
         }
         

@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.23] - 2026-04-02
+
+### Billing System Hardening — Proactive Audit Fixes
+- **Fix: `markPaymentRefunded` only marks `paid` participants as refunded.** Previously, the SQL `UPDATE` had no `payment_status` guard, which could revert `waived` or `pending` participants to `refunded` when processing a refund for a shared booking. Added `AND payment_status = 'paid'` filter.
+- **Fix: `markPaymentSucceeded` null `amount_cents` guard.** The no-snapshot fallback used `Math.abs(totalPendingCents - piRow.amount_cents)` without checking for null. In JavaScript, `number - null = number`, which could cause incorrect amount matching. Now explicitly skips auto-update when `amount_cents` is null.
+- **Fix: `markPaymentRefunded` no-snapshot fallback.** When no `booking_fee_snapshots` record exists for a refunded PI, the system now falls back to finding participants by `stripe_payment_intent_id`, marks them refunded, and creates proper audit logs. Previously, only the `stripe_payment_intents` status was updated, leaving participant records in a `paid` state despite the refund.
+
+Files changed: `server/core/billing/PaymentStatusService.ts`
+
 ## [8.98.22] - 2026-04-02
 
 ### Critical Fix — Payment Status Preservation
