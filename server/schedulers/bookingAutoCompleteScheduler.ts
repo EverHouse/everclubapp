@@ -39,7 +39,7 @@ async function autoCompletePastBookings(): Promise<void> {
               br.end_time AS "endTime",
               EXTRACT(EPOCH FROM (NOW() - (br.request_date + COALESCE(br.end_time, br.start_time)::time))) / 3600 AS "stuckHours"
        FROM booking_requests br
-       WHERE br.status IN ('approved', 'confirmed')
+       WHERE br.status IN ('approved', 'confirmed', 'checked_in')
          AND br.request_date < $1::date
          AND br.request_date >= $1::date - INTERVAL '14 days'
          AND br.session_id IS NOT NULL
@@ -68,7 +68,7 @@ async function autoCompletePastBookings(): Promise<void> {
                reviewed_at = NOW(),
                reviewed_by = 'system-force-complete'
            WHERE id = ANY($1::int[])
-             AND status IN ('approved', 'confirmed')
+             AND status IN ('approved', 'confirmed', 'checked_in')
              AND (is_unmatched IS NOT TRUE)
            RETURNING id`,
           [forceIds, `[Force-completed after ${STUCK_FORCE_COMPLETE_DAYS}+ days stuck with unpaid fees]`]
@@ -161,7 +161,7 @@ async function autoCompletePastBookings(): Promise<void> {
     const unlinkedBookings = await queryWithRetry<{ id: number; userEmail: string }>(
       `SELECT br.id, br.user_email AS "userEmail"
        FROM booking_requests br
-       WHERE br.status IN ('approved', 'confirmed')
+       WHERE br.status IN ('approved', 'confirmed', 'checked_in')
          AND br.request_date >= $1::date - INTERVAL '14 days'
          AND br.session_id IS NOT NULL
          AND NOT EXISTS (
@@ -199,8 +199,7 @@ async function autoCompletePastBookings(): Promise<void> {
            updated_at = NOW(),
            reviewed_at = NOW(),
            reviewed_by = 'system-auto-checkin'
-       WHERE status IN ('approved', 'confirmed')
-         AND status NOT IN ('attended', 'checked_in')
+       WHERE status IN ('approved', 'confirmed', 'checked_in')
          AND (is_unmatched IS NOT TRUE)
          AND request_date >= $1::date - INTERVAL '14 days'
          AND (
@@ -250,7 +249,7 @@ async function autoCompletePastBookings(): Promise<void> {
     const markedCount = markedBookings.rows.length;
 
     if (markedCount === 0) {
-      logger.info('[Booking Auto-Complete] No past approved/confirmed bookings found');
+      logger.info('[Booking Auto-Complete] No past approved/confirmed/checked_in bookings found');
       schedulerTracker.recordRun('Booking Auto-Complete', true);
       return;
     }
@@ -414,7 +413,7 @@ async function autoCompletePastBookings(): Promise<void> {
 
       await notifyAllStaff(
         'Bookings Auto Checked-In',
-        `${markedCount} approved/confirmed booking(s) were auto checked-in because their scheduled time passed:\n\n${summary}${moreText}`,
+        `${markedCount} approved/confirmed/checked_in booking(s) were auto checked-in because their scheduled time passed:\n\n${summary}${moreText}`,
         'system',
         { sendPush: false }
       );
@@ -491,8 +490,7 @@ export async function runManualBookingAutoComplete(): Promise<{ markedCount: num
          updated_at = NOW(),
          reviewed_at = NOW(),
          reviewed_by = 'system-auto-checkin'
-     WHERE status IN ('approved', 'confirmed')
-       AND status NOT IN ('attended', 'checked_in')
+     WHERE status IN ('approved', 'confirmed', 'checked_in')
        AND (is_unmatched IS NOT TRUE)
        AND request_date >= $1::date - INTERVAL '14 days'
        AND (

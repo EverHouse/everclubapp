@@ -740,6 +740,77 @@ export async function checkStalePendingBookings(): Promise<IntegrityCheckResult>
   }
 }
 
+export async function checkStaleCheckedInBookings(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const staleResult = await db.execute(sql`
+      SELECT br.id, br.user_email, br.request_date, br.start_time, br.status, br.resource_id
+      FROM booking_requests br
+      WHERE br.status = 'checked_in'
+        AND (br.request_date + COALESCE(br.end_time, br.start_time)::time) < ((NOW() AT TIME ZONE 'America/Los_Angeles') - INTERVAL '24 hours')
+        AND br.request_date >= CURRENT_DATE - INTERVAL '14 days'
+      ORDER BY br.request_date DESC
+    `);
+
+    const totalStale = staleResult.rows.length;
+    const maxDetailedIssues = 25;
+
+    for (const row of (staleResult.rows as unknown as StaleBookingRow[]).slice(0, maxDetailedIssues)) {
+      issues.push({
+        category: 'booking_issue',
+        severity: 'warning',
+        table: 'booking_requests',
+        recordId: row.id,
+        description: `Booking #${row.id} for ${row.user_email} on ${row.request_date} at ${row.start_time} has been in "checked_in" status for over 24 hours past its end time`,
+        suggestion: 'This booking was checked in but never completed. Staff should review and mark as attended or resolve any outstanding fees.',
+        context: {
+          memberEmail: row.user_email || undefined,
+          bookingDate: row.request_date || undefined,
+          startTime: row.start_time || undefined,
+          status: row.status || undefined,
+          resourceId: row.resource_id ? Number(row.resource_id) : undefined
+        }
+      });
+    }
+
+    if (totalStale > maxDetailedIssues) {
+      issues.push({
+        category: 'booking_issue',
+        severity: 'info',
+        table: 'booking_requests',
+        recordId: 'stale_checked_in_summary',
+        description: `${totalStale - maxDetailedIssues} additional stale checked-in bookings not shown. Total: ${totalStale} bookings stuck in checked_in status for over 24 hours.`,
+        suggestion: 'Consider bulk-completing old checked-in bookings or investigating why they were not completed.'
+      });
+    }
+
+    return {
+      checkName: 'Stale Checked-In Bookings',
+      status: issues.length === 0 ? 'pass' : 'warning',
+      issueCount: totalStale,
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking stale checked-in bookings:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Stale Checked-In Bookings',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'booking_requests',
+        recordId: 'check_error',
+        description: `Failed to check stale checked-in bookings: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+}
+
 interface UsageLedgerGapRow {
   session_id: number;
   session_date: string;
