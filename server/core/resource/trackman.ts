@@ -5,6 +5,7 @@ import { logger } from '../logger';
 import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { ensureSessionForBooking } from '../bookingService/sessionManager';
 import { AppError } from '../errors';
+import { resolveValidUserId } from './staffActions';
 import { ensureDateString } from '../../utils/dateTimeUtils';
 import { getErrorMessage } from '../../utils/errorUtils';
 
@@ -190,16 +191,7 @@ export async function linkTrackmanToMember(
     }
   }
 
-  let resolvedOwnerId = ownerId ? String(ownerId) : null;
-  if (!resolvedOwnerId && ownerEmail) {
-    const [userRow] = await db.select({ id: users.id })
-      .from(users)
-      .where(sql`LOWER(${users.email}) = ${ownerEmail.toLowerCase()}`)
-      .limit(1);
-    if (userRow) {
-      resolvedOwnerId = userRow.id;
-    }
-  }
+  const resolvedOwnerId = await resolveValidUserId(ownerId, ownerEmail);
 
   const result = await db.transaction(async (tx) => {
     const [existingBooking] = await tx.select()

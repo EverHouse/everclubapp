@@ -23,6 +23,24 @@ import type { StaffManualBookingInput } from '../../../shared/validators/manualB
 const TERMINAL_STATUSES = ['cancelled', 'attended', 'completed', 'no_show', 'declined', 'expired'];
 const ASSIGNABLE_STATUSES = ['pending', 'pending_approval', 'approved', 'confirmed'];
 
+export async function resolveValidUserId(candidateId: string | null | undefined, email: string): Promise<string | null> {
+  if (candidateId) {
+    const [verified] = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, candidateId))
+      .limit(1);
+    if (verified) return verified.id;
+    logger.warn('[resolveValidUserId] Provided member_id not found in users table, falling back to email lookup', {
+      extra: { candidateId, email }
+    });
+  }
+  const [userByEmail] = await db.select({ id: users.id })
+    .from(users)
+    .where(sql`LOWER(${users.email}) = ${email.trim().toLowerCase()}`)
+    .limit(1);
+  return userByEmail?.id || null;
+}
+
 async function persistFailedSideEffect(bookingId: number, actionType: string, errorMessage: string, context?: Record<string, unknown>): Promise<void> {
   try {
     await db.insert(failedSideEffects).values({
@@ -54,6 +72,8 @@ interface FeeSumRow {
 }
 
 export async function assignMemberToBooking(bookingId: number, memberEmail: string, memberName: string, memberId?: string | null, expectedVersion?: number) {
+  const resolvedUserId = await resolveValidUserId(memberId, memberEmail);
+
   const result = await db.transaction(async (tx) => {
     const [existing] = await tx.select().from(bookingRequests).where(eq(bookingRequests.id, bookingId));
     
@@ -81,7 +101,7 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
       .set({
         userEmail: memberEmail.toLowerCase(),
         userName: memberName,
-        userId: memberId || null,
+        userId: resolvedUserId,
         isUnmatched: false,
         status: 'approved',
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Member assigned by staff: ' || ${memberName} || ']'`,
@@ -100,7 +120,7 @@ export async function assignMemberToBooking(bookingId: number, memberEmail: stri
 
     if (existing.sessionId) {
       await tx.execute(sql`UPDATE booking_participants
-        SET user_id = ${memberId || null},
+        SET user_id = ${resolvedUserId},
             display_name = ${memberName}
         WHERE session_id = ${existing.sessionId} AND participant_type = 'owner'`);
     }
@@ -160,16 +180,7 @@ export async function assignWithPlayers(
     }
   }
 
-  let resolvedOwnerId = owner.member_id || null;
-  if (!resolvedOwnerId && owner.email) {
-    const [userRow] = await db.select({ id: users.id })
-      .from(users)
-      .where(sql`LOWER(${users.email}) = ${owner.email.toLowerCase()}`)
-      .limit(1);
-    if (userRow) {
-      resolvedOwnerId = userRow.id;
-    }
-  }
+  const resolvedOwnerId = await resolveValidUserId(owner.member_id, owner.email);
   
   const result = await db.transaction(async (tx) => {
     const [existingBooking] = await tx.select()
@@ -398,6 +409,8 @@ export async function assignWithPlayers(
 }
 
 export async function changeBookingOwner(bookingId: number, newEmail: string, newName: string, memberId?: string | null, expectedVersion?: number) {
+  const resolvedUserId = await resolveValidUserId(memberId, newEmail);
+
   const result = await db.transaction(async (tx) => {
     const [existingBooking] = await tx.select()
       .from(bookingRequests)
@@ -421,7 +434,7 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
       .set({
         userEmail: newEmail.toLowerCase(),
         userName: newName,
-        userId: memberId || null,
+        userId: resolvedUserId,
         isUnmatched: false,
         status: 'approved',
         staffNotes: sql`COALESCE(${bookingRequests.staffNotes}, '') || ' [Owner changed from ' || ${previousOwner} || ' to ' || ${newName} || ' by staff]'`,
@@ -439,24 +452,10 @@ export async function changeBookingOwner(bookingId: number, newEmail: string, ne
     }
     
     if (existingBooking.sessionId) {
-      const resolvedUserId = memberId || null;
-      let resolvedName = newName;
-      let resolvedMemberId = resolvedUserId;
-
-      if (!resolvedMemberId) {
-        const userResult = await tx.execute(sql`SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER(${newEmail}) LIMIT 1`);
-        const userRow = (userResult.rows as Array<{ id: string; first_name: string | null; last_name: string | null }>)[0];
-        if (userRow) {
-          resolvedMemberId = userRow.id;
-          const fullName = [userRow.first_name, userRow.last_name].filter(Boolean).join(' ');
-          if (fullName) resolvedName = fullName;
-        }
-      }
-
       await tx.execute(sql`
         UPDATE booking_participants
-        SET user_id = ${resolvedMemberId},
-            display_name = ${resolvedName}
+        SET user_id = ${resolvedUserId},
+            display_name = ${newName}
         WHERE session_id = ${existingBooking.sessionId} AND participant_type = 'owner'
       `);
     }
