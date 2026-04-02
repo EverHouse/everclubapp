@@ -277,45 +277,77 @@ export async function seedDefaultNoticeTypes() {
   }
 }
 
+async function retryDbOperation<T>(
+  fn: () => Promise<T>,
+  label: string,
+  maxAttempts = 3,
+  baseDelayMs = 500
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const msg = getErrorMessage(err);
+      const isRetryable = msg.includes('timeout') || msg.includes('connection') || msg.includes('too many clients') || msg.includes('ECONNREFUSED');
+      if (attempt < maxAttempts && isRetryable) {
+        const delay = baseDelayMs * attempt;
+        logger.warn(`[DB Init] ${label} failed (attempt ${attempt}/${maxAttempts}), retrying in ${delay}ms...`, { extra: { error: msg } });
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error('unreachable');
+}
+
 export async function ensureDatabaseConstraints() {
   logger.info('[DB Init] Row-Level Security enabled on all tables (deny-all via migration 0074). Direct PostgreSQL connections and service role key bypass RLS.');
 
   try {
-    await db.execute(sql`
-      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);
-    `);
-    await db.execute(sql`
-      DELETE FROM notifications n1 USING notifications n2
-      WHERE n1.id < n2.id AND n1.idempotency_key IS NOT NULL AND n1.idempotency_key = n2.idempotency_key;
-    `);
-    await db.execute(sql`
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_idempotency_key ON notifications (idempotency_key);
-    `);
-    const colCheck = await db.execute(sql`
-      SELECT COUNT(*)::int as cnt FROM information_schema.columns
-      WHERE table_name = 'notifications' AND column_name = 'idempotency_key'
-    `);
-    if ((colCheck.rows[0] as any)?.cnt !== 1) {
-      throw new Error('notifications.idempotency_key column verification failed');
-    }
+    await retryDbOperation(async () => {
+      await db.execute(sql`
+        ALTER TABLE notifications ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);
+      `);
+      await db.execute(sql`
+        DELETE FROM notifications n1 USING notifications n2
+        WHERE n1.id < n2.id AND n1.idempotency_key IS NOT NULL AND n1.idempotency_key = n2.idempotency_key;
+      `);
+      await db.execute(sql`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_idempotency_key ON notifications (idempotency_key);
+      `);
+      const colCheck = await db.execute(sql`
+        SELECT COUNT(*)::int as cnt FROM information_schema.columns
+        WHERE table_name = 'notifications' AND column_name = 'idempotency_key'
+      `);
+      if (colCheck.rows.length === 0 || (colCheck.rows[0] as any)?.cnt !== 1) {
+        throw new Error('notifications.idempotency_key column verification failed');
+      }
+    }, 'notifications.idempotency_key setup');
     logger.info('[DB Init] Ensured notifications.idempotency_key column and index exist');
   } catch (err: unknown) {
     logger.error('[DB Init] CRITICAL: Failed to ensure notifications.idempotency_key — notification queries will fail:', { extra: { error: getErrorMessage(err) } });
     throw err;
   }
 
+  await new Promise(r => setTimeout(r, 50));
+
   try {
-    await db.execute(sql`
-      DELETE FROM booking_participants
-      WHERE NOT EXISTS (
-        SELECT 1 FROM booking_sessions WHERE booking_sessions.id = booking_participants.session_id
-      );
-    `);
+    await retryDbOperation(async () => {
+      await db.execute(sql`
+        DELETE FROM booking_participants
+        WHERE NOT EXISTS (
+          SELECT 1 FROM booking_sessions WHERE booking_sessions.id = booking_participants.session_id
+        );
+      `);
+    }, 'orphaned booking_participants cleanup');
 
+    await new Promise(r => setTimeout(r, 50));
 
-    await db.execute(sql`
-      DO $$ 
-      BEGIN
+    await retryDbOperation(async () => {
+      await db.execute(sql`
+        DO $$ 
+        BEGIN
         IF EXISTS (
           SELECT 1 FROM pg_constraint 
           WHERE conname = 'booking_requests_status_check'
@@ -337,7 +369,10 @@ export async function ensureDatabaseConstraints() {
           CHECK (duration_minutes IN (30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360));
       END $$;
     `);
+    }, 'booking constraints setup');
     
+    await new Promise(r => setTimeout(r, 50));
+
     try {
       await db.execute(sql`
         CREATE OR REPLACE FUNCTION prevent_booking_session_overlap()
@@ -608,6 +643,8 @@ export async function ensureDatabaseConstraints() {
     } catch { logger.debug('[DB Init] wellhub_status_events table already exists or failed'); }
     logger.info('[DB Init] Wellhub integration columns and tables verified');
     logger.info('[DB Init] Billing migration columns verified');
+
+    await new Promise(r => setTimeout(r, 50));
 
     try {
       await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_status_changed_at TIMESTAMP`);

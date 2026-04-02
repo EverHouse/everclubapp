@@ -54,7 +54,7 @@ export async function getStripeClient(): Promise<Stripe> {
   const { secretKey } = await getCredentials();
 
   return new Stripe(secretKey, {
-    apiVersion: '2025-08-27.basil' as Stripe.LatestApiVersion,
+    apiVersion: Stripe.API_VERSION,
   });
 }
 

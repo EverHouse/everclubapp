@@ -130,6 +130,9 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
       FROM booking_participants
       WHERE session_id = ${booking.session_id}
     `);
+    if (unpaidCheck.rows.length === 0) {
+      return { status: 500, body: { error: 'Failed to query participant payment status' } };
+    }
     const row = unpaidCheck.rows[0] as { total: string; paid_count: string; unpaid_with_fees: string };
     const totalCount = parseInt(row.total, 10) || 0;
     const paidCount = parseInt(row.paid_count, 10) || 0;
@@ -448,6 +451,9 @@ export async function processPayFees(params: PayFeesParams): Promise<{ status: n
     INSERT INTO booking_fee_snapshots (booking_id, session_id, participant_fees, total_cents, status)
      VALUES (${bookingId}, ${booking.session_id}, ${JSON.stringify(serverFees)}, ${serverTotal}, 'pending') RETURNING id
   `);
+  if (snapshotResult.rows.length === 0) {
+    return { status: 500, body: { error: 'Failed to create fee snapshot' } };
+  }
   const snapshotId = (snapshotResult.rows[0] as unknown as IdRow).id;
 
   const draftResult = await createDraftInvoiceForBooking({
@@ -703,7 +709,9 @@ export async function processConfirmPayment(params: ConfirmPaymentParams): Promi
 
   sideEffects.add('invoice_status_check', async () => {
     const invoiceIdResult = await db.execute(sql`SELECT stripe_invoice_id FROM booking_requests WHERE id = ${bookingId} AND stripe_invoice_id IS NOT NULL LIMIT 1`);
-    const invoiceId = (invoiceIdResult.rows[0] as Record<string, unknown> | undefined)?.stripe_invoice_id as string | undefined;
+    const invoiceId = invoiceIdResult.rows.length > 0
+      ? (invoiceIdResult.rows[0] as Record<string, unknown>).stripe_invoice_id as string | undefined
+      : undefined;
     if (invoiceId) {
       const stripeInv = await getStripeClient();
       const inv = await stripeInv.invoices.retrieve(invoiceId);

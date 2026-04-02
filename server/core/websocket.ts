@@ -568,6 +568,14 @@ export async function initWebSocketServer(server: Server) {
       }
     });
 
+    ws.on('ping', (data) => {
+      try {
+        ws.pong(data);
+      } catch (err: unknown) {
+        logger.debug('[WebSocket] Failed to send pong response', { extra: { error: getErrorMessage(err) } });
+      }
+    });
+
     ws.on('pong', () => {
       if (userEmail) {
         const connections = clients.get(userEmail) || [];
@@ -596,7 +604,7 @@ export async function initWebSocketServer(server: Server) {
         clients.set(email, alive);
       }
     });
-  }, 30000);
+  }, 20000);
 
   sessionRevalidationIntervalId = setInterval(async () => {
     const pool = getSessionPool();

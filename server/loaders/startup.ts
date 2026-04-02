@@ -31,6 +31,7 @@ async function runWithConcurrency(tasks: Array<() => Promise<void>>, limit: numb
   const effectiveLimit = Math.max(1, limit);
   const results: PromiseSettledResult<void>[] = [];
   let index = 0;
+  let completedCount = 0;
 
   async function runNext(): Promise<void> {
     while (index < tasks.length) {
@@ -40,6 +41,10 @@ async function runWithConcurrency(tasks: Array<() => Promise<void>>, limit: numb
         results[currentIndex] = { status: 'fulfilled', value: undefined };
       } catch (err) {
         results[currentIndex] = { status: 'rejected', reason: err };
+      }
+      completedCount++;
+      if (completedCount % effectiveLimit === 0) {
+        await new Promise(r => setTimeout(r, 100));
       }
     }
   }
@@ -101,8 +106,6 @@ export function validateEnvironment(): void {
     { name: 'GOOGLE_CLIENT_ID', feature: 'Google sign-in' },
     { name: 'SUPABASE_URL', feature: 'Supabase realtime' },
     { name: 'SUPABASE_ANON_KEY', feature: 'Supabase client' },
-    { name: 'STRIPE_SECRET_KEY', feature: 'Stripe payments' },
-    { name: 'RESEND_API_KEY', feature: 'Email delivery' },
     { name: 'SESSION_SECRET', feature: 'Session security' },
   ];
 
@@ -468,7 +471,7 @@ export async function runStartupTasks(): Promise<void> {
     },
   ];
 
-  await runWithConcurrency(parallelDbTasks, 5);
+  await runWithConcurrency(parallelDbTasks, 3);
   logger.info('[Startup] Parallel DB initialization tasks complete');
 
   try {
@@ -700,6 +703,15 @@ export async function runStartupTasks(): Promise<void> {
     logger.error('[Stripe] Initialization failed', { extra: { error: getErrorMessage(err) } });
     startupHealth.stripe = 'failed';
     startupHealth.criticalFailures.push(`Stripe initialization: ${getErrorMessage(err)}`);
+  }
+
+  try {
+    const { getResendClient } = await import('../utils/resend');
+    await getResendClient();
+    logger.info('[Startup] Resend connector verified');
+  } catch (err: unknown) {
+    logger.warn('[Startup] Resend connector health check failed — email delivery may be unavailable', { extra: { error: getErrorMessage(err) } });
+    startupHealth.warnings.push(`Resend connector: ${getErrorMessage(err)}`);
   }
 
   try {
