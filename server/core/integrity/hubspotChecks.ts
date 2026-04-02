@@ -17,8 +17,10 @@ import type {
 } from './core';
 import { CHURNED_STATUSES, NO_TIER_STATUSES } from './core';
 
-export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> {
+export async function checkHubSpotSyncMismatch(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   let hubspot: Client;
   try {
@@ -155,6 +157,30 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
     }
 
     if (comparisons.length > 0) {
+      if (shouldAutoFix) {
+        try {
+          const updateProps: Record<string, string> = {};
+          for (const comp of comparisons) {
+            if (comp.field === 'First Name' && member.first_name) updateProps.firstname = member.first_name;
+            if (comp.field === 'Last Name' && member.last_name) updateProps.lastname = member.last_name;
+            if (comp.field === 'Membership Tier') {
+              const tierValue = expectedHubSpotTier || '';
+              updateProps.membership_tier = tierValue;
+            }
+          }
+          if (Object.keys(updateProps).length > 0) {
+            await retryableHubSpotRequest(() =>
+              hubspot.crm.contacts.basicApi.update(hsId, { properties: updateProps })
+            );
+            autoFixedCount++;
+            logger.info(`[AutoHeal] Pushed app data to HubSpot for "${member.first_name} ${member.last_name}" <${member.email}>: ${Object.keys(updateProps).join(', ')}`);
+            continue;
+          }
+        } catch (fixErr: unknown) {
+          logger.error('[AutoHeal] Failed to push data to HubSpot', { extra: { userId: member.id, hubspotId: hsId, error: getErrorMessage(fixErr) } });
+        }
+      }
+
       const fieldList = comparisons.map(c => c.field).join(', ');
       issues.push({
         category: 'sync_mismatch',
@@ -177,13 +203,14 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
   }
 
   const staleHubSpotIssues = issues.filter(i => i.description.includes('not found in HubSpot'));
-  if (staleHubSpotIssues.length > 0) {
+  if (shouldAutoFix && staleHubSpotIssues.length > 0) {
     if (!isProduction) {
       logger.info(`[AutoFix] Skipping stale HubSpot ID cleanup in dev (${staleHubSpotIssues.length} would be cleared)`);
     } else {
       for (const issue of staleHubSpotIssues) {
         const userId = issue.recordId;
         await db.execute(sql`UPDATE users SET hubspot_id = NULL, updated_at = NOW() WHERE id = ${userId}`);
+        autoFixedCount++;
         logger.info(`[AutoFix] Cleared stale HubSpot ID for user ${issue.context?.memberEmail}`);
       }
     }
@@ -194,7 +221,9 @@ export async function checkHubSpotSyncMismatch(): Promise<IntegrityCheckResult> 
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-pushed ${autoFixedCount} member records to HubSpot` : undefined
   };
 }
 

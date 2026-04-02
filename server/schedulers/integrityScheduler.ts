@@ -190,8 +190,13 @@ async function checkAndRunIntegrityCheck(): Promise<void> {
           const warningCount = results.reduce((sum, r) => 
             sum + r.issues.filter(i => i.severity === 'warning').length, 0
           );
+          const totalAutoFixed = results.reduce((sum, r) => sum + (r.autoFixedCount || 0), 0);
+          const autoFixSummaries = results.filter(r => r.autoFixSummary).map(r => r.autoFixSummary);
           
-          logger.info(`[Integrity Check] Completed: ${totalIssues} issues found (${errorCount} errors, ${warningCount} warnings)`);
+          logger.info(`[Integrity Check] Completed: ${totalIssues} remaining issues (${errorCount} errors, ${warningCount} warnings), ${totalAutoFixed} auto-fixed`);
+          if (autoFixSummaries.length > 0) {
+            logger.info(`[Integrity Check] Auto-fix summary: ${autoFixSummaries.join('; ')}`);
+          }
           
           if (errorCount > 0 || warningCount > 0) {
             const alertsEnabled = await getSettingBoolean('notifications.data_integrity_alerts', true);

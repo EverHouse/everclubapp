@@ -128,6 +128,8 @@ export interface IntegrityCheckResult {
   issues: IntegrityIssue[];
   lastRun: Date;
   durationMs?: number;
+  autoFixedCount?: number;
+  autoFixSummary?: string;
 }
 
 export interface IntegrityMeta {

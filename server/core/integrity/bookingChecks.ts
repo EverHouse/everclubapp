@@ -308,14 +308,16 @@ export async function checkStalePastTours(): Promise<IntegrityCheckResult> {
   };
 }
 
-export async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResult> {
+export async function checkBookingsWithoutSessions(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   const ghostsResult = await db.execute(sql`
     SELECT br.id, br.user_email, br.request_date, br.status, br.trackman_booking_id, br.resource_id,
            br.start_time, br.end_time, br.notes,
            r.name as resource_name,
-           u.first_name, u.last_name
+           u.first_name, u.last_name, u.id as user_id
     FROM booking_requests br
     LEFT JOIN booking_sessions bs ON br.session_id = bs.id
     LEFT JOIN resources r ON br.resource_id = r.id
@@ -333,11 +335,41 @@ export async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResu
     ORDER BY br.request_date DESC
     LIMIT 100
   `);
-  const ghosts = ghostsResult.rows as unknown as GhostBookingRow[];
+  const ghosts = ghostsResult.rows as unknown as (GhostBookingRow & { user_id?: string })[];
 
   for (const row of ghosts) {
     const dateStr = row.request_date ? formatDateFromDb(row.request_date) : 'unknown';
     const memberName = row.first_name && row.last_name ? `${row.first_name} ${row.last_name}` : undefined;
+
+    if (shouldAutoFix && row.resource_id && row.start_time && row.end_time && row.request_date) {
+      try {
+        const sessionResult = await db.execute(sql`
+          INSERT INTO booking_sessions (resource_id, session_date, start_time, end_time, trackman_booking_id, created_at)
+          VALUES (${row.resource_id}, ${row.request_date}::date, ${row.start_time}::time, ${row.end_time}::time, ${row.trackman_booking_id || null}, NOW())
+          ON CONFLICT DO NOTHING
+          RETURNING id
+        `);
+        if (sessionResult.rows.length > 0) {
+          const sessionId = (sessionResult.rows[0] as { id: number }).id;
+          await db.execute(sql`UPDATE booking_requests SET session_id = ${sessionId}, updated_at = NOW() WHERE id = ${row.id} AND session_id IS NULL`);
+          if (row.user_id) {
+            await db.execute(sql`
+              INSERT INTO booking_participants (session_id, user_id, display_name, participant_type)
+              VALUES (${sessionId}, ${row.user_id}, ${memberName || row.user_email}, 'owner')
+              ON CONFLICT DO NOTHING
+            `);
+          }
+          autoFixedCount++;
+          logger.info(`[AutoHeal] Created session #${sessionId} for ghost booking #${row.id} (${row.user_email} on ${dateStr})`);
+          continue;
+        }
+      } catch (fixErr: unknown) {
+        logger.error('[AutoHeal] Failed to create session for ghost booking', {
+          extra: { bookingId: row.id, error: getErrorMessage(fixErr) }
+        });
+      }
+    }
+
     issues.push({
       category: 'data_quality',
       severity: 'error',
@@ -366,7 +398,9 @@ export async function checkBookingsWithoutSessions(): Promise<IntegrityCheckResu
     status: issues.length === 0 ? 'pass' : 'fail',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Created ${autoFixedCount} missing sessions` : undefined
   };
 }
 
@@ -418,8 +452,11 @@ export async function checkSessionsWithoutParticipants(): Promise<IntegrityCheck
   };
 }
 
-export async function checkOverlappingBookings(): Promise<IntegrityCheckResult> {
+export async function checkOverlappingBookings(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
+  const today = getTodayPacific();
 
   try {
     const overlapsResult = await db.execute(sql`
@@ -441,10 +478,16 @@ export async function checkOverlappingBookings(): Promise<IntegrityCheckResult> 
       LEFT JOIN users u1 ON br1.user_id = u1.id
       LEFT JOIN users u2 ON br2.user_id = u2.id
       LEFT JOIN resources r ON bs1.resource_id = r.id
-      WHERE bs1.session_date >= ${getTodayPacific()}::date - INTERVAL '30 days'
+      WHERE bs1.session_date >= ${today}::date - INTERVAL '30 days'
     `);
 
     for (const row of overlapsResult.rows as unknown as OverlapRow[]) {
+      const isPast = row.session_date && String(row.session_date) < today;
+      if (shouldAutoFix && isPast) {
+        autoFixedCount++;
+        continue;
+      }
+
       issues.push({
         category: 'booking_issue',
         severity: 'warning',
@@ -492,12 +535,16 @@ export async function checkOverlappingBookings(): Promise<IntegrityCheckResult> 
     status: issues.length === 0 ? 'pass' : 'warning',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-acknowledged ${autoFixedCount} historical overlaps` : undefined
   };
 }
 
-export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckResult> {
+export async function checkGuestPassAccountingDrift(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   try {
     const overUsedResult = await db.execute(sql`
@@ -527,6 +574,16 @@ export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckRes
     `);
 
     for (const row of orphanHoldsResult.rows as unknown as OrphanHoldRow[]) {
+      if (shouldAutoFix) {
+        try {
+          await db.execute(sql`DELETE FROM guest_pass_holds WHERE id = ${row.id}`);
+          autoFixedCount++;
+          logger.info(`[AutoHeal] Deleted orphan guest pass hold #${row.id} for ${row.member_email} (booking #${row.booking_id} no longer exists)`);
+          continue;
+        } catch (fixErr: unknown) {
+          logger.error('[AutoHeal] Failed to delete orphan guest pass hold', { extra: { holdId: row.id, error: getErrorMessage(fixErr) } });
+        }
+      }
       issues.push({
         category: 'orphan_record',
         severity: 'warning',
@@ -547,6 +604,16 @@ export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckRes
     `);
 
     for (const row of expiredHoldsResult.rows as unknown as ExpiredHoldRow[]) {
+      if (shouldAutoFix) {
+        try {
+          await db.execute(sql`DELETE FROM guest_pass_holds WHERE id = ${row.id}`);
+          autoFixedCount++;
+          logger.info(`[AutoHeal] Cleaned up expired guest pass hold #${row.id} for ${row.member_email}`);
+          continue;
+        } catch (fixErr: unknown) {
+          logger.error('[AutoHeal] Failed to clean expired guest pass hold', { extra: { holdId: row.id, error: getErrorMessage(fixErr) } });
+        }
+      }
       issues.push({
         category: 'orphan_record',
         severity: 'warning',
@@ -582,7 +649,9 @@ export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckRes
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Cleaned ${autoFixedCount} orphan/expired guest pass holds` : undefined
   };
 }
 
@@ -954,7 +1023,9 @@ export async function checkUsageLedgerGaps(options?: { autoFix?: boolean }): Pro
       status: remainingCount <= 0 ? 'pass' : remainingCount > 20 ? 'fail' : 'warning',
       issueCount: Math.max(0, remainingCount),
       issues,
-      lastRun: new Date()
+      lastRun: new Date(),
+      autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+      autoFixSummary: autoFixedCount > 0 ? `Auto-created ${autoFixedCount} missing usage ledger entries` : undefined
     };
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Error checking usage ledger gaps:', { extra: { detail: getErrorMessage(error) } });
@@ -1062,8 +1133,10 @@ interface InactiveMemberBookingRow {
   membership_status: string;
 }
 
-export async function checkApprovedBookingsForInactiveMembers(): Promise<IntegrityCheckResult> {
+export async function checkApprovedBookingsForInactiveMembers(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   try {
     const today = getTodayPacific();
@@ -1088,27 +1161,7 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
     `);
     const total = (totalCount.rows[0] as unknown as CountRow)?.count || 0;
 
-    for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
-      issues.push({
-        category: 'booking_issue',
-        severity: 'warning',
-        table: 'booking_requests',
-        recordId: row.id,
-        description: `Booking #${row.id} for "${row.user_name || row.user_email}" is ${row.status} but member status is "${row.membership_status}"`,
-        suggestion: 'Review and cancel this booking or reactivate the membership',
-        context: {
-          bookingId: row.id,
-          userEmail: row.user_email,
-          bookingStatus: row.status,
-          membershipStatus: row.membership_status,
-          requestDate: row.request_date,
-          startTime: row.start_time,
-        }
-      });
-    }
-
-    if (Number(total) > 0) {
-      let cancelledCount = 0;
+    if (shouldAutoFix && Number(total) > 0) {
       const { BookingStateService } = await import('../bookingService/bookingStateService');
       for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
         try {
@@ -1119,7 +1172,7 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
             cancelledBy: 'system_integrity_check',
           });
           if (result.success) {
-            cancelledCount++;
+            autoFixedCount++;
           } else {
             logger.error('[DataIntegrity] Auto-cancel returned failure for inactive member booking', {
               extra: { bookingId: row.id, error: result.error, statusCode: result.statusCode }
@@ -1132,25 +1185,52 @@ export async function checkApprovedBookingsForInactiveMembers(): Promise<Integri
         }
       }
 
-      try {
-        const { notifyAllStaff } = await import('../notificationService');
-        await notifyAllStaff(
-          'Inactive Members — Bookings Auto-Cancelled',
-          `${cancelledCount} of ${total} approved/confirmed booking(s) for inactive/suspended/cancelled members were auto-cancelled.`,
-          'system',
-          { url: '/admin/data-integrity' }
-        );
-      } catch (alertError: unknown) {
-        logger.error('[DataIntegrity] Failed to send staff alert for inactive member bookings', { extra: { detail: getErrorMessage(alertError) } });
+      if (autoFixedCount > 0) {
+        try {
+          const { notifyAllStaff } = await import('../notificationService');
+          await notifyAllStaff(
+            'Inactive Members — Bookings Auto-Cancelled',
+            `${autoFixedCount} of ${total} approved/confirmed booking(s) for inactive/suspended/cancelled members were auto-cancelled.`,
+            'system',
+            { url: '/admin/data-integrity' }
+          );
+        } catch (alertError: unknown) {
+          logger.error('[DataIntegrity] Failed to send staff alert for inactive member bookings', { extra: { detail: getErrorMessage(alertError) } });
+        }
       }
     }
 
+    for (const row of staleBookings.rows as unknown as InactiveMemberBookingRow[]) {
+      if (!shouldAutoFix) {
+        issues.push({
+          category: 'booking_issue',
+          severity: 'warning',
+          table: 'booking_requests',
+          recordId: row.id,
+          description: `Booking #${row.id} for "${row.user_name || row.user_email}" is ${row.status} but member status is "${row.membership_status}"`,
+          suggestion: 'Review and cancel this booking or reactivate the membership',
+          context: {
+            bookingId: row.id,
+            userEmail: row.user_email,
+            bookingStatus: row.status,
+            membershipStatus: row.membership_status,
+            requestDate: row.request_date,
+            startTime: row.start_time,
+          }
+        });
+      }
+    }
+
+    const remainingCount = shouldAutoFix ? Math.max(0, Number(total) - autoFixedCount) : Number(total);
+
     return {
       checkName: 'Approved Bookings for Inactive Members',
-      status: Number(total) === 0 ? 'pass' : 'warning',
-      issueCount: Number(total),
+      status: remainingCount === 0 ? 'pass' : 'warning',
+      issueCount: remainingCount,
       issues,
-      lastRun: new Date()
+      lastRun: new Date(),
+      autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+      autoFixSummary: autoFixedCount > 0 ? `Auto-cancelled ${autoFixedCount} booking(s) for inactive members` : undefined
     };
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Error checking approved bookings for inactive members:', { extra: { detail: getErrorMessage(error) } });
@@ -1228,8 +1308,11 @@ export async function checkSessionsExceedingResourceCapacity(): Promise<Integrit
   }
 }
 
-export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
+export async function checkSessionOverlaps(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
+  const today = getTodayPacific();
 
   try {
     const overlaps = await db.execute(sql`
@@ -1272,6 +1355,12 @@ export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
     `);
 
     for (const row of overlaps.rows as unknown as SessionOverlapRow[]) {
+      const isPast = row.session_date && String(row.session_date) < today;
+      if (shouldAutoFix && isPast) {
+        autoFixedCount++;
+        continue;
+      }
+
       issues.push({
         category: 'booking_issue',
         severity: 'error',
@@ -1315,12 +1404,16 @@ export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
     status: issues.length === 0 ? 'pass' : 'fail',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-acknowledged ${autoFixedCount} historical session overlaps` : undefined
   };
 }
 
-export async function checkWellnessBlockGaps(): Promise<IntegrityCheckResult> {
+export async function checkWellnessBlockGaps(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   try {
     const gaps = await db.execute(sql`
@@ -1379,6 +1472,24 @@ export async function checkWellnessBlockGaps(): Promise<IntegrityCheckResult> {
 
     for (const row of gaps.rows as unknown as WellnessBlockGapRow[]) {
       const hasNoBlock = row.block_start === null;
+
+      if (shouldAutoFix && hasNoBlock && row.class_date && row.class_time && row.class_end_time) {
+        try {
+          await db.execute(sql`
+            INSERT INTO availability_blocks (resource_id, block_date, start_time, end_time, block_type, wellness_class_id, created_at)
+            VALUES (${row.resource_id}, ${row.class_date}::date, ${row.class_time}::time, ${row.class_end_time}::time, 'wellness', ${row.class_id}, NOW())
+            ON CONFLICT DO NOTHING
+          `);
+          autoFixedCount++;
+          logger.info(`[AutoHeal] Created availability block for wellness class "${row.class_title}" on ${row.class_date} for resource "${row.resource_name}"`);
+          continue;
+        } catch (fixErr: unknown) {
+          logger.error('[AutoHeal] Failed to create wellness availability block', {
+            extra: { classId: row.class_id, resourceId: row.resource_id, error: getErrorMessage(fixErr) }
+          });
+        }
+      }
+
       const gapDetail = hasNoBlock
         ? 'has NO availability block'
         : `has block coverage (${row.block_start}–${row.block_end}) that doesn't fully cover the class (${row.class_time}–${row.class_end_time})`;
@@ -1424,12 +1535,16 @@ export async function checkWellnessBlockGaps(): Promise<IntegrityCheckResult> {
     status: issues.length === 0 ? 'pass' : 'fail',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Created ${autoFixedCount} missing wellness availability blocks` : undefined
   };
 }
 
-export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult> {
+export async function checkWalletPassBookingSync(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   try {
     const unvoidedForTerminal = await db.execute(sql`
@@ -1444,27 +1559,7 @@ export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult
       LIMIT 100
     `);
 
-    for (const row of unvoidedForTerminal.rows as unknown as WalletPassSyncRow[]) {
-      issues.push({
-        category: 'sync_mismatch',
-        severity: 'warning',
-        table: 'booking_wallet_passes',
-        recordId: row.pass_id,
-        description: `Wallet pass "${row.serial_number}" for booking #${row.booking_id} is still active but booking is "${row.booking_status}"`,
-        suggestion: 'Auto-fix will void the pass and re-trigger a push update to the member\'s device',
-        context: {
-          serialNumber: row.serial_number,
-          bookingId: row.booking_id,
-          bookingStatus: row.booking_status,
-          memberEmail: row.user_email || undefined,
-          memberName: row.user_name || undefined,
-          bookingDate: row.request_date || undefined,
-          passId: row.pass_id,
-        }
-      });
-    }
-
-    if (unvoidedForTerminal.rows.length > 0) {
+    if (shouldAutoFix && unvoidedForTerminal.rows.length > 0) {
       const { voidBookingPass } = await import('../../walletPass/bookingPassService');
       for (const row of unvoidedForTerminal.rows as unknown as WalletPassSyncRow[]) {
         try {
@@ -1473,6 +1568,7 @@ export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult
             SELECT voided_at FROM booking_wallet_passes WHERE id = ${row.pass_id}
           `)).rows as unknown as Array<{ voided_at: Date | null }>;
           if (verifyRow?.voided_at) {
+            autoFixedCount++;
             logger.info('[DataIntegrity] Auto-fixed: voided wallet pass for terminal booking', {
               extra: { bookingId: row.booking_id, serialNumber: row.serial_number, bookingStatus: row.booking_status }
             });
@@ -1486,6 +1582,28 @@ export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult
             extra: { bookingId: row.booking_id, serialNumber: row.serial_number, error: getErrorMessage(fixErr) }
           });
         }
+      }
+    }
+
+    if (!shouldAutoFix) {
+      for (const row of unvoidedForTerminal.rows as unknown as WalletPassSyncRow[]) {
+        issues.push({
+          category: 'sync_mismatch',
+          severity: 'warning',
+          table: 'booking_wallet_passes',
+          recordId: row.pass_id,
+          description: `Wallet pass "${row.serial_number}" for booking #${row.booking_id} is still active but booking is "${row.booking_status}"`,
+          suggestion: 'Void the pass and re-trigger a push update to the member\'s device',
+          context: {
+            serialNumber: row.serial_number,
+            bookingId: row.booking_id,
+            bookingStatus: row.booking_status,
+            memberEmail: row.user_email || undefined,
+            memberName: row.user_name || undefined,
+            bookingDate: row.request_date || undefined,
+            passId: row.pass_id,
+          }
+        });
       }
     }
 
@@ -1527,7 +1645,9 @@ export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult
       status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
       issueCount: issues.length,
       issues,
-      lastRun: new Date()
+      lastRun: new Date(),
+      autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+      autoFixSummary: autoFixedCount > 0 ? `Auto-voided ${autoFixedCount} wallet passes for terminal bookings` : undefined
     };
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Error checking wallet pass booking sync:', { extra: { detail: getErrorMessage(error) } });

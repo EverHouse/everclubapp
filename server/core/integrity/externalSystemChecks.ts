@@ -379,8 +379,10 @@ export async function reconcileRecentlyActivatedHubSpotSync(): Promise<{
   return result;
 }
 
-export async function checkStuckPushNotifications(): Promise<IntegrityCheckResult> {
+export async function checkStuckPushNotifications(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   try {
     const result = await db.execute(sql`
@@ -391,7 +393,19 @@ export async function checkStuckPushNotifications(): Promise<IntegrityCheckResul
     `);
     const stuckCount = (result.rows[0] as { count: number }).count;
 
-    if (stuckCount > 0) {
+    if (stuckCount > 0 && shouldAutoFix) {
+      const fixResult = await db.execute(sql`
+        UPDATE notifications
+        SET push_delivery_status = 'failed', updated_at = NOW()
+        WHERE push_delivery_status = 'pending'
+          AND created_at < NOW() - INTERVAL '24 hours'
+        RETURNING id
+      `);
+      autoFixedCount = fixResult.rows.length;
+      if (autoFixedCount > 0) {
+        logger.info(`[AutoHeal] Marked ${autoFixedCount} stuck push notifications as failed (pending >24h)`);
+      }
+    } else if (stuckCount > 0) {
       const stuckRows = await db.execute(sql`
         SELECT id, user_email, type, title, created_at
         FROM notifications
@@ -419,12 +433,15 @@ export async function checkStuckPushNotifications(): Promise<IntegrityCheckResul
       }
     }
 
+    const remainingCount = shouldAutoFix ? Math.max(0, stuckCount - autoFixedCount) : stuckCount;
     return {
       checkName: 'Stuck Push Notifications',
-      status: stuckCount === 0 ? 'pass' : 'warning',
-      issueCount: stuckCount,
+      status: remainingCount === 0 ? 'pass' : 'warning',
+      issueCount: remainingCount,
       issues,
       lastRun: new Date(),
+      autoFixedCount,
+      autoFixSummary: autoFixedCount > 0 ? `Marked ${autoFixedCount} stuck notifications as failed` : undefined
     };
   } catch (error: unknown) {
     logger.error('[Integrity] Stuck Push Notifications check failed', { extra: { error: getErrorMessage(error) } });

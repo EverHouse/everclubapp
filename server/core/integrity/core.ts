@@ -509,6 +509,8 @@ export interface IntegrityCheckResult {
   lastRun: Date;
   durationMs?: number;
   error?: string;
+  autoFixedCount?: number;
+  autoFixSummary?: string;
 }
 
 export interface IntegritySummary {
@@ -897,7 +899,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
   return summary;
 }
 
-export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
+export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean; autoFix?: boolean }): Promise<IntegrityCheckResult[]> {
   const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync, checkSessionOverlaps, checkWellnessBlockGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications, checkStalePushSubscriptions } = await import('./externalSystemChecks');
@@ -905,40 +907,41 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
 
   const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
+  const autoFix = options?.autoFix ?? (triggeredBy === 'scheduled');
 
   const externalSystemChecks: Array<() => Promise<IntegrityCheckResult>> = [
     () => safeCheck(checkUnmatchedTrackmanBookings, 'Unmatched Trackman Bookings'),
-    () => safeCheck(checkHubSpotSyncMismatch, 'HubSpot Sync Mismatch'),
-    () => safeCheck(checkStripeSubscriptionSync, 'Stripe Subscription Sync'),
-    () => safeCheck(checkTierReconciliation, 'Tier Reconciliation'),
+    () => safeCheck(() => checkHubSpotSyncMismatch({ autoFix }), 'HubSpot Sync Mismatch'),
+    () => safeCheck(() => checkStripeSubscriptionSync({ autoFix }), 'Stripe Subscription Sync'),
+    () => safeCheck(() => checkTierReconciliation({ autoFix }), 'Tier Reconciliation'),
     () => safeCheck(checkMindBodyStaleSyncMembers, 'MindBody Stale Sync'),
     () => safeCheck(checkMindBodyStatusMismatch, 'MindBody Data Quality'),
     () => safeCheck(checkBillingOrphans, 'Billing Orphans'),
     () => safeCheck(checkOrphanedBookingInvoices, 'Orphaned Booking Invoices'),
     () => safeCheck(checkOrphanedStripeSubscriptions, 'Orphaned Stripe Subscriptions'),
     () => safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
-    () => safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
-    () => safeCheck(() => checkUsageLedgerGaps({ autoFix: triggeredBy === 'scheduled' }), 'Usage Ledger Gaps'),
-    () => safeCheck(checkSessionOverlaps, 'Session Overlaps (All Resources)'),
-    () => safeCheck(checkWellnessBlockGaps, 'Wellness Block Coverage'),
+    () => safeCheck(() => checkApprovedBookingsForInactiveMembers({ autoFix }), 'Approved Bookings for Inactive Members'),
+    () => safeCheck(() => checkUsageLedgerGaps({ autoFix }), 'Usage Ledger Gaps'),
+    () => safeCheck(() => checkSessionOverlaps({ autoFix }), 'Session Overlaps (All Resources)'),
+    () => safeCheck(() => checkWellnessBlockGaps({ autoFix }), 'Wellness Block Coverage'),
     () => safeCheck(checkUnresolvedFailedSideEffects, 'Unresolved Failed Side Effects'),
     () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
     () => safeCheck(checkNegativeMerchStock, 'Negative Merch Stock'),
     () => safeCheck(checkMerchStripeProductSync, 'Merch & Cafe Stripe Product Sync'),
     () => safeCheck(checkStalePushSubscriptions, 'Stale Push Subscriptions'),
     () => safeCheck(checkStaleExpiredGuestPassHolds, 'Stale Expired Guest Pass Holds'),
-    () => safeCheck(checkStuckPushNotifications, 'Stuck Push Notifications'),
-    () => safeCheck(checkWalletPassBookingSync, 'Wallet Pass Booking Sync'),
-    () => safeCheck(checkFeeSnapshotStripeDrift, 'Fee Snapshot Stripe Drift'),
+    () => safeCheck(() => checkStuckPushNotifications({ autoFix }), 'Stuck Push Notifications'),
+    () => safeCheck(() => checkWalletPassBookingSync({ autoFix }), 'Wallet Pass Booking Sync'),
+    () => safeCheck(() => checkFeeSnapshotStripeDrift({ autoFix }), 'Fee Snapshot Stripe Drift'),
   ];
 
   const dbEnforcedChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [
-    () => safeCheck(checkStuckTransitionalMembers, 'Stuck Transitional Members'),
-    () => safeCheck(checkBookingsWithoutSessions, 'Active Bookings Without Sessions'),
+    () => safeCheck(() => checkStuckTransitionalMembers({ autoFix }), 'Stuck Transitional Members'),
+    () => safeCheck(() => checkBookingsWithoutSessions({ autoFix }), 'Active Bookings Without Sessions'),
     () => safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
     () => safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
-    () => safeCheck(checkOverlappingBookings, 'Overlapping Bookings'),
-    () => safeCheck(checkGuestPassAccountingDrift, 'Guest Pass Accounting Drift'),
+    () => safeCheck(() => checkOverlappingBookings({ autoFix }), 'Overlapping Bookings'),
+    () => safeCheck(() => checkGuestPassAccountingDrift({ autoFix }), 'Guest Pass Accounting Drift'),
     () => safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
     () => safeCheck(checkStaleCheckedInBookings, 'Stale Checked-In Bookings'),
     () => safeCheck(checkStalePastTours, 'Stale Past Tours'),
@@ -947,8 +950,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkLateCancelPreservedPaymentIntents, 'Lingering Payment Intents on Terminal Bookings'),
     () => safeCheck(checkAuthLinkingDataIntegrity, 'Auth Linking Data Integrity'),
     () => safeCheck(checkSessionsExceedingResourceCapacity, 'Sessions Exceeding Resource Capacity'),
-    () => safeCheck(checkOrphanedPaymentIntents, 'Orphaned Payment Intents'),
-    () => safeCheck(checkBillingProviderHybridState, 'Billing Provider Hybrid State'),
+    () => safeCheck(() => checkOrphanedPaymentIntents({ autoFix }), 'Orphaned Payment Intents'),
+    () => safeCheck(() => checkBillingProviderHybridState({ autoFix }), 'Billing Provider Hybrid State'),
     () => safeCheck(checkInvoiceBookingReconciliation, 'Invoice-Booking Reconciliation'),
     () => safeCheck(checkHubSpotIdDuplicates, 'HubSpot ID Duplicates'),
     () => safeCheck(checkCrossSystemDrift, 'Cross-System Drift Detection'),

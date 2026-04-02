@@ -55,8 +55,10 @@ export async function checkMembersWithoutEmail(): Promise<IntegrityCheckResult> 
   };
 }
 
-export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckResult> {
+export async function checkStuckTransitionalMembers(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   const stuckMembersResult = await db.execute(sql`
     SELECT id, email, first_name, last_name, tier, membership_status, stripe_subscription_id, stripe_customer_id, updated_at
@@ -85,7 +87,7 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
       const memberName = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'Unknown';
       const subId = member.stripe_subscription_id;
 
-      if (stripe && subId) {
+      if (shouldAutoFix && stripe && subId) {
         try {
           const sub = await stripe.subscriptions.retrieve(subId);
           const deadStatuses = ['incomplete_expired', 'canceled'];
@@ -143,7 +145,9 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
     }));
 
     for (const result of results) {
-      if (result.status === 'fulfilled' && !result.value.cleaned && result.value.issue) {
+      if (result.status === 'fulfilled' && result.value.cleaned) {
+        autoFixedCount++;
+      } else if (result.status === 'fulfilled' && !result.value.cleaned && result.value.issue) {
         issues.push(result.value.issue);
       } else if (result.status === 'rejected') {
         logger.warn('[DataIntegrity] Stuck member check batch item failed', { extra: { error: getErrorMessage(result.reason) } });
@@ -156,12 +160,16 @@ export async function checkStuckTransitionalMembers(): Promise<IntegrityCheckRes
     status: issues.length === 0 ? 'pass' : 'fail',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-cleaned ${autoFixedCount} dead/missing Stripe subscriptions` : undefined
   };
 }
 
-export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
+export async function checkTierReconciliation(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   let stripe: Stripe;
   try {
@@ -317,6 +325,21 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
       }
 
       if (tierMismatches.length > 0) {
+        const appVsStripeMismatch = tierMismatches.find(m => m.field === 'App Tier vs Stripe Product');
+        if (shouldAutoFix && appVsStripeMismatch && cached.tier) {
+          try {
+            await db.execute(sql`
+              UPDATE users SET tier = ${cached.tier}, updated_at = NOW()
+              WHERE id = ${member.id}
+            `);
+            autoFixedCount++;
+            logger.info(`[AutoHeal] Updated tier for "${memberName}" <${member.email}>: "${member.tier}" → "${cached.tier}" (from Stripe product)`);
+            return;
+          } catch (fixErr: unknown) {
+            logger.error('[AutoHeal] Failed to update tier from Stripe', { extra: { userId: member.id, error: getErrorMessage(fixErr) } });
+          }
+        }
+
         const mismatchDesc = tierMismatches.map(m => m.field).join(', ');
         issues.push({
           category: 'sync_mismatch',
@@ -356,7 +379,9 @@ export async function checkTierReconciliation(): Promise<IntegrityCheckResult> {
     status: issues.length === 0 ? 'pass' : issues.length > 10 ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-updated ${autoFixedCount} member tiers from Stripe` : undefined
   };
 }
 

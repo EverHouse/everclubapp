@@ -21,8 +21,10 @@ import type {
   MissingInvoiceRow,
 } from './core';
 
-export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResult> {
+export async function checkStripeSubscriptionSync(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
+  const shouldAutoFix = options?.autoFix ?? false;
   const issues: IntegrityIssue[] = [];
+  let autoFixedCount = 0;
 
   let stripe: Stripe;
   try {
@@ -46,6 +48,16 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
       lastRun: new Date()
     };
   }
+
+  const STRIPE_TO_DB_STATUS: Record<string, string> = {
+    'active': 'active',
+    'trialing': 'active',
+    'past_due': 'past_due',
+    'canceled': 'cancelled',
+    'unpaid': 'suspended',
+    'incomplete': 'pending',
+    'incomplete_expired': 'inactive'
+  };
 
   const appMembersResult = await db.execute(sql`
     SELECT u.id, u.email, u.first_name, u.last_name, u.tier, u.membership_status, u.stripe_customer_id, u.billing_provider
@@ -149,6 +161,24 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
         });
 
         if (isStatusMismatch) {
+          if (shouldAutoFix) {
+            const correctDbStatus = STRIPE_TO_DB_STATUS[stripeStatus];
+            if (correctDbStatus) {
+              try {
+                await db.execute(sql`
+                  UPDATE users SET membership_status = ${correctDbStatus},
+                    membership_status_changed_at = NOW(), updated_at = NOW()
+                  WHERE id = ${member.id}
+                `);
+                autoFixedCount++;
+                logger.info(`[AutoHeal] Synced membership status for "${memberName}" <${member.email}>: "${member.membership_status}" → "${correctDbStatus}" (Stripe: ${stripeStatus})`);
+                return;
+              } catch (fixErr: unknown) {
+                logger.error('[AutoHeal] Failed to sync membership status', { extra: { userId: member.id, error: getErrorMessage(fixErr) } });
+              }
+            }
+          }
+
           issues.push({
             category: 'sync_mismatch',
             severity: 'error',
@@ -216,6 +246,25 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
         isStripeResourceMissing(err);
 
       if (isCustomerNotFound) {
+        if (shouldAutoFix && member.email) {
+          try {
+            const customers = await stripe.customers.list({ email: member.email, limit: 5 });
+            const match = customers.data.find(c => !c.deleted);
+            if (match) {
+              await db.execute(sql`UPDATE users SET stripe_customer_id = ${match.id}, updated_at = NOW() WHERE id = ${member.id}`);
+              autoFixedCount++;
+              logger.info(`[AutoHeal] Re-linked Stripe customer for "${memberName}" <${member.email}>: ${customerId} → ${match.id}`);
+            } else {
+              await db.execute(sql`UPDATE users SET stripe_customer_id = NULL, updated_at = NOW() WHERE id = ${member.id}`);
+              autoFixedCount++;
+              logger.info(`[AutoHeal] Cleared orphaned Stripe customer ID for "${memberName}" <${member.email}> (no match found)`);
+            }
+            return;
+          } catch (fixErr: unknown) {
+            logger.error('[AutoHeal] Failed to fix orphaned Stripe customer', { extra: { userId: member.id, error: getErrorMessage(fixErr) } });
+          }
+        }
+
         issues.push({
           category: 'data_quality',
           severity: 'error',
@@ -259,7 +308,9 @@ export async function checkStripeSubscriptionSync(): Promise<IntegrityCheckResul
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-synced ${autoFixedCount} membership statuses/customer IDs from Stripe` : undefined
   };
 }
 
@@ -367,8 +418,10 @@ export async function checkDuplicateStripeCustomers(): Promise<IntegrityCheckRes
 // via the booking invoice. Since this check filters on status IN ('pending', 'requires_action'),
 // late-cancel snapshots are naturally excluded and will not create false positives.
 // See also: checkLateCancelPreservedPaymentIntents for monitoring those preserved PIs.
-export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResult> {
+export async function checkOrphanedPaymentIntents(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   const orphans = await db.execute(sql`
     SELECT bfs.id, bfs.booking_id, bfs.stripe_payment_intent_id, bfs.total_cents, bfs.status, bfs.created_at
@@ -381,6 +434,20 @@ export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResul
   `);
 
   for (const row of orphans.rows as unknown as OrphanPaymentIntentRow[]) {
+    if (shouldAutoFix) {
+      try {
+        await db.execute(sql`
+          UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW()
+          WHERE id = ${row.id} AND status IN ('pending', 'requires_action')
+        `);
+        autoFixedCount++;
+        logger.info(`[AutoHeal] Cancelled orphaned fee snapshot #${row.id} for terminal booking #${row.booking_id} (PI: ${row.stripe_payment_intent_id})`);
+        continue;
+      } catch (fixErr: unknown) {
+        logger.error('[AutoHeal] Failed to cancel orphaned fee snapshot', { extra: { snapshotId: row.id, error: getErrorMessage(fixErr) } });
+      }
+    }
+
     issues.push({
       category: 'data_quality',
       severity: 'error',
@@ -400,12 +467,16 @@ export async function checkOrphanedPaymentIntents(): Promise<IntegrityCheckResul
     status: issues.length === 0 ? 'pass' : 'fail',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount,
+    autoFixSummary: autoFixedCount > 0 ? `Cancelled ${autoFixedCount} orphaned fee snapshots for terminal bookings` : undefined
   };
 }
 
-export async function checkBillingProviderHybridState(): Promise<IntegrityCheckResult> {
+export async function checkBillingProviderHybridState(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   let stripe: Stripe | undefined;
   try {
@@ -456,7 +527,7 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
       severity = 'error';
       issueType = 'stripe_missing_customer_id';
     } else if (member.billing_provider === 'stripe' && member.stripe_customer_id && (!member.stripe_subscription_id || member.stripe_subscription_id === '')) {
-      if (stripe) {
+      if (shouldAutoFix && stripe) {
         try {
           const customerSubs = await stripe.subscriptions.list({
             customer: member.stripe_customer_id,
@@ -476,6 +547,7 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
                 AND (stripe_subscription_id IS NULL OR stripe_subscription_id = '')
             `);
             logger.info(`[DataIntegrity] Auto-backfilled subscription ID for "${memberName}" <${member.email}>: ${activeSub.id} (status: ${activeSub.status})`);
+            autoFixedCount++;
             continue;
           }
         } catch (err: unknown) {
@@ -542,7 +614,9 @@ export async function checkBillingProviderHybridState(): Promise<IntegrityCheckR
     status: issues.length > 0 ? (issues.some(i => i.severity === 'error') ? 'fail' : 'warning') : 'pass',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-backfilled ${autoFixedCount} missing Stripe subscription IDs` : undefined
   };
 }
 
@@ -1463,7 +1537,7 @@ interface FeeSnapshotDriftRow {
   last_name: string;
 }
 
-export async function checkFeeSnapshotStripeDrift(): Promise<IntegrityCheckResult> {
+export async function checkFeeSnapshotStripeDrift(_options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
 
   let stripe: Stripe;

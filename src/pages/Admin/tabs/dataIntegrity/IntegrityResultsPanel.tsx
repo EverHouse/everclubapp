@@ -1312,6 +1312,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                         </p>
                       )}
                     </div>
+                    {(result.autoFixedCount ?? 0) > 0 && (
+                      <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-xs font-bold rounded-full shrink-0 flex items-center gap-1">
+                        <Icon name="auto_fix_high" className="text-[12px]" />
+                        {result.autoFixedCount}
+                      </span>
+                    )}
                     {result.issueCount > 0 && (
                       <span className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 text-xs font-bold rounded-full shrink-0">
                         {result.issueCount}
@@ -1323,12 +1329,26 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-3">
+                    {(result.autoFixedCount ?? 0) > 0 && result.autoFixSummary && (
+                      <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3">
+                        <Icon name="auto_fix_high" className="text-[16px]" />
+                        <span><strong>Auto-resolved ({result.autoFixedCount}):</strong> {result.autoFixSummary}</span>
+                      </div>
+                    )}
+
                     {renderCheckFixTools(result.checkName)}
 
-                    {result.issues.length === 0 && (
+                    {result.issues.length === 0 && !(result.autoFixedCount) && (
                       <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
                         <Icon name="check_circle" className="text-[16px]" />
                         No issues found for this check.
+                      </div>
+                    )}
+
+                    {result.issues.length === 0 && (result.autoFixedCount ?? 0) > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                        <Icon name="check_circle" className="text-[16px]" />
+                        All issues were auto-resolved during the nightly check.
                       </div>
                     )}
                     
