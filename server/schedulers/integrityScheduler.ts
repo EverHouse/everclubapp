@@ -153,6 +153,7 @@ async function guardedCleanup(): Promise<void> {
   cleanupRunning = true;
   try {
     await cleanupAbandonedPendingUsers();
+    await cleanupExpiredGuestPassHolds();
   } finally {
     cleanupRunning = false;
   }
@@ -254,6 +255,20 @@ async function runPeriodicAutoFix(): Promise<void> {
   } catch (err: unknown) {
     logger.error('[Auto-Fix] Periodic tier fix failed:', { extra: { error: getErrorMessage(err) } });
     schedulerTracker.recordRun('Auto-Fix Tiers', false, getErrorMessage(err));
+  }
+}
+
+async function cleanupExpiredGuestPassHolds(): Promise<void> {
+  try {
+    const { cleanupExpiredHolds } = await import('../core/billing/guestPassHoldService');
+    const deleted = await cleanupExpiredHolds();
+    if (deleted > 0) {
+      logger.info(`[Auto-Cleanup] Cleaned up ${deleted} expired guest pass holds`);
+    }
+    schedulerTracker.recordRun('Guest Pass Hold Cleanup', true);
+  } catch (err: unknown) {
+    logger.error('[Auto-Cleanup] Failed to cleanup expired guest pass holds:', { extra: { error: getErrorMessage(err) } });
+    schedulerTracker.recordRun('Guest Pass Hold Cleanup', false, getErrorMessage(err));
   }
 }
 

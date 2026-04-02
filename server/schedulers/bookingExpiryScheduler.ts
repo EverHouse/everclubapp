@@ -6,6 +6,7 @@ import { broadcastAvailabilityUpdate } from '../core/websocket';
 import { logger } from '../core/logger';
 import { voidBookingPass } from '../walletPass/bookingPassService';
 import { cancelPendingPaymentIntentsForBooking } from '../core/billing/paymentIntentCleanup';
+import { releaseGuestPassHold } from '../core/billing/guestPassHoldService';
 import { getErrorMessage } from '../utils/errorUtils';
 
 interface ExpiredBookingResult {
@@ -115,6 +116,16 @@ async function expireStaleBookingRequests(): Promise<void> {
         await cancelPendingPaymentIntentsForBooking(booking.id, { skipSnapshotUpdate: true });
       } catch (err: unknown) {
         logger.warn(`[Booking Expiry] Failed to cancel Stripe PIs for expired booking #${booking.id}`, { extra: { error: getErrorMessage(err) } });
+      }
+      try {
+        const holdResult = await releaseGuestPassHold(booking.id);
+        if (!holdResult.success) {
+          logger.warn(`[Booking Expiry] Failed to release guest pass holds for expired booking #${booking.id} (returned failure)`);
+        } else if (holdResult.passesReleased > 0) {
+          logger.info(`[Booking Expiry] Released ${holdResult.passesReleased} guest pass hold(s) for expired booking #${booking.id}`);
+        }
+      } catch (err: unknown) {
+        logger.warn(`[Booking Expiry] Failed to release guest pass holds for expired booking #${booking.id}`, { extra: { error: getErrorMessage(err) } });
       }
       voidBookingPass(booking.id).catch(err =>
         logger.error('[Booking Expiry] Wallet pass void failed', { extra: { bookingId: booking.id, error: getErrorMessage(err) } })

@@ -223,13 +223,26 @@ export async function convertHoldToUsage(
 }
 
 export async function cleanupExpiredHolds(): Promise<number> {
-  const result = await db.execute(sql`
-    DELETE FROM guest_pass_holds WHERE expires_at < NOW() RETURNING id
-  `);
-  
-  const deleted = result.rowCount || 0;
-  if (deleted > 0) {
-    logger.info(`[GuestPassHoldService] Cleaned up ${deleted} expired guest pass holds`);
+  const BATCH_SIZE = 100;
+  let totalDeleted = 0;
+
+  for (;;) {
+    const result = await db.execute(sql`
+      DELETE FROM guest_pass_holds
+      WHERE id IN (
+        SELECT id FROM guest_pass_holds WHERE expires_at < NOW() LIMIT ${BATCH_SIZE}
+      )
+      RETURNING id
+    `);
+
+    const batchDeleted = result.rowCount || 0;
+    totalDeleted += batchDeleted;
+
+    if (batchDeleted < BATCH_SIZE) break;
   }
-  return deleted;
+
+  if (totalDeleted > 0) {
+    logger.info(`[GuestPassHoldService] Cleaned up ${totalDeleted} expired guest pass holds`);
+  }
+  return totalDeleted;
 }

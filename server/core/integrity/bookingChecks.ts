@@ -583,6 +583,57 @@ export async function checkGuestPassAccountingDrift(): Promise<IntegrityCheckRes
   };
 }
 
+export async function checkStaleExpiredGuestPassHolds(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const staleHoldsResult = await db.execute(sql`
+      SELECT id, member_email, booking_id, passes_held, expires_at
+      FROM guest_pass_holds
+      WHERE expires_at < NOW() - INTERVAL '48 hours'
+    `);
+
+    for (const row of staleHoldsResult.rows as unknown as ExpiredHoldRow[]) {
+      issues.push({
+        category: 'orphan_record',
+        severity: 'error',
+        table: 'guest_pass_holds',
+        recordId: row.id,
+        description: `Guest pass hold #${row.id} for ${row.member_email} expired at ${row.expires_at} and has not been cleaned up for >48 hours (${row.passes_held} passes still held). This indicates the cleanup scheduler may not be running.`,
+        suggestion: 'Verify that the guest pass hold cleanup scheduler is running. Manually delete this hold to release passes.',
+        context: {
+          memberEmail: row.member_email || undefined,
+          bookingId: row.booking_id || undefined,
+        }
+      });
+    }
+
+    return {
+      checkName: 'Stale Expired Guest Pass Holds',
+      status: issues.length === 0 ? 'pass' : 'fail',
+      issueCount: issues.length,
+      issues,
+      lastRun: new Date()
+    };
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking stale expired guest pass holds:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Stale Expired Guest Pass Holds',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'guest_pass_holds',
+        recordId: 'check_error',
+        description: `Failed to check stale expired guest pass holds: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+}
+
 export async function checkStuckUnpaidBookings(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
   const today = getTodayPacific();
