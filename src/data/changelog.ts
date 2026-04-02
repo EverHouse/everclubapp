@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.22",
+    date: "2026-04-02",
+    title: "Payment Status Fix",
+    changes: [
+      "Fixed: Booking fees no longer reappear after payment has been collected. Previously, fee recalculation could incorrectly reset paid participants back to pending.",
+    ]
+  },
+  {
     version: "8.98.21",
     date: "2026-04-02",
     title: "Self-Healing Data Integrity",

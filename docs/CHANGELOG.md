@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.22] - 2026-04-02
+
+### Critical Fix — Payment Status Preservation
+- **Bug fix: Fee recalculation no longer resets paid participants to pending.** `applyFeeBreakdownToParticipants()` in `unifiedFeeService.ts` had a logic error: when `cached_fee_cents = 0` (cleared after real payment) and the computed fee was > $0, it treated this as a "zero-dollar auto-waiver" and reset `payment_status` to `'pending'`, clearing `stripe_payment_intent_id`. This caused collected fees to reappear as unpaid in the staff command center.
+- **Root cause:** `markPaymentSucceeded()` sets `cached_fee_cents = 0` to mean "balance settled." But `applyFeeBreakdownToParticipants()` interpreted `cached_fee_cents = 0` + `payment_status = 'paid'` + computed fee > $0 as "no real payment was made." It did not check whether a real Stripe payment intent existed.
+- **Fix:** Now checks `stripe_payment_intent_id LIKE 'pi_%'` before resetting. Participants with a real Stripe payment are preserved as paid. Only auto-waivers (no PI or synthetic PI) can be reset.
+- **Also fixed: `push_subscriptions.last_active_at` missing column.** Added runtime migration in `db-init.ts` with `information_schema` verification, index creation, and `COALESCE(created_at, NOW())` backfill. Previously caused recurring ERROR logs in integrity checks and notification cleanup scheduler.
+
+Files changed: `server/core/billing/unifiedFeeService.ts`, `server/db-init.ts`, `.agents/skills/fee-calculation/SKILL.md`
+
 ## [8.98.21] - 2026-04-02
 
 ### Self-Healing Data Integrity — Auto-fix & Prevention

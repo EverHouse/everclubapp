@@ -1133,21 +1133,22 @@ export async function applyFeeBreakdownToParticipants(
 
       if (idsToUpdate.length > 0) {
         const paidCheck = await tx.execute(
-          sql`SELECT id, cached_fee_cents FROM booking_participants
+          sql`SELECT id, cached_fee_cents, stripe_payment_intent_id FROM booking_participants
            WHERE id = ANY(${toIntArrayLiteral(idsToUpdate)}::int[])
            AND payment_status = 'paid'`
         );
-        const paidIds = new Set((paidCheck.rows as { id: number; cached_fee_cents: number }[]).map(r => r.id));
+        const paidIds = new Set((paidCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null }[]).map(r => r.id));
 
         const discrepancies: { participantId: number; displayName: string; previousCents: number; newComputedCents: number }[] = [];
         const zeroPaidResetIds: number[] = [];
-        for (const paidRow of paidCheck.rows as { id: number; cached_fee_cents: number }[]) {
+        for (const paidRow of paidCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null }[]) {
           const idx = idsToUpdate.indexOf(paidRow.id);
           if (idx !== -1 && feesToUpdate[idx] !== paidRow.cached_fee_cents) {
             const matchingParticipant = participantsWithIds.find(p => p.participantId === paidRow.id);
             const displayName = matchingParticipant?.displayName ?? `Participant #${paidRow.id}`;
 
-            if (paidRow.cached_fee_cents === 0 && feesToUpdate[idx] > 0) {
+            const hasRealPayment = paidRow.stripe_payment_intent_id && paidRow.stripe_payment_intent_id.startsWith('pi_');
+            if (paidRow.cached_fee_cents === 0 && feesToUpdate[idx] > 0 && !hasRealPayment) {
               logger.info('[UnifiedFeeService] Resetting zero-dollar "paid" participant back to pending — fee now > $0, no real payment was made', {
                 participantId: paidRow.id,
                 sessionId,
@@ -1156,6 +1157,14 @@ export async function applyFeeBreakdownToParticipants(
               });
               zeroPaidResetIds.push(paidRow.id);
               paidIds.delete(paidRow.id);
+            } else if (hasRealPayment && paidRow.cached_fee_cents === 0) {
+              logger.info('[UnifiedFeeService] Preserving paid participant with real Stripe payment — cached_fee_cents=0 is correct (balance settled)', {
+                participantId: paidRow.id,
+                sessionId,
+                displayName,
+                stripePaymentIntentId: paidRow.stripe_payment_intent_id,
+                newComputedCents: feesToUpdate[idx]
+              });
             } else {
               logger.warn('[UnifiedFeeService] Skipping fee update for already-paid participant — fee changed, manual review needed', {
                 participantId: paidRow.id,
