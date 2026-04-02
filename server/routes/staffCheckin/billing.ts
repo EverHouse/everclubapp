@@ -192,6 +192,12 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         memberEmail: booking.owner_email
       });
 
+      broadcastBillingUpdate({
+        action: 'booking_payment_updated',
+        memberEmail: booking.owner_email,
+        bookingId
+      });
+
       return res.json({
         success: true,
         message: `Payment reset for ${participant.display_name} (was ${previousStatus})`,
@@ -284,6 +290,12 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
         broadcastBookingInvoiceUpdate({ bookingId, sessionId, action: 'fees_waived', memberEmail: booking.owner_email });
 
+        broadcastBillingUpdate({
+          action: 'booking_payment_updated',
+          memberEmail: booking.owner_email,
+          bookingId
+        });
+
         return res.json({ 
           success: true, 
           message: `Guest pass used for ${guestName}. ${consumeResult.passesRemaining} passes remaining.`,
@@ -330,6 +342,12 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         sessionId: sessionId ?? undefined, 
         action: action === 'confirm' ? 'payment_confirmed' : 'fees_waived', 
         memberEmail: booking.owner_email 
+      });
+
+      broadcastBillingUpdate({
+        action: action === 'confirm' ? 'payment_confirmed' : 'booking_payment_updated',
+        memberEmail: booking.owner_email,
+        bookingId
       });
 
       return res.json({ 
@@ -734,6 +752,12 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         memberEmail: booking.owner_email 
       });
 
+      broadcastBillingUpdate({
+        action: action === 'confirm_all' ? 'payment_confirmed' : 'booking_payment_updated',
+        memberEmail: booking.owner_email,
+        bookingId
+      });
+
       return res.json({ 
         success: true, 
         message: `All payments ${action === 'confirm_all' ? 'confirmed' : 'waived'}`,
@@ -856,6 +880,12 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
           memberEmail: booking.owner_email,
         });
 
+        broadcastBillingUpdate({
+          action: 'payment_confirmed',
+          memberEmail: booking.owner_email,
+          bookingId
+        });
+
         return res.json({
           success: true,
           paidInFull: true,
@@ -962,6 +992,12 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         sessionId,
         action: 'balance_partial_applied',
         memberEmail: booking.owner_email,
+      });
+
+      broadcastBillingUpdate({
+        action: 'booking_payment_updated',
+        memberEmail: booking.owner_email,
+        bookingId
       });
 
       return res.json({
