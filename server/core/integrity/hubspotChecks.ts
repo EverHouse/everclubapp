@@ -204,6 +204,7 @@ export async function checkHubSpotSyncMismatch(options?: { autoFix?: boolean }):
 
   const staleHubSpotIssues = issues.filter(i => i.description.includes('not found in HubSpot'));
   if (shouldAutoFix && staleHubSpotIssues.length > 0) {
+    const clearedRecordIds = new Set<string | number>();
     if (!isProduction) {
       logger.info(`[AutoFix] Skipping stale HubSpot ID cleanup in dev (${staleHubSpotIssues.length} would be cleared)`);
     } else {
@@ -211,9 +212,13 @@ export async function checkHubSpotSyncMismatch(options?: { autoFix?: boolean }):
         const userId = issue.recordId;
         await db.execute(sql`UPDATE users SET hubspot_id = NULL, updated_at = NOW() WHERE id = ${userId}`);
         autoFixedCount++;
+        clearedRecordIds.add(userId);
         logger.info(`[AutoFix] Cleared stale HubSpot ID for user ${issue.context?.memberEmail}`);
       }
     }
+    const remainingIssues = issues.filter(i => !clearedRecordIds.has(i.recordId));
+    issues.length = 0;
+    issues.push(...remainingIssues);
   }
 
   return {
@@ -222,8 +227,8 @@ export async function checkHubSpotSyncMismatch(options?: { autoFix?: boolean }):
     issueCount: issues.length,
     issues,
     lastRun: new Date(),
-    autoFixedCount,
-    autoFixSummary: autoFixedCount > 0 ? `Auto-pushed ${autoFixedCount} member records to HubSpot` : undefined
+    autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-synced ${autoFixedCount} HubSpot records (pushes + stale ID cleanups)` : undefined
   };
 }
 

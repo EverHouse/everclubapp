@@ -1537,8 +1537,10 @@ interface FeeSnapshotDriftRow {
   last_name: string;
 }
 
-export async function checkFeeSnapshotStripeDrift(_options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
+export async function checkFeeSnapshotStripeDrift(options?: { autoFix?: boolean }): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
+  const shouldAutoFix = options?.autoFix ?? false;
+  let autoFixedCount = 0;
 
   let stripe: Stripe;
   try {
@@ -1613,41 +1615,93 @@ export async function checkFeeSnapshotStripeDrift(_options?: { autoFix?: boolean
             const stripeDollars = (stripeAmountCents / 100).toFixed(2);
             const driftDollars = (driftCents / 100).toFixed(2);
 
-            issues.push({
-              category: 'billing_issue',
-              severity: 'error',
-              table: 'booking_fee_snapshots',
-              recordId: snapshot.id,
-              description: `Fee snapshot #${snapshot.id} for booking #${snapshot.booking_id} (${memberName}, ${snapshot.user_email}) expected $${snapshotDollars} but Stripe received $${stripeDollars} (drift: $${driftDollars})`,
-              suggestion: 'Review manually — the fee snapshot amount and the Stripe received amount have diverged. This may indicate a manual Stripe edit, partial refund, or API glitch.',
-              context: {
-                memberName,
-                memberEmail: snapshot.user_email || undefined,
-                bookingId: snapshot.booking_id,
-                stripePaymentIntentId: snapshot.stripe_payment_intent_id,
-                status: snapshot.status,
-                syncType: 'stripe',
-                syncComparison: [
-                  { field: 'Fee Amount (cents)', appValue: snapshotAmountCents, externalValue: stripeAmountCents }
-                ]
+            if (shouldAutoFix) {
+              try {
+                await db.execute(sql`
+                  UPDATE booking_fee_snapshots
+                  SET total_cents = ${stripeAmountCents}, updated_at = NOW()
+                  WHERE id = ${snapshot.id}
+                    AND total_cents = ${snapshotAmountCents}
+                `);
+                autoFixedCount++;
+                logger.info(`[DataIntegrity] Auto-reconciled fee snapshot #${snapshot.id} for booking #${snapshot.booking_id}: $${snapshotDollars} → $${stripeDollars} (Stripe PI ${snapshot.stripe_payment_intent_id})`);
+              } catch (fixErr: unknown) {
+                logger.error('[DataIntegrity] Failed to auto-reconcile fee snapshot drift', {
+                  extra: { snapshotId: snapshot.id, bookingId: snapshot.booking_id, error: getErrorMessage(fixErr) }
+                });
+                issues.push({
+                  category: 'billing_issue',
+                  severity: 'error',
+                  table: 'booking_fee_snapshots',
+                  recordId: snapshot.id,
+                  description: `Fee snapshot #${snapshot.id} for booking #${snapshot.booking_id} (${memberName}, ${snapshot.user_email}) expected $${snapshotDollars} but Stripe received $${stripeDollars} (drift: $${driftDollars}) — auto-fix failed`,
+                  suggestion: 'Review manually — auto-reconciliation failed',
+                  context: {
+                    memberName,
+                    memberEmail: snapshot.user_email || undefined,
+                    bookingId: snapshot.booking_id,
+                    stripePaymentIntentId: snapshot.stripe_payment_intent_id,
+                    status: snapshot.status,
+                    syncType: 'stripe',
+                    syncComparison: [
+                      { field: 'Fee Amount (cents)', appValue: snapshotAmountCents, externalValue: stripeAmountCents }
+                    ]
+                  }
+                });
               }
-            });
+            } else {
+              issues.push({
+                category: 'billing_issue',
+                severity: 'error',
+                table: 'booking_fee_snapshots',
+                recordId: snapshot.id,
+                description: `Fee snapshot #${snapshot.id} for booking #${snapshot.booking_id} (${memberName}, ${snapshot.user_email}) expected $${snapshotDollars} but Stripe received $${stripeDollars} (drift: $${driftDollars})`,
+                suggestion: 'Review manually — the fee snapshot amount and the Stripe received amount have diverged. This may indicate a manual Stripe edit, partial refund, or API glitch.',
+                context: {
+                  memberName,
+                  memberEmail: snapshot.user_email || undefined,
+                  bookingId: snapshot.booking_id,
+                  stripePaymentIntentId: snapshot.stripe_payment_intent_id,
+                  status: snapshot.status,
+                  syncType: 'stripe',
+                  syncComparison: [
+                    { field: 'Fee Amount (cents)', appValue: snapshotAmountCents, externalValue: stripeAmountCents }
+                  ]
+                }
+              });
+            }
           }
         } catch (err: unknown) {
           if (isStripeResourceMissing(err)) {
-            issues.push({
-              category: 'data_quality',
-              severity: 'warning',
-              table: 'booking_fee_snapshots',
-              recordId: snapshot.id,
-              description: `Fee snapshot #${snapshot.id} references payment intent ${snapshot.stripe_payment_intent_id} which no longer exists in Stripe`,
-              suggestion: 'Clean up orphaned payment intent reference on this fee snapshot',
-              context: {
-                stripePaymentIntentId: snapshot.stripe_payment_intent_id,
-                bookingId: snapshot.booking_id,
-                status: snapshot.status,
+            if (shouldAutoFix) {
+              try {
+                await db.execute(sql`
+                  UPDATE booking_fee_snapshots
+                  SET stripe_payment_intent_id = NULL, updated_at = NOW()
+                  WHERE id = ${snapshot.id}
+                `);
+                autoFixedCount++;
+                logger.info(`[DataIntegrity] Auto-cleared orphaned PI ref on fee snapshot #${snapshot.id} (PI ${snapshot.stripe_payment_intent_id} not found)`);
+              } catch (fixErr: unknown) {
+                logger.error('[DataIntegrity] Failed to clear orphaned PI ref on fee snapshot', {
+                  extra: { snapshotId: snapshot.id, error: getErrorMessage(fixErr) }
+                });
               }
-            });
+            } else {
+              issues.push({
+                category: 'data_quality',
+                severity: 'warning',
+                table: 'booking_fee_snapshots',
+                recordId: snapshot.id,
+                description: `Fee snapshot #${snapshot.id} references payment intent ${snapshot.stripe_payment_intent_id} which no longer exists in Stripe`,
+                suggestion: 'Clean up orphaned payment intent reference on this fee snapshot',
+                context: {
+                  stripePaymentIntentId: snapshot.stripe_payment_intent_id,
+                  bookingId: snapshot.booking_id,
+                  status: snapshot.status,
+                }
+              });
+            }
           } else {
             apiErrorCount++;
             logger.warn(`[DataIntegrity] Error fetching Stripe PI for drift check:`, {
@@ -1695,6 +1749,8 @@ export async function checkFeeSnapshotStripeDrift(_options?: { autoFix?: boolean
     status: issues.length === 0 ? 'pass' : issues.some(i => i.severity === 'error') ? 'fail' : 'warning',
     issueCount: issues.length,
     issues,
-    lastRun: new Date()
+    lastRun: new Date(),
+    autoFixedCount: autoFixedCount > 0 ? autoFixedCount : undefined,
+    autoFixSummary: autoFixedCount > 0 ? `Auto-reconciled ${autoFixedCount} fee snapshot(s) from Stripe` : undefined
   };
 }
