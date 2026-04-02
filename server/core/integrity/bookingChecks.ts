@@ -23,6 +23,8 @@ import type {
   StuckUnpaidBookingRow,
   OvercapacitySessionRow,
   WalletPassSyncRow,
+  SessionOverlapRow,
+  WellnessBlockGapRow,
 } from './core';
 
 export async function checkUnmatchedTrackmanBookings(): Promise<IntegrityCheckResult> {
@@ -1217,6 +1219,71 @@ export async function checkSessionsExceedingResourceCapacity(): Promise<Integrit
     logger.error('[DataIntegrity] Error checking sessions exceeding resource capacity:', { extra: { detail: getErrorMessage(error) } });
     return {
       checkName: 'Sessions Exceeding Resource Capacity',
+export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const overlaps = await db.execute(sql`
+      WITH session_ranges AS (
+        SELECT
+          bs.id,
+          bs.resource_id,
+          bs.session_date,
+          bs.start_time,
+          bs.end_time,
+          (bs.session_date + bs.start_time)::timestamp AS range_start,
+          CASE WHEN bs.end_time <= bs.start_time
+            THEN (bs.session_date + bs.end_time + INTERVAL '1 day')::timestamp
+            ELSE (bs.session_date + bs.end_time)::timestamp
+          END AS range_end
+        FROM booking_sessions bs
+        WHERE bs.start_time != bs.end_time
+          AND bs.session_date >= CURRENT_DATE - INTERVAL '90 days'
+      )
+      SELECT
+        sr1.id AS session1_id,
+        sr2.id AS session2_id,
+        sr1.resource_id,
+        r.name AS resource_name,
+        COALESCE(r.type, 'simulator') AS resource_type,
+        sr1.session_date,
+        sr1.start_time AS s1_start,
+        sr1.end_time AS s1_end,
+        sr2.start_time AS s2_start,
+        sr2.end_time AS s2_end
+      FROM session_ranges sr1
+      JOIN session_ranges sr2
+        ON sr1.resource_id = sr2.resource_id
+        AND sr1.id < sr2.id
+        AND ABS(sr1.session_date - sr2.session_date) <= 1
+        AND tsrange(sr1.range_start, sr1.range_end, '[)')
+           && tsrange(sr2.range_start, sr2.range_end, '[)')
+      LEFT JOIN resources r ON sr1.resource_id = r.id
+      LIMIT 200
+    `);
+
+    for (const row of overlaps.rows as unknown as SessionOverlapRow[]) {
+      issues.push({
+        category: 'booking_issue',
+        severity: 'error',
+        table: 'booking_sessions',
+        recordId: `${row.session1_id}-${row.session2_id}`,
+        description: `Sessions #${row.session1_id} and #${row.session2_id} overlap on ${row.resource_type} "${row.resource_name || row.resource_id}" on ${row.session_date} (${row.s1_start}–${row.s1_end} vs ${row.s2_start}–${row.s2_end})`,
+        suggestion: 'Investigate and resolve the double-booking. The DB trigger should prevent new overlaps; this may be legacy data or an edge case.',
+        context: {
+          resourceId: Number(row.resource_id),
+          resourceName: row.resource_name || undefined,
+          resourceType: row.resource_type || undefined,
+          bookingDate: row.session_date || undefined,
+          startTime: row.s1_start || undefined,
+          endTime: row.s1_end || undefined,
+        }
+      });
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking session overlaps:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Session Overlaps (All Resources)',
       status: 'warning',
       issueCount: 1,
       issues: [{
@@ -1225,11 +1292,128 @@ export async function checkSessionsExceedingResourceCapacity(): Promise<Integrit
         table: 'booking_sessions',
         recordId: 'check_error',
         description: `Failed to check sessions exceeding resource capacity: ${getErrorMessage(error)}`,
+        description: `Failed to check session overlaps: ${getErrorMessage(error)}`,
         suggestion: 'Review server logs for details and retry'
       }],
       lastRun: new Date()
     };
   }
+  return {
+    checkName: 'Session Overlaps (All Resources)',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
+}
+
+export async function checkWellnessBlockGaps(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const gaps = await db.execute(sql`
+      WITH expected_blocks AS (
+        SELECT
+          wc.id AS class_id,
+          wc.title AS class_title,
+          wc.date AS class_date,
+          wc.time AS class_time,
+          (wc.time::time + (wc.duration || ' minutes')::interval)::time AS class_end_time,
+          wc.duration,
+          r.id AS resource_id,
+          r.name AS resource_name
+        FROM wellness_classes wc
+        CROSS JOIN resources r
+        WHERE wc.is_active = true
+          AND wc.date >= CURRENT_DATE
+          AND (
+            (wc.block_simulators = true AND r.type = 'simulator')
+            OR (wc.block_conference_room = true AND r.type = 'conference_room')
+          )
+      ),
+      block_coverage AS (
+        SELECT
+          eb.class_id,
+          eb.resource_id,
+          MIN(ab.start_time) AS earliest_block_start,
+          MAX(ab.end_time) AS latest_block_end,
+          COUNT(ab.id) AS block_count
+        FROM expected_blocks eb
+        LEFT JOIN availability_blocks ab
+          ON ab.wellness_class_id = eb.class_id
+          AND ab.resource_id = eb.resource_id
+          AND ab.block_date = eb.class_date::date
+        GROUP BY eb.class_id, eb.resource_id
+      )
+      SELECT
+        eb.class_id,
+        eb.class_title,
+        eb.class_date,
+        eb.class_time,
+        eb.class_end_time,
+        eb.duration,
+        eb.resource_id,
+        eb.resource_name,
+        bc.earliest_block_start AS block_start,
+        bc.latest_block_end AS block_end
+      FROM expected_blocks eb
+      JOIN block_coverage bc ON bc.class_id = eb.class_id AND bc.resource_id = eb.resource_id
+      WHERE bc.block_count = 0
+        OR bc.earliest_block_start > eb.class_time
+        OR bc.latest_block_end < eb.class_end_time
+      ORDER BY eb.class_date, eb.class_time
+      LIMIT 200
+    `);
+
+    for (const row of gaps.rows as unknown as WellnessBlockGapRow[]) {
+      const hasNoBlock = row.block_start === null;
+      const gapDetail = hasNoBlock
+        ? 'has NO availability block'
+        : `has block coverage (${row.block_start}–${row.block_end}) that doesn't fully cover the class (${row.class_time}–${row.class_end_time})`;
+
+      issues.push({
+        category: 'booking_issue',
+        severity: 'error',
+        table: 'wellness_classes',
+        recordId: `${row.class_id}-${row.resource_id}`,
+        description: `Wellness class "${row.class_title}" on ${row.class_date} (${row.class_time}–${row.class_end_time}) ${gapDetail} on resource "${row.resource_name}"`,
+        suggestion: 'Re-save the wellness class to regenerate availability blocks, or manually create the missing block.',
+        context: {
+          classId: row.class_id,
+          classTitle: row.class_title || undefined,
+          classDate: row.class_date || undefined,
+          startTime: row.class_time || undefined,
+          endTime: row.class_end_time || undefined,
+          resourceId: Number(row.resource_id),
+          resourceName: row.resource_name || undefined,
+        }
+      });
+    }
+  } catch (error: unknown) {
+    logger.error('[DataIntegrity] Error checking wellness block gaps:', { extra: { detail: getErrorMessage(error) } });
+    return {
+      checkName: 'Wellness Block Coverage',
+      status: 'warning',
+      issueCount: 1,
+      issues: [{
+        category: 'system_error',
+        severity: 'error',
+        table: 'wellness_classes',
+        recordId: 'check_error',
+        description: `Failed to check wellness block gaps: ${getErrorMessage(error)}`,
+        suggestion: 'Review server logs for details and retry'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  return {
+    checkName: 'Wellness Block Coverage',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
+  };
 }
 
 export async function checkWalletPassBookingSync(): Promise<IntegrityCheckResult> {

@@ -286,6 +286,32 @@ export interface StaleBookingRow {
   resource_id: number;
 }
 
+export interface SessionOverlapRow {
+  session1_id: number;
+  session2_id: number;
+  resource_id: number;
+  resource_name: string;
+  resource_type: string;
+  session_date: string;
+  s1_start: string;
+  s1_end: string;
+  s2_start: string;
+  s2_end: string;
+}
+
+export interface WellnessBlockGapRow {
+  class_id: number;
+  class_title: string;
+  class_date: string;
+  class_time: string;
+  class_end_time: string;
+  duration: string;
+  resource_id: number;
+  resource_name: string;
+  block_start: string | null;
+  block_end: string | null;
+}
+
 export interface StuckUnpaidBookingRow {
   id: string | number;
   user_email: string;
@@ -452,6 +478,9 @@ export interface IssueContext {
   serialNumber?: string;
   passId?: number;
   voidedAt?: string | Date;
+  resourceType?: string;
+  classId?: number;
+  classTitle?: string;
 }
 
 export interface IntegrityIssue {
@@ -546,6 +575,8 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Wallet Pass Booking Sync': 'medium',
   'Sessions Exceeding Resource Capacity': 'high',
   'Fee Snapshot Stripe Drift': 'high',
+  'Session Overlaps (All Resources)': 'high',
+  'Wellness Block Coverage': 'high',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -816,7 +847,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean }): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync } = await import('./bookingChecks');
+  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync, checkSessionOverlaps, checkWellnessBlockGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync, checkFeeSnapshotStripeDrift } = await import('./stripeChecks');
@@ -837,6 +868,8 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
     () => safeCheck(checkApprovedBookingsForInactiveMembers, 'Approved Bookings for Inactive Members'),
     () => safeCheck(() => checkUsageLedgerGaps({ autoFix: triggeredBy === 'scheduled' }), 'Usage Ledger Gaps'),
+    () => safeCheck(checkSessionOverlaps, 'Session Overlaps (All Resources)'),
+    () => safeCheck(checkWellnessBlockGaps, 'Wellness Block Coverage'),
     () => safeCheck(checkUnresolvedFailedSideEffects, 'Unresolved Failed Side Effects'),
     () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
     () => safeCheck(checkNegativeMerchStock, 'Negative Merch Stock'),
