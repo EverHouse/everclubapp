@@ -13,6 +13,7 @@ import { findOrCreateHubSpotContact } from '../../core/hubspot/members';
 import { getSessionUser } from '../../types/session';
 import Stripe from 'stripe';
 import { requiredStringParam } from '../../middleware/paramSchemas';
+import { broadcastBillingUpdate } from '../../core/websocket';
 
 async function simulatedPresentCard(stripe: Stripe, readerId: string, maxRetries = 3): Promise<void> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -539,6 +540,11 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
           const result = await confirmPaymentSuccess(piIdStr, 'system', 'Terminal auto-sync');
           markReconciled(piIdStr);
           logger.info('[Terminal] Auto-synced payment via confirmPaymentSuccess', { extra: { paymentIntentId, result } });
+          broadcastBillingUpdate({
+            action: 'payment_succeeded',
+            memberEmail: paymentIntent.metadata?.email || undefined,
+            amount: paymentIntent.amount
+          });
         }
       } catch (syncErr: unknown) {
         logger.warn('[Terminal] Non-blocking: Could not auto-sync payment status', { extra: { syncErr: getErrorMessage(syncErr) } });

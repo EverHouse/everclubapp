@@ -543,11 +543,20 @@ export function InlinePaymentBody({
             paymentType: 'booking_fee',
             ...(metaBreakdown ? { feeBreakdown: metaBreakdown } : {}),
           }}
-          onSuccess={async (_paymentIntentId) => {
+          onSuccess={async (paymentIntentId) => {
             try {
-              await patchWithCredentials(`/api/bookings/${bookingId}/payments`, { action: 'confirm_all' });
+              if (paymentIntentId && paymentIntentId !== 'free') {
+                await postWithCredentials('/api/stripe/confirm-payment', { paymentIntentId });
+              } else {
+                await patchWithCredentials(`/api/bookings/${bookingId}/payments`, { action: 'confirm_all' });
+              }
             } catch (err: unknown) {
-              console.error('Failed to mark participants as paid after terminal payment:', err);
+              console.error('Failed to confirm terminal payment:', err);
+              try {
+                await patchWithCredentials(`/api/bookings/${bookingId}/payments`, { action: 'confirm_all' });
+              } catch (fallbackErr: unknown) {
+                console.error('Fallback confirm_all also failed:', fallbackErr);
+              }
             }
             showToast('Terminal payment successful!', 'success');
             handleInlineStripeSuccess();
