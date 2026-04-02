@@ -14,6 +14,7 @@ export const changelog: ChangelogEntry[] = [
     changes: [
       "Fixed: Staff booking modals no longer flash stale data when switching quickly between bookings.",
       "Fixed: Payment section no longer shows incorrect balance info if the modal is closed and reopened rapidly.",
+      "Fixed: Check-in billing modal no longer shows wrong member's billing or saved card info when rapidly switching between bookings.",
       "Improved: Membership tier lookups across booking, billing, and check-in now use the authoritative tier configuration table with a defensive fallback, preventing edge-case mismatches.",
     ]
   },

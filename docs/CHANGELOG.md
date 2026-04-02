@@ -7,7 +7,8 @@ All notable changes to the Ever Club Members App are documented here.
 ### Fix: useEffect race conditions in staff booking modals
 - Added cancellation tokens (`mountedRef`/`isActive`) to 13+ async `useEffect` hooks in `useUnifiedBookingLogic.ts` to prevent stale state updates when rapidly switching between bookings or unmounting components.
 - Added `isActive` guard to `PaymentSection.tsx` member balance fetch to prevent stale data flashing when the modal is closed and reopened quickly.
-- Files changed: `src/components/staff-command-center/modals/useUnifiedBookingLogic.ts`, `src/components/staff-command-center/modals/PaymentSection.tsx`
+- Added `isActive` guards to `CheckinBillingModal.tsx` context fetch and saved card check to prevent stale billing data when switching between bookings.
+- Files changed: `src/components/staff-command-center/modals/useUnifiedBookingLogic.ts`, `src/components/staff-command-center/modals/PaymentSection.tsx`, `src/components/staff-command-center/modals/CheckinBillingModal.tsx`
 
 ### Improvement: Tier field consolidation with defensive fallback
 - Migrated ~15 critical server-side SQL queries from reading the legacy `users.tier` text column to using `tier_id` FK joins with `membership_tiers` table, with `COALESCE(mt.name, u.tier)` defensive fallback.

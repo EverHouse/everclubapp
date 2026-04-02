@@ -119,10 +119,16 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   }, [bookingId]);
 
   useEffect(() => {
-    if (isOpen && bookingId) {
-      fetchContext();
-    }
-  }, [isOpen, bookingId, fetchContext]);
+    if (!isOpen || !bookingId) return;
+    let isActive = true;
+    setLoading(true);
+    setError(null);
+    fetchWithCredentials<CheckinContext>(`/api/bookings/${bookingId}/staff-checkin-context`)
+      .then(data => { if (isActive) setContext(data); })
+      .catch((err: unknown) => { if (isActive) setError(err instanceof Error ? err.message : 'Failed to load billing context'); })
+      .finally(() => { if (isActive) setLoading(false); });
+    return () => { isActive = false; };
+  }, [isOpen, bookingId]);
 
   const checkSavedCard = async (email: string) => {
     try {
@@ -138,10 +144,15 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
   };
 
   useEffect(() => {
-    if (context?.ownerEmail && isOpen) {
-      checkSavedCard(context.ownerEmail);
-    }
-  }, [context?.ownerEmail, isOpen]);
+    if (!context?.ownerEmail || !isOpen) return;
+    let isActive = true;
+    setCheckingCard(true);
+    fetchWithCredentials<{ hasSavedCard: boolean; cardLast4?: string; cardBrand?: string }>(`/api/stripe/staff/check-saved-card/${encodeURIComponent(context.ownerEmail)}`)
+      .then(data => { if (isActive) setSavedCardInfo(data); })
+      .catch((err: unknown) => { if (isActive) { console.error('Failed to check saved card:', err); showToast('Unable to check saved card on file', 'error'); } })
+      .finally(() => { if (isActive) setCheckingCard(false); });
+    return () => { isActive = false; };
+  }, [context?.ownerEmail, isOpen, showToast]);
 
   const handleChargeSavedCard = async () => {
     if (!context || !savedCardInfo?.hasSavedCard) return;
