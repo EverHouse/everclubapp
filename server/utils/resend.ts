@@ -32,7 +32,7 @@ function isAllowedInDev(email: string): boolean {
   );
 }
 
-async function getCredentials() {
+async function getCredentialsFromConnector(): Promise<{ apiKey: string; fromEmail?: string }> {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const xReplitToken = process.env.REPL_IDENTITY 
     ? 'repl ' + process.env.REPL_IDENTITY 
@@ -69,6 +69,20 @@ async function getCredentials() {
     throw new Error('Resend not connected');
   }
   return { apiKey: settings.api_key, fromEmail: settings.from_email };
+}
+
+async function getCredentials(): Promise<{ apiKey: string; fromEmail?: string }> {
+  try {
+    return await getCredentialsFromConnector();
+  } catch (connectorError: unknown) {
+    if (process.env.RESEND_API_KEY) {
+      logger.info('[Resend] Connector unavailable, using RESEND_API_KEY fallback', {
+        extra: { connectorError: getErrorMessage(connectorError) }
+      });
+      return { apiKey: process.env.RESEND_API_KEY, fromEmail: undefined };
+    }
+    throw connectorError;
+  }
 }
 
 export async function getResendClient(): Promise<{ client: Resend; fromEmail: string }> {

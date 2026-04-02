@@ -252,8 +252,28 @@ async function getGoogleCalendarAccessToken() {
 }
 
 export async function getGoogleCalendarClient() {
-  const accessToken = await getGoogleCalendarAccessToken();
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: accessToken as string });
-  return google.calendar({ version: 'v3', auth: oauth2Client });
+  try {
+    const accessToken = await getGoogleCalendarAccessToken();
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken as string });
+    return google.calendar({ version: 'v3', auth: oauth2Client });
+  } catch (connectorError: unknown) {
+    if (process.env.GOOGLE_CALENDAR_CREDENTIALS) {
+      logger.info('[Google Calendar] Connector unavailable, using service account fallback', {
+        extra: { connectorError: getErrorMessage(connectorError) }
+      });
+      try {
+        const credentials = JSON.parse(process.env.GOOGLE_CALENDAR_CREDENTIALS);
+        const auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'],
+        });
+        return google.calendar({ version: 'v3', auth });
+      } catch (parseError: unknown) {
+        logger.error('[Google Calendar] Failed to parse service account credentials', { extra: { error: getErrorMessage(parseError) } });
+        throw connectorError;
+      }
+    }
+    throw connectorError;
+  }
 }
