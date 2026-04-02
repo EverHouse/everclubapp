@@ -1619,48 +1619,25 @@ export async function checkWalletPassBookingSync(options?: { autoFix?: boolean }
       LIMIT 100
     `);
 
-    if (shouldAutoFix && voidedForActive.rows.length > 0) {
-      let reactivatedCount = 0;
-      for (const row of voidedForActive.rows as unknown as WalletPassSyncRow[]) {
-        try {
-          await db.execute(sql`
-            UPDATE booking_wallet_passes
-            SET voided_at = NULL, updated_at = NOW()
-            WHERE id = ${row.pass_id}
-              AND voided_at IS NOT NULL
-          `);
-          reactivatedCount++;
-          logger.info('[DataIntegrity] Auto-reactivated wallet pass for active booking', {
-            extra: { bookingId: row.booking_id, serialNumber: row.serial_number, bookingStatus: row.booking_status }
-          });
-        } catch (fixErr: unknown) {
-          logger.error('[DataIntegrity] Failed to auto-reactivate wallet pass', {
-            extra: { bookingId: row.booking_id, serialNumber: row.serial_number, error: getErrorMessage(fixErr) }
-          });
+    for (const row of voidedForActive.rows as unknown as WalletPassSyncRow[]) {
+      issues.push({
+        category: 'sync_mismatch',
+        severity: 'warning',
+        table: 'booking_wallet_passes',
+        recordId: row.pass_id,
+        description: `Wallet pass "${row.serial_number}" for booking #${row.booking_id} was voided but booking is still "${row.booking_status}"`,
+        suggestion: 'Review and un-void the pass manually or verify the booking status is correct',
+        context: {
+          serialNumber: row.serial_number,
+          bookingId: row.booking_id,
+          bookingStatus: row.booking_status,
+          memberEmail: row.user_email || undefined,
+          memberName: row.user_name || undefined,
+          bookingDate: row.request_date || undefined,
+          passId: row.pass_id,
+          voidedAt: row.voided_at || undefined,
         }
-      }
-      autoFixedCount += reactivatedCount;
-    } else {
-      for (const row of voidedForActive.rows as unknown as WalletPassSyncRow[]) {
-        issues.push({
-          category: 'sync_mismatch',
-          severity: 'warning',
-          table: 'booking_wallet_passes',
-          recordId: row.pass_id,
-          description: `Wallet pass "${row.serial_number}" for booking #${row.booking_id} was voided but booking is still "${row.booking_status}"`,
-          suggestion: 'Review and un-void the pass manually or verify the booking status is correct',
-          context: {
-            serialNumber: row.serial_number,
-            bookingId: row.booking_id,
-            bookingStatus: row.booking_status,
-            memberEmail: row.user_email || undefined,
-            memberName: row.user_name || undefined,
-            bookingDate: row.request_date || undefined,
-            passId: row.pass_id,
-            voidedAt: row.voided_at || undefined,
-          }
-        });
-      }
+      });
     }
 
     return {

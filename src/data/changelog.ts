@@ -8,6 +8,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.21",
+    date: "2026-04-02",
+    title: "Self-Healing Data Integrity",
+    changes: [
+      "New: Nightly data integrity checks now automatically fix common issues — orphaned bookings, stuck statuses, sync mismatches — without staff intervention.",
+      "New: Dashboard shows auto-resolved items with a green badge so you can see what was fixed automatically vs. what needs manual review.",
+      "New: Bookings can no longer be approved or confirmed for inactive, suspended, or cancelled members — the system blocks it at the database level.",
+      "New: Check-in is now blocked if no billing session is linked to the booking, preventing unbilled visits.",
+      "Improved: Financial discrepancies (fee snapshot drift) are flagged for manual review only — the system won't auto-change dollar amounts.",
+    ]
+  },
+  {
     version: "8.98.20",
     date: "2026-04-02",
     title: "Integration Resilience — Connector Fallbacks",

@@ -27,6 +27,8 @@ const expectedTriggers: Array<{ name: string; table: string }> = [
   { name: 'trg_prevent_archived_push_subscriptions', table: 'push_subscriptions' },
   { name: 'trg_guard_stale_pending', table: 'booking_requests' },
   { name: 'trg_guard_attended_unpaid', table: 'booking_requests' },
+  { name: 'trg_guard_approve_inactive', table: 'booking_requests' },
+  { name: 'trg_guard_checkin_no_session', table: 'booking_requests' },
   { name: 'trg_cleanup_fee_on_terminal', table: 'booking_requests' },
   { name: 'trg_clear_unmatched_on_terminal', table: 'booking_requests' },
   { name: 'trg_auto_expire_stale_tours', table: 'tours' },

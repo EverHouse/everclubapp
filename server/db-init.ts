@@ -2076,6 +2076,87 @@ export async function ensureDatabaseConstraints() {
       logger.warn(`[DB Init] Skipping attended fee guard: ${getErrorMessage(err)}`);
     }
 
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION guard_approve_inactive_member()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          member_status TEXT;
+        BEGIN
+          IF NEW.status IN ('approved', 'confirmed') AND OLD.status NOT IN ('approved', 'confirmed', 'checked_in', 'attended') THEN
+            bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+            IF bypass = 'true' THEN
+              RETURN NEW;
+            END IF;
+
+            SELECT membership_status INTO member_status
+            FROM public.users
+            WHERE LOWER(email) = LOWER(NEW.user_email)
+            LIMIT 1;
+
+            IF member_status IN ('inactive', 'suspended', 'cancelled', 'terminated', 'archived') THEN
+              RAISE EXCEPTION '[booking_requests] Approval rejected: member status is "%" (booking_id=%, email=%)', member_status, NEW.id, NEW.user_email;
+            END IF;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_guard_approve_inactive ON booking_requests;
+        CREATE TRIGGER trg_guard_approve_inactive
+          BEFORE UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION guard_approve_inactive_member();
+      `);
+      logger.info('[DB Init] Trigger: guard_approve_inactive_member created (prevents approving bookings for inactive members)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping inactive member approval guard: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      await db.execute(sql`
+        CREATE OR REPLACE FUNCTION guard_checkin_without_session()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        DECLARE
+          bypass TEXT;
+          session_count INT;
+        BEGIN
+          IF NEW.status IN ('checked_in', 'attended') AND OLD.status NOT IN ('checked_in', 'attended') THEN
+            bypass := COALESCE(current_setting('app.bypass_status_check', true), '');
+            IF bypass = 'true' THEN
+              RETURN NEW;
+            END IF;
+
+            SELECT COUNT(*) INTO session_count
+            FROM public.booking_sessions
+            WHERE id = NEW.session_id;
+
+            IF NEW.session_id IS NULL OR session_count = 0 THEN
+              RAISE EXCEPTION '[booking_requests] Check-in rejected: no billing session linked (booking_id=%)', NEW.id;
+            END IF;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+
+        DROP TRIGGER IF EXISTS trg_guard_checkin_no_session ON booking_requests;
+        CREATE TRIGGER trg_guard_checkin_no_session
+          BEFORE UPDATE OF status ON booking_requests
+          FOR EACH ROW
+          EXECUTE FUNCTION guard_checkin_without_session();
+      `);
+      logger.info('[DB Init] Trigger: guard_checkin_without_session created (prevents check-in without billing session)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Skipping session check-in guard: ${getErrorMessage(err)}`);
+    }
+
     // Task 6: Payment intent cleanup trigger on booking terminal status
     try {
       await db.execute(sql`
@@ -2278,6 +2359,8 @@ export async function verifyIntegrityConstraints(): Promise<{ verified: boolean;
     { name: 'trg_guard_stale_pending', justifies: 'Stale Pending Bookings approval guard' },
     { name: 'trg_guard_attended_unpaid', justifies: 'Attended booking fee guard' },
     { name: 'trg_guard_guest_pass_hold', justifies: 'Guest pass hold race-condition guard' },
+    { name: 'trg_guard_approve_inactive', justifies: 'Inactive member booking approval prevention' },
+    { name: 'trg_guard_checkin_no_session', justifies: 'Check-in without billing session prevention' },
   ];
 
   const isProd = process.env.NODE_ENV === 'production';

@@ -2,6 +2,20 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.21] - 2026-04-02
+
+### Self-Healing Data Integrity — Auto-fix & Prevention
+- **Auto-heal infrastructure** — `IntegrityCheckResult` now includes `autoFixedCount` and `autoFixSummary` fields. When `triggeredBy='scheduled'`, `autoFix=true` is derived automatically. Checks gated behind `options.autoFix` only mutate data when explicitly enabled.
+- **Nightly vs manual check split** — `core.ts` restructured: `nightlyChecks` (always-run, includes auto-fix-capable checks) + `manualOnlyChecks` (legacy backstop diagnostics). Moved `checkBookingsWithoutSessions`, `checkOrphanedPaymentIntents`, `checkBillingProviderHybridState`, `checkStuckTransitionalMembers` from legacy to nightly group.
+- **Auto-fix-capable checks**: Stripe subscription sync, tier reconciliation, HubSpot sync mismatch (stale ID clearing), bookings without sessions (auto-creates), orphaned PIs (auto-cancels), billing provider hybrid (auto-backfills), stuck transitional members (cleans dead subscriptions), approved bookings for inactive members (auto-cancels), wallet pass void for terminal bookings.
+- **Detection-only (reverted from auto-fix)**: `checkFeeSnapshotStripeDrift` — removed auto-reconcile and orphaned PI ref clearing; financial amounts require human review. `checkWalletPassBookingSync` — removed auto-reactivation (unvoid) for voided passes on active bookings; too risky. `checkUsageLedgerGaps` — kept as detection-only; placeholder auto-creation removed.
+- **Dashboard UI** — Green "Auto-resolved" badge + summary banner on `IntegrityResultsPanel` for checks with `autoFixedCount > 0`. Auto-fixed items shown distinctly from manual-review items.
+- **Scheduler** — Logs total auto-fix counts and per-check summaries after nightly runs.
+- **DB trigger: `trg_guard_approve_inactive`** — Prevents approving/confirming bookings when member `membership_status` is in (inactive, suspended, cancelled, terminated, archived). Uses `app.bypass_status_check` escape hatch.
+- **DB trigger: `trg_guard_checkin_no_session`** — Prevents check-in/attended transition when `session_id` is NULL or references a non-existent billing session. Uses `app.bypass_status_check` escape hatch.
+
+Files changed: `server/core/integrity/core.ts`, `server/core/integrity/bookingChecks.ts`, `server/core/integrity/stripeChecks.ts`, `server/core/integrity/memberChecks.ts`, `server/core/integrity/hubspotChecks.ts`, `server/schedulers/integrityScheduler.ts`, `server/db-init.ts`, `src/pages/Admin/tabs/dataIntegrity/IntegrityResultsPanel.tsx`, `src/pages/Admin/tabs/dataIntegrity/dataIntegrityTypes.ts`
+
 ## [8.98.20] - 2026-04-02
 
 ### Integration Resilience — Connector Fallbacks
