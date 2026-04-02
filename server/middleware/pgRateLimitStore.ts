@@ -48,16 +48,25 @@ export class PgRateLimitStore implements Store {
     return `${this.prefix}:${key}`;
   }
 
+  private static instanceCount = 0;
+
   init(options: Options): void {
     this.windowMs = options.windowMs;
     ensureTable();
-    this.cleanupInterval = setInterval(() => {
-      if (this.cleanupRunning) return;
-      this.cleanup().catch((err) => {
-        logger.warn('[PgRateLimitStore] Scheduled cleanup failed', { extra: { error: getErrorMessage(err) } });
-      });
-    }, Math.max(this.windowMs, 60_000));
-    this.cleanupInterval.unref();
+    const instanceIndex = PgRateLimitStore.instanceCount++;
+    const jitter = instanceIndex * 7_000;
+    const interval = Math.max(this.windowMs, 60_000);
+    const startupTimer = setTimeout(() => {
+      this.cleanupInterval = setInterval(() => {
+        if (this.cleanupRunning) return;
+        this.cleanup().catch((err) => {
+          logger.warn('[PgRateLimitStore] Scheduled cleanup failed', { extra: { error: getErrorMessage(err) } });
+        });
+      }, interval);
+      this.cleanupInterval.unref();
+      this.cleanup().catch(() => {});
+    }, jitter);
+    startupTimer.unref();
   }
 
   async increment(key: string): Promise<IncrementResponse> {

@@ -481,6 +481,14 @@ export interface IssueContext {
   resourceType?: string;
   classId?: number;
   classTitle?: string;
+  resourceCapacity?: number;
+  session1Id?: number;
+  session2Id?: number;
+  s2Start?: string;
+  s2End?: string;
+  itemName?: string;
+  stockQuantity?: number;
+  isActive?: boolean;
 }
 
 export interface IntegrityIssue {

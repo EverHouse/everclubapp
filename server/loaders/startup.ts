@@ -643,23 +643,17 @@ export async function runStartupTasks(): Promise<void> {
         { name: 'Corporate Volume Pricing', fn: () => products.ensureCorporateVolumePricingProduct() },
       ];
 
-      const productResults = await Promise.allSettled(
-        productInits.map(({ name, fn }) =>
-          retryWithBackoff(async () => {
-            const result = await fn();
-            if (result.action === 'error') throw new Error(`${name} product initialization failed (${result.action})`);
-            return { name, action: result.action };
-          }, `${name} product`)
-        )
-      );
-      for (let i = 0; i < productResults.length; i++) {
-        const result = productResults[i];
-        const { name } = productInits[i];
-        if (result.status === 'fulfilled') {
-          logger.info(`[Stripe] ${name} product ${result.value.action}`, { extra: { action: result.value.action } });
-        } else {
-          logger.error(`[Stripe] ${name} setup failed`, { extra: { error: getErrorMessage(result.reason) } });
-          startupHealth.warnings.push(`Stripe product init: ${name} - ${getErrorMessage(result.reason)}`);
+      for (const { name, fn } of productInits) {
+        try {
+          const result = await retryWithBackoff(async () => {
+            const r = await fn();
+            if (r.action === 'error') throw new Error(`${name} product initialization failed (${r.action})`);
+            return { name, action: r.action };
+          }, `${name} product`);
+          logger.info(`[Stripe] ${name} product ${result.action}`, { extra: { action: result.action } });
+        } catch (err: unknown) {
+          logger.error(`[Stripe] ${name} setup failed`, { extra: { error: getErrorMessage(err) } });
+          startupHealth.warnings.push(`Stripe product init: ${name} - ${getErrorMessage(err)}`);
         }
       }
 
