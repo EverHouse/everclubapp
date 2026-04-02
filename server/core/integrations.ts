@@ -125,8 +125,19 @@ async function fetchHubSpotToken(): Promise<string> {
 }
 
 export async function getHubSpotClient() {
-  const accessToken = await getHubSpotAccessToken();
-  return new Client({ accessToken: accessToken as string });
+  try {
+    const accessToken = await getHubSpotAccessToken();
+    return new Client({ accessToken: accessToken as string });
+  } catch (connectorError: unknown) {
+    const privateAppClient = await getHubSpotPrivateAppClient();
+    if (privateAppClient) {
+      logger.info('[HubSpot] Connector unavailable, using private app token fallback', {
+        extra: { connectorError: getErrorMessage(connectorError) }
+      });
+      return privateAppClient;
+    }
+    throw connectorError;
+  }
 }
 
 export async function getHubSpotPrivateAppClient(): Promise<Client | null> {
