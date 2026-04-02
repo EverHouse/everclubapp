@@ -15,6 +15,7 @@ export {
   getIntegritySummary,
   getIntegrityHistory,
   getCachedIntegrityResults,
+  updateCachedCheckResult,
 } from './core';
 
 export type {

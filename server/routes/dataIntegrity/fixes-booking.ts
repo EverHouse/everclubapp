@@ -5,6 +5,8 @@ import type { Request } from 'express';
 import { recordIdSchema, dryRunSchema, reviewItemSchema, assignSessionOwnerSchema } from '../../../shared/validators/dataIntegrity';
 import { recalculateSessionFees } from '../../core/bookingService/usageCalculator';
 import { getTodayPacific } from '../../utils/dateUtils';
+import { updateCachedCheckResult } from '../../core/dataIntegrity';
+import { checkUsageLedgerGaps } from '../../core/integrity/bookingChecks';
 
 const router = Router();
 
@@ -604,6 +606,13 @@ router.post('/api/data-integrity/fix/recalculate-session-fees', isAdmin, validat
       ledgerUpdated: result.ledgerUpdated,
     });
 
+    try {
+      const freshResult = await checkUsageLedgerGaps();
+      await updateCachedCheckResult(freshResult);
+    } catch (cacheErr) {
+      logger.warn('[DataIntegrity] Failed to refresh cached Usage Ledger Gaps after single recalc', { extra: { error: getErrorMessage(cacheErr) } });
+    }
+
     res.json({
       success: true,
       message: `Recalculated fees for session #${sessionId} — ${result.participantsUpdated} ledger entries created`,
@@ -659,6 +668,13 @@ router.post('/api/data-integrity/fix/bulk-recalculate-usage-ledger', isAdmin, as
       `Bulk recalculated ${succeeded} sessions (${skipped} skipped, ${failed} failed) of ${sessionIds.length} total`,
       { succeeded, skipped, failed, total: sessionIds.length, errorSample: errors.slice(0, 5) }
     );
+
+    try {
+      const freshResult = await checkUsageLedgerGaps();
+      await updateCachedCheckResult(freshResult);
+    } catch (cacheErr) {
+      logger.warn('[DataIntegrity] Failed to refresh cached Usage Ledger Gaps after bulk fix', { extra: { error: getErrorMessage(cacheErr) } });
+    }
 
     res.json({
       success: true,

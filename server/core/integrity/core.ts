@@ -695,6 +695,56 @@ export async function updateIssueTracking(results: IntegrityCheckResult[]): Prom
   }
 }
 
+export async function updateCachedCheckResult(freshResult: IntegrityCheckResult): Promise<void> {
+  try {
+    const [latestRun] = await db.select()
+      .from(integrityCheckHistory)
+      .orderBy(desc(integrityCheckHistory.runAt))
+      .limit(1);
+
+    if (!latestRun || !latestRun.resultsJson) return;
+
+    let results: IntegrityCheckResult[];
+    try {
+      results = JSON.parse(JSON.stringify(latestRun.resultsJson));
+    } catch {
+      return;
+    }
+
+    const normalizedFreshName = freshResult.checkName.replace(/^\[DEV\]\s*/, '');
+    const idx = results.findIndex(r => r.checkName.replace(/^\[DEV\]\s*/, '') === normalizedFreshName);
+    if (idx === -1) return;
+
+    if (!isProduction) {
+      freshResult.checkName = `[DEV] ${freshResult.checkName}`;
+      for (const issue of freshResult.issues) {
+        issue.description = `[DEV ENV — runtime FK constraints disabled] ${issue.description}`;
+      }
+    }
+
+    results[idx] = freshResult;
+
+    const totalIssues = results.reduce((sum, r) => sum + r.issueCount, 0);
+    let criticalCount = 0, highCount = 0, mediumCount = 0, lowCount = 0;
+    for (const result of results) {
+      const name = result.checkName.replace(/^\[DEV\]\s*/, '');
+      const severity = severityMap[name] || 'low';
+      if (severity === 'critical') criticalCount += result.issueCount;
+      else if (severity === 'high') highCount += result.issueCount;
+      else if (severity === 'medium') mediumCount += result.issueCount;
+      else lowCount += result.issueCount;
+    }
+
+    await db.update(integrityCheckHistory)
+      .set({ resultsJson: results, totalIssues, criticalCount, highCount, mediumCount, lowCount })
+      .where(eq(integrityCheckHistory.id, latestRun.id));
+
+    logger.info(`[DataIntegrity] Updated cached result for "${normalizedFreshName}" — now ${freshResult.issueCount} issues`);
+  } catch (err: unknown) {
+    logger.error('[DataIntegrity] Failed to update cached check result:', { extra: { error: getErrorMessage(err) } });
+  }
+}
+
 export async function getCachedIntegrityResults(): Promise<CachedIntegrityResults | null> {
   const [latestRun] = await db.select()
     .from(integrityCheckHistory)

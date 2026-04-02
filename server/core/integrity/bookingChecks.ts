@@ -902,10 +902,11 @@ export async function checkUsageLedgerGaps(options?: { autoFix?: boolean }): Pro
       LIMIT 1000
     `);
 
+    const today = getTodayPacific();
     const totalCount = await db.execute(sql`
       SELECT COUNT(*)::int as count
       FROM booking_sessions bs
-      WHERE bs.session_date < CURRENT_DATE
+      WHERE bs.session_date < ${today}
         AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = bs.id AND bp.participant_type IN ('owner', 'member'))
         AND NOT EXISTS (SELECT 1 FROM usage_ledger ul WHERE ul.session_id = bs.id)
         AND EXISTS (SELECT 1 FROM booking_requests br WHERE br.session_id = bs.id AND br.status = 'attended')

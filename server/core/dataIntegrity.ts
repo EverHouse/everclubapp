@@ -6,6 +6,7 @@ export {
   getIntegritySummary,
   getIntegrityHistory,
   getCachedIntegrityResults,
+  updateCachedCheckResult,
 } from './integrity/core';
 
 export type {
