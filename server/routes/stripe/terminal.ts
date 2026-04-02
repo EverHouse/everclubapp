@@ -533,21 +533,27 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
       }
     }
 
+    let reconciliationPending = false;
     if (paymentIntent.status === 'succeeded' && !alreadyReconciled) {
       try {
         const localRecord = await db.execute(sql`SELECT id, status FROM stripe_payment_intents WHERE stripe_payment_intent_id = ${paymentIntentId}`);
         if (localRecord.rows.length > 0 && localRecord.rows[0].status !== 'succeeded') {
-          const result = await confirmPaymentSuccess(piIdStr, 'system', 'Terminal auto-sync');
-          markReconciled(piIdStr);
-          logger.info('[Terminal] Auto-synced payment via confirmPaymentSuccess', { extra: { paymentIntentId, result } });
+          try {
+            const result = await confirmPaymentSuccess(piIdStr, 'system', 'Terminal auto-sync');
+            markReconciled(piIdStr);
+            logger.info('[Terminal] Auto-synced payment via confirmPaymentSuccess', { extra: { paymentIntentId, result } });
+          } catch (confirmErr: unknown) {
+            reconciliationPending = true;
+            logger.warn('[Terminal] Non-blocking: Could not auto-sync payment status — webhook will reconcile', { extra: { error: getErrorMessage(confirmErr) } });
+          }
           broadcastBillingUpdate({
             action: 'payment_succeeded',
             memberEmail: paymentIntent.metadata?.email || undefined,
             amount: paymentIntent.amount
           });
         }
-      } catch (syncErr: unknown) {
-        logger.warn('[Terminal] Non-blocking: Could not auto-sync payment status', { extra: { syncErr: getErrorMessage(syncErr) } });
+      } catch (lookupErr: unknown) {
+        logger.warn('[Terminal] Non-blocking: Could not check local payment record', { extra: { error: getErrorMessage(lookupErr) } });
       }
     }
     
@@ -557,6 +563,7 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
       amount: paymentIntent.amount,
       amountReceived: paymentIntent.amount_received,
       currency: paymentIntent.currency,
+      reconciliationPending,
       lastPaymentError: paymentIntent.last_payment_error ? {
         message: paymentIntent.last_payment_error.message || 'Payment failed',
         declineCode: paymentIntent.last_payment_error.decline_code || null,

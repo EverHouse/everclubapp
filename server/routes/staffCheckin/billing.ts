@@ -478,7 +478,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
         staffEmail,
         staffName,
         reason: reason || `Voided all payments: ${cancelledCount} intent(s)`,
-        previousStatus: 'paid',
+        previousStatus: 'mixed',
         newStatus: 'pending',
       });
 
@@ -491,6 +491,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
 
       broadcastBillingUpdate({
         action: 'invoice_voided',
+        memberEmail: booking.owner_email,
         bookingId,
         status: 'pending'
       });
