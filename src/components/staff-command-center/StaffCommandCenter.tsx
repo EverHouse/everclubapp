@@ -929,7 +929,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
       
       <CheckinBillingModal
         isOpen={billingModal.isOpen}
-        onClose={() => setBillingModal({ isOpen: false, bookingId: null })}
+        onClose={() => { setBillingModal({ isOpen: false, bookingId: null }); refresh(); }}
         bookingId={billingModal.bookingId || 0}
         onCheckinComplete={handleBillingModalComplete}
       />

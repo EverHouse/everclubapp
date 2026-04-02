@@ -373,13 +373,14 @@ export const CheckinBillingModal: React.FC<CheckinBillingModalProps> = ({
       } else {
         if (result.requiresRoster) {
           showToast('Payment recorded! Please fill in guest details before check-in.', 'warning');
-          await fetchContext();
         } else {
           showToast(result.error || 'Payment succeeded but check-in failed - please retry', 'error');
         }
+        await fetchContext();
       }
     } catch (_err: unknown) {
       showToast('Payment succeeded but check-in failed - please retry', 'error');
+      await fetchContext().catch(() => {});
     } finally {
       setActionInProgress(null);
     }
