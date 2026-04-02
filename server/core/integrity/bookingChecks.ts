@@ -1219,6 +1219,14 @@ export async function checkSessionsExceedingResourceCapacity(): Promise<Integrit
     logger.error('[DataIntegrity] Error checking sessions exceeding resource capacity:', { extra: { detail: getErrorMessage(error) } });
     return {
       checkName: 'Sessions Exceeding Resource Capacity',
+      status: 'fail',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date()
+    };
+  }
+}
+
 export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
   const issues: IntegrityIssue[] = [];
 
@@ -1291,7 +1299,6 @@ export async function checkSessionOverlaps(): Promise<IntegrityCheckResult> {
         severity: 'error',
         table: 'booking_sessions',
         recordId: 'check_error',
-        description: `Failed to check sessions exceeding resource capacity: ${getErrorMessage(error)}`,
         description: `Failed to check session overlaps: ${getErrorMessage(error)}`,
         suggestion: 'Review server logs for details and retry'
       }],

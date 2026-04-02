@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.19] - 2026-04-02
+
+### Test Suite Fix — Post-Merge Compatibility
+- **notificationService.test.ts** — Updated `notifyAllStaff` test mock to chain `.returning()` after `.values()`, matching the updated `notifyAllStaff` implementation that now uses `.returning({ id: notifications.id })` for push delivery tracking.
+- **bookingChecks.ts** — Fixed syntax error where `checkSessionOverlaps` function declaration was incorrectly merged inside the catch block of `checkSessionsExceedingResourceCapacity`. Added missing `status: 'fail'` return, closing braces, and function boundary.
+- All 2,504 tests across 96 files pass.
+
 ## [8.98.18] - 2026-04-02
 
 ### Data Integrity Hardening (10 Tasks)

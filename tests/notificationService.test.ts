@@ -327,7 +327,8 @@ describe('Notification Service - notifyAllStaff', () => {
       }),
     });
 
-    const valuesMock = vi.fn().mockResolvedValue(undefined);
+    const returningMock = vi.fn().mockResolvedValue([{ id: 101 }, { id: 102 }]);
+    const valuesMock = vi.fn().mockReturnValue({ returning: returningMock });
     mockInsert.mockReturnValue({ values: valuesMock });
 
     mockSelectDistinct.mockReturnValue({
@@ -365,9 +366,10 @@ describe('Notification Service - notifyAllStaff', () => {
       }),
     });
 
+    const returningMock = vi.fn().mockResolvedValue([{ id: 201 }]);
     const valuesMock = vi.fn().mockImplementation((values: Array<{ url: string }>) => {
       expect(values[0].url).toBe('/admin/bookings');
-      return Promise.resolve(undefined);
+      return { returning: returningMock };
     });
     mockInsert.mockReturnValue({ values: valuesMock });
 

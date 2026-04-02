@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.19",
+    date: "2026-04-02",
+    title: "Test Suite Fix — Post-Merge Compatibility",
+    changes: [
+      "Fixed: notifyAllStaff test mock now chains .returning() to match updated notification insert that tracks delivery metadata.",
+      "Fixed: bookingChecks.ts syntax error — checkSessionOverlaps function was incorrectly spliced into the catch block of checkSessionsExceedingResourceCapacity, causing a compile failure.",
+      "Result: All 2,504 tests across 96 files now pass cleanly.",
+    ]
+  },
+  {
     version: "8.98.18",
     date: "2026-04-02",
     title: "Data Integrity Hardening (10 Tasks)",
