@@ -396,7 +396,7 @@ export async function checkStuckPushNotifications(options?: { autoFix?: boolean 
     if (stuckCount > 0 && shouldAutoFix) {
       const fixResult = await db.execute(sql`
         UPDATE notifications
-        SET push_delivery_status = 'failed', updated_at = NOW()
+        SET push_delivery_status = 'failed'
         WHERE push_delivery_status = 'pending'
           AND created_at < NOW() - INTERVAL '24 hours'
         RETURNING id
