@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.20",
+    date: "2026-04-02",
+    title: "Integration Resilience — Connector Fallbacks",
+    changes: [
+      "Fixed: Google Calendar reconnected via service account — all 5 calendars (Conference Room, Events, Wellness & Classes, Tours, Internal) now work independently of the Replit connector system.",
+      "Fixed: Resend email service now falls back to a direct API key when the connector is unavailable, ensuring emails always send.",
+      "Improved: Both services automatically try the connector first and gracefully fall back, so you'll never notice if the connector goes down again.",
+    ]
+  },
+  {
     version: "8.98.19",
     date: "2026-04-02",
     title: "Test Suite Fix — Post-Merge Compatibility",

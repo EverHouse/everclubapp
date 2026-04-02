@@ -10,6 +10,14 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 let calendarDiscoveryLogged = false;
 let serviceAccountSubscriptionAttempted = false;
 
+const SERVICE_ACCOUNT_CALENDAR_IDS: Record<string, string> = {
+  'MBO_Conference_Room': 'c_767c51576bb3d124fd77dfb93636a8879d90ee764629f1ed3b88934df0f4f943@group.calendar.google.com',
+  'Events': 'c_40839b007ee0ad0046348fcfe0172260e2cff2c0b369e12381df906be250812e@group.calendar.google.com',
+  'Wellness & Classes': 'c_0e89e10c39b9b0ce513c054482a2edfad7ed05fb9cacac2ddabdb2760a413288@group.calendar.google.com',
+  'Tours Scheduled': 'members@everclub.co',
+  'Internal Calendar': 'c_a5801dab5ec77dfe8afe78c7930457c57e7e653b24a3c9d4af7fc5a29d148118@group.calendar.google.com',
+};
+
 export function clearCalendarCache(): void {
   Object.keys(calendarIdCache).forEach(key => delete calendarIdCache[key]);
   cacheLastRefreshed = 0;
@@ -23,24 +31,20 @@ function isCacheValid(): boolean {
   return hasItems && isNotExpired;
 }
 
-async function subscribeToSharedCalendars(calendar: Awaited<ReturnType<typeof getGoogleCalendarClient>>): Promise<void> {
+async function subscribeServiceAccountToCalendars(calendar: Awaited<ReturnType<typeof getGoogleCalendarClient>>): Promise<void> {
   if (serviceAccountSubscriptionAttempted) return;
   serviceAccountSubscriptionAttempted = true;
 
-  const configNames = Object.values(CALENDAR_CONFIG).map(c => c.name);
-  const response = await calendar.calendarList.list();
-  const alreadyListed = new Set((response.data.items || []).map(c => c.summary));
+  const listResponse = await calendar.calendarList.list();
+  const alreadySubscribed = new Set((listResponse.data.items || []).map(c => c.id));
 
-  for (const name of configNames) {
-    if (alreadyListed.has(name)) continue;
+  for (const [name, calendarId] of Object.entries(SERVICE_ACCOUNT_CALENDAR_IDS)) {
+    if (alreadySubscribed.has(calendarId)) continue;
     try {
-      const searchResponse = await calendar.calendarList.list();
-      const found = (searchResponse.data.items || []).find(c => c.summary === name);
-      if (!found) {
-        logger.debug(`[Calendar] Service account: calendar "${name}" not yet visible, will retry on next refresh`);
-      }
+      await calendar.calendarList.insert({ requestBody: { id: calendarId } });
+      logger.info(`[Calendar] Service account subscribed to "${name}" (${calendarId})`);
     } catch (err: unknown) {
-      logger.debug(`[Calendar] Service account: could not check calendar "${name}": ${getErrorMessage(err)}`);
+      logger.warn(`[Calendar] Service account could not subscribe to "${name}": ${getErrorMessage(err)}`);
     }
   }
 }
@@ -55,7 +59,7 @@ export async function discoverCalendarIds(forceRefresh: boolean = false): Promis
     const usingServiceAccount = isUsingServiceAccount();
 
     if (usingServiceAccount) {
-      await subscribeToSharedCalendars(calendar);
+      await subscribeServiceAccountToCalendars(calendar);
     }
 
     const response = await calendar.calendarList.list();
@@ -68,14 +72,20 @@ export async function discoverCalendarIds(forceRefresh: boolean = false): Promis
         calendarIdCache[cal.summary] = cal.id;
       }
     }
+
+    if (usingServiceAccount) {
+      for (const [name, calendarId] of Object.entries(SERVICE_ACCOUNT_CALENDAR_IDS)) {
+        if (!calendarIdCache[name]) {
+          calendarIdCache[name] = calendarId;
+        }
+      }
+    }
     
     cacheLastRefreshed = Date.now();
     
     if (!calendarDiscoveryLogged) {
-      logger.info(`[Calendar] Discovered ${calendars.length} calendars`);
-      if (usingServiceAccount && calendars.length === 0) {
-        logger.warn('[Calendar] Service account found 0 calendars — ensure calendars are shared with the service account email and sharing is set to "Make changes to events"');
-      }
+      const totalCount = Object.keys(calendarIdCache).length;
+      logger.info(`[Calendar] Discovered ${totalCount} calendars${usingServiceAccount ? ' (service account)' : ''}`);
       calendarDiscoveryLogged = true;
     }
   } catch (error: unknown) {

@@ -2,6 +2,17 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.20] - 2026-04-02
+
+### Integration Resilience — Connector Fallbacks
+- **Google Calendar service account fallback** — `getGoogleCalendarClient()` in `server/core/integrations.ts` now tries the Replit connector first; if it fails (HTTP 401), falls back to a Google service account via `GOOGLE_CALENDAR_CREDENTIALS` env secret. Added `isUsingServiceAccount()` export for downstream code to detect the auth mode.
+- **Service account calendar subscription** — `server/core/calendar/cache.ts` now calls `calendarList.insert()` to subscribe the service account to shared calendars on first run, using a hardcoded `SERVICE_ACCOUNT_CALENDAR_IDS` mapping. This is necessary because service accounts don't auto-subscribe to shared calendars. Also populates `calendarIdCache` directly from the mapping as a safety net.
+- **Resend API key fallback** — `server/utils/resend.ts` `getResendClient()` tries the Replit connector; on failure, falls back to `RESEND_API_KEY` env secret. Logs the fallback source for debugging.
+- **Root cause**: Replit connector platform lost connection assignments for Google Calendar, Resend, and HubSpot. Only Stripe retained its assignment. HubSpot already had a private app token fallback. Multiple `proposeIntegration` attempts did not restore the connections.
+- **Calendar IDs configured**: MBO_Conference_Room, Events, Wellness & Classes, Tours Scheduled (`members@everclub.co`), Internal Calendar — all 5 discovered and subscribed on startup.
+
+Files changed: `server/core/integrations.ts`, `server/core/calendar/cache.ts`, `server/utils/resend.ts`
+
 ## [8.98.19] - 2026-04-02
 
 ### Test Suite Fix — Post-Merge Compatibility
