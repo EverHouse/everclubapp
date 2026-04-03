@@ -540,7 +540,11 @@ router.get('/api/stripe/terminal/payment-status/:paymentIntentId', isStaffOrAdmi
         if (localRecord.rows.length > 0 && localRecord.rows[0].status !== 'succeeded') {
           try {
             const result = await confirmPaymentSuccess(piIdStr, 'system', 'Terminal auto-sync');
-            markReconciled(piIdStr);
+            if (result && typeof result === 'object' && 'success' in result && result.success) {
+              markReconciled(piIdStr);
+            } else {
+              reconciliationPending = true;
+            }
             logger.info('[Terminal] Auto-synced payment via confirmPaymentSuccess', { extra: { paymentIntentId, result } });
           } catch (confirmErr: unknown) {
             reconciliationPending = true;

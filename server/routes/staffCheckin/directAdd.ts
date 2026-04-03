@@ -136,6 +136,19 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
           });
         }
 
+        const matchingGuest = await db.execute(sql`SELECT bp.id, bp.display_name
+           FROM booking_participants bp
+           LEFT JOIN guests g ON bp.guest_id = g.id
+           WHERE bp.session_id = ${sessionId} 
+             AND bp.participant_type = 'guest'
+             AND (LOWER(bp.display_name) = LOWER(${matchedMember.display_name}) OR LOWER(g.email) = LOWER(${matchedMember.email}))`);
+        
+        if (matchingGuest.rows.length > 0) {
+          const guestIds = (matchingGuest.rows as unknown as { id: number }[]).map(r => r.id);
+          await db.execute(sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(guestIds)}::int[])`);
+          logger.info('[Staff Add Guest->Member] Removed duplicate guest entries for matched member', { extra: { guestIdsLength: guestIds.length, memberEmail: matchedMember.email, sessionId } });
+        }
+
         await db.execute(sql`
           INSERT INTO booking_participants 
             (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
