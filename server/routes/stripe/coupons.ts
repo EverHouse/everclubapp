@@ -27,7 +27,9 @@ router.get('/api/stripe/coupons', isStaffOrAdmin, async (req: Request, res: Resp
     const promoMap = new Map<string, string[]>();
     for (const pc of promoCodes.data) {
       const pcWithCoupon = pc as unknown as PromotionCodeWithCoupon;
+      if (!pcWithCoupon.coupon) continue;
       const couponId = typeof pcWithCoupon.coupon === 'string' ? pcWithCoupon.coupon : pcWithCoupon.coupon.id;
+      if (!couponId) continue;
       const existing = promoMap.get(couponId) || [];
       existing.push(pc.code);
       promoMap.set(couponId, existing);
