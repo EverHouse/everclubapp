@@ -99,7 +99,8 @@ function injectNonceIntoHtml(html: string, nonce: string): string {
 }
 
 const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
-if (isProduction && !process.env.INTERNAL_API_SECRET) {
+const isTestRun = process.env.VITEST === '1' || process.env.NODE_ENV === 'test';
+if (isProduction && !isTestRun && !process.env.INTERNAL_API_SECRET) {
   throw new Error('INTERNAL_API_SECRET environment variable is required in production');
 }
 
