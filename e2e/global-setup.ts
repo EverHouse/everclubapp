@@ -1,17 +1,88 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
+import pg from 'pg';
 
 const AUTH_STATE_DIR = path.join(process.cwd(), 'e2e', '.auth');
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5000';
-const TEST_MEMBER_EMAIL = process.env.E2E_MEMBER_EMAIL || 'nick@everclub.co';
-const TEST_STAFF_EMAIL = process.env.E2E_STAFF_EMAIL || '';
-const TEST_ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || '';
+const DATABASE_URL = process.env.DATABASE_URL || '';
+
+const ROLES = {
+  member: process.env.E2E_MEMBER_EMAIL || 'nick@everclub.co',
+  staff: process.env.E2E_STAFF_EMAIL || '',
+  admin: process.env.E2E_ADMIN_EMAIL || '',
+};
 
 const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] });
 
-async function authenticateRole(
-  browser: ReturnType<typeof chromium.launch> extends Promise<infer T> ? T : never,
+async function getOtpFromDatabase(email: string): Promise<string | null> {
+  if (!DATABASE_URL) return null;
+
+  const client = new pg.Client({ connectionString: DATABASE_URL });
+  try {
+    await client.connect();
+    const result = await client.query(
+      `SELECT token FROM magic_links
+       WHERE LOWER(email) = LOWER($1) AND used = false AND expires_at > NOW()
+       ORDER BY created_at DESC LIMIT 1`,
+      [email],
+    );
+    return result.rows[0]?.token || null;
+  } finally {
+    await client.end();
+  }
+}
+
+async function authenticateViaOtp(
+  browser: Awaited<ReturnType<typeof chromium.launch>>,
+  email: string,
+  role: string,
+): Promise<boolean> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+
+    const requestResponse = await page.request.post(
+      `${BASE_URL}/api/auth/request-otp`,
+      {
+        data: { email },
+        headers: { Origin: BASE_URL },
+      },
+    );
+    if (!requestResponse.ok()) {
+      console.warn(`[E2E setup] OTP request failed for ${role} (${email}): ${requestResponse.status()}`);
+      return false;
+    }
+
+    const otpCode = await getOtpFromDatabase(email);
+    if (!otpCode) {
+      console.warn(`[E2E setup] Could not retrieve OTP code from database for ${role} (${email})`);
+      return false;
+    }
+
+    const verifyResponse = await page.request.post(
+      `${BASE_URL}/api/auth/verify-otp`,
+      {
+        data: { email, code: otpCode },
+        headers: { Origin: BASE_URL },
+      },
+    );
+    if (!verifyResponse.ok()) {
+      console.warn(`[E2E setup] OTP verify failed for ${role} (${email}): ${verifyResponse.status()}`);
+      return false;
+    }
+
+    await context.storageState({
+      path: path.join(AUTH_STATE_DIR, `${role}.json`),
+    });
+    return true;
+  } finally {
+    await context.close();
+  }
+}
+
+async function authenticateViaDevLogin(
+  browser: Awaited<ReturnType<typeof chromium.launch>>,
   email: string,
   role: string,
 ): Promise<boolean> {
@@ -26,7 +97,6 @@ async function authenticateRole(
       },
     );
     if (!response.ok()) {
-      console.warn(`[E2E setup] Auth failed for ${role} (${email}): ${response.status()}`);
       return false;
     }
     await context.storageState({
@@ -38,12 +108,26 @@ async function authenticateRole(
   }
 }
 
+async function authenticateRole(
+  browser: Awaited<ReturnType<typeof chromium.launch>>,
+  email: string,
+  role: string,
+): Promise<boolean> {
+  if (DATABASE_URL) {
+    const otpSuccess = await authenticateViaOtp(browser, email, role);
+    if (otpSuccess) return true;
+    console.warn(`[E2E setup] OTP auth failed for ${role}, falling back to dev-login`);
+  }
+
+  return authenticateViaDevLogin(browser, email, role);
+}
+
 async function globalSetup(_config: FullConfig) {
   fs.mkdirSync(AUTH_STATE_DIR, { recursive: true });
 
-  fs.writeFileSync(path.join(AUTH_STATE_DIR, 'member.json'), EMPTY_STATE);
-  fs.writeFileSync(path.join(AUTH_STATE_DIR, 'staff.json'), EMPTY_STATE);
-  fs.writeFileSync(path.join(AUTH_STATE_DIR, 'admin.json'), EMPTY_STATE);
+  for (const role of Object.keys(ROLES)) {
+    fs.writeFileSync(path.join(AUTH_STATE_DIR, `${role}.json`), EMPTY_STATE);
+  }
 
   let browser;
   try {
@@ -54,20 +138,19 @@ async function globalSetup(_config: FullConfig) {
   }
 
   try {
-    const memberOk = await authenticateRole(browser, TEST_MEMBER_EMAIL, 'member');
-    if (!memberOk) {
-      console.warn(
-        '[E2E setup] Member auth failed. Authenticated tests will be skipped.\n' +
-        'Ensure DEV_LOGIN_ENABLED=true and the dev server is running.',
-      );
-    }
+    for (const [role, email] of Object.entries(ROLES)) {
+      if (!email) continue;
 
-    if (TEST_STAFF_EMAIL) {
-      await authenticateRole(browser, TEST_STAFF_EMAIL, 'staff');
-    }
-
-    if (TEST_ADMIN_EMAIL) {
-      await authenticateRole(browser, TEST_ADMIN_EMAIL, 'admin');
+      const ok = await authenticateRole(browser, email, role);
+      if (ok) {
+        console.log(`[E2E setup] Authenticated ${role} (${email})`);
+      } else {
+        console.warn(
+          `[E2E setup] Auth failed for ${role} (${email}). ` +
+          'Tests requiring this role will fail. ' +
+          'Ensure DATABASE_URL or DEV_LOGIN_ENABLED=true is set.',
+        );
+      }
     }
   } finally {
     await browser.close();

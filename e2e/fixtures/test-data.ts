@@ -26,8 +26,17 @@ export interface CreateBookingParams {
   participants?: Array<{ email?: string; name?: string }>;
 }
 
+export interface CreateMemberParams {
+  firstName: string;
+  lastName: string;
+  email: string;
+  tier: string;
+  phone?: string;
+}
+
 export class TestDataHelper {
   private createdBookingIds: string[] = [];
+  private createdMemberEmails: string[] = [];
 
   constructor(private request: APIRequestContext) {}
 
@@ -132,6 +141,28 @@ export class TestDataHelper {
     return Array.isArray(data) ? data : data.events || [];
   }
 
+  async createMember(params: CreateMemberParams): Promise<{ id: number; email: string }> {
+    const response = await this.request.post(
+      `${BASE_URL}/api/members`,
+      {
+        data: {
+          firstName: params.firstName,
+          lastName: params.lastName,
+          email: params.email,
+          tier: params.tier,
+          phone: params.phone || '',
+        },
+        headers: { Origin: BASE_URL },
+      },
+    );
+    if (!response.ok()) {
+      throw new Error(`createMember failed: ${response.status()} ${await response.text()}`);
+    }
+    this.createdMemberEmails.push(params.email);
+    const data = await response.json();
+    return data.member || data;
+  }
+
   async getMembers(): Promise<Array<{ id: number; email: string; firstName: string; lastName: string }>> {
     const response = await this.request.get(`${BASE_URL}/api/members`);
     if (!response.ok()) {
@@ -164,5 +195,10 @@ export class TestDataHelper {
     if (errors.length > 0) {
       console.warn(`[E2E cleanup] ${errors.length} booking(s) failed to cancel:\n${errors.join('\n')}`);
     }
+  }
+
+  async cleanup(): Promise<void> {
+    await this.cleanupCreatedBookings();
+    this.createdMemberEmails = [];
   }
 }
