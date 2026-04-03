@@ -236,9 +236,6 @@ router.get('/v1/devices/:deviceLibraryId/registrations/:passTypeId', validateQue
     }
 
     if (!authValid) {
-      logger.warn('[WalletPass WebService] Auth failed for device after all fallbacks', {
-        extra: { deviceLibraryId, passTypeId, registeredSerials, hadAuthHeader: !!authToken }
-      });
       return res.status(401).send('Unauthorized');
     }
 
