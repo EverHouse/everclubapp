@@ -1123,7 +1123,14 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
             paidInvoicePiIds.add(piId);
           }
 
-          if (piId && existingPaymentIntentIds.has(piId)) continue;
+          if (piId && existingPaymentIntentIds.has(piId)) {
+            const matchingPurchase = purchases.find(
+              px => px.stripePaymentIntentId === piId
+            );
+            if (!matchingPurchase || !/^Payment for Invoice$/i.test(matchingPurchase.itemName)) {
+              continue;
+            }
+          }
 
           const invBookingId = bookingId ? parseInt(bookingId, 10) : null;
           const lineDescription = inv.lines?.data?.[0]?.description;
