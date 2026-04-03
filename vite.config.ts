@@ -4,6 +4,37 @@ import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import viteCompression from 'vite-plugin-compression';
 
+function cspNoncePlugin(): Plugin {
+  return {
+    name: 'csp-nonce-restore',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      html = html.replace(/<script(?![^>]*\bnonce=)/g, '<script nonce="__CSP_NONCE__"');
+      html = html.replace(/<style(?![^>]*\bnonce=)/g, '<style nonce="__CSP_NONCE__"');
+      return html;
+    },
+    closeBundle() {
+      const htmlPath = path.resolve(__dirname, 'dist/index.html');
+      if (!fs.existsSync(htmlPath)) return;
+      const html = fs.readFileSync(htmlPath, 'utf-8');
+      const scriptTags = html.match(/<script[\s>]/g) || [];
+      const scriptNonces = html.match(/<script[^>]*\bnonce="__CSP_NONCE__"/g) || [];
+      const styleTags = html.match(/<style[\s>]/g) || [];
+      const styleNonces = html.match(/<style[^>]*\bnonce="__CSP_NONCE__"/g) || [];
+      const missingScripts = scriptTags.length - scriptNonces.length;
+      const missingStyles = styleTags.length - styleNonces.length;
+      if (missingScripts > 0 || missingStyles > 0) {
+        throw new Error(
+          `CSP nonce verification failed: ${missingScripts} <script> and ${missingStyles} <style> tag(s) in dist/index.html are missing nonce="__CSP_NONCE__". ` +
+          `This will cause a blank screen in production due to strict-dynamic CSP.`
+        );
+      }
+      // eslint-disable-next-line no-console
+      console.log(`✓ CSP nonce verified: ${scriptNonces.length} script(s) and ${styleNonces.length} style(s) all have nonce="__CSP_NONCE__"`);
+    }
+  };
+}
+
 function cssPreloadPlugin(): Plugin {
   return {
     name: 'css-preload',
@@ -116,6 +147,7 @@ export default defineConfig({
     react(),
     generateBuildVersion(),
     cssPreloadPlugin(),
+    cspNoncePlugin(),
     viteCompression({
       algorithm: 'gzip',
       ext: '.gz',
