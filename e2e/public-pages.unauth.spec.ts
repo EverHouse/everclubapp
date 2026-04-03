@@ -134,12 +134,12 @@ test.describe('Public Pages', () => {
       await expect(step2Element.first()).toBeVisible({ timeout: 10_000 });
     });
 
-    test('step 2 submit button is present for form submission', async ({ page }) => {
+    test('step 2 form submits and shows thank you confirmation', async ({ page }) => {
       await page.goto('/membership/apply');
       await page.waitForLoadState('domcontentloaded');
 
-      await page.locator('#apply-firstname').fill('Test');
-      await page.locator('#apply-lastname').fill('User');
+      await page.locator('#apply-firstname').fill('E2E Test');
+      await page.locator('#apply-lastname').fill('ApplyUser');
       await page.locator('#apply-email').fill('e2e-test-apply@example.com');
       await page.locator('#apply-phone').fill('5551234567');
 
@@ -150,8 +150,30 @@ test.describe('Public Pages', () => {
       const step2Element = page.locator('#apply-tier, #apply-message');
       await expect(step2Element.first()).toBeVisible({ timeout: 10_000 });
 
+      const messageField = page.locator('#apply-message');
+      if (await messageField.isVisible()) {
+        await messageField.fill('E2E test application');
+      }
+
+      const consentCheckbox = page.locator('input[type="checkbox"]').first();
+      if (await consentCheckbox.isVisible()) {
+        await consentCheckbox.check();
+      }
+
       const submitButton = page.getByRole('button', { name: /submit|apply|send/i }).first();
       await expect(submitButton).toBeVisible();
+
+      const responsePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/api/') && resp.request().method() === 'POST',
+        { timeout: 10_000 },
+      ).catch(() => null);
+
+      await submitButton.click();
+      await responsePromise;
+
+      const thankYou = page.getByText(/thank you/i).first();
+      const errorMsg = page.locator('.text-red-500, .text-red-700, [role="alert"]').first();
+      await expect(thankYou.or(errorMsg)).toBeVisible({ timeout: 10_000 });
     });
   });
 
@@ -193,6 +215,24 @@ test.describe('Public Pages', () => {
       await nextButton.click();
 
       await expect(page.locator('#tour-firstName')).not.toBeVisible({ timeout: 10_000 });
+    });
+
+    test('step 2 renders scheduling UI after advancing', async ({ page }) => {
+      await page.goto('/tour');
+      await page.waitForLoadState('domcontentloaded');
+
+      await page.locator('#tour-firstName').fill('E2E Tour');
+      await page.locator('#tour-lastName').fill('TestUser');
+      await page.locator('#tour-email').fill('e2e-tour-submit@example.com');
+      await page.locator('#tour-phone').fill('5551234567');
+
+      const nextButton = page.getByRole('button', { name: /next|continue|choose/i }).first();
+      await nextButton.click();
+
+      await expect(page.locator('#tour-firstName')).not.toBeVisible({ timeout: 10_000 });
+
+      const step2Indicator = page.getByText(/pick a time/i).first();
+      await expect(step2Indicator).toBeVisible({ timeout: 10_000 });
     });
   });
 

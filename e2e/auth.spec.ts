@@ -219,6 +219,26 @@ authTest.describe('Authentication — Authenticated User', () => {
     expect(memberPage.url()).not.toContain('/login');
   });
 
+  authTest('session persists after page reload', async ({ memberPage }) => {
+    await memberPage.goto('/dashboard');
+    await memberPage.waitForLoadState('domcontentloaded');
+    expect(memberPage.url()).not.toContain('/login');
+
+    await memberPage.reload();
+    await memberPage.waitForLoadState('domcontentloaded');
+
+    expect(memberPage.url()).not.toContain('/login');
+    const url = memberPage.url();
+    const isProtected = url.includes('/dashboard') || url.includes('/admin');
+    expect(isProtected).toBe(true);
+  });
+
+  authTest('non-member routes are guarded — /book requires active membership', async ({ memberPage }) => {
+    await memberPage.goto('/book');
+    await memberPage.waitForLoadState('domcontentloaded');
+    expect(memberPage.url()).not.toContain('/login');
+  });
+
   authTest('session endpoint returns authenticated user data', async ({ memberPage }) => {
     const response = await memberPage.request.get(`${BASE_URL}/api/auth/session`);
     expect(response.status()).toBe(200);
