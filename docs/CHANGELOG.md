@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.26] - 2026-04-03
+
+### Security & Booking Safety Hardening — CSP, N+1 Fix, Safety Guards
+- **Security: CSP nonce injection switched from regex to placeholder approach.** Previously, `injectNonceIntoHtml` used a global regex to inject nonces into every `<script>`/`<style>` tag in the HTML response, meaning XSS-injected tags would also receive valid nonces, bypassing CSP. Now uses `__CSP_NONCE__` placeholders in `index.html` that are replaced at runtime — only the app's own pre-placed tags get nonces.
+- **Security: Production startup guard for `INTERNAL_API_SECRET`.** Server now throws on startup if `INTERNAL_API_SECRET` is not set when `NODE_ENV=production` or `REPLIT_DEPLOYMENT=1`, preventing the app from running without CSRF internal request verification.
+- **Performance: Participant membership status checked inline during initial lookup.** The `sanitizeAndResolveParticipants` function previously ran a third standalone query to check membership status after resolving emails and user IDs. Now `membershipStatus` is included in both the email and userId select queries, and inactive/cancelled checks happen during the initial mapping loops. Eliminates one full database round-trip per booking creation.
+- **Performance: Participant overlap checks batched into a single query.** `checkParticipantOverlaps` previously ran one overlap query per member participant. Now collects all member emails and runs a single query with `IN (...)` clauses, reducing N+1 database calls to 1.
+- **Performance: Participant daily limit checks parallelized.** `checkParticipantDailyLimits` previously awaited each participant's limit check sequentially. Now uses `Promise.all` to run all checks concurrently.
+- **Fix: Booking creation fails fast for unknown owner accounts.** `prepareBookingCreation` now throws a `BookingValidationError(404)` if `resolveUserByEmail` returns null for non-staff bookings, instead of silently proceeding with `null` userId. Staff bookings are exempt since they may create bookings for walk-ins/guests.
+- **Fix: `computeEndTime` catch-all guard.** Added an `else if (endHours >= 24)` throw after the `endHours === 24 && endMins === 0` safe-return, protecting against any arithmetic edge case that could produce an invalid time.
+
+Files changed: `server/middleware/security.ts`, `server/core/bookingService/createBooking.ts`, `index.html`
+
 ## [8.98.25] - 2026-04-03
 
 ### Performance & Reliability — Stripe Caching, Webhook Early-Return, Calendar Bounds

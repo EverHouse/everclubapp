@@ -93,9 +93,14 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
 }
 
 function injectNonceIntoHtml(html: string, nonce: string): string {
-  return html
-    .replace(/<script(?![^>]*nonce\s*=)(?![^>]*type\s*=\s*["']application\/ld\+json["'])(?=[\s>])/gi, `<script nonce="${nonce}"`)
-    .replace(/<style(?![^>]*nonce\s*=)(?=[\s>])/gi, `<style nonce="${nonce}"`);
+  const placeholder = `__CSP_NONCE_${randomBytes(8).toString('hex')}__`;
+  const prepared = html.replaceAll('__CSP_NONCE__', placeholder);
+  return prepared.replaceAll(placeholder, nonce);
+}
+
+const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+if (isProduction && !process.env.INTERNAL_API_SECRET) {
+  throw new Error('INTERNAL_API_SECRET environment variable is required in production');
 }
 
 export function securityMiddleware(req: Request, res: Response, next: NextFunction) {

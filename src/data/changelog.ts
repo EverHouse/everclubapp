@@ -8,6 +8,20 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.26",
+    date: "2026-04-03",
+    title: "Security & Booking Safety Hardening",
+    changes: [
+      "Security: CSP nonce injection now uses placeholders instead of regex — prevents XSS-injected script tags from receiving nonces.",
+      "Security: Server startup now fails if INTERNAL_API_SECRET is missing in production.",
+      "Performance: Participant membership status is now checked during initial lookup instead of a separate query.",
+      "Performance: Participant overlap checks use a single batched query instead of per-participant loops.",
+      "Performance: Participant daily limit checks now run in parallel instead of sequentially.",
+      "Fixed: Non-staff booking creation now fails fast if the booking owner's account doesn't exist.",
+      "Fixed: computeEndTime has a catch-all guard against any endHours >= 24 edge case.",
+    ]
+  },
+  {
     version: "8.98.25",
     date: "2026-04-03",
     title: "Performance & Reliability Fixes",

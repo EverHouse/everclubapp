@@ -42,7 +42,7 @@
     <link rel="canonical" href="https://everclub.app/" />
     <link rel="privacy-policy" href="/privacy" />
     <link rel="terms-of-service" href="/terms" />
-    <style>
+    <style nonce="__CSP_NONCE__">
       :root { --z-splash-inline: 11000; --z-drawer-inline: 9500; }
       #app-splash {
         position: fixed;
@@ -86,7 +86,7 @@
         src: local('Newsreader');
       }
     </style>
-    <script>
+    <script nonce="__CSP_NONCE__">
       (function() {
         if (window.location.pathname.includes('%23/dev-preview/')) {
           var decoded = decodeURIComponent(window.location.pathname);
@@ -103,7 +103,7 @@
       })();
     </script>
     <!-- Start of HubSpot Embed Code (deferred loader — production only) -->
-    <script>
+    <script nonce="__CSP_NONCE__">
       (function() {
         var h = window.location.hostname;
         if (h.indexOf('replit.dev') !== -1 || h === 'localhost') return;
@@ -128,7 +128,7 @@
     </script>
     <!-- End of HubSpot Embed Code -->
     <!-- Meta Pixel Code (production only) -->
-    <script>
+    <script nonce="__CSP_NONCE__">
       (function() {
         var h = window.location.hostname;
         if (h.indexOf('replit.dev') !== -1 || h === 'localhost') return;
@@ -153,7 +153,7 @@
     <main id="main-content" role="main">
       <div id="root"></div>
     </main>
-    <script>
+    <script nonce="__CSP_NONCE__">
       (function(){
         var KEY='__stale_recovery',MAX=2;
         var t=setTimeout(function(){
@@ -197,6 +197,6 @@
     <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=906341427989429&ev=PageView&noscript=1" alt="Facebook Pixel" /></noscript>
     <div id="header-root"></div>
     <div id="nav-overlay-root" style="position:fixed;inset:0;pointer-events:none;z-index:var(--z-drawer-inline);"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script nonce="__CSP_NONCE__" type="module" src="/src/main.tsx"></script>
   </body>
 </html>

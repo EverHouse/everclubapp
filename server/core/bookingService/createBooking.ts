@@ -79,6 +79,8 @@ export function computeEndTime(startTime: string, durationMinutes: number, opts?
 
   if (endHours === 24 && endMins === 0) {
     return { endTime: "23:59:59", endHours: 23, endMins: 59 };
+  } else if (endHours >= 24) {
+    throw new BookingValidationError(400, { error: 'Booking cannot extend past midnight. Please choose an earlier start time or shorter duration.' });
   }
 
   const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}:00`;
@@ -130,14 +132,21 @@ export async function sanitizeAndResolveParticipants(
         id: users.id,
         email: users.email,
         firstName: users.firstName,
-        lastName: users.lastName
+        lastName: users.lastName,
+        membershipStatus: users.membershipStatus
       }).from(users)
         .where(inArray(sql`LOWER(${users.email})`, emailsToLookup));
-      const emailMap = new Map(emailUsers.map((u: { id: string; email: string | null; firstName: string | null; lastName: string | null }) => [u.email?.toLowerCase() || '', u]));
+      const emailMap = new Map(emailUsers.map((u: { id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }) => [u.email?.toLowerCase() || '', u]));
       for (const participant of sanitizedParticipants) {
         if (participant.email && !participant.userId) {
           const found = emailMap.get(participant.email.toLowerCase());
           if (found) {
+            if (found.membershipStatus === 'inactive' || found.membershipStatus === 'cancelled') {
+              const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
+              throw new BookingValidationError(400, {
+                error: `${fullName || found.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
+              });
+            }
             participant.userId = found.id;
             participant.type = 'member';
             if (isStaff && (!participant.name || participant.name.includes('@'))) {
@@ -148,6 +157,7 @@ export async function sanitizeAndResolveParticipants(
         }
       }
     } catch (err: unknown) {
+      if (err instanceof BookingValidationError) throw err;
       logger.error('[Booking] Failed to batch lookup users by email', { extra: { error: getErrorMessage(err) } });
       throw new Error('Failed to look up participant emails. Please try again.');
     }
@@ -160,14 +170,21 @@ export async function sanitizeAndResolveParticipants(
         id: users.id,
         email: users.email,
         firstName: users.firstName,
-        lastName: users.lastName
+        lastName: users.lastName,
+        membershipStatus: users.membershipStatus
       }).from(users)
         .where(inArray(users.id, userIdsToLookup));
-      const idMap = new Map(idUsers.map((u: { id: string; email: string | null; firstName: string | null; lastName: string | null }) => [u.id, u]));
+      const idMap = new Map(idUsers.map((u: { id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }) => [u.id, u]));
       for (const participant of sanitizedParticipants) {
         if (participant.userId && !participant.email) {
           const found = idMap.get(participant.userId);
           if (found) {
+            if (found.membershipStatus === 'inactive' || found.membershipStatus === 'cancelled') {
+              const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
+              throw new BookingValidationError(400, {
+                error: `${fullName || found.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
+              });
+            }
             participant.email = found.email?.toLowerCase() || '';
             participant.type = 'member';
             if (isStaff && !participant.name) {
@@ -184,33 +201,6 @@ export async function sanitizeAndResolveParticipants(
       if (err instanceof BookingValidationError) throw err;
       logger.error('[Booking] Failed to batch lookup users by userId', { extra: { error: getErrorMessage(err) } });
       throw new Error('Failed to look up participant user IDs. Please try again.');
-    }
-  }
-
-  const allParticipantUserIds = sanitizedParticipants
-    .filter(p => p.userId)
-    .map(p => p.userId as string);
-  if (allParticipantUserIds.length > 0) {
-    try {
-      const dbLike = tx as unknown as { select: typeof import('../../db').db.select };
-      const statusResults = await dbLike.select({
-        id: users.id,
-        membershipStatus: users.membershipStatus,
-        email: users.email,
-        name: sql<string>`COALESCE(TRIM(CONCAT(${users.firstName}, ' ', ${users.lastName})), '')`.as('name')
-      }).from(users)
-        .where(inArray(users.id, allParticipantUserIds));
-      for (const statusRow of statusResults) {
-        if (statusRow.membershipStatus === 'inactive' || statusRow.membershipStatus === 'cancelled') {
-          throw new BookingValidationError(400, {
-            error: `${statusRow.name || statusRow.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
-          });
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof BookingValidationError) throw err;
-      logger.error('[Booking] Failed to batch lookup membership status', { extra: { error: getErrorMessage(err) } });
-      throw new Error('Failed to verify membership status. Please try again.');
     }
   }
 
@@ -235,36 +225,40 @@ export async function checkParticipantOverlaps(
   endTime: string,
   tx: TxLike
 ): Promise<void> {
-  for (const participant of participants) {
-    if (participant.type === 'member' && participant.email) {
-      const pOverlap = await tx.execute(sql`
-        SELECT br.id, COALESCE(r.name, 'Unknown') AS resource_name, br.start_time, br.end_time
-        FROM booking_requests br
-        LEFT JOIN resources r ON r.id = br.resource_id
-        WHERE br.request_date = ${requestDate}
-        AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended', 'cancellation_pending')
-        AND br.start_time < ${endTime} AND br.end_time > ${startTime}
-        AND (
-          LOWER(br.user_email) = LOWER(${participant.email})
-          OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) = LOWER(${participant.email}))
-          OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = LOWER(${participant.email}))
-          OR br.session_id IN (
-            SELECT bp.session_id FROM booking_participants bp
-            JOIN users u ON bp.user_id = u.id
-            WHERE LOWER(u.email) = LOWER(${participant.email})
-          )
-        )
-        LIMIT 1
-      `);
-      if (pOverlap.rows.length > 0) {
-        const conflict = pOverlap.rows[0] as { id: number; resource_name: string; start_time: string; end_time: string };
-        const cStart = conflict.start_time?.substring(0, 5);
-        const cEnd = conflict.end_time?.substring(0, 5);
-        throw new BookingValidationError(409, {
-          error: `${participant.name || participant.email} already has a booking at ${conflict.resource_name} from ${formatTime12Hour(cStart)} to ${formatTime12Hour(cEnd)}. They cannot be added to an overlapping time slot.`
-        });
-      }
-    }
+  const memberParticipants = participants.filter(p => p.type === 'member' && p.email);
+  if (memberParticipants.length === 0) return;
+
+  const memberEmails = memberParticipants.map(p => p.email.toLowerCase());
+  const emailValues = sql.join(memberEmails.map(e => sql`${e}`), sql`, `);
+
+  const pOverlap = await tx.execute(sql`
+    SELECT br.id, COALESCE(r.name, 'Unknown') AS resource_name, br.start_time, br.end_time, LOWER(br.user_email) AS booking_email
+    FROM booking_requests br
+    LEFT JOIN resources r ON r.id = br.resource_id
+    WHERE br.request_date = ${requestDate}
+    AND br.status IN ('pending', 'pending_approval', 'approved', 'confirmed', 'checked_in', 'attended', 'cancellation_pending')
+    AND br.start_time < ${endTime} AND br.end_time > ${startTime}
+    AND (
+      LOWER(br.user_email) IN (${emailValues})
+      OR LOWER(br.user_email) IN (SELECT LOWER(ule.linked_email) FROM user_linked_emails ule WHERE LOWER(ule.primary_email) IN (${emailValues}))
+      OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) IN (${emailValues}))
+      OR br.session_id IN (
+        SELECT bp.session_id FROM booking_participants bp
+        JOIN users u ON bp.user_id = u.id
+        WHERE LOWER(u.email) IN (${emailValues})
+      )
+    )
+    LIMIT 1
+  `);
+
+  if (pOverlap.rows.length > 0) {
+    const conflict = pOverlap.rows[0] as { id: number; resource_name: string; start_time: string; end_time: string; booking_email: string };
+    const cStart = conflict.start_time?.substring(0, 5);
+    const cEnd = conflict.end_time?.substring(0, 5);
+    const matched = memberParticipants.find(p => p.email.toLowerCase() === conflict.booking_email) || memberParticipants[0];
+    throw new BookingValidationError(409, {
+      error: `${matched.name || matched.email} already has a booking at ${conflict.resource_name} from ${formatTime12Hour(cStart)} to ${formatTime12Hour(cEnd)}. They cannot be added to an overlapping time slot.`
+    });
   }
 }
 
@@ -274,15 +268,22 @@ export async function checkParticipantDailyLimits(
   durationMinutes: number,
   resourceType: string
 ): Promise<void> {
-  for (const participant of participants) {
-    if (participant.type === 'member' && participant.email) {
+  const memberParticipants = participants.filter(p => p.type === 'member' && p.email);
+  if (memberParticipants.length === 0) return;
+
+  const results = await Promise.all(
+    memberParticipants.map(async (participant) => {
       const pLimitCheck = await checkDailyBookingLimit(participant.email, requestDate, durationMinutes, undefined, resourceType);
-      if (!pLimitCheck.allowed) {
-        throw new BookingValidationError(403, {
-          error: `Participant ${participant.name || participant.email} has exceeded their daily booking limit.`,
-          remainingMinutes: pLimitCheck.remainingMinutes
-        });
-      }
+      return { participant, pLimitCheck };
+    })
+  );
+
+  for (const { participant, pLimitCheck } of results) {
+    if (!pLimitCheck.allowed) {
+      throw new BookingValidationError(403, {
+        error: `Participant ${participant.name || participant.email} has exceeded their daily booking limit.`,
+        remainingMinutes: pLimitCheck.remainingMinutes
+      });
     }
   }
 }
@@ -328,6 +329,8 @@ export async function prepareBookingCreation(
       resolvedEmail = resolved.primaryEmail.toLowerCase();
     }
     resolvedUserId = resolved.userId;
+  } else if (!context.isStaff) {
+    throw new BookingValidationError(404, { error: 'Account not found. Please check your email address or contact staff for assistance.' });
   }
 
   validateBookingDate(input.requestDate, { allowPastDate: context.allowPastDate });
