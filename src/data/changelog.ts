@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.27",
+    date: "2026-04-03",
+    title: "Booking Validation Hardening",
+    changes: [
+      "Security: Participants with both email and userId are now always verified against the database — previously they could bypass all validation checks.",
+      "Fixed: Booking a deleted or non-existent bay/room now shows a clear error instead of crashing.",
+      "Fixed: Membership status checks are now case-insensitive for more reliable validation.",
+    ]
+  },
+  {
     version: "8.98.26",
     date: "2026-04-03",
     title: "Security & Booking Safety Hardening",

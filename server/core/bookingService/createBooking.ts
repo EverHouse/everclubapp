@@ -118,12 +118,12 @@ export async function sanitizeAndResolveParticipants(
     }))
     .filter(p => p.email || p.userId);
 
+  const userIdsToLookup = sanitizedParticipants
+    .filter(p => p.userId)
+    .map(p => p.userId as string);
   const emailsToLookup = sanitizedParticipants
     .filter(p => p.email && !p.userId)
     .map(p => p.email.toLowerCase());
-  const userIdsToLookup = sanitizedParticipants
-    .filter(p => p.userId && !p.email)
-    .map(p => p.userId as string);
 
   if (emailsToLookup.length > 0) {
     try {
@@ -141,7 +141,8 @@ export async function sanitizeAndResolveParticipants(
         if (participant.email && !participant.userId) {
           const found = emailMap.get(participant.email.toLowerCase());
           if (found) {
-            if (found.membershipStatus === 'inactive' || found.membershipStatus === 'cancelled') {
+            const status = (found.membershipStatus || '').toLowerCase();
+            if (status === 'inactive' || status === 'cancelled') {
               const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
               throw new BookingValidationError(400, {
                 error: `${fullName || found.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
@@ -163,6 +164,7 @@ export async function sanitizeAndResolveParticipants(
     }
   }
 
+  const userIdLookupSet = new Set(userIdsToLookup);
   if (userIdsToLookup.length > 0) {
     try {
       const dbLike = tx as unknown as { select: typeof import('../../db').db.select };
@@ -176,10 +178,11 @@ export async function sanitizeAndResolveParticipants(
         .where(inArray(users.id, userIdsToLookup));
       const idMap = new Map(idUsers.map((u: { id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }) => [u.id, u]));
       for (const participant of sanitizedParticipants) {
-        if (participant.userId && !participant.email) {
+        if (participant.userId && userIdLookupSet.has(participant.userId)) {
           const found = idMap.get(participant.userId);
           if (found) {
-            if (found.membershipStatus === 'inactive' || found.membershipStatus === 'cancelled') {
+            const status = (found.membershipStatus || '').toLowerCase();
+            if (status === 'inactive' || status === 'cancelled') {
               const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
               throw new BookingValidationError(400, {
                 error: `${fullName || found.email || 'A participant'} has an inactive membership and cannot be added to bookings.`
@@ -191,7 +194,6 @@ export async function sanitizeAndResolveParticipants(
               const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
               participant.name = fullName || found.email || undefined;
             }
-            logger.info('[Booking] Resolved email for directory-selected participant', { extra: { participantEmail: participant.email } });
           } else {
             throw new BookingValidationError(400, { error: 'One or more selected participants could not be found in the directory.' });
           }
@@ -339,7 +341,10 @@ export async function prepareBookingCreation(
   let resourceType = 'simulator';
   if (input.resourceId) {
     const [resource] = await db.select({ type: resources.type }).from(resources).where(eq(resources.id, input.resourceId));
-    if (resource?.type) {
+    if (!resource) {
+      throw new BookingValidationError(404, { error: 'The selected bay or room could not be found. It may have been removed.' });
+    }
+    if (resource.type) {
       resourceType = resource.type;
     }
   }

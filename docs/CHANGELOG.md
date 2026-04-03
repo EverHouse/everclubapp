@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.27] - 2026-04-03
+
+### Booking Validation Hardening — Participant Bypass, Resource Guard, Case Safety
+- **Security: Fixed participant validation bypass via dual email+userId.** `sanitizeAndResolveParticipants` used mutually exclusive filters (`email && !userId` vs `userId && !email`), meaning a participant with both fields set would skip both lookup blocks entirely — no DB verification, no membership status check. Fixed by prioritizing userId lookup for any participant that has a userId (regardless of email), then falling back to email-only lookup for the rest. The userId block now iterates all participants with a userId (not just those missing email), ensuring every provided ID is verified against the database.
+- **Fix: Non-existent resource IDs now fail fast.** `prepareBookingCreation` previously ignored missing resources — if `resourceId` pointed to a deleted bay, it silently defaulted to `'simulator'` type, causing a foreign key constraint error downstream. Now throws `BookingValidationError(404)` with a user-facing message.
+- **Fix: Case-insensitive membership status checks.** Participant status comparisons now use `.toLowerCase()` before checking for `'inactive'`/`'cancelled'`, preventing mixed-case DB values from silently passing validation.
+
+Files changed: `server/core/bookingService/createBooking.ts`
+
 ## [8.98.26] - 2026-04-03
 
 ### Security & Booking Safety Hardening — CSP, N+1 Fix, Safety Guards
