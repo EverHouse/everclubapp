@@ -1,6 +1,8 @@
 import type { Store, Options, IncrementResponse } from 'express-rate-limit';
 import type { Pool } from 'pg';
+import { sql } from 'drizzle-orm';
 import { pool } from '../core/db';
+import { db } from '../db';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 
@@ -12,7 +14,7 @@ function ensureTable(): Promise<void> {
   if (!tablePromise) {
     tablePromise = (async () => {
       try {
-        await pool.query(`
+        await db.execute(sql`
           CREATE TABLE IF NOT EXISTS rate_limit_hits (
             key TEXT NOT NULL,
             window_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -20,10 +22,10 @@ function ensureTable(): Promise<void> {
             PRIMARY KEY (key)
           )
         `);
-        await pool.query(`
+        await db.execute(sql`
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_window ON rate_limit_hits (window_start)
         `);
-        await pool.query(`
+        await db.execute(sql`
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_key_prefix ON rate_limit_hits (key text_pattern_ops)
         `);
         tableReady = true;

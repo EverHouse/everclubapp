@@ -476,7 +476,8 @@ export async function runStartupTasks(): Promise<void> {
 
   try {
     const FEE_SLUGS_REQUIRED = ['guest-pass', 'simulator-overage-30min', 'day-pass-coworking', 'day-pass-golf-sim', 'corporate-volume-pricing'];
-    const feeCheck = await db.execute(sql`SELECT slug FROM fee_products WHERE slug = ANY(${sql.raw(`ARRAY[${FEE_SLUGS_REQUIRED.map(s => `'${s}'`).join(',')}]`)}::varchar[])`);
+    const slugParams = FEE_SLUGS_REQUIRED.map(s => sql`${s}`);
+    const feeCheck = await db.execute(sql`SELECT slug FROM fee_products WHERE slug IN (${sql.join(slugParams, sql`, `)})`);
     const foundSlugs = new Set((Array.isArray(feeCheck) ? feeCheck : (feeCheck?.rows ?? [])).map((r: Record<string, unknown>) => r.slug));
     const missingSlugs = FEE_SLUGS_REQUIRED.filter(s => !foundSlugs.has(s));
     if (missingSlugs.length > 0) {

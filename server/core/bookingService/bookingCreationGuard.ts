@@ -21,11 +21,11 @@ async function queryWithSavepoint(
   const uniqueSuffix = randomBytes(4).toString('hex');
   const safeName = `${savepointName.replace(/[^a-zA-Z0-9_]/g, '')}_${uniqueSuffix}`;
   try {
-    await tx.execute(sql.raw(`SAVEPOINT ${safeName}`));
+    await tx.execute(sql`SAVEPOINT ${sql.raw(safeName)}`);
     return await tx.execute(query);
   } catch (err: unknown) {
     try {
-      await tx.execute(sql.raw(`ROLLBACK TO SAVEPOINT ${safeName}`));
+      await tx.execute(sql`ROLLBACK TO SAVEPOINT ${sql.raw(safeName)}`);
     } catch (rollbackErr: unknown) {
       logger.error(`[BookingGuard] ${logLabel}: ROLLBACK TO SAVEPOINT failed — transaction may be unrecoverable`, {
         extra: { rollbackError: getErrorMessage(rollbackErr), originalError: getErrorMessage(err) }

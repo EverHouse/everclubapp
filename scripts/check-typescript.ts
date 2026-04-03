@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -13,7 +13,8 @@ interface TscResult {
 
 function runTsc(args: string): TscResult {
   try {
-    const output = execSync(`npx tsc ${args}`, {
+    const argList = args.split(/\s+/).filter(Boolean);
+    const output = execFileSync('npx', ['tsc', ...argList], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
