@@ -1037,16 +1037,26 @@ export async function applyFeeBreakdownToParticipants(
       const passesToUpdate = participantsWithIds.map(p => p.guestPassUsed || false);
 
       if (idsToUpdate.length > 0) {
-        const paidCheck = await tx.execute(
-          sql`SELECT id, cached_fee_cents, stripe_payment_intent_id FROM booking_participants
+        const settledCheck = await tx.execute(
+          sql`SELECT id, cached_fee_cents, stripe_payment_intent_id, payment_status FROM booking_participants
            WHERE id = ANY(${toIntArrayLiteral(idsToUpdate)}::int[])
-           AND payment_status = 'paid'`
+           AND payment_status IN ('paid', 'waived', 'refunded')`
         );
-        const paidIds = new Set((paidCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null }[]).map(r => r.id));
+        const settledRows = settledCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null; payment_status: string }[];
+        const waivedOrRefundedIds = new Set(settledRows.filter(r => r.payment_status === 'waived' || r.payment_status === 'refunded').map(r => r.id));
+        const paidIds = new Set(settledRows.filter(r => r.payment_status === 'paid').map(r => r.id));
+
+        if (waivedOrRefundedIds.size > 0) {
+          logger.info('[UnifiedFeeService] Skipping fee update for waived/refunded participants', {
+            sessionId,
+            skippedIds: Array.from(waivedOrRefundedIds)
+          });
+        }
 
         const discrepancies: { participantId: number; displayName: string; previousCents: number; newComputedCents: number }[] = [];
         const zeroPaidResetIds: number[] = [];
-        for (const paidRow of paidCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null }[]) {
+        const paidRows = settledRows.filter(r => r.payment_status === 'paid');
+        for (const paidRow of paidRows) {
           const idx = idsToUpdate.indexOf(paidRow.id);
           if (idx !== -1 && feesToUpdate[idx] !== paidRow.cached_fee_cents) {
             const matchingParticipant = participantsWithIds.find(p => p.participantId === paidRow.id);
@@ -1105,8 +1115,9 @@ export async function applyFeeBreakdownToParticipants(
           });
         }
 
-        const safeIds = idsToUpdate.filter(id => !paidIds.has(id));
-        const safeFees = idsToUpdate.map((id, i) => ({ id, fee: feesToUpdate[i], pass: passesToUpdate[i] })).filter(e => !paidIds.has(e.id));
+        const protectedIds = new Set([...paidIds, ...waivedOrRefundedIds]);
+        const safeIds = idsToUpdate.filter(id => !protectedIds.has(id));
+        const safeFees = idsToUpdate.map((id, i) => ({ id, fee: feesToUpdate[i], pass: passesToUpdate[i] })).filter(e => !protectedIds.has(e.id));
 
         if (safeIds.length > 0) {
           await tx.execute(

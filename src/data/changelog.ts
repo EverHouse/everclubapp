@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.29",
+    date: "2026-04-03",
+    title: "Fee Waive/Void Fix",
+    changes: [
+      "Fixed: Waiving or voiding guest fees now sticks — previously the fee recalculation engine would overwrite waived fees back to their original amount, making it appear the waive didn't work.",
+    ]
+  },
+  {
     version: "8.98.28",
     date: "2026-04-03",
     title: "Security & Input Validation Fixes",

@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.29] - 2026-04-03
+
+### Fee Waive/Void Fix — Waived Fees No Longer Overwritten by Recalculation
+- **Fix: `applyFeeBreakdownToParticipants` now protects waived and refunded participants.** Previously, only `'paid'` participants were excluded from fee updates during recalculation. Participants with `payment_status = 'waived'` or `'refunded'` had their `cached_fee_cents` overwritten back to the computed amount, undoing staff waive actions. Now the query selects all participants with settled statuses (`'paid'`, `'waived'`, `'refunded'`), and the update filter excludes all of them. The `invalidateSessionCachedFees` function already had the correct exclusion (skipping waived/refunded), but `applyFeeBreakdownToParticipants` did not — causing the waive to be immediately reversed whenever fees were recalculated (on page load, after payment actions, during cascade recalculations).
+
+Files changed: `server/core/billing/unifiedFeeService.ts`
+
 ## [8.98.28] - 2026-04-03
 
 ### Security & Input Validation Fixes — CSP res.end, Float Duration, Guest Limit
