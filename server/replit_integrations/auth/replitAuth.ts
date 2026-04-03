@@ -42,6 +42,8 @@ function getOrCreateSessionPool(): Pool {
     connectionTimeoutMillis: 15000,
     idleTimeoutMillis: 30000,
     allowExitOnIdle: true,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
     ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
   });
 

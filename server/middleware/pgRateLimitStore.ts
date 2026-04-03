@@ -23,6 +23,9 @@ function ensureTable(): Promise<void> {
         await pool.query(`
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_window ON rate_limit_hits (window_start)
         `);
+        await pool.query(`
+          CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_key_prefix ON rate_limit_hits (key text_pattern_ops)
+        `);
         tableReady = true;
       } catch (err) {
         const msg = getErrorMessage(err);
