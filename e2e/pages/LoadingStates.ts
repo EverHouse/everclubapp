@@ -10,14 +10,15 @@ export class LoadingStates {
   async waitForPageLoad(timeout = 15000) {
     await this.page.waitForLoadState('domcontentloaded', { timeout });
 
-    await Promise.race([
-      this.page.locator('.animate-pulse').first().waitFor({ state: 'hidden', timeout }).catch(() => {}),
-      this.page.waitForTimeout(timeout),
-    ]);
+    const skeleton = this.page.locator('.animate-pulse').first();
+    const skeletonExists = await skeleton.isVisible().catch(() => false);
+    if (skeletonExists) {
+      await skeleton.waitFor({ state: 'hidden', timeout });
+    }
   }
 
   async waitForNetworkIdle(timeout = 10000) {
-    await this.page.waitForLoadState('networkidle', { timeout }).catch(() => {});
+    await this.page.waitForLoadState('networkidle', { timeout });
   }
 
   async waitForContentVisible(selector: string, timeout = 10000) {
@@ -28,12 +29,14 @@ export class LoadingStates {
     const skeleton = this.page.locator('.animate-pulse');
     const count = await skeleton.count();
     if (count > 0) {
-      await skeleton.first().waitFor({ state: 'hidden', timeout }).catch(() => {});
+      await skeleton.first().waitFor({ state: 'hidden', timeout });
     }
   }
 
   async hasErrorBoundary(): Promise<boolean> {
     const errorFallback = this.page.locator('[data-testid="error-fallback"], text=/something went wrong/i');
-    return errorFallback.isVisible().catch(() => false);
+    const count = await errorFallback.count();
+    if (count === 0) return false;
+    return errorFallback.first().isVisible();
   }
 }

@@ -1,8 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import path from 'path';
 
-const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5000';
-
 export type TestRole = 'member' | 'staff' | 'admin';
 
 export interface AuthFixtures {
@@ -12,7 +10,7 @@ export interface AuthFixtures {
   authenticatedPage: Page;
 }
 
-export const AUTH_STATE_DIR = path.join(process.cwd(), 'e2e', '.auth');
+const AUTH_STATE_DIR = path.join(process.cwd(), 'e2e', '.auth');
 
 export function authStatePath(role: TestRole): string {
   return path.join(AUTH_STATE_DIR, `${role}.json`);

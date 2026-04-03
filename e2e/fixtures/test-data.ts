@@ -40,9 +40,16 @@ export class TestDataHelper {
 
   async getResources(): Promise<Array<{ id: number; name: string; type: string }>> {
     const response = await this.request.get(`${BASE_URL}/api/resources`);
-    if (!response.ok()) return [];
+    if (!response.ok()) {
+      throw new Error(`getResources failed: ${response.status()} ${await response.text()}`);
+    }
     const data = await response.json();
     return Array.isArray(data) ? data : data.resources || [];
+  }
+
+  async getResourceByType(type: string): Promise<{ id: number; name: string; type: string } | null> {
+    const resources = await this.getResources();
+    return resources.find((r) => r.type === type) || null;
   }
 
   async getAvailability(
@@ -56,7 +63,9 @@ export class TestDataHelper {
         headers: { Origin: BASE_URL },
       },
     );
-    if (!response.ok()) return {};
+    if (!response.ok()) {
+      throw new Error(`getAvailability failed: ${response.status()} ${await response.text()}`);
+    }
     return await response.json();
   }
 
@@ -71,9 +80,7 @@ export class TestDataHelper {
       `${BASE_URL}/api/booking-requests?${params.toString()}`,
     );
     if (!response.ok()) {
-      throw new Error(
-        `getBookings failed: ${response.status()} ${await response.text()}`,
-      );
+      throw new Error(`getBookings failed: ${response.status()} ${await response.text()}`);
     }
     const data = await response.json();
     return Array.isArray(data) ? data : data.bookings || [];
@@ -94,9 +101,7 @@ export class TestDataHelper {
       },
     );
     if (!response.ok()) {
-      throw new Error(
-        `createBooking failed: ${response.status()} ${await response.text()}`,
-      );
+      throw new Error(`createBooking failed: ${response.status()} ${await response.text()}`);
     }
     const data = await response.json();
     const booking = data.booking || data;
@@ -114,31 +119,50 @@ export class TestDataHelper {
       },
     );
     if (!response.ok()) {
-      const body = await response.text();
-      console.warn(`cancelBooking ${bookingId} failed: ${response.status()} ${body}`);
+      throw new Error(`cancelBooking ${bookingId} failed: ${response.status()} ${await response.text()}`);
     }
   }
 
   async getEvents(): Promise<Array<{ id: string; title: string }>> {
     const response = await this.request.get(`${BASE_URL}/api/events`);
-    if (!response.ok()) return [];
+    if (!response.ok()) {
+      throw new Error(`getEvents failed: ${response.status()} ${await response.text()}`);
+    }
     const data = await response.json();
     return Array.isArray(data) ? data : data.events || [];
   }
 
-  async healthCheck(): Promise<boolean> {
-    try {
-      const response = await this.request.get(`${BASE_URL}/healthz`);
-      return response.ok();
-    } catch {
-      return false;
+  async getMembers(): Promise<Array<{ id: number; email: string; firstName: string; lastName: string }>> {
+    const response = await this.request.get(`${BASE_URL}/api/members`);
+    if (!response.ok()) {
+      throw new Error(`getMembers failed: ${response.status()} ${await response.text()}`);
     }
+    const data = await response.json();
+    return Array.isArray(data) ? data : data.members || [];
+  }
+
+  async getMemberByEmail(email: string): Promise<{ id: number; email: string } | null> {
+    const members = await this.getMembers();
+    return members.find((m) => m.email === email) || null;
+  }
+
+  async healthCheck(): Promise<boolean> {
+    const response = await this.request.get(`${BASE_URL}/healthz`);
+    return response.ok();
   }
 
   async cleanupCreatedBookings(): Promise<void> {
+    const errors: string[] = [];
     for (const id of this.createdBookingIds) {
-      await this.cancelBooking(id);
+      try {
+        await this.cancelBooking(id);
+      } catch (err) {
+        errors.push(`Failed to cancel booking ${id}: ${err}`);
+      }
     }
     this.createdBookingIds = [];
+    if (errors.length > 0) {
+      console.warn(`[E2E cleanup] ${errors.length} booking(s) failed to cancel:\n${errors.join('\n')}`);
+    }
   }
 }

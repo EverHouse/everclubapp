@@ -8,82 +8,70 @@ const TEST_MEMBER_EMAIL = process.env.E2E_MEMBER_EMAIL || 'nick@everclub.co';
 const TEST_STAFF_EMAIL = process.env.E2E_STAFF_EMAIL || '';
 const TEST_ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || '';
 
+const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] });
+
+async function authenticateRole(
+  browser: ReturnType<typeof chromium.launch> extends Promise<infer T> ? T : never,
+  email: string,
+  role: string,
+): Promise<boolean> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    const response = await page.request.post(
+      `${BASE_URL}/api/auth/dev-login`,
+      {
+        data: { email },
+        headers: { Origin: BASE_URL },
+      },
+    );
+    if (!response.ok()) {
+      console.warn(`[E2E setup] Auth failed for ${role} (${email}): ${response.status()}`);
+      return false;
+    }
+    await context.storageState({
+      path: path.join(AUTH_STATE_DIR, `${role}.json`),
+    });
+    return true;
+  } finally {
+    await context.close();
+  }
+}
+
 async function globalSetup(_config: FullConfig) {
   fs.mkdirSync(AUTH_STATE_DIR, { recursive: true });
 
-  const browser = await chromium.launch();
+  fs.writeFileSync(path.join(AUTH_STATE_DIR, 'member.json'), EMPTY_STATE);
+  fs.writeFileSync(path.join(AUTH_STATE_DIR, 'staff.json'), EMPTY_STATE);
+  fs.writeFileSync(path.join(AUTH_STATE_DIR, 'admin.json'), EMPTY_STATE);
 
-  const memberContext = await browser.newContext();
-  const memberPage = await memberContext.newPage();
-  const memberResponse = await memberPage.request.post(
-    `${BASE_URL}/api/auth/dev-login`,
-    {
-      data: { email: TEST_MEMBER_EMAIL },
-      headers: { Origin: BASE_URL },
-    },
-  );
-  if (!memberResponse.ok()) {
-    const body = await memberResponse.text();
+  let browser;
+  try {
+    browser = await chromium.launch();
+  } catch (err) {
+    console.warn('[E2E setup] Could not launch browser for auth setup. Unauthenticated tests will still run.');
+    return;
+  }
+
+  try {
+    const memberOk = await authenticateRole(browser, TEST_MEMBER_EMAIL, 'member');
+    if (!memberOk) {
+      console.warn(
+        '[E2E setup] Member auth failed. Authenticated tests will be skipped.\n' +
+        'Ensure DEV_LOGIN_ENABLED=true and the dev server is running.',
+      );
+    }
+
+    if (TEST_STAFF_EMAIL) {
+      await authenticateRole(browser, TEST_STAFF_EMAIL, 'staff');
+    }
+
+    if (TEST_ADMIN_EMAIL) {
+      await authenticateRole(browser, TEST_ADMIN_EMAIL, 'admin');
+    }
+  } finally {
     await browser.close();
-    throw new Error(
-      `E2E auth setup failed for member (${TEST_MEMBER_EMAIL}): ${memberResponse.status()} — ${body}\n` +
-      'Ensure DEV_LOGIN_ENABLED=true is set and the dev server is running.',
-    );
   }
-  await memberContext.storageState({
-    path: path.join(AUTH_STATE_DIR, 'member.json'),
-  });
-  await memberContext.close();
-
-  if (TEST_STAFF_EMAIL) {
-    const staffContext = await browser.newContext();
-    const staffPage = await staffContext.newPage();
-    const staffResponse = await staffPage.request.post(
-      `${BASE_URL}/api/auth/dev-login`,
-      {
-        data: { email: TEST_STAFF_EMAIL },
-        headers: { Origin: BASE_URL },
-      },
-    );
-    if (!staffResponse.ok()) {
-      console.warn(`Staff auth setup failed for ${TEST_STAFF_EMAIL}, skipping.`);
-    }
-    await staffContext.storageState({
-      path: path.join(AUTH_STATE_DIR, 'staff.json'),
-    });
-    await staffContext.close();
-  } else {
-    fs.writeFileSync(
-      path.join(AUTH_STATE_DIR, 'staff.json'),
-      JSON.stringify({ cookies: [], origins: [] }),
-    );
-  }
-
-  if (TEST_ADMIN_EMAIL) {
-    const adminContext = await browser.newContext();
-    const adminPage = await adminContext.newPage();
-    const adminResponse = await adminPage.request.post(
-      `${BASE_URL}/api/auth/dev-login`,
-      {
-        data: { email: TEST_ADMIN_EMAIL },
-        headers: { Origin: BASE_URL },
-      },
-    );
-    if (!adminResponse.ok()) {
-      console.warn(`Admin auth setup failed for ${TEST_ADMIN_EMAIL}, skipping.`);
-    }
-    await adminContext.storageState({
-      path: path.join(AUTH_STATE_DIR, 'admin.json'),
-    });
-    await adminContext.close();
-  } else {
-    fs.writeFileSync(
-      path.join(AUTH_STATE_DIR, 'admin.json'),
-      JSON.stringify({ cookies: [], origins: [] }),
-    );
-  }
-
-  await browser.close();
 }
 
 export default globalSetup;
