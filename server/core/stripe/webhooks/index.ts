@@ -213,7 +213,6 @@ export async function processStripeWebhook(
     );
   }
 
-  const stripe = await getStripeClient();
   const payloadString = payload.toString('utf8');
 
   const isProductionEnv = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
@@ -226,6 +225,8 @@ export async function processStripeWebhook(
   } catch {
     logger.warn('[Stripe Webhook] Could not pre-parse payload for livemode check, continuing');
   }
+
+  const stripe = await getStripeClient();
 
   const sync = await getStripeSync() as { processWebhook: (payload: Buffer, signature: string) => Promise<void> };
   try {

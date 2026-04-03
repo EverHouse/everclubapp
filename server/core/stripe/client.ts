@@ -1,6 +1,12 @@
 import Stripe from 'stripe';
 
-let connectionSettings: { settings?: { publishable?: string; secret?: string } } | undefined;
+let cachedCredentials: { publishableKey: string; secretKey: string } | null = null;
+let credentialsFetchPromise: Promise<{ publishableKey: string; secretKey: string }> | null = null;
+const CREDENTIALS_TTL_MS = 5 * 60 * 1000;
+let credentialsCachedAt = 0;
+
+let cachedStripeClient: Stripe | null = null;
+let cachedStripeSecretKey: string | null = null;
 
 async function fetchStripeConnection(hostname: string, xReplitToken: string, environment?: string): Promise<{ publishableKey: string; secretKey: string }> {
   const url = new URL(`https://${hostname}/api/v2/connection`);
@@ -23,7 +29,7 @@ async function fetchStripeConnection(hostname: string, xReplitToken: string, env
   }
 
   const data = await response.json() as { items?: Array<Record<string, unknown>> };
-  connectionSettings = data.items?.[0];
+  const connectionSettings = data.items?.[0];
 
   const settings = connectionSettings?.settings as { publishable?: string; secret?: string } | undefined;
   if (!connectionSettings || !settings || (!settings.publishable || !settings.secret)) {
@@ -37,36 +43,72 @@ async function fetchStripeConnection(hostname: string, xReplitToken: string, env
 }
 
 async function getCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-      ? 'depl ' + process.env.WEB_REPL_RENEWAL
-      : null;
-
-  if (!xReplitToken) {
-    throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+  const now = Date.now();
+  if (cachedCredentials && (now - credentialsCachedAt) < CREDENTIALS_TTL_MS) {
+    return cachedCredentials;
   }
 
-  const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
-  const targetEnvironment = isProduction ? 'production' : 'development';
+  if (credentialsFetchPromise) {
+    return credentialsFetchPromise;
+  }
 
-  try {
-    return await fetchStripeConnection(hostname!, xReplitToken, targetEnvironment);
-  } catch {
-    if (!isProduction) {
-      return await fetchStripeConnection(hostname!, xReplitToken);
+  credentialsFetchPromise = (async () => {
+    try {
+      const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+      const xReplitToken = process.env.REPL_IDENTITY
+        ? 'repl ' + process.env.REPL_IDENTITY
+        : process.env.WEB_REPL_RENEWAL
+          ? 'depl ' + process.env.WEB_REPL_RENEWAL
+          : null;
+
+      if (!xReplitToken) {
+        throw new Error('X_REPLIT_TOKEN not found for repl/depl');
+      }
+
+      const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
+      const targetEnvironment = isProduction ? 'production' : 'development';
+
+      let creds: { publishableKey: string; secretKey: string };
+      try {
+        creds = await fetchStripeConnection(hostname!, xReplitToken, targetEnvironment);
+      } catch {
+        if (!isProduction) {
+          creds = await fetchStripeConnection(hostname!, xReplitToken);
+        } else {
+          throw new Error(`Stripe ${targetEnvironment} connection not found`);
+        }
+      }
+
+      cachedCredentials = creds;
+      credentialsCachedAt = Date.now();
+
+      if (cachedStripeSecretKey && cachedStripeSecretKey !== creds.secretKey) {
+        cachedStripeClient = null;
+        cachedStripeSecretKey = null;
+        stripeSync = null;
+      }
+
+      return creds;
+    } finally {
+      credentialsFetchPromise = null;
     }
-    throw new Error(`Stripe ${targetEnvironment} connection not found`);
-  }
+  })();
+
+  return credentialsFetchPromise;
 }
 
 export async function getStripeClient(): Promise<Stripe> {
   const { secretKey } = await getCredentials();
 
-  return new Stripe(secretKey, {
+  if (cachedStripeClient && cachedStripeSecretKey === secretKey) {
+    return cachedStripeClient;
+  }
+
+  cachedStripeClient = new Stripe(secretKey, {
     apiVersion: Stripe.API_VERSION as Stripe.LatestApiVersion,
   });
+  cachedStripeSecretKey = secretKey;
+  return cachedStripeClient;
 }
 
 export async function getStripePublishableKey(): Promise<string> {

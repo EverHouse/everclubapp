@@ -16,7 +16,8 @@ import { logger } from '../../logger';
 import { withCalendarRetry } from '../../retryUtils';
 export async function getConferenceRoomBookingsFromCalendar(
   memberName?: string,
-  memberEmail?: string
+  memberEmail?: string,
+  timeMaxDate?: Date
 ): Promise<ConferenceRoomBooking[]> {
   try {
     const calendar = await getGoogleCalendarClient();
@@ -29,12 +30,15 @@ export async function getConferenceRoomBookingsFromCalendar(
     // Use Pacific midnight for consistent timezone handling
     const pacificMidnight = getPacificMidnightUTC();
     
+    const defaultTimeMax = timeMaxDate ?? new Date(pacificMidnight.getTime() + 90 * 24 * 60 * 60 * 1000);
+
     const events: calendar_v3.Schema$Event[] = [];
     let confPageToken: string | undefined;
     do {
       const response = await withCalendarRetry(() => calendar.events.list({
         calendarId,
         timeMin: pacificMidnight.toISOString(),
+        timeMax: defaultTimeMax.toISOString(),
         maxResults: 250,
         singleEvents: true,
         orderBy: 'startTime',
@@ -376,12 +380,15 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
       timeMin = getPacificMidnightUTC();
     }
 
+    const timeMax = new Date(getPacificMidnightUTC().getTime() + 90 * 24 * 60 * 60 * 1000);
+
     let pageToken: string | undefined = undefined;
     
     do {
       const response = await withCalendarRetry(() => calendar.events.list({
         calendarId,
         timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
         maxResults: 250,
         singleEvents: true,
         orderBy: 'startTime',

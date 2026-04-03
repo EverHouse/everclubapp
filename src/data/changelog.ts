@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.25",
+    date: "2026-04-03",
+    title: "Performance & Reliability Fixes",
+    changes: [
+      "Fixed: Stripe API calls are now cached instead of making a network request on every operation — significantly faster payment processing.",
+      "Fixed: Stripe webhooks from mismatched environments are now rejected instantly instead of processing expensive operations before being ignored.",
+      "Fixed: Conference room calendar queries now fetch only the relevant 90-day window instead of all future events, reducing load times.",
+    ]
+  },
+  {
     version: "8.98.24",
     date: "2026-04-03",
     title: "Data Integrity Cleanup",

@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.25] - 2026-04-03
+
+### Performance & Reliability — Stripe Caching, Webhook Early-Return, Calendar Bounds
+- **Fix: Stripe credentials and client are now cached with 5-minute TTL.** Previously, every call to `getStripeClient()` made a network request to the Replit Connectors API to fetch credentials and created a new `Stripe` instance. Now caches both credentials (with TTL) and the Stripe client (invalidated on key rotation). In-flight promise dedup prevents concurrent stampedes. `stripeSync` singleton is also invalidated on secret change.
+- **Fix: Webhook livemode check moved before expensive operations.** `processStripeWebhook()` previously called `getStripeClient()` (network request) before the livemode environment check. For live-mode events hitting the dev environment, this wasted ~1.5-2 seconds per ignored webhook. The livemode check now happens immediately after parsing the raw payload, before any network calls.
+- **Fix: Conference room calendar fetch bounded to 90-day window.** Both `getConferenceRoomBookingsFromCalendar()` and `syncConferenceRoomCalendarToBookings()` previously had no `timeMax`, fetching ALL future Google Calendar events (potentially thousands). Now capped at 90 days from today, matching the approved-bookings endpoint's date range.
+
+Files changed: `server/core/stripe/client.ts`, `server/core/stripe/webhooks/index.ts`, `server/core/calendar/sync/conference-room.ts`
+
 ## [8.98.24] - 2026-04-03
 
 ### Data Integrity — Overlap Checks Removed & Permanent Dismiss
