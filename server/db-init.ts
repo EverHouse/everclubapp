@@ -2534,10 +2534,12 @@ async function retryTriggerSetup<T>(fn: () => Promise<T>, label: string, maxRetr
       return await fn();
     } catch (err: unknown) {
       const msg = getErrorMessage(err);
-      const isRetryable = msg.includes('timeout') || msg.includes('Connection terminated') || msg.includes('ECONNREFUSED');
+      const code = (err as { code?: string })?.code ?? '';
+      const isDeadlock = code === '40P01' || msg.includes('deadlock');
+      const isRetryable = isDeadlock || msg.includes('timeout') || msg.includes('Connection terminated') || msg.includes('ECONNREFUSED');
       if (!isRetryable || attempt === maxRetries) throw err;
-      const delay = Math.pow(2, attempt) * 1000;
-      logger.info(`[DB Init] ${label} failed (attempt ${attempt}/${maxRetries}), retrying in ${delay / 1000}s...`);
+      const delay = Math.pow(2, attempt) * 1000 + (isDeadlock ? Math.floor(Math.random() * 500) : 0);
+      logger.info(`[DB Init] ${label} failed (attempt ${attempt}/${maxRetries}${isDeadlock ? ', deadlock' : ''}), retrying in ${Math.round(delay / 1000)}s...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -2559,7 +2561,9 @@ export async function setupInstantDataTriggers(): Promise<void> {
         RETURN NEW;
       END;
       $$;
+    `), 'auto_set_billing_provider_function');
 
+    await retryTriggerSetup(() => db.execute(sql`
       DROP TRIGGER IF EXISTS trg_auto_billing_provider ON users;
       CREATE TRIGGER trg_auto_billing_provider
       BEFORE INSERT OR UPDATE OF stripe_subscription_id, mindbody_client_id, billing_provider ON users
