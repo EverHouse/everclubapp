@@ -344,7 +344,9 @@ export type AuditAction =
   | 'apply_balance'
   | 'reset_participant_payment'
   | 'create_promotion_code'
-  | 'seed_promo_code';
+  | 'seed_promo_code'
+  | 'clear_stale_subscription'
+  | 'bulk_clear_stale_subscriptions';
 
 export type ActorType = 'staff' | 'member' | 'system';
 

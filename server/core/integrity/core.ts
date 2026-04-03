@@ -489,6 +489,11 @@ export interface IssueContext {
   itemName?: string;
   stockQuantity?: number;
   isActive?: boolean;
+  stripeProductId?: string;
+  stripePriceId?: string;
+  localPrice?: string;
+  stripePrice?: string;
+  source?: string;
 }
 
 export interface IntegrityIssue {

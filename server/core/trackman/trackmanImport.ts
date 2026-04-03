@@ -749,7 +749,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           if (!financiallyFrozen) {
             try {
               await invalidateCachedFees(
-                (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${existing.sessionId}`)).rows.map((r: { id: number }) => r.id),
+                ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${existing.sessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                 'trackman_import_member_match'
               );
               await recalculateSessionFees(existing.sessionId, 'approval');
@@ -888,7 +888,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                   });
                   try {
                     await invalidateCachedFees(
-                      (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${placeholder.session_id}`)).rows.map((r: { id: number }) => r.id),
+                      ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${placeholder.session_id}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                       'trackman_import_owner_reassign'
                     );
                     await recalculateSessionFees(placeholder.session_id, 'trackman_import');
@@ -1299,7 +1299,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
                       });
                       try {
                         await invalidateCachedFees(
-                          (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${existingGhost.sessionId}`)).rows.map((r: { id: number }) => r.id),
+                          ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${existingGhost.sessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                           'trackman_import_ghost_owner_reassign'
                         );
                         await recalculateSessionFees(existingGhost.sessionId, 'trackman_import');
@@ -1979,7 +1979,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               logger.info(`[Trackman Import]   Created session #${targetSessionId} for auto-approved booking #${approved.id}`);
               try {
                 await invalidateCachedFees(
-                  (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${targetSessionId}`)).rows.map((r: { id: number }) => r.id),
+                  ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${targetSessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                   'trackman_import_auto_approved'
                 );
                 await recalculateSessionFees(targetSessionId, 'trackman_import');
@@ -2008,7 +2008,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           if (transferred > 0) {
             try {
               await invalidateCachedFees(
-                (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${targetSessionId}`)).rows.map((r: { id: number }) => r.id),
+                ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${targetSessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                 'trackman_import_participant_transfer'
               );
               await recalculateSessionFees(targetSessionId, 'trackman_import');

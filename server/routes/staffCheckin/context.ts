@@ -95,7 +95,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           await syncGuestPlaceholders(sessionId);
           
           await invalidateCachedFees(
-            (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+            ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
             'checkin_context_session_create'
           );
           await recalculateSessionFees(sessionId, 'checkin');
@@ -133,7 +133,7 @@ router.get('/api/bookings/:id/staff-checkin-context', isStaffOrAdmin, async (req
           
           logger.info('[Checkin Context Sync] Cleaned up orphaned participants for booking', { extra: { length: orphanedIds.length, bookingId, orphanedNames } });
           await invalidateCachedFees(
-            (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+            ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
             'checkin_context_sync_cleanup'
           );
           await recalculateSessionFees(sessionId, 'sync_cleanup');

@@ -979,7 +979,7 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, val
         : customer.invoice_settings.default_payment_method?.id || null;
     }
 
-    if (!paymentMethodId && typeof customer === 'object' && customer.id) {
+    if (!paymentMethodId && customer && customer.id) {
       const paymentMethods = await listCustomerPaymentMethods(customer.id);
       if (paymentMethods.length > 0) {
         paymentMethodId = paymentMethods[0].id;

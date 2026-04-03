@@ -22,8 +22,184 @@ function pacificNow(): string {
   return new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-interface DbRow {
-  [key: string]: unknown;
+interface CountRow {
+  count?: string;
+  total?: string;
+}
+
+interface UnmatchedListRow {
+  id: number;
+  trackman_booking_id: string | null;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  resource_id: number | null;
+  raw_user_name: string | null;
+  bay_name: string | null;
+  staff_notes: string | null;
+  notes: string | null;
+  player_count: number | null;
+  status: string;
+  created_at: string | Date;
+  updated_at: string | Date | null;
+  is_matchable: boolean;
+  is_event: boolean;
+}
+
+interface AutoResolveMatchRow {
+  booking_id: number;
+  trackman_booking_id: string | null;
+  trackman_customer_notes: string | null;
+  request_date: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number | null;
+  resource_id: number | null;
+  user_id: string;
+  user_email: string;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+}
+
+interface SessionIdRow {
+  session_id: number | null;
+}
+
+interface BulkDismissRow {
+  id: number;
+  trackman_booking_id: string | null;
+}
+
+interface MemberLookupRow {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  stripe_customer_id: string | null;
+  role: string | null;
+  archived_at: string | Date | null;
+  staff_role?: string | null;
+  is_staff_active?: boolean | null;
+  tier?: string | null;
+}
+
+interface BookingDetailRow {
+  id: number;
+  trackman_booking_id: string | null;
+  staff_notes: string | null;
+  trackman_customer_notes: string | null;
+  request_date: string | Date;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number | null;
+  resource_id: number | null;
+  session_id: number | null;
+}
+
+interface LegacyUnmatchedRow {
+  id: number;
+  trackman_booking_id: string | null;
+  user_name: string | null;
+  original_email: string | null;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number | null;
+  bay_number: string | null;
+  notes: string | null;
+}
+
+interface DayPassProductRow {
+  price_cents: number;
+  stripe_price_id: string | null;
+  name: string;
+}
+
+interface MatchedBookingListRow {
+  id: number;
+  user_email: string | null;
+  user_name: string | null;
+  resource_id: number | null;
+  request_date: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number | null;
+  status: string;
+  notes: string | null;
+  trackman_booking_id: string | null;
+  trackman_player_count: number | null;
+  created_at: string | Date;
+  session_id: number | null;
+  member_first_name: string | null;
+  member_last_name: string | null;
+  member_email: string | null;
+  total_slots: string;
+  filled_slots: string;
+}
+
+interface ReassignBookingRow {
+  user_email: string | null;
+  notes: string | null;
+  session_id: number | null;
+}
+
+interface OwnerRow {
+  user_id: string | null;
+}
+
+interface LinkedEmailRow {
+  manually_linked_emails: unknown;
+}
+
+interface UnresolvedBookingRow {
+  id: number;
+  trackman_booking_id: string | null;
+}
+
+interface UsageLedgerRow {
+  id: number;
+  member_id: string;
+}
+
+interface EmailRow {
+  email: string;
+}
+
+interface OriginalEmailRow {
+  original_email: string | null;
+}
+
+interface UnmatchedPotentialRow {
+  id: number;
+  trackman_booking_id: string | null;
+  user_name: string | null;
+  original_email: string | null;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  bay_number: string | null;
+  player_count: number | null;
+  status: string | null;
+  notes: string | null;
+  created_at: string | Date;
+}
+
+interface PotentialAppBookingRow {
+  id: number;
+  user_email: string | null;
+  user_name: string | null;
+  start_time: string;
+  end_time: string;
+  status: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
+interface UnmatchBookingRow {
+  id: number;
+  notes: string | null;
+  user_name: string | null;
 }
 
 const router = Router();
@@ -93,7 +269,7 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatc
     const whereFragment = sql.join(sqlConditions, sql` AND `);
     
     const countResult = await db.execute(sql`SELECT COUNT(*) FROM booking_requests br WHERE ${whereFragment}`);
-    const totalCount = parseInt((countResult.rows[0] as DbRow).count as string, 10);
+    const totalCount = parseInt((countResult.rows[0] as unknown as CountRow).count as string, 10);
     
     const result = await db.execute(sql`SELECT 
         br.id,
@@ -124,7 +300,7 @@ router.get('/api/admin/trackman/unmatched', isStaffOrAdmin, validateQuery(unmatc
       ORDER BY br.request_date DESC, br.start_time DESC
       LIMIT ${limitNum} OFFSET ${offsetNum}`);
     
-    const parsedResults = result.rows.map((row: DbRow) => {
+    const parsedResults = (result.rows as unknown as UnmatchedListRow[]).map((row) => {
       let userName = 'Unknown';
       let originalEmail = '';
       let matchAttemptReason = '';
@@ -217,7 +393,7 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
     let resolvedCount = 0;
     const errors: string[] = [];
     
-    for (const row of matchableResult.rows as DbRow[]) {
+    for (const row of matchableResult.rows as unknown as AutoResolveMatchRow[]) {
       try {
         const autoResolveName = `${row.first_name} ${row.last_name}`.trim();
         await db.execute(sql`UPDATE booking_requests 
@@ -230,7 +406,7 @@ router.post('/api/admin/trackman/unmatched/auto-resolve', isStaffOrAdmin, async 
            WHERE id = ${row.booking_id}`);
         
         const sessionForAutoResolve = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${row.booking_id}`);
-        const autoSessionId = (sessionForAutoResolve.rows[0] as DbRow)?.session_id;
+        const autoSessionId = (sessionForAutoResolve.rows[0] as unknown as SessionIdRow)?.session_id;
         if (autoSessionId) {
           await db.execute(sql`UPDATE booking_participants 
              SET user_id = ${row.user_id}, display_name = ${autoResolveName}
@@ -301,7 +477,7 @@ router.post('/api/admin/trackman/unmatched/bulk-dismiss', isStaffOrAdmin, async 
       details: { 
         dismissedCount,
         reason: dismissReason,
-        bookingIds: result.rows.map((r: DbRow) => r.trackman_booking_id || r.id)
+        bookingIds: (result.rows as unknown as BulkDismissRow[]).map((r) => r.trackman_booking_id || r.id)
       }
     });
     
@@ -354,7 +530,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
       return res.status(404).json({ error: 'Member not found with that email. Make sure they exist in the member directory.' });
     }
     
-    const member = memberResult.rows[0] as DbRow;
+    const member = memberResult.rows[0] as unknown as MemberLookupRow;
     
     if (member.archived_at) {
       return res.status(400).json({ error: 'Cannot assign booking to an archived member. Please reactivate the member first.' });
@@ -367,7 +543,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
               duration_minutes, resource_id, session_id
        FROM booking_requests WHERE id = ${numericId}`);
     
-    let booking = bookingResult.rows[0] as DbRow;
+    let booking = bookingResult.rows[0] as unknown as BookingDetailRow;
     let fromLegacyTable = false;
     
     if (!booking) {
@@ -379,7 +555,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
         return res.status(404).json({ error: 'Booking not found in either booking requests or unmatched bookings' });
       }
       
-      const legacy = legacyResult.rows[0] as DbRow;
+      const legacy = legacyResult.rows[0] as unknown as LegacyUnmatchedRow;
       fromLegacyTable = true;
       
       let resourceId = 1;
@@ -401,7 +577,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           updated_at = NOW()
         RETURNING id, trackman_booking_id, staff_notes, request_date, start_time, end_time, duration_minutes, resource_id`);
       
-      booking = createResult.rows[0] as DbRow;
+      booking = createResult.rows[0] as unknown as BookingDetailRow;
       
       await db.execute(sql`UPDATE trackman_unmatched_bookings SET resolved_at = NOW(), resolved_email = ${member.email} WHERE id = ${numericId}`);
     } else {
@@ -467,8 +643,8 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
     let originalEmailForLearning: string | null = null;
     if (fromLegacyTable) {
       const legacyData = await db.execute(sql`SELECT original_email FROM trackman_unmatched_bookings WHERE id = ${id}`);
-      if ((legacyData.rows[0] as DbRow)?.original_email) {
-        originalEmailForLearning = String((legacyData.rows[0] as DbRow).original_email).toLowerCase().trim();
+      if ((legacyData.rows[0] as unknown as OriginalEmailRow)?.original_email) {
+        originalEmailForLearning = String((legacyData.rows[0] as unknown as OriginalEmailRow).original_email).toLowerCase().trim();
       }
     } else if (booking.trackman_customer_notes) {
       const emailMatch = String(booking.trackman_customer_notes).match(/Original email:\s*([^\s,]+)/i);
@@ -520,7 +696,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                )`);
             
             let autoResolvedCount = 0;
-            for (const otherBooking of otherUnresolvedResult.rows as DbRow[]) {
+            for (const otherBooking of otherUnresolvedResult.rows as unknown as UnresolvedBookingRow[]) {
               try {
                 await db.execute(sql`UPDATE booking_requests 
                    SET user_id = ${member.id}, 
@@ -532,7 +708,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                    WHERE id = ${otherBooking.id}`);
                 
                 const otherBookingDetails = await db.execute(sql`SELECT session_id, request_date, start_time, end_time, duration_minutes, resource_id, trackman_booking_id FROM booking_requests WHERE id = ${otherBooking.id}`);
-                const otherBD = otherBookingDetails.rows[0] as DbRow;
+                const otherBD = otherBookingDetails.rows[0] as unknown as BookingDetailRow;
                 let otherSessionId = otherBD?.session_id;
                 
                 if (otherSessionId) {
@@ -573,7 +749,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
                     });
                     try {
                       await invalidateCachedFees(
-                        (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${otherSessionId}`)).rows.map((r: { id: number }) => r.id),
+                        ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${otherSessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                         'trackman_auto_resolve_email_learning'
                       );
                       await recalculateSessionFees(otherSessionId as number, 'checkin');
@@ -634,7 +810,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
              WHERE slug = 'day-pass-golf-sim' AND is_active = true`);
           
           if (dayPassResult.rows.length > 0) {
-            const dayPass = dayPassResult.rows[0] as DbRow;
+            const dayPass = dayPassResult.rows[0] as unknown as DayPassProductRow;
             const amountCents = dayPass.price_cents;
             if (!amountCents || Number(amountCents) <= 0) {
               logger.error('[Trackman Resolve] Day pass price_cents is missing or zero for slug \'day-pass-golf-sim\' — cannot bill');
@@ -830,7 +1006,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
           
           try {
             await invalidateCachedFees(
-              (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+              ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
               'trackman_resolve_member'
             );
             await recalculateSessionFees(sessionId as number, 'checkin');
@@ -857,7 +1033,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
             });
             logger.info('[Trackman Resolve] Created session and usage ledger for member, booking #', { extra: { memberEmail: member.email, bookingId: booking.id } });
           } else {
-            const existingMemberId = (existingUsage.rows[0] as DbRow).member_id;
+            const existingMemberId = (existingUsage.rows[0] as unknown as UsageLedgerRow).member_id;
             const memberEmailLower = (member.email as string).toLowerCase();
             if (existingMemberId !== memberEmailLower) {
               await db.execute(sql`UPDATE usage_ledger SET member_id = ${memberEmailLower} WHERE session_id = ${sessionId} AND (guest_fee IS NULL OR guest_fee = 0) AND source = 'trackman_import'`);
@@ -875,7 +1051,7 @@ router.put('/api/admin/trackman/unmatched/:id/resolve', isStaffOrAdmin, async (r
 
     let dayPassMessage = '';
     const resolvedSessionResult = await db.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${booking.id}`);
-    const resolvedSessionId = (resolvedSessionResult.rows[0] as DbRow)?.session_id as number | null;
+    const resolvedSessionId = (resolvedSessionResult.rows[0] as unknown as SessionIdRow)?.session_id as number | null;
     
     if (Array.isArray(rawDayPassRedemptions) && rawDayPassRedemptions.length > 0 && resolvedSessionId) {
       const validRedemptions = rawDayPassRedemptions
@@ -979,7 +1155,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
       const memberResult = await db.execute(sql`SELECT id, email, first_name, last_name, role FROM users WHERE LOWER(email) = LOWER(${resolveToEmail})`);
       
       if (memberResult.rows.length > 0) {
-        const member = memberResult.rows[0] as DbRow;
+        const member = memberResult.rows[0] as unknown as MemberLookupRow;
         
         const bookingRequestsResult = await db.execute(sql`SELECT id, trackman_booking_id 
            FROM booking_requests 
@@ -990,7 +1166,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
              OR staff_notes ILIKE ${`%${originalEmail}%`}
            )`);
         
-        for (const booking of bookingRequestsResult.rows as DbRow[]) {
+        for (const booking of bookingRequestsResult.rows as unknown as UnresolvedBookingRow[]) {
           try {
             const { getAlternateDomainEmail: getAltInstructor } = await import('../../core/utils/emailNormalization');
             const altInstructor = getAltInstructor(member.email as string);
@@ -1015,7 +1191,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
               logger.warn('[Auto-resolve] Booking disappeared after update', { extra: { bookingId: booking.id } });
               continue;
             }
-            const sameEmailBD = sameEmailDetails.rows[0] as DbRow;
+            const sameEmailBD = sameEmailDetails.rows[0] as unknown as BookingDetailRow;
             let sameEmailSessionId = sameEmailBD?.session_id;
             
             if (sameEmailSessionId) {
@@ -1056,7 +1232,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
                 });
                 try {
                   await invalidateCachedFees(
-                    (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sameEmailSessionId}`)).rows.map((r: { id: number }) => r.id),
+                    ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sameEmailSessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
                     'trackman_auto_resolve_same_email'
                   );
                   await recalculateSessionFees(sameEmailSessionId as number, 'checkin');
@@ -1106,7 +1282,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
     let autoResolved = 0;
     const errors: string[] = [];
     
-    for (const booking of unmatchedResult.rows as DbRow[]) {
+    for (const booking of unmatchedResult.rows as unknown as LegacyUnmatchedRow[]) {
       try {
         let targetEmail = resolveToEmail;
         
@@ -1116,7 +1292,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
              LIMIT 1`);
           
           if (emailMappingResult.rows.length > 0) {
-            targetEmail = (emailMappingResult.rows[0] as DbRow).email;
+            targetEmail = (emailMappingResult.rows[0] as unknown as EmailRow).email;
           }
         }
         
@@ -1126,7 +1302,7 @@ router.post('/api/admin/trackman/auto-resolve-same-email', isStaffOrAdmin, async
         
         if (memberResult.rows.length === 0) continue;
         
-        const member = memberResult.rows[0] as DbRow;
+        const member = memberResult.rows[0] as unknown as MemberLookupRow;
         let resourceId = 1;
         if (booking.bay_number) {
           const bayNum = parseInt(String(booking.bay_number).replace(/\D/g, ''), 10);
@@ -1203,7 +1379,7 @@ router.delete('/api/admin/trackman/linked-email', isStaffOrAdmin, async (req, re
     
     res.json({ 
       success: true, 
-      manuallyLinkedEmails: (result.rows[0] as DbRow).manually_linked_emails || []
+      manuallyLinkedEmails: (result.rows[0] as unknown as LinkedEmailRow).manually_linked_emails || []
     });
   } catch (error: unknown) {
     logger.error('Remove linked email error', { extra: { error: getErrorMessage(error) } });
@@ -1244,7 +1420,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, validateQuery(paginate
     const matchedWhere = sql.join(matchedConditions, sql` AND `);
     
     const countResult = await db.execute(sql`SELECT COUNT(*) as total FROM booking_requests br LEFT JOIN users u ON LOWER(br.user_email) = LOWER(u.email) WHERE ${matchedWhere}`);
-    const totalCount = parseInt((countResult.rows[0] as DbRow).total as string, 10);
+    const totalCount = parseInt((countResult.rows[0] as unknown as CountRow).total as string, 10);
     
     const result = await db.execute(sql`SELECT 
         br.id,
@@ -1288,7 +1464,7 @@ router.get('/api/admin/trackman/matched', isStaffOrAdmin, validateQuery(paginate
        ORDER BY br.request_date DESC, br.start_time DESC
        LIMIT ${limit} OFFSET ${offset}`);
     
-    const data = result.rows.map((row: DbRow) => {
+    const data = (result.rows as unknown as MatchedBookingListRow[]).map((row) => {
       const totalSlots = parseInt(row.total_slots as string, 10) || 1;
       const filledSlots = parseInt(row.filled_slots as string, 10) || 0;
       return {
@@ -1358,9 +1534,10 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    const oldEmail = (bookingResult.rows[0] as DbRow).user_email;
-    const notes = (bookingResult.rows[0] as DbRow).notes || '';
-    const sessionId = (bookingResult.rows[0] as DbRow).session_id;
+    const reassignRow = bookingResult.rows[0] as ReassignBookingRow;
+    const oldEmail = reassignRow.user_email;
+    const notes = reassignRow.notes || '';
+    const sessionId = reassignRow.session_id;
     
     const newMemberResult = await client.query(
       `SELECT id, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)`,
@@ -1372,7 +1549,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
       return res.status(404).json({ error: 'New member not found' });
     }
     
-    const newMember = newMemberResult.rows[0] as DbRow;
+    const newMember = newMemberResult.rows[0] as MemberLookupRow;
     const newMemberName = `${newMember.first_name} ${newMember.last_name}`.trim();
     
     let placeholderEmail: string | null = null;
@@ -1396,7 +1573,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
         `SELECT user_id FROM booking_participants WHERE session_id = $1 AND participant_type = 'owner'`,
         [sessionId]
       );
-      const oldOwnerId = (oldOwnerResult.rows[0] as DbRow)?.user_id;
+      const oldOwnerId = (oldOwnerResult.rows[0] as unknown as OwnerRow)?.user_id;
       
       await client.query(
         `UPDATE booking_participants 
@@ -1443,7 +1620,7 @@ router.put('/api/admin/trackman/matched/:id/reassign', isStaffOrAdmin, async (re
     if (sessionId) {
       try {
         await invalidateCachedFees(
-          (await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows.map((r: { id: number }) => r.id),
+          ((await db.execute(sql`SELECT id FROM booking_participants WHERE session_id = ${sessionId}`)).rows as unknown as { id: number }[]).map((r) => r.id),
           'trackman_reassign'
         );
         await recalculateSessionFees(sessionId as number, 'roster_update');
@@ -1544,7 +1721,7 @@ router.post('/api/admin/trackman/unmatch-member', isStaffOrAdmin, async (req, re
     }
     
     let affectedCount = 0;
-    for (const booking of bookingsResult.rows as DbRow[]) {
+    for (const booking of bookingsResult.rows as unknown as UnmatchBookingRow[]) {
       const notesMatch = String(booking.notes || '').match(/\[Trackman Import ID:\d+\]\s*([^[]+)/);
       const originalName = notesMatch ? notesMatch[1].trim() : booking.user_name || 'Unknown';
       
@@ -1608,7 +1785,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, validateQuer
     
     const potentialMatches: Record<string, unknown>[] = [];
     
-    for (const unmatched of unmatchedResult.rows as DbRow[]) {
+    for (const unmatched of unmatchedResult.rows as unknown as UnmatchedPotentialRow[]) {
       const matchingBookings = await db.execute(sql`SELECT br.id, br.user_email, br.user_name, br.start_time, br.end_time, br.status,
                 u.first_name, u.last_name
          FROM booking_requests br
@@ -1635,7 +1812,7 @@ router.get('/api/admin/trackman/potential-matches', isStaffOrAdmin, validateQuer
             notes: unmatched.notes,
             createdAt: unmatched.created_at
           },
-          potentialAppBookings: matchingBookings.rows.map((b: DbRow) => ({
+          potentialAppBookings: (matchingBookings.rows as unknown as PotentialAppBookingRow[]).map((b) => ({
             id: b.id,
             userEmail: b.user_email,
             userName: b.user_name,
@@ -1697,7 +1874,7 @@ router.get('/api/admin/trackman/requires-review', isStaffOrAdmin, validateQuery(
     
     res.json({ 
       data: result.rows,
-      totalCount: parseInt((countResult.rows[0] as DbRow).total as string, 10)
+      totalCount: parseInt((countResult.rows[0] as unknown as CountRow).total as string, 10)
     });
   } catch (error: unknown) {
     logger.error('Fetch requires-review error', { extra: { error: getErrorMessage(error) } });
