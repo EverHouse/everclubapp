@@ -101,6 +101,9 @@ vi.mock('../server/core/bookingService/sessionManager', () => ({
 vi.mock('../server/core/billing/unifiedFeeService', () => ({
   computeFeeBreakdown: vi.fn().mockResolvedValue({ totalCents: 0, participants: [] }),
   recalculateSessionFees: vi.fn().mockResolvedValue(undefined),
+  invalidateCachedFees: vi.fn().mockResolvedValue(undefined),
+  invalidateSessionCachedFees: vi.fn().mockResolvedValue(undefined),
+  syncGuestPlaceholders: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../server/core/billing/pricingConfig', () => ({

@@ -1,17 +1,35 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockTxExecute = vi.fn();
-const mockTx = { execute: mockTxExecute };
+const { mockBusinessQuery, mockClientQuery, mockClient, mockPool } = vi.hoisted(() => {
+  const mockBusinessQuery = vi.fn();
+  const mockClientQuery = vi.fn().mockImplementation(async (text: string, params?: unknown[]) => {
+    if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') {
+      return { rows: [], rowCount: 0 };
+    }
+    return mockBusinessQuery(text, params);
+  });
+  const mockClient = {
+    query: mockClientQuery,
+    release: vi.fn(),
+  };
+  const mockPool = {
+    connect: vi.fn().mockResolvedValue(mockClient),
+  };
+  return { mockBusinessQuery, mockClientQuery, mockClient, mockPool };
+});
 
 vi.mock('../server/core/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+vi.mock('../server/core/db', () => ({
+  pool: mockPool,
+}));
+
 vi.mock('../server/db', () => ({
   db: {
     execute: vi.fn(),
-    transaction: vi.fn((fn: Function) => fn(mockTx)),
   },
 }));
 
@@ -36,12 +54,21 @@ import { db } from '../server/db';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockPool.connect.mockResolvedValue(mockClient);
+  mockBusinessQuery.mockReset();
+  mockClientQuery.mockClear();
+  mockClientQuery.mockImplementation(async (text: string, params?: unknown[]) => {
+    if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') {
+      return { rows: [], rowCount: 0 };
+    }
+    return mockBusinessQuery(text, params);
+  });
 });
 
 describe('PaymentStatusService', () => {
   describe('markPaymentSucceeded', () => {
     it('updates snapshot and participants to paid when snapshot exists', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({
           rows: [{
             id: 1,
@@ -70,7 +97,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('handles no-snapshot fallback path', async () => {
-      mockTxExecute.mockResolvedValue({ rows: [] });
+      mockBusinessQuery.mockResolvedValue({ rows: [] });
 
       const result = await PaymentStatusService.markPaymentSucceeded({
         paymentIntentId: 'pi_nofee',
@@ -80,7 +107,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('skips update when amount mismatch exceeds tolerance', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({
@@ -100,7 +127,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('skips already completed snapshots', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({
           rows: [{
             id: 1,
@@ -123,7 +150,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('returns error on database failure', async () => {
-      (db.transaction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('DB connection lost'));
+      mockPool.connect.mockRejectedValueOnce(new Error('DB connection lost'));
 
       const result = await PaymentStatusService.markPaymentSucceeded({
         paymentIntentId: 'pi_fail',
@@ -136,7 +163,7 @@ describe('PaymentStatusService', () => {
 
   describe('markPaymentRefunded', () => {
     it('refunds payment and updates snapshot and participants', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({
           rows: [{
             id: 1,
@@ -161,7 +188,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('handles refund with no snapshot', async () => {
-      mockTxExecute.mockResolvedValue({ rows: [] });
+      mockBusinessQuery.mockResolvedValue({ rows: [] });
 
       const result = await PaymentStatusService.markPaymentRefunded({
         paymentIntentId: 'pi_nosnap',
@@ -171,7 +198,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('returns error on failure', async () => {
-      (db.transaction as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Transaction failed'));
+      mockPool.connect.mockRejectedValueOnce(new Error('Transaction failed'));
 
       const result = await PaymentStatusService.markPaymentRefunded({
         paymentIntentId: 'pi_fail',
@@ -184,7 +211,7 @@ describe('PaymentStatusService', () => {
 
   describe('markPaymentCancelled', () => {
     it('cancels payment and updates snapshots', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({ rows: [{ id: 1 }] })
         .mockResolvedValue({ rows: [] });
 
@@ -196,7 +223,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('handles cancellation with no snapshots', async () => {
-      mockTxExecute.mockResolvedValue({ rows: [] });
+      mockBusinessQuery.mockResolvedValue({ rows: [] });
 
       const result = await PaymentStatusService.markPaymentCancelled({
         paymentIntentId: 'pi_no_snap',
@@ -208,7 +235,7 @@ describe('PaymentStatusService', () => {
 
   describe('syncFromStripe', () => {
     it('delegates to markPaymentSucceeded for succeeded status', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
@@ -219,7 +246,7 @@ describe('PaymentStatusService', () => {
     });
 
     it('delegates to markPaymentCancelled for canceled status', async () => {
-      mockTxExecute
+      mockBusinessQuery
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 
