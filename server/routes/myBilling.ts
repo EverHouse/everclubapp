@@ -1067,12 +1067,12 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
 
     const invoiceBookingIds = new Set<string>();
     const activeInvoiceBookingIds = new Set<string>();
+    const paidInvoicePiIds = new Set<string>();
 
     if (stripeCustomerId) {
       try {
-        const [openInvoices, draftInvoices, paidInvoices] = await Promise.all([
+        const [openInvoices, paidInvoices] = await Promise.all([
           stripe.invoices.list({ customer: stripeCustomerId, limit: 100, status: 'open' }),
-          stripe.invoices.list({ customer: stripeCustomerId, limit: 100, status: 'draft' }),
           stripe.invoices.list({ customer: stripeCustomerId, limit: 100, status: 'paid' }),
         ]);
 
@@ -1097,7 +1097,7 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
           }
         }
 
-        const allInvoices = [...openInvoices.data, ...draftInvoices.data, ...paidInvoices.data];
+        const allInvoices = [...openInvoices.data, ...paidInvoices.data];
         const seenInvoiceBookingIds = new Set<string>();
         const seenInvoiceIds = new Set<string>();
         const sortedInvoices = allInvoices.sort((a, b) => b.created - a.created);
@@ -1111,13 +1111,18 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
             if (seenInvoiceBookingIds.has(bookingId)) continue;
             seenInvoiceBookingIds.add(bookingId);
             invoiceBookingIds.add(bookingId);
-            if (inv.status === 'open' || inv.status === 'draft') {
+            if (inv.status === 'open') {
               activeInvoiceBookingIds.add(bookingId);
             }
           }
 
           const invExpanded = inv as unknown as InvoiceWithExpandedFields;
           const piId = typeof invExpanded.payment_intent === 'string' ? invExpanded.payment_intent : invExpanded.payment_intent?.id;
+
+          if (inv.status === 'paid' && piId) {
+            paidInvoicePiIds.add(piId);
+          }
+
           if (piId && existingPaymentIntentIds.has(piId)) continue;
 
           const invBookingId = bookingId ? parseInt(bookingId, 10) : null;
@@ -1223,12 +1228,34 @@ router.get('/api/my-billing/payment-history', requireAuth, validateQuery(optiona
       logger.warn('[MyBilling] Failed to fetch overdue booking fees for payment history', { extra: { error: getErrorMessage(overdueErr) } });
     }
 
+    const isGenericInvoicePayment = (p: typeof purchases[0]) =>
+      p.id.startsWith('stripe-') && /^Payment for Invoice$/i.test(p.itemName);
+
     const deduped = purchases.filter(p => {
-      if (p.itemCategory === 'invoice') return true;
       if (p.id.startsWith('overdue-')) return true;
-      if (!p.id.startsWith('stripe-')) return true;
-      if (p.bookingId && invoiceBookingIds.has(String(p.bookingId)) && p.hostedInvoiceUrl) return true;
-      if (p.bookingId && invoiceBookingIds.has(String(p.bookingId))) return false;
+
+      if (isGenericInvoicePayment(p) && p.stripePaymentIntentId && paidInvoicePiIds.has(p.stripePaymentIntentId)) return false;
+
+      if (isGenericInvoicePayment(p)) {
+        const pDate = new Date(p.date).getTime();
+        const hasMatchingInvoice = purchases.some(
+          other => other.id.startsWith('inv-') && other.status === 'paid'
+            && other.amountCents === p.amountCents
+            && Math.abs(new Date(other.date).getTime() - pDate) < 48 * 60 * 60 * 1000
+        );
+        if (hasMatchingInvoice) return false;
+      }
+
+      if (p.id.startsWith('stripe-') && p.bookingId && invoiceBookingIds.has(String(p.bookingId)) && !p.hostedInvoiceUrl) return false;
+
+      if (p.id.startsWith('inv-') && p.status === 'paid' && p.bookingId) {
+        const hasDetailedPi = purchases.some(
+          other => other.id.startsWith('stripe-') && other.bookingId === p.bookingId
+            && !isGenericInvoicePayment(other)
+            && !paidInvoicePiIds.has(other.stripePaymentIntentId || '')
+        );
+        if (hasDetailedPi) return false;
+      }
       return true;
     });
 
