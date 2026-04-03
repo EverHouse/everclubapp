@@ -467,7 +467,11 @@ export async function changeSubscriptionTier(
   try {
     const stripe = await getStripeClient();
     const sub = await stripe.subscriptions.retrieve(subscriptionId);
-    const itemId = sub.items.data[0].id;
+    const firstItem = sub.items?.data?.[0];
+    if (!firstItem) {
+      return { success: false, error: 'Subscription has no items' };
+    }
+    const itemId = firstItem.id;
     
     // Get the customer's default payment method to ensure it's used for the proration invoice
     let defaultPaymentMethod: string | undefined;

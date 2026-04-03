@@ -739,8 +739,8 @@ router.get('/api/financials/subscriptions', isStaffOrAdmin, async (req: Request,
     }
 
     const subscriptionItems: SubscriptionListItem[] = subscriptions.data.map(sub => {
-      const customer = sub.customer as Stripe.Customer;
-      const item = sub.items.data[0];
+      const customer = typeof sub.customer === 'object' && sub.customer && !('deleted' in sub.customer) ? sub.customer as Stripe.Customer : null;
+      const item = sub.items?.data?.[0];
       const price = item?.price;
       const productId = price?.product;
       const productName = typeof productId === 'string' 
@@ -799,12 +799,12 @@ router.post('/api/financials/subscriptions/:subscriptionId/send-reminder', isSta
       return res.status(404).json({ success: false, error: 'Subscription not found' });
     }
 
-    const customer = subscription.customer as Stripe.Customer;
+    const customer = typeof subscription.customer === 'object' && subscription.customer && !('deleted' in subscription.customer) ? subscription.customer as Stripe.Customer : null;
     if (!customer?.email) {
       return res.status(400).json({ success: false, error: 'Customer email not found' });
     }
 
-    const item = subscription.items.data[0];
+    const item = subscription.items?.data?.[0];
     const price = item?.price;
     const product = price?.product as Stripe.Product | undefined;
     const amount = (price?.unit_amount || 0) / 100;
@@ -920,7 +920,7 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
     }
 
     const invoiceItems: InvoiceListItem[] = invoices.data.map(invoice => {
-      const customer = invoice.customer as Stripe.Customer | null;
+      const customer = typeof invoice.customer === 'object' && invoice.customer && !('deleted' in invoice.customer) ? invoice.customer as Stripe.Customer : null;
       
       let effectiveStatus: string = invoice.status || 'draft';
       const bookingId = invoice.metadata?.bookingId;

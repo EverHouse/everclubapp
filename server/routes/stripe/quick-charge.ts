@@ -970,13 +970,13 @@ router.post('/api/stripe/staff/charge-subscription-invoice', isStaffOrAdmin, val
       });
     }
 
-    const customer = subscription.customer as Stripe.Customer;
+    const customer = typeof subscription.customer === 'object' && subscription.customer && !('deleted' in subscription.customer) ? subscription.customer as Stripe.Customer : null;
     let paymentMethodId: string | null = null;
 
     if (customer?.invoice_settings?.default_payment_method) {
       paymentMethodId = typeof customer.invoice_settings.default_payment_method === 'string' 
         ? customer.invoice_settings.default_payment_method 
-        : customer.invoice_settings.default_payment_method.id;
+        : customer.invoice_settings.default_payment_method?.id || null;
     }
 
     if (!paymentMethodId && typeof customer === 'object' && customer.id) {

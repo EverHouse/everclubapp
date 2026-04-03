@@ -290,7 +290,7 @@ router.post('/api/payments/retry', isStaffOrAdmin, validateBody(retryPaymentSche
     const piInvoice = (paymentIntent as unknown as Record<string, unknown>).invoice;
     let invoiceId: string | null = null;
     if (piInvoice) {
-      invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id: string }).id;
+      invoiceId = typeof piInvoice === 'string' ? piInvoice : (piInvoice as { id?: string })?.id || null;
     }
     if (!invoiceId && payment.bookingId) {
       const { getBookingInvoiceId } = await import('../../core/billing/bookingInvoiceService');

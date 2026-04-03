@@ -475,7 +475,11 @@ router.post('/api/member/balance/pay', isAuthenticated, async (req: Request, res
           logger.info('[Member Balance] Returning existing payment intent', { extra: { existingPaymentIntentId } });
           
           // Get customer balance for response
-          const customer = await stripe.customers.retrieve((existingIntent.customer as string) || '');
+          const customerId = typeof existingIntent.customer === 'string' ? existingIntent.customer : existingIntent.customer?.id;
+          if (!customerId) {
+            return res.status(400).json({ error: 'Payment intent has no associated customer' });
+          }
+          const customer = await stripe.customers.retrieve(customerId);
           let availableCredit = 0;
           if (!('deleted' in customer) || !customer.deleted) {
             const customerBalance = ('balance' in customer ? (customer.balance as number) : 0) || 0;
