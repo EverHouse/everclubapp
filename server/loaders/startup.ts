@@ -1031,6 +1031,16 @@ export async function runStartupTasks(): Promise<void> {
 
     async () => {
       try {
+        const ginExists = await db.execute(sql`
+          SELECT 1 FROM pg_indexes WHERE indexname = 'idx_users_manually_linked_emails_gin' LIMIT 1
+        `);
+        if (ginExists.rows.length === 0) {
+          await db.execute(sql`
+            CREATE INDEX IF NOT EXISTS idx_users_manually_linked_emails_gin ON users USING GIN (manually_linked_emails)
+          `);
+        }
+      } catch (err: unknown) { logger.debug('[Startup] GIN index on manually_linked_emails already exists or failed: ' + getErrorMessage(err)); }
+      try {
         const linkedResult = await db.execute(sql`
           UPDATE booking_requests br
           SET 
@@ -1041,6 +1051,7 @@ export async function runStartupTasks(): Promise<void> {
           JOIN users u ON LOWER(u.email) = LOWER(ule.primary_email) AND u.archived_at IS NULL
           WHERE LOWER(br.user_email) = LOWER(ule.linked_email)
             AND LOWER(br.user_email) != LOWER(u.email)
+            AND br.created_at >= NOW() - INTERVAL '90 days'
           RETURNING br.id, br.user_email AS new_email, ule.linked_email AS old_email
         `);
         const manualResult = await db.execute(sql`
@@ -1054,6 +1065,7 @@ export async function runStartupTasks(): Promise<void> {
             AND u.manually_linked_emails IS NOT NULL
             AND u.manually_linked_emails @> to_jsonb(LOWER(br.user_email))
             AND LOWER(br.user_email) != LOWER(u.email)
+            AND br.created_at >= NOW() - INTERVAL '90 days'
           RETURNING br.id, br.user_email AS new_email
         `);
         const totalFixed = (linkedResult.rows?.length || 0) + (manualResult.rows?.length || 0);

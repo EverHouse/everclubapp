@@ -14,14 +14,19 @@ function ensureTable(): Promise<void> {
   if (!tablePromise) {
     tablePromise = (async () => {
       try {
-        await db.execute(sql`
-          CREATE TABLE IF NOT EXISTS rate_limit_hits (
-            key TEXT NOT NULL,
-            window_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            hits INTEGER NOT NULL DEFAULT 1,
-            PRIMARY KEY (key)
-          )
+        const exists = await db.execute(sql`
+          SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'rate_limit_hits' LIMIT 1
         `);
+        if (exists.rows.length === 0) {
+          await db.execute(sql`
+            CREATE TABLE IF NOT EXISTS rate_limit_hits (
+              key TEXT NOT NULL,
+              window_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+              hits INTEGER NOT NULL DEFAULT 1,
+              PRIMARY KEY (key)
+            )
+          `);
+        }
         await db.execute(sql`
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_window ON rate_limit_hits (window_start)
         `);

@@ -309,13 +309,18 @@ export async function ensureDatabaseConstraints() {
       await db.execute(sql`
         ALTER TABLE notifications ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);
       `);
-      await db.execute(sql`
-        DELETE FROM notifications n1 USING notifications n2
-        WHERE n1.id < n2.id AND n1.idempotency_key IS NOT NULL AND n1.idempotency_key = n2.idempotency_key;
+      const idxExists = await db.execute(sql`
+        SELECT 1 FROM pg_indexes WHERE indexname = 'idx_notifications_idempotency_key' LIMIT 1
       `);
-      await db.execute(sql`
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_idempotency_key ON notifications (idempotency_key);
-      `);
+      if (idxExists.rows.length === 0) {
+        await db.execute(sql`
+          DELETE FROM notifications n1 USING notifications n2
+          WHERE n1.id < n2.id AND n1.idempotency_key IS NOT NULL AND n1.idempotency_key = n2.idempotency_key;
+        `);
+        await db.execute(sql`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_idempotency_key ON notifications (idempotency_key);
+        `);
+      }
       const colCheck = await db.execute(sql`
         SELECT COUNT(*)::int as cnt FROM information_schema.columns
         WHERE table_name = 'notifications' AND column_name = 'idempotency_key'
@@ -784,6 +789,7 @@ export async function ensureDatabaseConstraints() {
                 a.created_at AS audit_date
               FROM admin_audit_log a
               WHERE a.action = 'contact_status_changed'
+                AND a.created_at >= ${monthStart}::timestamp - INTERVAL '6 months'
               ORDER BY LOWER(a.resource_name), a.created_at DESC
             ) sub
             WHERE LOWER(u.email) = sub.email
@@ -1374,48 +1380,59 @@ export async function ensureDatabaseConstraints() {
       try { await db.execute(sql`ALTER TABLE booking_requests ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1`); } catch { logger.debug('[DB Init] version column already exists or failed'); }
 
       try {
-        await db.execute(sql`
-          DO $$
-          BEGIN
-            DELETE FROM booking_participants
-            WHERE NOT EXISTS (SELECT 1 FROM booking_sessions WHERE id = booking_participants.session_id);
-
-            UPDATE booking_participants SET user_id = NULL
-            WHERE user_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM users WHERE id = booking_participants.user_id);
-
-            UPDATE booking_participants SET guest_id = NULL
-            WHERE guest_id IS NOT NULL
-              AND NOT EXISTS (SELECT 1 FROM guests WHERE id = booking_participants.guest_id);
-
-            ALTER TABLE booking_participants
-              DROP CONSTRAINT IF EXISTS booking_participants_session_id_fkey;
-            ALTER TABLE booking_participants
-              DROP CONSTRAINT IF EXISTS booking_participants_session_id_booking_sessions_id_fk;
-            ALTER TABLE booking_participants
-              ADD CONSTRAINT booking_participants_session_id_fkey
-              FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE
-              NOT VALID;
-
-            ALTER TABLE booking_participants
-              DROP CONSTRAINT IF EXISTS booking_participants_user_id_fkey;
-            ALTER TABLE booking_participants
-              DROP CONSTRAINT IF EXISTS booking_participants_user_id_users_id_fk;
-            ALTER TABLE booking_participants
-              ADD CONSTRAINT booking_participants_user_id_fkey
-              FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-              NOT VALID;
-
-            ALTER TABLE booking_participants
-              DROP CONSTRAINT IF EXISTS booking_participants_guest_id_fkey;
-            ALTER TABLE booking_participants
-              DROP CONSTRAINT IF EXISTS booking_participants_guest_id_guests_id_fk;
-            ALTER TABLE booking_participants
-              ADD CONSTRAINT booking_participants_guest_id_fkey
-              FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE SET NULL
-              NOT VALID;
-          END $$;
+        const fkCheck = await db.execute(sql`
+          SELECT conname FROM pg_constraint
+          WHERE conrelid = 'booking_participants'::regclass
+            AND conname IN ('booking_participants_session_id_fkey', 'booking_participants_user_id_fkey', 'booking_participants_guest_id_fkey')
         `);
+        const existingFks = new Set((fkCheck.rows as Array<{ conname: string }>).map(r => r.conname));
+        const allFksExist = existingFks.has('booking_participants_session_id_fkey')
+          && existingFks.has('booking_participants_user_id_fkey')
+          && existingFks.has('booking_participants_guest_id_fkey');
+        if (!allFksExist) {
+          await db.execute(sql`
+            DO $$
+            BEGIN
+              DELETE FROM booking_participants
+              WHERE NOT EXISTS (SELECT 1 FROM booking_sessions WHERE id = booking_participants.session_id);
+
+              UPDATE booking_participants SET user_id = NULL
+              WHERE user_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM users WHERE id = booking_participants.user_id);
+
+              UPDATE booking_participants SET guest_id = NULL
+              WHERE guest_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM guests WHERE id = booking_participants.guest_id);
+
+              ALTER TABLE booking_participants
+                DROP CONSTRAINT IF EXISTS booking_participants_session_id_fkey;
+              ALTER TABLE booking_participants
+                DROP CONSTRAINT IF EXISTS booking_participants_session_id_booking_sessions_id_fk;
+              ALTER TABLE booking_participants
+                ADD CONSTRAINT booking_participants_session_id_fkey
+                FOREIGN KEY (session_id) REFERENCES booking_sessions(id) ON DELETE CASCADE
+                NOT VALID;
+
+              ALTER TABLE booking_participants
+                DROP CONSTRAINT IF EXISTS booking_participants_user_id_fkey;
+              ALTER TABLE booking_participants
+                DROP CONSTRAINT IF EXISTS booking_participants_user_id_users_id_fk;
+              ALTER TABLE booking_participants
+                ADD CONSTRAINT booking_participants_user_id_fkey
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                NOT VALID;
+
+              ALTER TABLE booking_participants
+                DROP CONSTRAINT IF EXISTS booking_participants_guest_id_fkey;
+              ALTER TABLE booking_participants
+                DROP CONSTRAINT IF EXISTS booking_participants_guest_id_guests_id_fk;
+              ALTER TABLE booking_participants
+                ADD CONSTRAINT booking_participants_guest_id_fkey
+                FOREIGN KEY (guest_id) REFERENCES guests(id) ON DELETE SET NULL
+                NOT VALID;
+            END $$;
+          `);
+        }
         logger.info('[DB Init] Booking_participants FK constraints created');
       } catch (err: unknown) {
         logger.warn(`[DB Init] Skipping booking_participants FK constraints: ${getErrorMessage(err)}`);
