@@ -40,6 +40,9 @@ tsconfig.tsbuildinfo
 
 # Test output
 coverage/
+e2e-report/
+e2e-results/
+e2e/.auth/
 
 # Certificate files (use env secrets instead)
 *.pem
