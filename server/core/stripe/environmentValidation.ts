@@ -72,7 +72,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     let cafeChecked = 0;
     const staleCafeItems: Array<{ id: unknown; name: unknown }> = [];
     let subsChecked = 0;
-    const staleSubs: Array<{ id: unknown; email: unknown; stripe_subscription_id: unknown }> = [];
+    const staleSubs: Array<{ id: unknown; email: unknown; stripe_subscription_id: unknown; first_name: unknown; last_name: unknown; membership_status: unknown }> = [];
     let tiersCleared = 0;
     let cafeCleared = 0;
     let clearedSubscriptionTierCount = 0;
@@ -272,7 +272,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
 
     // c) Validate users stripe_subscription_id — LOG ONLY, NEVER AUTO-DELETE
     const usersResult = await db.execute(
-      sql`SELECT id, email, stripe_subscription_id FROM users WHERE stripe_subscription_id IS NOT NULL`
+      sql`SELECT id, email, first_name, last_name, membership_status, stripe_subscription_id FROM users WHERE stripe_subscription_id IS NOT NULL`
     );
     const usersWithSubs = usersResult.rows;
     subsChecked = usersWithSubs.length;
@@ -285,7 +285,7 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
             await stripe.subscriptions.retrieve(user.stripe_subscription_id as string);
           } catch (error: unknown) {
             if (isStripeResourceMissing(error)) {
-              staleSubs.push({ id: user.id, email: user.email, stripe_subscription_id: user.stripe_subscription_id });
+              staleSubs.push({ id: user.id, email: user.email, stripe_subscription_id: user.stripe_subscription_id, first_name: user.first_name, last_name: user.last_name, membership_status: user.membership_status });
             } else {
               throw error;
             }
@@ -303,7 +303,8 @@ export async function validateStripeEnvironmentIds(): Promise<void> {
     if (staleSubs.length > 0) {
       logger.warn(`[Stripe Env] Found ${staleSubs.length} user(s) with subscription IDs not found in ${mode} Stripe. These will NOT be auto-cleared — use Data Integrity tools to review and fix manually:`);
       for (const sub of staleSubs) {
-        logger.warn(`[Stripe Env]   - "${sub.email}" (sub: ${sub.stripe_subscription_id})`);
+        const name = [sub.first_name, sub.last_name].filter(Boolean).join(' ') || 'Unknown';
+        logger.warn(`[Stripe Env]   - "${name}" <${sub.email}> (status: ${sub.membership_status || 'unknown'}, sub: ${sub.stripe_subscription_id})`);
       }
     }
 

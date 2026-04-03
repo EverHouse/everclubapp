@@ -588,6 +588,7 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Session Overlaps (All Resources)': 'high',
   'Wellness Block Coverage': 'high',
   'Stale Push Subscriptions': 'low',
+  'Stale Stripe Subscription IDs': 'high',
 };
 
 export function getCheckSeverity(checkName: string): 'critical' | 'high' | 'medium' | 'low' {
@@ -912,7 +913,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications, checkStalePushSubscriptions } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync, checkFeeSnapshotStripeDrift } = await import('./stripeChecks');
-  const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity } = await import('./memberChecks');
+  const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity, checkStaleStripeSubscriptionIds } = await import('./memberChecks');
 
   const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
   const autoFix = options?.autoFix ?? (triggeredBy === 'scheduled');
@@ -945,6 +946,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(() => checkOrphanedPaymentIntents({ autoFix }), 'Orphaned Payment Intents'),
     () => safeCheck(() => checkBillingProviderHybridState({ autoFix }), 'Billing Provider Hybrid State'),
     () => safeCheck(() => checkStuckTransitionalMembers({ autoFix }), 'Stuck Transitional Members'),
+    () => safeCheck(checkStaleStripeSubscriptionIds, 'Stale Stripe Subscription IDs'),
   ];
 
   const manualOnlyChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [

@@ -286,14 +286,9 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
       if (errors.length === 0 && successCount > 0) {
         showToast(lastResponseMessage || `${actionLabel} completed — ${successCount} user(s) processed`, 'success');
       } else if (successCount > 0 && errors.length > 0) {
-        showToast(`${actionLabel}: ${successCount} reconnected, ${errors.length} not found in Stripe — mark those as comped or manual instead`, 'warning');
+        showToast(lastResponseMessage || `${actionLabel}: ${successCount} succeeded, ${errors.length} failed — ${errors.slice(0, 2).join('; ')}`, 'warning');
       } else if (errors.length > 0) {
-        const notFoundCount = errors.filter(e => e.includes('No Stripe customer found')).length;
-        if (notFoundCount === errors.length) {
-          showToast(`No Stripe customers found for ${notFoundCount} member(s). These members likely need to be marked as comped or manual instead of reconnected.`, 'warning');
-        } else {
-          showToast(`${actionLabel}: ${errors.length} issue(s) — ${errors.slice(0, 2).join('; ')}`, 'error');
-        }
+        showToast(`${actionLabel}: ${errors.length} issue(s) — ${errors.slice(0, 2).join('; ')}`, 'error');
       } else {
         showToast(lastResponseMessage || `${actionLabel} completed — no members required changes`, 'info');
       }
@@ -372,6 +367,15 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
     if (context.billingProvider && context.billingProvider !== 'none') parts.push(`Provider: ${context.billingProvider}`);
     if (context.stripeCustomerId) parts.push(context.stripeCustomerId === 'none' ? 'No Stripe Customer' : `Customer: ${context.stripeCustomerId}`);
     if (context.stripeSubscriptionId) parts.push(context.stripeSubscriptionId === 'none' ? 'No Subscription' : `Sub: ${context.stripeSubscriptionId}`);
+    if (context.memberStatus) parts.push(`Status: ${context.memberStatus}`);
+    if (context.lastUpdate) {
+      try {
+        const formatted = new Date(context.lastUpdate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
+        parts.push(`Last updated: ${formatted}`);
+      } catch {
+        parts.push(`Last updated: ${context.lastUpdate}`);
+      }
+    }
     
     if (context.bookingDate || context.tourDate || context.classDate || context.eventDate) {
       const date = context.bookingDate || context.tourDate || context.classDate || context.eventDate;
@@ -906,6 +910,51 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
             </div>
           </div>
         );
+
+      case 'Stale Stripe Subscription IDs': {
+        const staleSubResult = results.find(r => r.checkName === 'Stale Stripe Subscription IDs');
+        const staleSubIssues = staleSubResult?.issues.filter(i => !i.ignored) || [];
+        const allStaleSubUserIds = staleSubIssues.map(i => String(i.context?.userId)).filter(Boolean);
+
+        return (
+          <div className="space-y-3 mb-4">
+            <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3">
+              <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                <strong>About:</strong> These members have Stripe subscription IDs in the database that no longer exist in Stripe.
+                Clearing a stale subscription ID will also set active, past_due, or trialing members to inactive. Use the individual clear buttons below, or resolve all at once.
+              </p>
+            </div>
+            {allStaleSubUserIds.length > 1 && (
+              <div className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <strong>{allStaleSubUserIds.length}</strong> stale subscription(s) found
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Clear all ${allStaleSubUserIds.length} stale subscription IDs? Active members will be set to inactive.`)) {
+                        handleBatchedBulkAction(
+                          '/api/data-integrity/fix/bulk-clear-stale-subscriptions',
+                          allStaleSubUserIds,
+                          {},
+                          'Clear Stale Subscriptions'
+                        );
+                      }
+                    }}
+                    disabled={isBulkActionRunning}
+                    className="tactile-btn px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isBulkActionRunning && <Icon name="progress_activity" className="animate-spin text-[14px]" />}
+                    <Icon name="delete_sweep" className="text-[14px]" />
+                    Clear All ({allStaleSubUserIds.length})
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
 
       case 'Stuck Transitional Members':
         return (
@@ -2018,6 +2067,40 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                                           <Icon name="progress_activity" className="animate-spin text-[16px]" />
                                         ) : (
                                           <Icon name="check_circle" className="text-[16px]" />
+                                        )}
+                                      </button>
+                                    </>
+                                  )}
+                                  {!issue.ignored && issue.table === 'users' && issue.context?.issueType === 'stale_subscription' && (
+                                    <>
+                                      {issue.context?.memberEmail && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (issue.context?.memberEmail) handleViewProfile(issue.context.memberEmail);
+                                          }}
+                                          disabled={loadingMemberEmail === issue.context?.memberEmail}
+                                          className="p-1.5 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded transition-colors disabled:opacity-50"
+                                          title="View member profile"
+                                        >
+                                          <Icon name="person" className="text-[16px]" />
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (confirm(`Clear stale subscription for "${issue.context?.memberName || 'this member'}"? ${['active', 'past_due', 'trialing'].includes(issue.context?.memberStatus || '') ? 'Their status will change to inactive.' : 'Their status will remain unchanged.'}`)) {
+                                            fixIssueMutation.mutate({ endpoint: '/api/data-integrity/fix/clear-stale-subscription', body: { userId: issue.context?.userId } });
+                                          }
+                                        }}
+                                        disabled={fixingIssues.has(String(issue.context?.userId))}
+                                        className="p-1.5 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30 rounded transition-colors disabled:opacity-50"
+                                        title="Clear stale subscription ID"
+                                      >
+                                        {fixingIssues.has(String(issue.context?.userId)) ? (
+                                          <Icon name="progress_activity" className="animate-spin text-[16px]" />
+                                        ) : (
+                                          <Icon name="link_off" className="text-[16px]" />
                                         )}
                                       </button>
                                     </>

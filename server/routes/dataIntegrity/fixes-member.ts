@@ -3,7 +3,7 @@ import { cancelPaymentIntent } from '../../core/stripe/payments';
 import { queueIntegrityFixSync } from '../../core/hubspot/queueHelpers';
 import { logger, isAdmin, validateBody, db, sql, pool, safeRelease, logFromRequest, getSessionUser, getErrorMessage, sendFixError } from './shared';
 import type { Request } from 'express';
-import { unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, userIdSchema, recordIdSchema, cancelOrphanedPiSchema, updateTourStatusSchema, clearStripeIdSchema, deleteOrphanByEmailSchema, bulkChangeBillingProviderSchema, linkStripeCustomerOnlySchema, reconnectStripeSubscriptionSchema, bulkReconnectStripeSchema } from '../../../shared/validators/dataIntegrity';
+import { unlinkHubspotSchema, mergeHubspotSchema, mergeStripeSchema, changeBillingProviderSchema, acceptTierSchema, userIdSchema, recordIdSchema, cancelOrphanedPiSchema, updateTourStatusSchema, clearStripeIdSchema, deleteOrphanByEmailSchema, bulkChangeBillingProviderSchema, linkStripeCustomerOnlySchema, reconnectStripeSubscriptionSchema, bulkReconnectStripeSchema, clearStaleSubscriptionSchema, bulkClearStaleSubscriptionsSchema } from '../../../shared/validators/dataIntegrity';
 
 const router = Router();
 
@@ -1167,6 +1167,241 @@ router.post('/api/data-integrity/fix/backfill-stripe-subscription-ids', isAdmin,
   } catch (error: unknown) {
     logger.error('[DataIntegrity] Backfill Stripe subscription IDs error', { extra: { error: getErrorMessage(error) } });
     sendFixError(res, error);
+  }
+});
+
+router.post('/api/data-integrity/fix/clear-stale-subscription', isAdmin, validateBody(clearStaleSubscriptionSchema), async (req: Request, res) => {
+  const client = await pool.connect();
+  try {
+    const { userId } = req.body;
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+
+    await client.query('BEGIN');
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [userId]);
+
+    const userResult = await client.query(
+      `SELECT id, email, first_name, last_name, stripe_subscription_id, stripe_customer_id, membership_status, tier
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    if (userResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+    const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+    const oldSubId = user.stripe_subscription_id;
+
+    if (!oldSubId) {
+      await client.query('ROLLBACK');
+      return res.json({ success: true, message: `"${memberName}" has no subscription ID to clear` });
+    }
+
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const { isStripeResourceMissing: isResourceMissing } = await import('../../utils/errorUtils');
+    const stripe = await getStripeClient();
+    let confirmedStale = false;
+    try {
+      await stripe.subscriptions.retrieve(oldSubId);
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: `Subscription ${oldSubId} still exists in Stripe — not stale. Aborting.` });
+    } catch (err: unknown) {
+      if (isResourceMissing(err)) {
+        confirmedStale = true;
+      } else {
+        await client.query('ROLLBACK');
+        throw err;
+      }
+    }
+
+    if (!confirmedStale) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: `Could not confirm subscription ${oldSubId} is stale` });
+    }
+
+    const ACTIVE_STATUSES = ['active', 'past_due', 'trialing'];
+    const isActiveStatus = ACTIVE_STATUSES.includes(user.membership_status);
+
+    const updateResult = await client.query(
+      `UPDATE users 
+       SET stripe_subscription_id = NULL,
+           membership_status = CASE 
+             WHEN membership_status IN ('active', 'past_due', 'trialing') THEN 'inactive'
+             ELSE membership_status
+           END,
+           membership_status_changed_at = CASE 
+             WHEN membership_status IN ('active', 'past_due', 'trialing') THEN NOW()
+             ELSE membership_status_changed_at
+           END,
+           updated_at = NOW(),
+           last_manual_fix_at = NOW(), last_manual_fix_by = $2
+       WHERE id = $1 AND stripe_subscription_id = $3`,
+      [userId, staffEmail, oldSubId]
+    );
+
+    if (updateResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: `Subscription ID changed concurrently for user ${userId} — please retry` });
+    }
+
+    await client.query('COMMIT');
+
+    const statusChanged = isActiveStatus;
+    const actionDesc = statusChanged
+      ? `Cleared stale subscription ${oldSubId} and set status to inactive for "${memberName}"`
+      : `Cleared stale subscription ${oldSubId} for "${memberName}" (status unchanged: ${user.membership_status})`;
+
+    if (user.email) {
+      queueIntegrityFixSync({
+        email: user.email,
+        status: statusChanged ? 'inactive' : user.membership_status,
+        tier: user.tier || '',
+        fixAction: 'clear_stale_subscription',
+        performedBy: staffEmail
+      }).catch(err => logger.warn('[DataIntegrity] HubSpot sync queue failed', { extra: { error: getErrorMessage(err) } }));
+    }
+
+    logFromRequest(req, 'clear_stale_subscription', 'user', String(userId), actionDesc, {
+      userId,
+      oldSubscriptionId: oldSubId,
+      statusChanged,
+      oldStatus: user.membership_status,
+      newStatus: statusChanged ? 'inactive' : user.membership_status,
+      performedBy: staffEmail
+    });
+
+    res.json({ success: true, message: actionDesc });
+  } catch (error: unknown) {
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
+    logger.error('[DataIntegrity] Clear stale subscription error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  } finally {
+    safeRelease(client);
+  }
+});
+
+router.post('/api/data-integrity/fix/bulk-clear-stale-subscriptions', isAdmin, validateBody(bulkClearStaleSubscriptionsSchema), async (req: Request, res) => {
+  const client = await pool.connect();
+  try {
+    const { userIds } = req.body;
+    const staffEmail = getSessionUser(req)?.email || 'unknown';
+
+    const { getStripeClient } = await import('../../core/stripe/client');
+    const { isStripeResourceMissing: isResourceMissing } = await import('../../utils/errorUtils');
+    const stripe = await getStripeClient();
+
+    const preflightResult = await client.query(
+      `SELECT id, email, first_name, last_name, stripe_subscription_id, membership_status, tier
+       FROM users WHERE id = ANY($1::int[])`,
+      [userIds]
+    );
+    const usersById = new Map(preflightResult.rows.map((r: Record<string, unknown>) => [String(r.id), r]));
+
+    const results: Array<{ userId: string; success: boolean; message: string }> = [];
+    const confirmedStale: Array<{ userId: string; user: Record<string, unknown>; oldSubId: string }> = [];
+
+    for (const userId of userIds) {
+      const user = usersById.get(userId) as Record<string, string> | undefined;
+      if (!user) {
+        results.push({ userId, success: false, message: 'User not found' });
+        continue;
+      }
+      const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+      const oldSubId = user.stripe_subscription_id;
+      if (!oldSubId) {
+        results.push({ userId, success: true, message: `"${memberName}" has no subscription ID to clear` });
+        continue;
+      }
+      try {
+        await stripe.subscriptions.retrieve(oldSubId);
+        results.push({ userId, success: false, message: `Subscription ${oldSubId} still exists in Stripe — skipped` });
+      } catch (verifyErr: unknown) {
+        if (isResourceMissing(verifyErr)) {
+          confirmedStale.push({ userId, user, oldSubId });
+        } else {
+          results.push({ userId, success: false, message: `Could not verify subscription: ${getErrorMessage(verifyErr)}` });
+        }
+      }
+    }
+
+    if (confirmedStale.length > 0) {
+      await client.query('BEGIN');
+      try {
+        for (const { userId, user, oldSubId } of confirmedStale) {
+          const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email;
+          try {
+            await client.query(`SELECT pg_advisory_xact_lock(hashtext($1::text))`, [userId]);
+
+            const updateResult = await client.query(
+              `UPDATE users 
+               SET stripe_subscription_id = NULL,
+                   membership_status = CASE 
+                     WHEN membership_status IN ('active', 'past_due', 'trialing') THEN 'inactive'
+                     ELSE membership_status
+                   END,
+                   membership_status_changed_at = CASE 
+                     WHEN membership_status IN ('active', 'past_due', 'trialing') THEN NOW()
+                     ELSE membership_status_changed_at
+                   END,
+                   updated_at = NOW(),
+                   last_manual_fix_at = NOW(), last_manual_fix_by = $2
+               WHERE id = $1 AND stripe_subscription_id = $3`,
+              [userId, staffEmail, oldSubId]
+            );
+
+            if (updateResult.rowCount === 0) {
+              results.push({ userId, success: false, message: `Subscription ID changed concurrently for "${memberName}" — skipped` });
+              continue;
+            }
+
+            if (user.email) {
+              const statusChanged = ['active', 'past_due', 'trialing'].includes(user.membership_status as string);
+              queueIntegrityFixSync({
+                email: user.email as string,
+                status: statusChanged ? 'inactive' : (user.membership_status as string),
+                tier: (user.tier as string) || '',
+                fixAction: 'bulk_clear_stale_subscription',
+                performedBy: staffEmail
+              }).catch(err => logger.warn('[DataIntegrity] HubSpot sync queue failed', { extra: { error: getErrorMessage(err) } }));
+            }
+
+            results.push({ userId, success: true, message: `Cleared stale subscription ${oldSubId} for "${memberName}"` });
+          } catch (err: unknown) {
+            results.push({ userId, success: false, message: getErrorMessage(err) });
+          }
+        }
+        await client.query('COMMIT');
+      } catch (txErr: unknown) {
+        await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
+        throw txErr;
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
+
+    logFromRequest(req, 'bulk_clear_stale_subscriptions', 'user', `bulk:${userIds.length}`, `Bulk cleared stale subscriptions: ${successCount} succeeded, ${failedCount} failed`, {
+      totalRequested: userIds.length,
+      successCount,
+      failedCount,
+      performedBy: staffEmail,
+      userIds: userIds.join(',')
+    });
+
+    res.json({
+      success: true,
+      message: `Cleared stale subscriptions for ${successCount}/${userIds.length} member(s)${failedCount > 0 ? ` (${failedCount} failed)` : ''}`,
+      results,
+      summary: { cleared: successCount, failed: failedCount, total: userIds.length }
+    });
+  } catch (error: unknown) {
+    await client.query('ROLLBACK').catch((rollbackErr: unknown) => { logger.warn('[DataIntegrity] Rollback failed', { extra: { error: getErrorMessage(rollbackErr) } }); });
+    logger.error('[DataIntegrity] Bulk clear stale subscriptions error', { extra: { error: getErrorMessage(error) } });
+    sendFixError(res, error);
+  } finally {
+    safeRelease(client);
   }
 });
 

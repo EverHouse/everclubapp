@@ -2,7 +2,7 @@ import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { Client } from '@hubspot/api-client';
-import { getErrorMessage } from '../../utils/errorUtils';
+import { getErrorMessage, isStripeResourceMissing } from '../../utils/errorUtils';
 import { logger } from '../logger';
 import { getHubSpotClientWithFallback } from '../integrations';
 import { getStripeClient } from '../stripe/client';
@@ -382,6 +382,130 @@ export async function checkTierReconciliation(options?: { autoFix?: boolean }): 
     lastRun: new Date(),
     autoFixedCount,
     autoFixSummary: autoFixedCount > 0 ? `Auto-updated ${autoFixedCount} member tiers from Stripe` : undefined
+  };
+}
+
+export async function checkStaleStripeSubscriptionIds(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  let stripe;
+  try {
+    stripe = await getStripeClient();
+  } catch {
+    return {
+      checkName: 'Stale Stripe Subscription IDs',
+      status: 'warning',
+      issueCount: 0,
+      issues: [{
+        category: 'sync_mismatch',
+        severity: 'info',
+        table: 'stripe_sync',
+        recordId: 'stripe_api',
+        description: 'Unable to connect to Stripe to check for stale subscription IDs',
+        suggestion: 'Check Stripe integration connection'
+      }],
+      lastRun: new Date()
+    };
+  }
+
+  const usersResult = await db.execute(sql`
+    SELECT id, email, first_name, last_name, tier, membership_status, 
+           stripe_subscription_id, stripe_customer_id, billing_provider, 
+           updated_at, membership_status_changed_at
+    FROM users
+    WHERE stripe_subscription_id IS NOT NULL
+      AND role = 'member'
+    ORDER BY updated_at DESC
+  `);
+  const users = usersResult.rows as unknown as Array<{
+    id: string | number;
+    email: string;
+    first_name?: string;
+    last_name?: string;
+    tier?: string;
+    membership_status?: string;
+    stripe_subscription_id: string;
+    stripe_customer_id?: string;
+    billing_provider?: string;
+    updated_at?: string;
+    membership_status_changed_at?: string;
+  }>;
+
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < users.length; i += BATCH_SIZE) {
+    const batch = users.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (user) => {
+        try {
+          await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+          return null;
+        } catch (error: unknown) {
+          if (isStripeResourceMissing(error)) {
+            let lastPaymentDate: string | undefined;
+            if (user.stripe_customer_id) {
+              try {
+                const invoices = await stripe.invoices.list({
+                  customer: user.stripe_customer_id,
+                  status: 'paid',
+                  limit: 1,
+                });
+                if (invoices.data.length > 0 && invoices.data[0].status_transitions?.paid_at) {
+                  lastPaymentDate = new Date(invoices.data[0].status_transitions.paid_at * 1000).toISOString();
+                }
+              } catch {
+                // non-critical — proceed without last payment date
+              }
+            }
+            return { ...user, lastPaymentDate };
+          }
+          throw error;
+        }
+      })
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        const user = result.value;
+        const memberName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unknown';
+
+        const lastValidDate = user.lastPaymentDate || user.membership_status_changed_at || user.updated_at;
+        const lastValidFormatted = lastValidDate
+          ? new Date(lastValidDate).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })
+          : 'unknown';
+        const lastValidLabel = user.lastPaymentDate ? 'last payment' : (user.membership_status_changed_at ? 'status changed' : 'last updated');
+
+        issues.push({
+          category: 'sync_mismatch',
+          severity: 'error',
+          table: 'users',
+          recordId: user.id,
+          description: `Member "${memberName}" has stale subscription ID ${user.stripe_subscription_id} — not found in Stripe (status: ${user.membership_status || 'unknown'}, ${lastValidLabel}: ${lastValidFormatted})`,
+          suggestion: 'Clear the stale subscription ID and update membership status, or investigate why the subscription was removed from Stripe',
+          context: {
+            memberName,
+            memberEmail: user.email,
+            memberTier: user.tier || undefined,
+            memberStatus: user.membership_status || undefined,
+            stripeSubscriptionId: user.stripe_subscription_id,
+            stripeCustomerId: user.stripe_customer_id || undefined,
+            billingProvider: user.billing_provider || undefined,
+            lastUpdate: lastValidDate || undefined,
+            userId: String(user.id),
+            issueType: 'stale_subscription'
+          }
+        });
+      } else if (result.status === 'rejected') {
+        logger.warn('[DataIntegrity] Stale subscription check error', { extra: { error: getErrorMessage(result.reason) } });
+      }
+    }
+  }
+
+  return {
+    checkName: 'Stale Stripe Subscription IDs',
+    status: issues.length === 0 ? 'pass' : 'fail',
+    issueCount: issues.length,
+    issues,
+    lastRun: new Date()
   };
 }
 

@@ -185,6 +185,13 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     severity: 'critical'
   },
   {
+    checkName: 'Stale Stripe Subscription IDs',
+    title: 'Stale Stripe Subscription IDs',
+    description: 'Detects members whose Stripe subscription ID in the database no longer exists in Stripe.',
+    impact: 'These stale references prevent the system from correctly tracking membership status and may cause billing sync errors. The subscriptions were likely cancelled or deleted directly in Stripe.',
+    severity: 'high'
+  },
+  {
     checkName: 'Unreported Wellhub Events',
     title: 'Unreported Wellhub Events',
     description: 'Validated Wellhub check-ins whose usage events have not been successfully reported to the Wellhub Events API within the last 35 days.',

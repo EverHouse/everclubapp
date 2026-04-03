@@ -147,6 +147,14 @@ export const bulkReconnectStripeSchema = z.object({
   userIds: z.array(z.string().min(1)).min(1).max(100, 'Maximum 100 users at once'),
 });
 
+export const clearStaleSubscriptionSchema = z.object({
+  userId: z.string().min(1, 'userId is required').regex(/^\d+$/, 'User ID must be numeric'),
+});
+
+export const bulkClearStaleSubscriptionsSchema = z.object({
+  userIds: z.array(z.string().min(1).regex(/^\d+$/, 'User ID must be numeric')).min(1).max(100, 'Maximum 100 users at once'),
+});
+
 export type ResolveIssueInput = z.infer<typeof resolveIssueSchema>;
 export type SyncPushPullInput = z.infer<typeof syncPushPullSchema>;
 export type IgnoreIssueInput = z.infer<typeof ignoreIssueSchema>;
@@ -169,3 +177,5 @@ export type BulkChangeBillingProviderInput = z.infer<typeof bulkChangeBillingPro
 export type LinkStripeCustomerOnlyInput = z.infer<typeof linkStripeCustomerOnlySchema>;
 export type ReconnectStripeSubscriptionInput = z.infer<typeof reconnectStripeSubscriptionSchema>;
 export type BulkReconnectStripeInput = z.infer<typeof bulkReconnectStripeSchema>;
+export type ClearStaleSubscriptionInput = z.infer<typeof clearStaleSubscriptionSchema>;
+export type BulkClearStaleSubscriptionsInput = z.infer<typeof bulkClearStaleSubscriptionsSchema>;
