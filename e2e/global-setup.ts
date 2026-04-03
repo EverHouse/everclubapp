@@ -8,9 +8,9 @@ const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5000';
 const DATABASE_URL = process.env.DATABASE_URL || '';
 
 const ROLES = {
-  member: process.env.E2E_MEMBER_EMAIL || 'nick@everclub.co',
-  staff: process.env.E2E_STAFF_EMAIL || '',
-  admin: process.env.E2E_ADMIN_EMAIL || '',
+  member: process.env.E2E_MEMBER_EMAIL || 'nicholasallanluu@gmail.com',
+  staff: process.env.E2E_STAFF_EMAIL || 'nick@everclub.co',
+  admin: process.env.E2E_ADMIN_EMAIL || 'nick@everclub.co',
 };
 
 const EMPTY_STATE = JSON.stringify({ cookies: [], origins: [] });
