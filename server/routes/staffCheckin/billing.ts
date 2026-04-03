@@ -307,7 +307,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       }
 
       // BYPASS: PaymentStatusService — staff manual confirm/waive has no Stripe PI; status set by staff action
-      await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus} WHERE id = ${participantId}`);
+      await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus}, paid_at = CASE WHEN ${newStatus} = 'paid' THEN NOW() ELSE paid_at END WHERE id = ${participantId}`);
 
       await logPaymentAudit({
         bookingId,
@@ -633,7 +633,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       const previousStatuses = typedPending.map(p => p.payment_status);
       if (pendingIds.length > 0) {
         // BYPASS: PaymentStatusService — staff bulk confirm/waive has no Stripe PI; status set by staff action
-        await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus} WHERE id = ANY(${toIntArrayLiteral(pendingIds)}::int[])`);
+        await db.execute(sql`UPDATE booking_participants SET payment_status = ${newStatus}, paid_at = CASE WHEN ${newStatus} = 'paid' THEN NOW() ELSE paid_at END WHERE id = ANY(${toIntArrayLiteral(pendingIds)}::int[])`);
 
         const auditAction = action === 'confirm_all' ? 'payment_confirmed' : 'payment_waived';
         for (let i = 0; i < pendingIds.length; i++) {

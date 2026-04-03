@@ -1038,11 +1038,11 @@ export async function applyFeeBreakdownToParticipants(
 
       if (idsToUpdate.length > 0) {
         const settledCheck = await tx.execute(
-          sql`SELECT id, cached_fee_cents, stripe_payment_intent_id, payment_status FROM booking_participants
+          sql`SELECT id, cached_fee_cents, stripe_payment_intent_id, payment_status, paid_at FROM booking_participants
            WHERE id = ANY(${toIntArrayLiteral(idsToUpdate)}::int[])
            AND payment_status IN ('paid', 'waived', 'refunded')`
         );
-        const settledRows = settledCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null; payment_status: string }[];
+        const settledRows = settledCheck.rows as { id: number; cached_fee_cents: number; stripe_payment_intent_id: string | null; payment_status: string; paid_at: string | null }[];
         const waivedOrRefundedIds = new Set(settledRows.filter(r => r.payment_status === 'waived' || r.payment_status === 'refunded').map(r => r.id));
         const paidIds = new Set(settledRows.filter(r => r.payment_status === 'paid').map(r => r.id));
 
@@ -1063,7 +1063,8 @@ export async function applyFeeBreakdownToParticipants(
             const displayName = matchingParticipant?.displayName ?? `Participant #${paidRow.id}`;
 
             const hasRealPayment = paidRow.stripe_payment_intent_id && paidRow.stripe_payment_intent_id.startsWith('pi_');
-            if (paidRow.cached_fee_cents === 0 && feesToUpdate[idx] > 0 && !hasRealPayment) {
+            const hasStaffConfirmation = !!paidRow.paid_at;
+            if (paidRow.cached_fee_cents === 0 && feesToUpdate[idx] > 0 && !hasRealPayment && !hasStaffConfirmation) {
               logger.info('[UnifiedFeeService] Resetting zero-dollar "paid" participant back to pending — fee now > $0, no real payment was made', {
                 participantId: paidRow.id,
                 sessionId,
