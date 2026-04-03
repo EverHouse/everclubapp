@@ -438,7 +438,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
       transactionCount += 1;
 
       const invoiceId = (ch as StripeChargeExpanded).invoice;
-      if (invoiceId) invoiceIds.add(typeof invoiceId === 'string' ? invoiceId : invoiceId.id);
+      if (invoiceId) invoiceIds.add(typeof invoiceId === 'string' ? invoiceId : invoiceId?.id);
 
       if (invoiceId) {
         const desc = (ch.description || '').toLowerCase();

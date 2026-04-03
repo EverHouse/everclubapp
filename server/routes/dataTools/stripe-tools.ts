@@ -96,7 +96,8 @@ router.post('/api/data-tools/sync-subscription-status', isAdmin, async (req: Req
         const batch = await stripe.subscriptions.list(params);
 
         for (const sub of batch.data) {
-          const custId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+          const custId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+          if (!custId) continue;
           const existing = subscriptionsByCustomer.get(custId);
           if (!existing || ['active', 'trialing', 'past_due'].includes(sub.status)) {
             if (!existing || !['active', 'trialing', 'past_due'].includes(existing.status)) {

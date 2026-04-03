@@ -84,7 +84,7 @@ export async function handleSubscriptionUpdated(client: PoolClient, subscription
         if (productId) {
           try {
             const stripe = await getStripeClient();
-            const productPromise = stripe.products.retrieve(typeof productId === 'string' ? productId : productId.id);
+            const productPromise = stripe.products.retrieve(typeof productId === 'string' ? productId : productId?.id ?? productId);
             productPromise.catch(() => {});
             const product = await Promise.race([
               productPromise,

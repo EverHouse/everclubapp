@@ -573,7 +573,7 @@ export async function handleSubscriptionCreated(client: PoolClient, subscription
       const productId = subscription.items?.data?.[0]?.price?.product;
       if (productId) {
         const deferredEmail = email;
-        const deferredProductId = typeof productId === 'string' ? productId : productId.id;
+        const deferredProductId = typeof productId === 'string' ? productId : productId?.id ?? String(productId);
         const deferredSubscriptionPeriodEnd = subscriptionPeriodEnd;
         const deferredSubscriptionStatus = subscription.status;
         deferredActions.push(async () => {

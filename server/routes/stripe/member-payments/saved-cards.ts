@@ -216,7 +216,7 @@ router.post('/api/member/bookings/:id/pay-saved-card', isAuthenticated, paymentR
             const livePiInvoice = (livePi as unknown as { invoice: string | { id: string } | null }).invoice;
             if (livePiInvoice) {
               logger.info('[MemberPayments] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
-                extra: { bookingId, piId, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice.id }
+                extra: { bookingId, piId, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice?.id }
               });
             } else {
               const { cancelPaymentIntent } = await import('../../../core/stripe');

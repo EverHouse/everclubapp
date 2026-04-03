@@ -443,7 +443,7 @@ router.post('/api/stripe/staff/charge-saved-card', isStaffOrAdmin, validateBody(
             const livePiInvoice = (livePi as unknown as { invoice: string | { id: string } | null }).invoice;
             if (livePiInvoice) {
               logger.info('[Stripe] Stale PI is invoice-generated — skipping cancel, invoice flow will handle it', {
-                extra: { bookingId: resolvedBookingId, piId, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice.id }
+                extra: { bookingId: resolvedBookingId, piId, invoiceId: typeof livePiInvoice === 'string' ? livePiInvoice : livePiInvoice?.id }
               });
             } else {
               const { cancelPaymentIntent } = await import('../../core/stripe');
