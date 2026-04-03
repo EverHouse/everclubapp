@@ -5,7 +5,7 @@ import { Pool } from "pg";
 import { randomBytes } from "crypto";
 import { pool, isProduction } from "../../core/db";
 import { getSessionUser } from "../../types/session";
-import { getErrorMessage } from "../../utils/errorUtils";
+import { getErrorMessage, getErrorCode, getErrorDetail } from "../../utils/errorUtils";
 import { logger } from "../../core/logger";
 import { getAlternateDomainEmail } from "../../core/utils/emailNormalization";
 import { stripSslMode } from "../../core/db";
@@ -39,14 +39,22 @@ function getOrCreateSessionPool(): Pool {
   sessionPool = new Pool({
     connectionString: rawUrl,
     max: 5,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 15000,
     idleTimeoutMillis: 30000,
     allowExitOnIdle: true,
     ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
   });
 
   sessionPool.on('error', (err) => {
-    logger.error('[Session Pool] Error:', { extra: { error: getErrorMessage(err) } });
+    const code = getErrorCode(err);
+    const detail = getErrorDetail(err);
+    logger.error('[Session Pool] Idle client error (connection will be replaced):', {
+      extra: {
+        error: getErrorMessage(err),
+        code,
+        detail,
+      },
+    });
   });
 
   logger.info('[Session] Created dedicated session pool (max=5)');
@@ -94,7 +102,23 @@ export function getSession() {
       tableName: "sessions",
       pruneSessionInterval: 15 * 60,
       errorLog: (err: Error) => {
-        logger.error('[Session Store] Error:', { extra: { error: getErrorMessage(err) } });
+        const message = getErrorMessage(err);
+        const code = getErrorCode(err);
+        const detail = getErrorDetail(err);
+        const cause = (err as unknown as { cause?: unknown }).cause;
+        const causeMessage = cause instanceof Error ? cause.message : undefined;
+        const causeCode = cause ? getErrorCode(cause) : undefined;
+        const causeDetail = cause ? getErrorDetail(cause) : undefined;
+        logger.error('[Session Store] Error:', {
+          extra: {
+            error: message || '(empty message)',
+            code,
+            detail,
+            causeMessage,
+            causeCode,
+            causeDetail,
+          },
+        });
       },
     });
     

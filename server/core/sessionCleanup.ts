@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { logger } from './logger';
-import { getErrorCode, getErrorMessage } from '../utils/errorUtils';
+import { getErrorCode, getErrorDetail, getErrorMessage } from '../utils/errorUtils';
 
 interface SessionStatsRow {
   total: string;
@@ -15,32 +15,58 @@ function isTableMissingError(error: unknown): boolean {
   return getErrorCode(error) === '42P01';
 }
 
+async function attemptCleanup(): Promise<number> {
+  const result = await db.execute(sql`
+    DELETE FROM sessions 
+    WHERE expire < NOW()
+    RETURNING sid
+  `);
+  return result.rowCount || 0;
+}
+
 export async function cleanupExpiredSessions(): Promise<number> {
-  try {
-    const result = await db.execute(sql`
-      DELETE FROM sessions 
-      WHERE expire < NOW()
-      RETURNING sid
-    `);
-    
-    const deletedCount = result.rowCount || 0;
-    
-    if (deletedCount > 0) {
-      logger.info(`[SessionCleanup] Removed ${deletedCount} expired sessions`, {
-        extra: { event: 'session.cleanup', count: deletedCount }
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const deletedCount = await attemptCleanup();
+
+      if (deletedCount > 0) {
+        logger.info(`[SessionCleanup] Removed ${deletedCount} expired sessions`, {
+          extra: { event: 'session.cleanup', count: deletedCount }
+        });
+      }
+
+      return deletedCount;
+    } catch (error: unknown) {
+      if (isTableMissingError(error)) {
+        return 0;
+      }
+      if (attempt < maxRetries) {
+        const delay = (attempt + 1) * 1000;
+        logger.warn(`[SessionCleanup] Cleanup attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
+          extra: {
+            error: getErrorMessage(error),
+            code: getErrorCode(error),
+            attempt: attempt + 1,
+            event: 'session.cleanup_retry',
+          },
+        });
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      logger.error('[SessionCleanup] Failed to cleanup sessions after retries', {
+        extra: {
+          error: getErrorMessage(error),
+          code: getErrorCode(error),
+          detail: getErrorDetail(error),
+          attempts: maxRetries + 1,
+          event: 'session.cleanup_failed',
+        },
       });
-    }
-    
-    return deletedCount;
-  } catch (error: unknown) {
-    if (isTableMissingError(error)) {
       return 0;
     }
-    logger.error('[SessionCleanup] Failed to cleanup sessions', {
-      extra: { error: getErrorMessage(error), event: 'session.cleanup_failed' }
-    });
-    return 0;
   }
+  return 0;
 }
 
 export async function getSessionStats(): Promise<{
@@ -75,7 +101,12 @@ export async function getSessionStats(): Promise<{
       return { total: 0, active: 0, expired: 0, oldestActive: null, newestActive: null };
     }
     logger.error('[SessionCleanup] Failed to get session stats', {
-      extra: { error: getErrorMessage(error), event: 'session.stats_failed' }
+      extra: {
+        error: getErrorMessage(error),
+        code: getErrorCode(error),
+        detail: getErrorDetail(error),
+        event: 'session.stats_failed',
+      },
     });
     return { total: 0, active: 0, expired: 0, oldestActive: null, newestActive: null };
   }
@@ -102,7 +133,12 @@ export async function runSessionCleanup(): Promise<void> {
     });
   } catch (error: unknown) {
     logger.error('[SessionCleanup] Scheduled cleanup failed', {
-      extra: { error: getErrorMessage(error), event: 'session.cleanup_failed' }
+      extra: {
+        error: getErrorMessage(error),
+        code: getErrorCode(error),
+        detail: getErrorDetail(error),
+        event: 'session.cleanup_failed',
+      },
     });
   }
 }
