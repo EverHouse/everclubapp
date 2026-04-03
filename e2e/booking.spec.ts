@@ -750,31 +750,231 @@ test.describe('Booking — Overlap Prevention', () => {
   });
 });
 
-test.describe('Booking — UI: /book page loads for member', () => {
-  test('booking page renders for authenticated member', async ({ page }) => {
-    const response = await page.goto('/book');
-    expect(response?.status()).toBe(200);
+test.describe('Booking — UI: /book page booking flow elements', () => {
+  test('booking page renders booking type selector and date picker', async ({ page }) => {
+    await page.goto('/book');
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.locator('body')).not.toHaveText(/404|not found/i, { timeout: 5_000 });
-    const bodyText = await page.textContent('body');
-    const hasBookingContent =
-      bodyText?.toLowerCase().includes('book') ||
-      bodyText?.toLowerCase().includes('simulator') ||
-      bodyText?.toLowerCase().includes('bay') ||
-      bodyText?.toLowerCase().includes('date') ||
-      bodyText?.toLowerCase().includes('time');
-    expect(hasBookingContent).toBe(true);
+    const segmented = page.locator('[aria-label="Booking type"]');
+    await expect(segmented).toBeVisible({ timeout: 10_000 });
+
+    const body = page.locator('body');
+    await expect(body).toContainText(/Golf Simulator|Conference Room/i, { timeout: 10_000 });
+  });
+
+  test('booking page shows available time slots for a future date', async ({ page }) => {
+    await page.goto('/book');
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.locator('[aria-label="Booking type"]')).toBeVisible({ timeout: 10_000 });
+
+    const dateButtons = page.locator('button').filter({ hasText: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/i });
+    const count = await dateButtons.count();
+    if (count > 1) {
+      await dateButtons.nth(1).click();
+      await page.waitForTimeout(1000);
+    }
+
+    const body = await page.textContent('body');
+    const hasTimeContent =
+      body?.includes('AM') || body?.includes('PM') ||
+      body?.includes('available') || body?.includes('No availability') ||
+      body?.includes(':00') || body?.includes(':30');
+    expect(hasTimeContent).toBe(true);
+  });
+
+  test('booking page displays bay/resource cards when slots are available', async ({ page }) => {
+    await page.goto('/book');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('[aria-label="Booking type"]')).toBeVisible({ timeout: 10_000 });
+
+    const body = await page.textContent('body');
+    const hasResourceInfo =
+      body?.toLowerCase().includes('simulator') ||
+      body?.toLowerCase().includes('bay') ||
+      body?.toLowerCase().includes('conference') ||
+      body?.toLowerCase().includes('request booking') ||
+      body?.toLowerCase().includes('duration');
+    expect(hasResourceInfo).toBe(true);
+  });
+
+  test('unavailable/requested slots are surfaced in availability response', async ({ request }) => {
+    const { simulators } = await getTestResources();
+    test.skip(simulators.length === 0, 'No simulator resources in DB');
+
+    await cancelPendingBookingsForMember();
+
+    const slot = await findAvailableSlot(request, simulators[0].id, [14, 15, 16, 17, 18, 19, 20]);
+    test.skip(!slot, 'No available slots to test availability display');
+
+    const createResp = await request.post(`${BASE_URL}/api/booking-requests`, {
+      data: {
+        user_email: MEMBER_EMAIL,
+        user_name: 'E2E Availability Display',
+        resource_id: simulators[0].id,
+        request_date: slot!.date,
+        start_time: slot!.startTime,
+        duration_minutes: 60,
+        notes: `${E2E_NOTE_TAG} — availability display test`,
+      },
+      headers: { Origin: BASE_URL },
+    });
+
+    if (createResp.status() === 201) {
+      const created = await createResp.json();
+
+      const availResp = await request.get(
+        `${BASE_URL}/api/availability?resource_id=${simulators[0].id}&date=${slot!.date}`,
+      );
+      expect(availResp.status()).toBe(200);
+      const slots: Array<{ start_time: string; available: boolean; requested?: boolean }> = await availResp.json();
+      const matchedSlot = slots.find(s => s.start_time === slot!.startTime);
+      expect(matchedSlot).toBeDefined();
+      if (matchedSlot) {
+        expect(matchedSlot.available === false || matchedSlot.requested === true).toBe(true);
+      }
+
+      await cancelPendingBookingsForMember();
+    }
   });
 });
 
-test.describe('Booking — UI: /dashboard loads for member', () => {
-  test('dashboard page renders for authenticated member', async ({ page }) => {
-    const response = await page.goto('/dashboard');
-    expect(response?.status()).toBe(200);
+test.describe('Booking — UI: /dashboard shows member schedule', () => {
+  test('dashboard page renders schedule section', async ({ page }) => {
+    await page.goto('/dashboard');
     await page.waitForLoadState('domcontentloaded');
 
     await expect(page.locator('body')).not.toHaveText(/404|not found/i, { timeout: 5_000 });
+
+    const body = await page.textContent('body');
+    const hasDashboardContent =
+      body?.includes('Your Schedule') ||
+      body?.includes('Schedule') ||
+      body?.includes('Book') ||
+      body?.includes('Welcome');
+    expect(hasDashboardContent).toBe(true);
+  });
+
+  test('dashboard booking data API returns member bookings', async ({ request }) => {
+    const dashResp = await request.get(`${BASE_URL}/api/member/dashboard/booking-requests`);
+    expect(dashResp.status()).toBe(200);
+    const data = await dashResp.json();
+    expect(Array.isArray(data) || data.bookingRequests !== undefined).toBeTruthy();
+  });
+
+  test('member can view booking in list after creation', async ({ request }) => {
+    const { simulators } = await getTestResources();
+    test.skip(simulators.length === 0, 'No simulator resources in DB');
+
+    await cancelPendingBookingsForMember();
+
+    const slot = await findAvailableSlot(request, simulators[0].id, [21, 22, 23, 24, 25]);
+    test.skip(!slot, 'No available slots found');
+
+    const createResp = await request.post(`${BASE_URL}/api/booking-requests`, {
+      data: {
+        user_email: MEMBER_EMAIL,
+        user_name: 'E2E Dashboard Verify',
+        resource_id: simulators[0].id,
+        request_date: slot!.date,
+        start_time: slot!.startTime,
+        duration_minutes: 60,
+        notes: `${E2E_NOTE_TAG} — dashboard verify test`,
+      },
+      headers: { Origin: BASE_URL },
+    });
+
+    if (createResp.status() === 201) {
+      const created = await createResp.json();
+
+      const listResp = await request.get(`${BASE_URL}/api/booking-requests`);
+      expect(listResp.status()).toBe(200);
+      const list = await listResp.json();
+      const items = Array.isArray(list) ? list : list.data || [];
+      const found = items.find((b: { id: number }) => b.id === created.id);
+      expect(found).toBeDefined();
+      expect(found.status).toBe('pending');
+
+      await cancelPendingBookingsForMember();
+    }
+  });
+});
+
+test.describe('Booking — Staff Dashboard: pending requests visible', () => {
+  test('staff /admin page renders command center', async ({ browser }) => {
+    const staffCtx = await createStaffContext(browser);
+    const page = await staffCtx.newPage();
+    try {
+      await page.goto('/admin');
+      await page.waitForLoadState('domcontentloaded');
+
+      const body = await page.textContent('body');
+      const hasStaffContent =
+        body?.includes('Booking Requests') ||
+        body?.includes('Command Center') ||
+        body?.includes('pending') ||
+        body?.includes('All caught up') ||
+        body?.includes("Today's");
+      expect(hasStaffContent).toBe(true);
+    } finally {
+      await staffCtx.close();
+    }
+  });
+
+  test('staff can see booking requests queue via API', async ({ browser }) => {
+    const staffCtx = await createStaffContext(browser);
+    const page = await staffCtx.newPage();
+    try {
+      const resp = await page.request.get(`${BASE_URL}/api/booking-requests?status=pending`);
+      expect(resp.status()).toBe(200);
+      const data = await resp.json();
+      expect(Array.isArray(data) || data.data !== undefined).toBeTruthy();
+    } finally {
+      await staffCtx.close();
+    }
+  });
+
+  test('newly created booking appears in staff pending queue', async ({ request, browser }) => {
+    const { simulators } = await getTestResources();
+    test.skip(simulators.length === 0, 'No simulator resources in DB');
+
+    await cancelPendingBookingsForMember();
+
+    const slot = await findAvailableSlot(request, simulators[0].id, [26, 27, 28]);
+    test.skip(!slot, 'No available slots found');
+
+    const createResp = await request.post(`${BASE_URL}/api/booking-requests`, {
+      data: {
+        user_email: MEMBER_EMAIL,
+        user_name: 'E2E Staff Queue Test',
+        resource_id: simulators[0].id,
+        request_date: slot!.date,
+        start_time: slot!.startTime,
+        duration_minutes: 60,
+        notes: `${E2E_NOTE_TAG} — staff queue visibility test`,
+      },
+      headers: { Origin: BASE_URL },
+    });
+
+    if (createResp.status() === 201) {
+      const created = await createResp.json();
+
+      const staffCtx = await createStaffContext(browser);
+      const page = await staffCtx.newPage();
+      try {
+        const queueResp = await page.request.get(`${BASE_URL}/api/booking-requests?status=pending`);
+        expect(queueResp.status()).toBe(200);
+        const queue = await queueResp.json();
+        const items = Array.isArray(queue) ? queue : queue.data || [];
+        const found = items.find((b: { id: number }) => b.id === created.id);
+        expect(found).toBeDefined();
+        expect(found.status).toMatch(/pending/);
+      } finally {
+        await staffCtx.close();
+      }
+
+      await cancelPendingBookingsForMember();
+    }
   });
 });
 
@@ -872,13 +1072,89 @@ test.describe('Booking — Participant Roster API', () => {
     const response = await request.post(
       `${BASE_URL}/api/bookings/${bookingId}/participants/preview-fees`,
       {
-        data: { participants: [] },
+        data: { provisionalParticipants: [] },
         headers: { Origin: BASE_URL },
       },
     );
 
-    expect([200, 400]).toContain(response.status());
+    expect(response.status()).toBe(200);
     const body = await response.json();
     expect(body).toBeDefined();
+  });
+
+  test('POST /api/bookings/:id/participants adds a guest participant', async ({ request }) => {
+    test.skip(!bookingId, 'No booking was created for add participant test');
+
+    const response = await request.post(
+      `${BASE_URL}/api/bookings/${bookingId}/participants`,
+      {
+        data: {
+          type: 'guest',
+          guest: { name: 'E2E Test Guest', email: 'e2e-guest@example.com' },
+        },
+        headers: { Origin: BASE_URL },
+      },
+    );
+
+    if (response.status() === 201) {
+      const body = await response.json();
+      expect(body.success).toBe(true);
+
+      const rosterResp = await request.get(
+        `${BASE_URL}/api/bookings/${bookingId}/participants`,
+      );
+      expect(rosterResp.status()).toBe(200);
+      const roster = await rosterResp.json();
+      const participants = Array.isArray(roster) ? roster : roster.participants || [];
+      const guest = participants.find(
+        (p: { guest_email?: string; email?: string }) =>
+          p.guest_email === 'e2e-guest@example.com' || p.email === 'e2e-guest@example.com',
+      );
+      expect(guest).toBeDefined();
+    } else {
+      expect([201, 400, 409]).toContain(response.status());
+    }
+  });
+
+  test('DELETE /api/bookings/:id/participants/:pid removes a participant', async ({ request }) => {
+    test.skip(!bookingId, 'No booking was created for remove participant test');
+
+    const rosterResp = await request.get(
+      `${BASE_URL}/api/bookings/${bookingId}/participants`,
+    );
+    expect(rosterResp.status()).toBe(200);
+    const roster = await rosterResp.json();
+    const participants = Array.isArray(roster) ? roster : roster.participants || [];
+    const guest = participants.find(
+      (p: { type?: string; role?: string; guest_email?: string }) =>
+        p.type === 'guest' || p.role === 'guest' || p.guest_email,
+    );
+
+    if (guest && guest.id) {
+      const deleteResp = await request.delete(
+        `${BASE_URL}/api/bookings/${bookingId}/participants/${guest.id}`,
+        { headers: { Origin: BASE_URL }, data: {} },
+      );
+      expect([200, 204]).toContain(deleteResp.status());
+    }
+  });
+
+  test('POST /api/bookings/:id/participants returns 401 without auth', async ({ browser }) => {
+    test.skip(!bookingId, 'No booking was created for unauth add test');
+
+    const unauthCtx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await unauthCtx.newPage();
+    try {
+      const response = await page.request.post(
+        `${BASE_URL}/api/bookings/${bookingId}/participants`,
+        {
+          data: { type: 'guest', guest: { name: 'Unauth Guest', email: 'unauth@example.com' } },
+          headers: { Origin: BASE_URL },
+        },
+      );
+      expect([401, 403]).toContain(response.status());
+    } finally {
+      await unauthCtx.close();
+    }
   });
 });
