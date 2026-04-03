@@ -122,18 +122,33 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     const nonce = randomBytes(16).toString('base64');
     res.locals.cspNonce = nonce;
 
+    function shouldInjectNonce(body: string): boolean {
+      const contentType = res.getHeader('content-type');
+      const isHtml = typeof contentType === 'string' && contentType.includes('text/html');
+      const looksLikeHtml = !contentType && body.trimStart().startsWith('<!DOCTYPE');
+      return isHtml || looksLikeHtml;
+    }
+
     const originalSend = res.send.bind(res);
     res.send = function nonceInjectedSend(body?: unknown): Response {
-      if (typeof body === 'string' && body.length > 0) {
-        const contentType = res.getHeader('content-type');
-        const isHtml = typeof contentType === 'string' && contentType.includes('text/html');
-        const looksLikeHtml = !contentType && body.trimStart().startsWith('<!DOCTYPE');
-        if (isHtml || looksLikeHtml) {
-          body = injectNonceIntoHtml(body, nonce);
-        }
+      if (typeof body === 'string' && body.length > 0 && shouldInjectNonce(body)) {
+        body = injectNonceIntoHtml(body, nonce);
       }
       return originalSend(body);
     } as typeof res.send;
+
+    const originalEnd = res.end.bind(res);
+    res.end = function nonceInjectedEnd(chunk?: unknown, ...args: unknown[]): Response {
+      if (typeof chunk === 'string' && chunk.length > 0 && shouldInjectNonce(chunk)) {
+        chunk = injectNonceIntoHtml(chunk, nonce);
+      } else if (Buffer.isBuffer(chunk) && chunk.length > 0) {
+        const str = chunk.toString('utf8');
+        if (shouldInjectNonce(str)) {
+          chunk = Buffer.from(injectNonceIntoHtml(str, nonce), 'utf8');
+        }
+      }
+      return (originalEnd as Function)(chunk, ...args);
+    } as typeof res.end;
 
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
 

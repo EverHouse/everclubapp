@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.28] - 2026-04-03
+
+### Security & Input Validation Fixes — CSP res.end, Float Duration, Guest Limit
+- **Security: CSP nonce injection now also intercepts `res.end()`.** The previous implementation only monkey-patched `res.send()` for nonce placeholder replacement. If any middleware or handler sent HTML via `res.end()` (e.g., SSR streaming, raw responses), the `__CSP_NONCE__` placeholders would reach the browser unreplaced, breaking CSP for scripts and styles. Now both `res.send` and `res.end` are intercepted, handling both string and Buffer payloads. A shared `shouldInjectNonce` helper checks content type before applying replacement. `res.write()` is not patched because the app does not use SSR streaming — all HTML is served as complete documents.
+- **Fix: Fractional duration values now rejected.** `computeEndTime` previously accepted any `Number(durationMinutes)` that was greater than 0, including floats like `60.5`. Modular arithmetic on floats produced fractional minutes (e.g., `endMins = 0.5`), resulting in an invalid TIME string like `"14:0.5:00"` that causes a Postgres exception. Now uses `Number.isInteger()` to reject non-integer durations with a clear validation error.
+- **Fix: Guest limit check moved after participant sanitization.** The `maxGuests` length check previously ran on `rawParticipants` before filtering out empty/invalid entries. If a front-end form submitted blank participant objects `{}` (no email or userId), they counted toward the limit, causing valid bookings to be rejected. Now the check runs after `.filter(p => p.email || p.userId)`, so only real participants count.
+- **Note: ReDoS finding (audit item #3) was already resolved** in v8.98.26 — `injectNonceIntoHtml` was rewritten to use `String.prototype.replaceAll` with literal string matching instead of regex. No further action needed.
+
+Files changed: `server/middleware/security.ts`, `server/core/bookingService/createBooking.ts`
+
 ## [8.98.27] - 2026-04-03
 
 ### Booking Validation Hardening — Participant Bypass, Resource Guard, Case Safety

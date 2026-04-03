@@ -61,8 +61,8 @@ export function computeEndTime(startTime: string, durationMinutes: number, opts?
     throw new BookingValidationError(400, { error: 'Invalid start time format. Use HH:MM in 24-hour format.' });
   }
   const parsedDuration = Number(durationMinutes);
-  if (isNaN(parsedDuration) || parsedDuration <= 0) {
-    throw new BookingValidationError(400, { error: 'Invalid or missing duration' });
+  if (!Number.isInteger(parsedDuration) || parsedDuration <= 0) {
+    throw new BookingValidationError(400, { error: 'Duration must be a positive whole number of minutes.' });
   }
   const totalMins = hours * 60 + mins + parsedDuration;
   const endHours = Math.floor(totalMins / 60);
@@ -105,10 +105,6 @@ export async function sanitizeAndResolveParticipants(
     throw new BookingValidationError(400, { error: 'Participants must be provided as a valid list.' });
   }
 
-  if (rawParticipants.length > maxGuests) {
-    throw new BookingValidationError(400, { error: `Maximum of ${maxGuests} guests allowed per booking` });
-  }
-
   let sanitizedParticipants: SanitizedParticipant[] = rawParticipants
     .map(p => ({
       email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
@@ -117,6 +113,10 @@ export async function sanitizeAndResolveParticipants(
       name: typeof p.name === 'string' ? p.name.trim() : undefined,
     }))
     .filter(p => p.email || p.userId);
+
+  if (sanitizedParticipants.length > maxGuests) {
+    throw new BookingValidationError(400, { error: `Maximum of ${maxGuests} guests allowed per booking` });
+  }
 
   const userIdsToLookup = sanitizedParticipants
     .filter(p => p.userId)

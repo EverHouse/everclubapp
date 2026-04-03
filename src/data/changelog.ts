@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.28",
+    date: "2026-04-03",
+    title: "Security & Input Validation Fixes",
+    changes: [
+      "Security: CSP nonce injection now covers res.end() in addition to res.send(), closing a bypass path for any code or middleware that writes HTML directly.",
+      "Fixed: Fractional booking durations (e.g. 60.5 minutes) are now rejected instead of producing invalid time values that crash the database.",
+      "Fixed: Guest limit check now runs after filtering out empty/invalid entries, so blank form fields no longer count toward the limit.",
+    ]
+  },
+  {
     version: "8.98.27",
     date: "2026-04-03",
     title: "Booking Validation Hardening",
