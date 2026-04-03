@@ -16,6 +16,8 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
   },
+  globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
@@ -26,21 +28,11 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'setup',
-      testMatch: /global-setup\.ts/,
-      teardown: 'teardown',
-    },
-    {
-      name: 'teardown',
-      testMatch: /global-teardown\.ts/,
-    },
-    {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/member.json',
       },
-      dependencies: ['setup'],
     },
     {
       name: 'mobile-chrome',
@@ -48,7 +40,6 @@ export default defineConfig({
         ...devices['Pixel 7'],
         storageState: 'e2e/.auth/member.json',
       },
-      dependencies: ['setup'],
     },
     {
       name: 'unauthenticated',

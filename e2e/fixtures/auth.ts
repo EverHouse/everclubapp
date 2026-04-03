@@ -1,4 +1,4 @@
-import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 import path from 'path';
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:5000';
@@ -12,46 +12,10 @@ export interface AuthFixtures {
   authenticatedPage: Page;
 }
 
-async function loginViaDevEndpoint(
-  page: Page,
-  email: string,
-): Promise<void> {
-  const response = await page.request.post(`${BASE_URL}/api/auth/dev-login`, {
-    data: { email },
-    headers: {
-      Origin: BASE_URL,
-    },
-  });
-
-  if (!response.ok()) {
-    const body = await response.text();
-    throw new Error(
-      `Dev login failed for ${email}: ${response.status()} — ${body}`,
-    );
-  }
-}
-
-async function loginAndSaveState(
-  page: Page,
-  email: string,
-  statePath: string,
-): Promise<void> {
-  await loginViaDevEndpoint(page, email);
-  await page.context().storageState({ path: statePath });
-}
-
 export const AUTH_STATE_DIR = path.join(process.cwd(), 'e2e', '.auth');
 
 export function authStatePath(role: TestRole): string {
   return path.join(AUTH_STATE_DIR, `${role}.json`);
-}
-
-export async function setupAuthState(
-  page: Page,
-  role: TestRole,
-  email: string,
-): Promise<void> {
-  await loginAndSaveState(page, email, authStatePath(role));
 }
 
 export const test = base.extend<AuthFixtures>({

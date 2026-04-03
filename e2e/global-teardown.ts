@@ -1,9 +1,13 @@
-import { test as teardown } from '@playwright/test';
 import fs from 'fs';
-import { AUTH_STATE_DIR } from './fixtures/auth';
+import path from 'path';
+import type { FullConfig } from '@playwright/test';
 
-teardown('clean up auth state', async () => {
+const AUTH_STATE_DIR = path.join(process.cwd(), 'e2e', '.auth');
+
+async function globalTeardown(_config: FullConfig) {
   if (fs.existsSync(AUTH_STATE_DIR)) {
     fs.rmSync(AUTH_STATE_DIR, { recursive: true, force: true });
   }
-});
+}
+
+export default globalTeardown;
