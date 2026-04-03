@@ -33,7 +33,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/member.json',
       },
-      testIgnore: /.*\.(unauth|auth)\.spec\.ts/,
+      testIgnore: [/\.unauth\.spec\.ts$/, /\bauth\.spec\.ts$/],
     },
     {
       name: 'mobile-chrome',
@@ -41,14 +41,14 @@ export default defineConfig({
         ...devices['Pixel 7'],
         storageState: 'e2e/.auth/member.json',
       },
-      testIgnore: /.*\.(unauth|auth)\.spec\.ts/,
+      testIgnore: [/\.unauth\.spec\.ts$/, /\bauth\.spec\.ts$/],
     },
     {
       name: 'unauthenticated',
       use: {
         ...devices['Desktop Chrome'],
       },
-      testMatch: /.*(\.unauth|auth)\.spec\.ts/,
+      testMatch: [/\.unauth\.spec\.ts$/, /\bauth\.spec\.ts$/],
     },
   ],
   outputDir: 'e2e-results',

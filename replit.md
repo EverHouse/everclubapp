@@ -251,6 +251,14 @@ See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the full changelog (v8.70.0+).
 ## Recent Changes
 - **Critical RLS Fix (v8.88.6, March 19 2026)**: Discovered that Supabase had enabled Row-Level Security (RLS) with a `deny_all` policy on ALL 82 application tables. This silently blocked every SELECT/INSERT/UPDATE from the application's database role, causing `getTierLimits()` to return 0 daily minutes for all tiers. **Impact**: Every member was charged overage fees ($50/hr) because the fee calculator fell back to defaults when tier queries failed. Also caused Stripe product sync failures (products couldn't read membership_tiers) and Apple Wallet pass generation failures. **Fix**: Added RLS disable + `deny_all` policy cleanup as the first step in `ensureDatabaseConstraints()` in `db-init.ts`. Also added Stripe feature name update logic to `syncTierFeaturesToStripe()` to correct stale "/month" labels to "/year" for guest pass features.
 
+## E2E Testing (Playwright)
+- **Framework**: Playwright with `unauthenticated` project (no auth state) for public pages and auth tests, and `chromium`/`mobile-chrome` projects for authenticated flows.
+- **Config**: `playwright.config.ts` — baseURL `http://localhost:5000`, test results in `e2e-results/`.
+- **Auth Fixtures**: `e2e/fixtures/auth.ts` provides `memberPage` fixture using `e2e/.auth/member.json` storage state from global setup.
+- **Global Setup**: `e2e/global-setup.ts` authenticates via OTP (fallback: dev-login) and saves session to `e2e/.auth/member.json`.
+- **Test Files**: `e2e/smoke.unauth.spec.ts` (3 tests), `e2e/auth.spec.ts` (20 tests), `e2e/public-pages.unauth.spec.ts` (35 tests).
+- **Running**: `npx playwright test --project=unauthenticated` for all current tests.
+
 ## External Dependencies
 - **Stripe**: Payment processing, subscriptions, and webhooks.
 - **HubSpot**: Contact-only synchronization for membership status, tier, and profile data (deal sync removed). Tour bookings are synced via HubSpot Scheduler API (`bookHubSpotMeeting` in `server/routes/tours.ts`) — HubSpot handles Google Calendar sync, confirmation/reminder emails, and staff notifications for tours. Inbound tour sync via `syncToursFromHubSpot` pulls HubSpot meetings into the local tours table (deduplicates by `hubspotMeetingId` or email+date+time fallback).
