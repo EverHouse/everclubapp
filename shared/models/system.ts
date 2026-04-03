@@ -129,6 +129,7 @@ export const adminAuditLog = pgTable("admin_audit_log", {
   createdAtIdx: index("admin_audit_log_created_at_idx").on(table.createdAt),
   actorTypeIdx: index("admin_audit_log_actor_type_idx").on(table.actorType),
   actorEmailIdx: index("admin_audit_log_actor_email_idx").on(table.actorEmail),
+  resourceTypeCreatedAtIdx: index("admin_audit_log_resource_type_created_at_idx").on(table.resourceType, table.createdAt),
 }));
 
 export type AdminAuditLog = typeof adminAuditLog.$inferSelect;

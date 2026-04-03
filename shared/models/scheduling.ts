@@ -217,6 +217,8 @@ export const tours = pgTable("tours", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("idx_tours_lower_guest_email").on(sql`LOWER(${table.guestEmail})`),
+  index("idx_tours_date_start_time").on(table.tourDate, table.startTime),
+  index("idx_tours_status").on(table.status),
 ]);
 
 // Closure reasons table - configurable dropdown options for closure reason

@@ -5,8 +5,10 @@ import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 
 let tablePromise: Promise<void> | null = null;
+let tableReady = false;
 
 function ensureTable(): Promise<void> {
+  if (tableReady) return Promise.resolve();
   if (!tablePromise) {
     tablePromise = (async () => {
       try {
@@ -21,10 +23,13 @@ function ensureTable(): Promise<void> {
         await pool.query(`
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_window ON rate_limit_hits (window_start)
         `);
+        tableReady = true;
       } catch (err) {
         const msg = getErrorMessage(err);
         if (!msg.includes('already exists')) {
           logger.error('[PgRateLimitStore] Failed to ensure table', { extra: { error: msg } });
+        } else {
+          tableReady = true;
         }
         tablePromise = null;
       }
@@ -79,14 +84,8 @@ export class PgRateLimitStore implements Store {
         `INSERT INTO rate_limit_hits (key, hits, window_start)
          VALUES ($1, 1, NOW())
          ON CONFLICT (key) DO UPDATE
-         SET hits = CASE
-           WHEN rate_limit_hits.window_start < $2 THEN 1
-           ELSE rate_limit_hits.hits + 1
-         END,
-         window_start = CASE
-           WHEN rate_limit_hits.window_start < $2 THEN NOW()
-           ELSE rate_limit_hits.window_start
-         END
+         SET hits = CASE WHEN rate_limit_hits.window_start < $2 THEN 1 ELSE rate_limit_hits.hits + 1 END,
+             window_start = CASE WHEN rate_limit_hits.window_start < $2 THEN NOW() ELSE rate_limit_hits.window_start END
          RETURNING hits, window_start`,
         [prefixed, windowStart]
       );
@@ -145,36 +144,20 @@ export class PgRateLimitStore implements Store {
         });
         return;
       }
-      const maxAttempts = 2;
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          const client = await pool.connect();
-          try {
-            await client.query('BEGIN');
-            await client.query(`SET LOCAL statement_timeout = '5000'`);
-            await client.query(
-              `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
-              [`${this.prefix}:%`, cutoff]
-            );
-            await client.query('COMMIT');
-          } catch (txErr) {
-            await client.query('ROLLBACK').catch((rollbackErr) => {
-              logger.warn('[PgRateLimitStore] Rollback failed during cleanup', { extra: { error: getErrorMessage(rollbackErr) } });
-            });
-            throw txErr;
-          } finally {
-            client.release();
-          }
-          break;
-        } catch (err: unknown) {
-          const errMsg = getErrorMessage(err);
-          const isRetryable = errMsg.includes('timeout') || errMsg.includes('ECONNRESET') ||
-            errMsg.includes('connection') || errMsg.includes('ETIMEDOUT');
-          if (!isRetryable || attempt === maxAttempts) {
-            throw err;
-          }
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-        }
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(`SET LOCAL statement_timeout = '5000'`);
+        await client.query(
+          `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
+          [`${this.prefix}:%`, cutoff]
+        );
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw txErr;
+      } finally {
+        client.release();
       }
     } catch (err: unknown) {
       logger.warn('[PgRateLimitStore] cleanup failed', { extra: { error: getErrorMessage(err) } });

@@ -134,6 +134,7 @@ export const communicationLogs = pgTable("communication_logs", {
   index("idx_communication_logs_created_at").on(table.createdAt),
   index("idx_communication_logs_member").on(table.memberEmail, table.createdAt),
   index("idx_communication_logs_occurred_at").on(table.occurredAt),
+  index("idx_communication_logs_hubspot_engagement_id").on(table.hubspotEngagementId),
 ]);
 
 // Guest check-ins table - tracking guest visits by member

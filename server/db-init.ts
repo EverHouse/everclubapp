@@ -1121,6 +1121,16 @@ export async function ensureDatabaseConstraints() {
     logger.info('[DB Init] Performance indexes are now managed by Drizzle schema');
 
     try {
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_tours_date_start_time ON tours (tour_date, start_time)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_tours_status ON tours (status)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_audit_log_resource_type_created_at_idx ON admin_audit_log (resource_type, created_at)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_communication_logs_hubspot_engagement_id ON communication_logs (hubspot_engagement_id)`);
+      logger.info('[DB Init] Staff dashboard performance indexes created/verified');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Staff dashboard performance indexes: ${getErrorMessage(err)}`);
+    }
+
+    try {
       const needsFix = await db.execute(sql`
         SELECT id, stripe_customer_id FROM users 
         WHERE LOWER(email) IN ('nick@evenhouse.club', 'nick@everclub.co') 
