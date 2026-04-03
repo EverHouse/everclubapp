@@ -356,9 +356,6 @@ router.get('/v1/passes/:passTypeId/:serialNumber', async (req, res) => {
     }
 
     if (!isValid) {
-      logger.warn('[WalletPass WebService] Pass download auth failed', {
-        extra: { passTypeId, serialNumber, hadAuthHeader: !!authToken }
-      });
       return res.status(401).send('Unauthorized');
     }
 
