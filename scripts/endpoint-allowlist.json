@@ -2160,6 +2160,42 @@
     "reason": "pre-existing: missing rate-limit+validation"
   },
   {
+    "file": "server/routes/dataIntegrity/fixes-member.ts",
+    "method": "POST",
+    "path": "/api/data-integrity/fix/clear-stale-subscription",
+    "reason": "pre-existing: missing rate-limit+validation"
+  },
+  {
+    "file": "server/routes/dataIntegrity/fixes-member.ts",
+    "method": "POST",
+    "path": "/api/data-integrity/fix/clear-stale-subscription",
+    "reason": "pre-existing: missing rate-limit+validation"
+  },
+  {
+    "file": "server/routes/dataIntegrity/fixes-member.ts",
+    "method": "POST",
+    "path": "/api/data-integrity/fix/clear-stale-subscription",
+    "reason": "pre-existing: missing rate-limit+validation"
+  },
+  {
+    "file": "server/routes/dataIntegrity/fixes-member.ts",
+    "method": "POST",
+    "path": "/api/data-integrity/fix/bulk-clear-stale-subscriptions",
+    "reason": "pre-existing: missing rate-limit+validation"
+  },
+  {
+    "file": "server/routes/dataIntegrity/fixes-member.ts",
+    "method": "POST",
+    "path": "/api/data-integrity/fix/bulk-clear-stale-subscriptions",
+    "reason": "pre-existing: missing rate-limit+validation"
+  },
+  {
+    "file": "server/routes/dataIntegrity/fixes-member.ts",
+    "method": "POST",
+    "path": "/api/data-integrity/fix/bulk-clear-stale-subscriptions",
+    "reason": "pre-existing: missing rate-limit+validation"
+  },
+  {
     "file": "server/routes/dataTools/booking-tools.ts",
     "method": "POST",
     "path": "/api/data-tools/link-guest-fee",
