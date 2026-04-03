@@ -439,6 +439,31 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
       }
 
       if (sessionId) {
+        const guestPassParticipants = await db.execute(sql`
+          SELECT id, display_name FROM booking_participants
+          WHERE session_id = ${sessionId} AND used_guest_pass = true
+        `);
+        if (guestPassParticipants.rows.length > 0) {
+          const gpCount = guestPassParticipants.rows.length;
+          try {
+            await db.execute(sql`
+              UPDATE guest_passes SET passes_used = GREATEST(0, passes_used - ${gpCount})
+              WHERE LOWER(member_email) = LOWER(${booking.owner_email})
+            `);
+            await db.execute(sql`
+              UPDATE booking_participants SET used_guest_pass = false
+              WHERE session_id = ${sessionId} AND used_guest_pass = true
+            `);
+            logger.info('[StaffCheckin] Restored guest passes during cancel_all', {
+              extra: { bookingId, sessionId, ownerEmail: booking.owner_email, passesRestored: gpCount }
+            });
+          } catch (gpErr: unknown) {
+            logger.error('[StaffCheckin] Failed to restore guest passes during cancel_all', {
+              extra: { bookingId, sessionId, error: getErrorMessage(gpErr) }
+            });
+          }
+        }
+
         await db.execute(sql`
           UPDATE booking_participants 
           SET payment_status = 'pending',
