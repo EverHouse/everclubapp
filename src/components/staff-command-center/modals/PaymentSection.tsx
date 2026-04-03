@@ -651,6 +651,8 @@ export function InlinePaymentBody({
             try {
               await patchWithCredentials(`/api/bookings/${bookingId}/payments`, { action: 'confirm_all' });
               showToast('Payment confirmed — marked as paid', 'success');
+              setShowInlinePayment(false);
+              onRefresh?.();
             } catch (_err: unknown) {
               showToast('Failed to confirm payment', 'error');
             } finally {
@@ -744,7 +746,8 @@ export function InlinePaymentBody({
                     ? `${data.cancelledCount} cancelled, ${data.failedCount} failed — check Stripe dashboard`
                     : (data.message || 'Payments cancelled');
                   showToast(msg, data.failedCount && data.failedCount > 0 ? 'warning' : 'success');
-                  handleInlineStripeSuccess();
+                  setShowInlinePayment(false);
+                  onRefresh?.();
                 } else {
                   showToast(data.error || 'Failed to cancel payments', 'error');
                 }

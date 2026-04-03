@@ -76,7 +76,7 @@ router.patch('/api/bookings/:id/payments', isStaffOrAdmin, async (req: Request, 
     const booking = (bookingResult.rows as unknown as PaymentBookingRow[])[0];
     let sessionId: number | null = booking.session_id;
 
-    if (sessionId) {
+    if (sessionId && action !== 'cancel_all') {
       try {
         await invalidateSessionCachedFees(sessionId, 'staff_payment_action');
         await recalculateSessionFees(sessionId, 'staff_action');

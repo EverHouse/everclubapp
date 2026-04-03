@@ -8,7 +8,7 @@ import { getGuestPassesRemaining, useGuestPass, ensureGuestPassRecord } from '..
 import { numericIdParam } from '../../middleware/paramSchemas';
 import { getAvailableGuestPasses } from '../../core/billing/guestPassHoldService';
 import { getMemberTierByEmail, getTierLimits } from '../../core/tierService';
-import { computeFeeBreakdown, recalculateSessionFees } from '../../core/billing/unifiedFeeService';
+import { computeFeeBreakdown } from '../../core/billing/unifiedFeeService';
 import { logFromRequest } from '../../core/auditLog';
 
 import { ensureSessionForBooking } from '../../core/bookingService/sessionManager';
@@ -918,11 +918,11 @@ router.get('/api/admin/booking/:id/members', isStaffOrAdmin, async (req, res) =>
       
       if (participantsResult.rows.length > 0) {
         const _allParticipantIds = participantsResult.rows.map((p: DbRow) => p.participant_id);
-        let breakdown: Awaited<ReturnType<typeof recalculateSessionFees>>;
+        let breakdown: Awaited<ReturnType<typeof computeFeeBreakdown>>;
         try {
-          breakdown = await recalculateSessionFees(sessionId as number, 'checkin');
+          breakdown = await computeFeeBreakdown({ sessionId: sessionId as number, source: 'checkin', excludeSessionFromUsage: true });
         } catch (feeErr) {
-          logger.warn('recalculateSessionFees failed, using cached fees', { extra: { sessionId, error: getErrorMessage(feeErr) } });
+          logger.warn('computeFeeBreakdown failed, using cached fees', { extra: { sessionId, error: getErrorMessage(feeErr) } });
           breakdown = { totals: { totalCents: 0, overageCents: 0, guestCents: 0, guestPassesUsed: 0, guestPassesAvailable: 0 }, participants: [], metadata: { effectivePlayerCount: 1, declaredPlayerCount: 1, actualPlayerCount: 0, sessionDuration: 60, sessionDate: '', source: 'checkin' } };
         }
         
