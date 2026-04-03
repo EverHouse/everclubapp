@@ -1027,3 +1027,81 @@ test.describe('Booking — Participant Roster API', () => {
     }
   });
 });
+
+test.describe('Booking — /book page UI (member journey)', () => {
+  test.use({ storageState: 'e2e/.auth/member.json' });
+
+  test('booking page loads with booking type selector and date picker', async ({ page }) => {
+    await page.goto('/book');
+
+    const heading = page.getByRole('heading', { name: /Your Session/i });
+    await expect(heading).toBeVisible({ timeout: 15000 });
+
+    await expect(page.getByText('Golf Simulator')).toBeVisible();
+    await expect(page.getByText('Conference Room')).toBeVisible();
+
+    const dateButtons = page.locator('button:has-text("Mon"), button:has-text("Tue"), button:has-text("Wed"), button:has-text("Thu"), button:has-text("Fri"), button:has-text("Sat"), button:has-text("Sun")');
+    const count = await dateButtons.count();
+    expect(count).toBeGreaterThan(0);
+  });
+
+  test('switching to Conference Room tab changes heading', async ({ page }) => {
+    await page.goto('/book');
+    await expect(page.getByRole('heading', { name: /Your Session/i })).toBeVisible({ timeout: 15000 });
+
+    await page.getByText('Conference Room').click();
+    await expect(page.getByRole('heading', { name: /Your Room/i })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('availability grid renders time slots after page loads', async ({ page }) => {
+    await page.goto('/book');
+    await expect(page.getByRole('heading', { name: /Your Session/i })).toBeVisible({ timeout: 15000 });
+
+    const slotsOrEmpty = page.locator('text=/\\d{1,2}:\\d{2}\\s*(AM|PM)|No availability|no available|closed/i');
+    await expect(slotsOrEmpty.first()).toBeVisible({ timeout: 20000 });
+  });
+});
+
+test.describe('Booking — /dashboard schedule visibility (member)', () => {
+  test.use({ storageState: 'e2e/.auth/member.json' });
+
+  test('dashboard loads with greeting and schedule section', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    await expect(page.getByText(/Good (morning|afternoon|evening)/i)).toBeVisible({ timeout: 15000 });
+
+    const scheduleSection = page.locator('text=/upcoming|schedule|today|this week|no upcoming|book a session/i');
+    await expect(scheduleSection.first()).toBeVisible({ timeout: 15000 });
+  });
+});
+
+test.describe('Booking — /history page shows visit records (member)', () => {
+  test.use({ storageState: 'e2e/.auth/member.json' });
+
+  test('history page loads with visits and payments tabs', async ({ page }) => {
+    await page.goto('/history');
+
+    const visitsTab = page.getByText('Visits');
+    const paymentsTab = page.getByText('Payments');
+    await expect(visitsTab).toBeVisible({ timeout: 15000 });
+    await expect(paymentsTab).toBeVisible();
+  });
+
+  test('visits tab displays booking history or empty state', async ({ page }) => {
+    await page.goto('/history?tab=visits');
+
+    const content = page.locator('text=/Host|Player|Guest|Simulator|Conference|Bay|No.*visits|no.*history|no.*activity/i');
+    await expect(content.first()).toBeVisible({ timeout: 15000 });
+  });
+});
+
+test.describe('Booking — Staff admin booking management UI', () => {
+  test.use({ storageState: 'e2e/.auth/staff.json' });
+
+  test('admin page loads with booking management interface', async ({ page }) => {
+    await page.goto('/admin');
+
+    const adminContent = page.locator('text=/booking|tee sheet|simulator|schedule|pending|calendar|command|bay/i');
+    await expect(adminContent.first()).toBeVisible({ timeout: 15000 });
+  });
+});

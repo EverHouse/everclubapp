@@ -17,7 +17,6 @@ export default defineConfig({
     timeout: 10_000,
   },
   globalSetup: './e2e/global-setup.ts',
-  globalTeardown: './e2e/global-teardown.ts',
   use: {
     baseURL: BASE_URL,
     trace: 'on-first-retry',
