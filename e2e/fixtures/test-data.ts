@@ -34,9 +34,20 @@ export interface CreateMemberParams {
   phone?: string;
 }
 
+/**
+ * Test data helper for E2E tests.
+ *
+ * Seeding and cleanup capabilities:
+ * - Bookings: full create + cancel lifecycle via API
+ * - Members: create via POST /api/members (requires staff/admin auth);
+ *   no delete API exists — created test members persist but are harmless
+ *   in dev/test environments. Use unique email prefixes (e.g. e2e-test-*)
+ *   to avoid collisions.
+ * - Resources: auto-seeded on server startup; no creation or deletion API.
+ *   Use getResources/getResourceByType to discover existing resources.
+ */
 export class TestDataHelper {
   private createdBookingIds: string[] = [];
-  private createdMemberEmails: string[] = [];
 
   constructor(private request: APIRequestContext) {}
 
@@ -158,7 +169,6 @@ export class TestDataHelper {
     if (!response.ok()) {
       throw new Error(`createMember failed: ${response.status()} ${await response.text()}`);
     }
-    this.createdMemberEmails.push(params.email);
     const data = await response.json();
     return data.member || data;
   }
@@ -199,6 +209,5 @@ export class TestDataHelper {
 
   async cleanup(): Promise<void> {
     await this.cleanupCreatedBookings();
-    this.createdMemberEmails = [];
   }
 }
