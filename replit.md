@@ -256,7 +256,7 @@ See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for the full changelog (v8.70.0+).
 - **Config**: `playwright.config.ts` — baseURL `http://localhost:5000`, test results in `e2e-results/`.
 - **Auth Fixtures**: `e2e/fixtures/auth.ts` provides `memberPage` fixture using `e2e/.auth/member.json` storage state from global setup.
 - **Global Setup**: `e2e/global-setup.ts` authenticates via OTP (fallback: dev-login) and saves session to `e2e/.auth/member.json`.
-- **Test Files**: `e2e/smoke.unauth.spec.ts` (3 tests), `e2e/auth.spec.ts` (22 tests), `e2e/public-pages.unauth.spec.ts` (36 tests).
+- **Test Files**: `e2e/smoke.unauth.spec.ts` (3 tests), `e2e/auth.spec.ts` (23 tests), `e2e/public-pages.unauth.spec.ts` (36 tests).
 - **Running**: `npx playwright test --project=unauthenticated` for all current tests.
 
 ## External Dependencies

@@ -124,7 +124,10 @@ baseTest.describe('Authentication — Unauthenticated', () => {
       }
 
       await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 15_000 });
-      expect(page.url()).not.toContain('/login');
+      const postLoginUrl = page.url();
+      expect(postLoginUrl).not.toContain('/login');
+      const isProtectedRoute = postLoginUrl.includes('/dashboard') || postLoginUrl.includes('/admin');
+      expect(isProtectedRoute).toBe(true);
     });
   });
 
@@ -237,6 +240,22 @@ authTest.describe('Authentication — Authenticated User', () => {
     await memberPage.goto('/book');
     await memberPage.waitForLoadState('domcontentloaded');
     expect(memberPage.url()).not.toContain('/login');
+  });
+
+  authTest('non-admin user is redirected away from /admin', async ({ memberPage }) => {
+    const sessionResp = await memberPage.request.get(`${BASE_URL}/api/auth/session`);
+    const sessionData = await sessionResp.json();
+    const userRole = sessionData?.member?.role || sessionData?.role;
+
+    if (userRole === 'admin') {
+      authTest.skip(true, 'Test user is admin — cannot test non-admin /admin redirect (requires a non-admin test user)');
+    }
+
+    await memberPage.goto('/admin');
+    await memberPage.waitForURL((url) => !url.pathname.startsWith('/admin'), { timeout: 10_000 });
+    const url = memberPage.url();
+    expect(url).not.toMatch(/\/admin/);
+    expect(url).toContain('/dashboard');
   });
 
   authTest('session endpoint returns authenticated user data', async ({ memberPage }) => {
