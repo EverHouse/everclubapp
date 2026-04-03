@@ -111,7 +111,7 @@ const AnnouncementAlert: React.FC = () => {
   };
 
   return (
-    <div className={`cls-safe-collapse ${isAlertVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isAlertVisible}>
+    <div className={`cls-safe-collapse cls-safe-reserve ${isAlertVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isAlertVisible}>
     <div className="cls-safe-inner">
     {latestAnnouncement ? (
     <article 

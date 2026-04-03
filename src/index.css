@@ -1621,6 +1621,7 @@ html.dark .border-accessible {
   transition: grid-template-rows 0.35s var(--m3-emphasized-decel), opacity 0.3s var(--m3-emphasized-decel);
   opacity: 0;
   pointer-events: none;
+  contain: layout style;
 }
 
 .cls-safe-collapse > .cls-safe-inner {
@@ -1631,6 +1632,16 @@ html.dark .border-accessible {
   grid-template-rows: 1fr;
   opacity: 1;
   pointer-events: auto;
+}
+
+.cls-safe-collapse.cls-safe-reserve {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 56px;
+}
+
+.cls-safe-collapse.cls-safe-reserve.cls-safe-visible {
+  content-visibility: visible;
+  contain-intrinsic-block-size: none;
 }
 
 /* Soft Layered Shadows - Premium floating card effect */

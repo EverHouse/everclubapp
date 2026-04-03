@@ -180,12 +180,18 @@ interface GalleryItemProps {
   onItemClick: (index: number) => void;
 }
 
+const ASPECT_RATIOS: Array<{ css: string; w: number; h: number }> = [
+  { css: '4/3', w: 800, h: 600 },
+  { css: '3/4', w: 600, h: 800 },
+  { css: '1/1', w: 700, h: 700 },
+  { css: '4/5', w: 640, h: 800 },
+];
+
 const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, category, index, onItemClick }) => {
   const [loaded, setLoaded] = React.useState(false);
   const [error, setError] = React.useState(false);
 
-  const skeletonHeights = ['aspect-[4/3]', 'aspect-[3/4]', 'aspect-square', 'aspect-[4/5]'];
-  const skeletonHeight = skeletonHeights[index % skeletonHeights.length];
+  const ratio = ASPECT_RATIOS[index % ASPECT_RATIOS.length];
   
   const handleClick = () => onItemClick(index);
   
@@ -197,7 +203,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
     >
-      <div className={`w-full ${skeletonHeight} relative`}>
+      <div className="w-full relative" style={{ aspectRatio: ratio.css }}>
         {!loaded && !error && (
           <div className="absolute inset-0 bg-gradient-to-br from-gray-200 dark:from-white/10 via-gray-100 dark:via-white/5 to-gray-200 dark:to-white/10 rounded-xl overflow-hidden">
             <div className="w-full h-full shimmer-effect" />
@@ -210,12 +216,14 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
           loading="lazy"
           fetchPriority="low"
           decoding="async"
+          width={ratio.w}
+          height={ratio.h}
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
         />
       </div>
       {error && (
-        <div className={`w-full ${skeletonHeight} bg-gray-200 dark:bg-white/5 flex items-center justify-center rounded-xl`}>
+        <div className="w-full bg-gray-200 dark:bg-white/5 flex items-center justify-center rounded-xl" style={{ aspectRatio: ratio.css }}>
           <Icon name="broken_image" className="text-gray-400 dark:text-white/50 text-3xl" />
         </div>
       )}

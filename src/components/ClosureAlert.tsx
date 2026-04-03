@@ -185,7 +185,7 @@ const ClosureAlert: React.FC = () => {
   const noticeLabel = closure ? getNoticeLabelUtil(closure) : '';
 
   return (
-    <div className={`cls-safe-collapse ${isVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isVisible}>
+    <div className={`cls-safe-collapse cls-safe-reserve ${isVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isVisible}>
     <div className="cls-safe-inner">
     {closure ? (
     <div 

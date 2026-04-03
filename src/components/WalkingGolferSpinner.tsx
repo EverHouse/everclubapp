@@ -53,6 +53,8 @@ const WalkingGolferSpinner: React.FC<WalkingGolferSpinnerProps> = ({
         alt="Animated golfer mascot walking on golf course" 
         style={sizeStyles[size]}
         className="h-auto"
+        width={80}
+        height={80}
       />
     </div>
   );

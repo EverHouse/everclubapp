@@ -98,6 +98,8 @@ const PwaSmartBanner: React.FC<PwaSmartBannerProps> = ({
               src="/icon-192.png"
               alt={appName}
               className="w-full h-full object-cover"
+              width={48}
+              height={48}
             />
           </div>
 
