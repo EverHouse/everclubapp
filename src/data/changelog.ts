@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.24",
+    date: "2026-04-03",
+    title: "Data Integrity Improvements",
+    changes: [
+      "Improved: Session overlap check no longer flags Trackman-sourced overlaps, which are expected by design.",
+      "New: Permanently dismiss past overlap issues with one tap — no more temporary dismissals that expire and come back.",
+      "New: 'Forever' option added to all issue exclusion durations.",
+    ]
+  },
+  {
     version: "8.98.23",
     date: "2026-04-02",
     title: "Billing System Hardening",

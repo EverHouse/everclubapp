@@ -469,9 +469,24 @@ export async function syncPull(params: SyncPullParams): Promise<{ success: boole
 
 export interface CreateIgnoreParams {
   issueKey: string;
-  duration: '24h' | '1w' | '30d';
+  duration: '24h' | '1w' | '30d' | 'permanent';
   reason: string;
   ignoredBy: string;
+}
+
+function computeExpiresAt(duration: '24h' | '1w' | '30d' | 'permanent', now: Date): Date {
+  switch (duration) {
+    case '24h':
+      return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    case '1w':
+      return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    case '30d':
+      return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    case 'permanent':
+      return new Date('2099-12-31T23:59:59.999Z');
+    default:
+      throw new Error(`Invalid duration: ${duration}`);
+  }
 }
 
 export async function createIgnoreRule(params: CreateIgnoreParams): Promise<{
@@ -482,21 +497,7 @@ export async function createIgnoreRule(params: CreateIgnoreParams): Promise<{
   const { issueKey, duration, reason, ignoredBy } = params;
 
   const now = new Date();
-  let expiresAt: Date;
-
-  switch (duration) {
-    case '24h':
-      expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      break;
-    case '1w':
-      expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30d':
-      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      break;
-    default:
-      throw new Error(`Invalid duration: ${duration}`);
-  }
+  const expiresAt = computeExpiresAt(duration, now);
 
   const existing = await db.select()
     .from(integrityIgnores)
@@ -542,7 +543,7 @@ export async function removeIgnoreRule(issueKey: string): Promise<{ removed: boo
 
 export interface CreateBulkIgnoreParams {
   issueKeys: string[];
-  duration: '24h' | '1w' | '30d';
+  duration: '24h' | '1w' | '30d' | 'permanent';
   reason: string;
   ignoredBy: string;
 }
@@ -558,21 +559,7 @@ export async function createBulkIgnoreRules(params: CreateBulkIgnoreParams): Pro
   }
 
   const now = new Date();
-  let expiresAt: Date;
-
-  switch (duration) {
-    case '24h':
-      expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      break;
-    case '1w':
-      expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      break;
-    case '30d':
-      expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      break;
-    default:
-      throw new Error(`Invalid duration: ${duration}`);
-  }
+  const expiresAt = computeExpiresAt(duration, now);
 
   let created = 0;
   let updated = 0;

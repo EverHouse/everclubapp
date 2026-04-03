@@ -115,7 +115,7 @@ export function useDataIntegrityState() {
 
   const [ignoreModal, setIgnoreModal] = useState<IgnoreModalState>({ isOpen: false, issue: null, checkName: '' });
   const [bulkIgnoreModal, setBulkIgnoreModal] = useState<BulkIgnoreModalState>({ isOpen: false, checkName: '', issues: [] });
-  const [ignoreDuration, setIgnoreDuration] = useState<'24h' | '1w' | '30d'>('24h');
+  const [ignoreDuration, setIgnoreDuration] = useState<'24h' | '1w' | '30d' | 'permanent'>('24h');
   const [ignoreReason, setIgnoreReason] = useState<string>('');
   const [showIgnoredIssues, setShowIgnoredIssues] = useState(false);
 

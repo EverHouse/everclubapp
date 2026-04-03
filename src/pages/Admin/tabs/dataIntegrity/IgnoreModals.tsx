@@ -5,8 +5,8 @@ import Icon from '../../../../components/icons/Icon';
 interface IgnoreModalsProps {
   ignoreModal: IgnoreModalState;
   bulkIgnoreModal: BulkIgnoreModalState;
-  ignoreDuration: '24h' | '1w' | '30d';
-  setIgnoreDuration: (dur: '24h' | '1w' | '30d') => void;
+  ignoreDuration: '24h' | '1w' | '30d' | 'permanent';
+  setIgnoreDuration: (dur: '24h' | '1w' | '30d' | 'permanent') => void;
   ignoreReason: string;
   setIgnoreReason: (reason: string) => void;
   handleIgnoreIssue: () => void;
@@ -41,18 +41,18 @@ const IgnoreModals: React.FC<IgnoreModalsProps> = ({
             
             <div className="space-y-3">
               <label className="block text-sm font-medium text-primary dark:text-white">Duration</label>
-              <div className="flex gap-2">
-                {(['24h', '1w', '30d'] as const).map((dur) => (
+              <div className="flex gap-2 flex-wrap">
+                {(['24h', '1w', '30d', 'permanent'] as const).map((dur) => (
                   <button
                     key={dur}
                     onClick={() => setIgnoreDuration(dur)}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 min-w-[70px] py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                       ignoreDuration === dur
-                        ? 'bg-primary dark:bg-white text-white dark:text-primary'
+                        ? dur === 'permanent' ? 'bg-red-600 text-white' : 'bg-primary dark:bg-white text-white dark:text-primary'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                     }`}
                   >
-                    {dur === '24h' ? '24 Hours' : dur === '1w' ? '1 Week' : '30 Days'}
+                    {dur === '24h' ? '24 Hours' : dur === '1w' ? '1 Week' : dur === '30d' ? '30 Days' : 'Forever'}
                   </button>
                 ))}
               </div>
@@ -94,23 +94,23 @@ const IgnoreModals: React.FC<IgnoreModalsProps> = ({
           <div className="bg-white dark:bg-gray-900 rounded-xl max-w-md w-full p-6 space-y-4">
             <h3 className="text-lg font-bold text-primary dark:text-white">Exclude All Issues</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Exclude {bulkIgnoreModal.issues.length} issues from "{bulkIgnoreModal.checkName}"
+              Exclude {bulkIgnoreModal.issues.length} issues from &quot;{bulkIgnoreModal.checkName}&quot;
             </p>
             
             <div className="space-y-3">
               <label className="block text-sm font-medium text-primary dark:text-white">Duration</label>
-              <div className="flex gap-2">
-                {(['24h', '1w', '30d'] as const).map((dur) => (
+              <div className="flex gap-2 flex-wrap">
+                {(['24h', '1w', '30d', 'permanent'] as const).map((dur) => (
                   <button
                     key={dur}
                     onClick={() => setIgnoreDuration(dur)}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex-1 min-w-[70px] py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
                       ignoreDuration === dur
-                        ? 'bg-primary dark:bg-white text-white dark:text-primary'
+                        ? dur === 'permanent' ? 'bg-red-600 text-white' : 'bg-primary dark:bg-white text-white dark:text-primary'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                     }`}
                   >
-                    {dur === '24h' ? '24 Hours' : dur === '1w' ? '1 Week' : '30 Days'}
+                    {dur === '24h' ? '24 Hours' : dur === '1w' ? '1 Week' : dur === '30d' ? '30 Days' : 'Forever'}
                   </button>
                 ))}
               </div>

@@ -1196,6 +1196,12 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     bulkIgnoreMutation.mutate({ issueKeys, duration: state.ignoreDuration, reason: state.ignoreReason.trim() });
   };
 
+  const handleDismissPastOverlaps = (pastOverlaps: IntegrityIssue[]) => {
+    if (pastOverlaps.length === 0) return;
+    const issueKeys = pastOverlaps.map(issue => `${issue.table}_${issue.recordId}`);
+    bulkIgnoreMutation.mutate({ issueKeys, duration: 'permanent', reason: 'Legacy overlaps from before DB trigger — permanently dismissed' });
+  };
+
   const handleSyncPush = (issue: IntegrityIssue) => {
     if (!issue.context?.syncType) return;
     if (issue.context.syncType === 'hubspot' && !issue.context.userId) {
@@ -1551,6 +1557,7 @@ export function useDataIntegrityActions(state: DataIntegrityState) {
     openBulkIgnoreModal,
     closeBulkIgnoreModal,
     handleBulkIgnore,
+    handleDismissPastOverlaps,
     handleSyncPush,
     handleSyncPull,
     handleCancelBooking,

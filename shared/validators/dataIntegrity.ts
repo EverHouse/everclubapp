@@ -39,13 +39,13 @@ export const syncPushPullSchema = z.preprocess(
 
 export const ignoreIssueSchema = z.object({
   issue_key: z.string().min(1, 'issue_key is required'),
-  duration: z.enum(['24h', '1w', '30d'], { message: 'Valid duration (24h, 1w, 30d) is required' }),
+  duration: z.enum(['24h', '1w', '30d', 'permanent'], { message: 'Valid duration (24h, 1w, 30d, permanent) is required' }),
   reason: z.string().min(1, 'reason is required'),
 });
 
 export const bulkIgnoreSchema = z.object({
   issue_keys: z.array(z.string()).min(1, 'issue_keys array is required').max(5000, 'Maximum 5000 issues can be excluded at once'),
-  duration: z.enum(['24h', '1w', '30d'], { message: 'Valid duration (24h, 1w, 30d) is required' }),
+  duration: z.enum(['24h', '1w', '30d', 'permanent'], { message: 'Valid duration (24h, 1w, 30d, permanent) is required' }),
   reason: z.string().min(1, 'reason is required'),
 });
 

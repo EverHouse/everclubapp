@@ -479,6 +479,10 @@ export async function checkOverlappingBookings(options?: { autoFix?: boolean }):
       LEFT JOIN users u2 ON br2.user_id = u2.id
       LEFT JOIN resources r ON bs1.resource_id = r.id
       WHERE bs1.session_date >= ${today}::date - INTERVAL '30 days'
+        AND COALESCE(br1.origin, '') NOT IN ('trackman_import', 'trackman_webhook')
+        AND COALESCE(br2.origin, '') NOT IN ('trackman_import', 'trackman_webhook')
+        AND br1.trackman_booking_id IS NULL
+        AND br2.trackman_booking_id IS NULL
     `);
 
     for (const row of overlapsResult.rows as unknown as OverlapRow[]) {
@@ -494,7 +498,7 @@ export async function checkOverlappingBookings(options?: { autoFix?: boolean }):
         table: 'booking_sessions',
         recordId: `${row.session1_id}-${row.session2_id}`,
         description: `Sessions #${row.session1_id} and #${row.session2_id} overlap on resource ${row.resource_id} on ${row.session_date} (${row.start_time}-${row.end_time} vs ${row.overlap_start}-${row.overlap_end})`,
-        suggestion: 'Informational: DB trigger prevents new overlaps. This may be a legacy overlap or an edge case that slipped through.',
+        suggestion: 'Investigate the double-booking. The DB trigger should prevent new overlaps; this may be legacy data or an edge case.',
         context: {
           resourceId: Number(row.resource_id),
           resourceName: row.resource_name || undefined,

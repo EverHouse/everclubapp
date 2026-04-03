@@ -58,6 +58,7 @@ interface IntegrityResultsPanelProps {
   isRefreshing: boolean;
   openIgnoreModal: (issue: IntegrityIssue, checkName: string) => void;
   openBulkIgnoreModal: (checkName: string, issues: IntegrityIssue[]) => void;
+  handleDismissPastOverlaps: (pastOverlaps: IntegrityIssue[]) => void;
   getIssueTracking: (issue: IntegrityIssue) => ActiveIssue | undefined;
   isSyncingToHubspot: boolean;
   hubspotSyncResult: { success: boolean; message: string; members?: HubspotSyncMember[]; dryRun?: boolean } | null;
@@ -146,6 +147,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   isRefreshing,
   openIgnoreModal,
   openBulkIgnoreModal,
+  handleDismissPastOverlaps,
   getIssueTracking,
   isSyncingToHubspot,
   hubspotSyncResult,
@@ -1292,18 +1294,18 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
         return (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
             <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-              <strong>About:</strong> Legacy session overlaps that existed before the DB trigger was added. The trigger now prevents new overlaps. Past overlaps are historical and cannot be changed.
+              <strong>About:</strong> Trackman-sourced overlaps are now excluded from this check. Any remaining overlaps are non-Trackman booking conflicts. Past overlaps are historical and can be permanently dismissed.
             </p>
             {pastOverlaps.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 <button
                   type="button"
-                  onClick={() => openBulkIgnoreModal(checkName, pastOverlaps)}
+                  onClick={() => handleDismissPastOverlaps(pastOverlaps)}
                   disabled={fixIssueMutation.isPending || isBulkActionRunning}
                   className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
                   <Icon name="visibility_off" className="text-[14px]" />
-                  Dismiss Past Overlaps ({pastOverlaps.length})
+                  Permanently Dismiss Past Overlaps ({pastOverlaps.length})
                 </button>
               </div>
             )}
