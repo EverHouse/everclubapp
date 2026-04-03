@@ -566,7 +566,6 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Orphaned Payment Intents': 'medium',
   'Billing Provider Hybrid State': 'high',
   'Invoice-Booking Reconciliation': 'medium',
-  'Overlapping Bookings': 'low',
   'Guest Pass Accounting Drift': 'medium',
   'Stale Pending Bookings': 'medium',
   'Archived Member Lingering Data': 'medium',
@@ -585,7 +584,6 @@ export const severityMap: Record<string, 'critical' | 'high' | 'medium' | 'low'>
   'Wallet Pass Booking Sync': 'medium',
   'Sessions Exceeding Resource Capacity': 'high',
   'Fee Snapshot Stripe Drift': 'high',
-  'Session Overlaps (All Resources)': 'high',
   'Wellness Block Coverage': 'high',
   'Stale Push Subscriptions': 'low',
   'Stale Stripe Subscription IDs': 'high',
@@ -909,7 +907,7 @@ export async function getIntegritySummary(): Promise<IntegritySummary> {
 }
 
 export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' = 'manual', options?: { includeLegacy?: boolean; autoFix?: boolean }): Promise<IntegrityCheckResult[]> {
-  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkOverlappingBookings, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync, checkSessionOverlaps, checkWellnessBlockGaps } = await import('./bookingChecks');
+  const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync, checkWellnessBlockGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications, checkStalePushSubscriptions } = await import('./externalSystemChecks');
   const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync, checkFeeSnapshotStripeDrift } = await import('./stripeChecks');
@@ -931,7 +929,6 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(checkStuckUnpaidBookings, 'Stuck Unpaid Bookings'),
     () => safeCheck(() => checkApprovedBookingsForInactiveMembers({ autoFix }), 'Approved Bookings for Inactive Members'),
     () => safeCheck(() => checkUsageLedgerGaps({ autoFix }), 'Usage Ledger Gaps'),
-    () => safeCheck(() => checkSessionOverlaps({ autoFix }), 'Session Overlaps (All Resources)'),
     () => safeCheck(() => checkWellnessBlockGaps({ autoFix }), 'Wellness Block Coverage'),
     () => safeCheck(checkUnresolvedFailedSideEffects, 'Unresolved Failed Side Effects'),
     () => safeCheck(checkUnreportedWellhubEvents, 'Unreported Wellhub Events'),
@@ -952,7 +949,6 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const manualOnlyChecks: Array<() => Promise<IntegrityCheckResult>> = includeLegacy ? [
     () => safeCheck(checkDuplicateStripeCustomers, 'Duplicate Stripe Customers'),
     () => safeCheck(checkSessionsWithoutParticipants, 'Sessions Without Participants'),
-    () => safeCheck(() => checkOverlappingBookings({ autoFix }), 'Overlapping Bookings'),
     () => safeCheck(() => checkGuestPassAccountingDrift({ autoFix }), 'Guest Pass Accounting Drift'),
     () => safeCheck(checkStalePendingBookings, 'Stale Pending Bookings'),
     () => safeCheck(checkStaleCheckedInBookings, 'Stale Checked-In Bookings'),

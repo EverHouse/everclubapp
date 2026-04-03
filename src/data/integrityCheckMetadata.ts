@@ -94,13 +94,6 @@ export const integrityCheckMetadata: IntegrityCheckMetadata[] = [
     severity: 'critical'
   },
   {
-    checkName: 'Overlapping Bookings',
-    title: 'Overlapping Bookings',
-    description: 'Finds confirmed bookings that overlap on the same bay at the same time.',
-    impact: 'Two groups may show up for the same bay, causing scheduling conflicts and a poor member experience.',
-    severity: 'critical'
-  },
-  {
     checkName: 'Guest Pass Accounting Drift',
     title: 'Guest Pass Accounting Drift',
     description: 'Detects guest pass records where the used count exceeds the total, or where expired holds are still in place.',

@@ -121,7 +121,6 @@ const DataIntegrityTab: React.FC = () => {
         isRefreshing={actions.runIntegrityMutation.isPending}
         openIgnoreModal={actions.openIgnoreModal}
         openBulkIgnoreModal={actions.openBulkIgnoreModal}
-        handleDismissPastOverlaps={actions.handleDismissPastOverlaps}
         getIssueTracking={actions.getIssueTrackingForIssue}
         isSyncingToHubspot={actions.isSyncingToHubspot}
         hubspotSyncResult={state.hubspotSyncResult}

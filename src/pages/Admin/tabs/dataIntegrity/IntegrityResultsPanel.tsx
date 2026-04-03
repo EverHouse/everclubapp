@@ -58,7 +58,6 @@ interface IntegrityResultsPanelProps {
   isRefreshing: boolean;
   openIgnoreModal: (issue: IntegrityIssue, checkName: string) => void;
   openBulkIgnoreModal: (checkName: string, issues: IntegrityIssue[]) => void;
-  handleDismissPastOverlaps: (pastOverlaps: IntegrityIssue[]) => void;
   getIssueTracking: (issue: IntegrityIssue) => ActiveIssue | undefined;
   isSyncingToHubspot: boolean;
   hubspotSyncResult: { success: boolean; message: string; members?: HubspotSyncMember[]; dryRun?: boolean } | null;
@@ -147,7 +146,6 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   isRefreshing,
   openIgnoreModal,
   openBulkIgnoreModal,
-  handleDismissPastOverlaps,
   getIssueTracking,
   isSyncingToHubspot,
   hubspotSyncResult,
@@ -1003,15 +1001,6 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
           </div>
         );
 
-      case 'Overlapping Bookings':
-        return (
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-              <strong>About:</strong> Confirmed bookings that overlap on the same bay. Use the action buttons on each issue to open or cancel one of the conflicting bookings.
-            </p>
-          </div>
-        );
-
       case 'Orphaned Payment Intents':
         return (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
@@ -1274,38 +1263,6 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                 >
                   <Icon name="link" className="text-[14px]" />
                   Backfill Subscription IDs ({missingSubIds.length})
-                </button>
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      case 'Session Overlaps (All Resources)': {
-        const overlapResult = results.find(r => r.checkName.replace(/^\[DEV\]\s*/, '') === 'Session Overlaps (All Resources)');
-        const overlapIssues = overlapResult?.issues.filter(i => !i.ignored) || [];
-        const pacificNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-        const today = `${pacificNow.getFullYear()}-${String(pacificNow.getMonth() + 1).padStart(2, '0')}-${String(pacificNow.getDate()).padStart(2, '0')}`;
-        const pastOverlaps = overlapIssues.filter(i => {
-          const d = i.context?.bookingDate;
-          return d && String(d) < today;
-        });
-
-        return (
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
-            <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-              <strong>About:</strong> Trackman-sourced overlaps are now excluded from this check. Any remaining overlaps are non-Trackman booking conflicts. Past overlaps are historical and can be permanently dismissed.
-            </p>
-            {pastOverlaps.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => handleDismissPastOverlaps(pastOverlaps)}
-                  disabled={fixIssueMutation.isPending || isBulkActionRunning}
-                  className="tactile-btn px-3 py-1.5 bg-gray-500 text-white rounded-lg text-xs font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
-                >
-                  <Icon name="visibility_off" className="text-[14px]" />
-                  Permanently Dismiss Past Overlaps ({pastOverlaps.length})
                 </button>
               </div>
             )}

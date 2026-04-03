@@ -4,13 +4,12 @@ All notable changes to the Ever Club Members App are documented here.
 
 ## [8.98.24] - 2026-04-03
 
-### Data Integrity — Overlap Check Fix & Permanent Dismiss
-- **Fix: Overlap check now excludes Trackman-sourced sessions.** The `checkOverlappingBookings` query now filters out bookings where either side has `origin IN ('trackman_import', 'trackman_webhook')` or a non-null `trackman_booking_id`. Trackman bypasses the DB exclusion constraint by design (via `SET LOCAL app.bypass_overlap_check = 'true'`), so these overlaps are expected — not bugs. This eliminates ~130 false-positive legacy overlap issues.
+### Data Integrity — Overlap Checks Removed & Permanent Dismiss
+- **Removed: `checkSessionOverlaps` and `checkOverlappingBookings` integrity checks.** Both overlap checks were removed from nightly and manual integrity runs. The DB exclusion constraint (`booking_sessions` tsrange exclusion) prevents new app-created overlaps at the database level. Trackman (CSV imports and webhooks) deliberately bypasses this constraint via `SET LOCAL app.bypass_overlap_check = 'true'` because Trackman is the source of truth for physical bay usage — those overlaps are expected by design. The ~131 false-positive issues were all Trackman-sourced. Removed from: nightly checks array, manual-only checks array, severity map, dynamic import, frontend metadata, and panel UI.
 - **New: Permanent dismiss for integrity issues.** Added `'permanent'` as a duration option in the ignore system. Uses `2099-12-31` expiry so issues never resurface. Available in both single and bulk ignore flows.
-- **New: One-click "Permanently Dismiss Past Overlaps" button.** Replaces the old button that opened a modal requiring duration selection and a reason. Now sends a single bulk-ignore call with `duration: 'permanent'` and auto-generated reason.
 - **UI: "Forever" option in ignore modal.** Both single and bulk ignore modals now show 4 duration options: 24 Hours, 1 Week, 30 Days, and Forever.
 
-Files changed: `server/core/integrity/bookingChecks.ts`, `server/core/integrity/resolution.ts`, `shared/validators/dataIntegrity.ts`, `src/pages/Admin/tabs/dataIntegrity/IntegrityResultsPanel.tsx`, `src/pages/Admin/tabs/dataIntegrity/IgnoreModals.tsx`, `src/pages/Admin/tabs/dataIntegrity/useDataIntegrityActions.ts`, `src/pages/Admin/tabs/dataIntegrity/useDataIntegrityState.ts`, `src/pages/Admin/tabs/DataIntegrityTab.tsx`
+Files changed: `server/core/integrity/core.ts`, `server/core/integrity/bookingChecks.ts`, `server/core/integrity/resolution.ts`, `shared/validators/dataIntegrity.ts`, `src/pages/Admin/tabs/dataIntegrity/IntegrityResultsPanel.tsx`, `src/pages/Admin/tabs/dataIntegrity/IgnoreModals.tsx`, `src/pages/Admin/tabs/dataIntegrity/useDataIntegrityActions.ts`, `src/pages/Admin/tabs/dataIntegrity/useDataIntegrityState.ts`, `src/pages/Admin/tabs/DataIntegrityTab.tsx`, `src/data/integrityCheckMetadata.ts`
 
 ## [8.98.23] - 2026-04-02
 
