@@ -790,28 +790,30 @@ const StaffTrainingGuide: React.FC = () => {
                         </div>
 
                         <div className={`cls-safe-collapse ${isPrinting || expandedSection === String(section.id) ? 'cls-safe-visible' : ''}`}>
-                            <div className="cls-safe-inner px-5 pb-5 space-y-4 print:pt-2">
-                                {section.steps.map((step, index) => (
-                                    <div key={`display-step-${index}-${step.title}`} className="flex gap-4">
-                                        <div className="flex-shrink-0 min-w-[1.75rem] w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-xs font-bold text-primary dark:text-white print:bg-gray-100 print:text-gray-700 overflow-hidden">
-                                            {index + 1}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="font-semibold text-primary dark:text-white text-sm print:text-gray-900">{step.title}</h4>
-                                                {step.pageIcon && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 dark:bg-accent/30 text-xs text-primary dark:text-accent print:bg-gray-200 print:text-gray-700">
-                                                        <Icon name={step.pageIcon} className="text-xs" />
-                                                    </span>
+                            <div className="cls-safe-inner">
+                                <div className="px-8 pt-4 pb-8 space-y-4 print:pt-2">
+                                    {section.steps.map((step, index) => (
+                                        <div key={`display-step-${index}-${step.title}`} className="flex gap-4">
+                                            <div className="flex-shrink-0 min-w-[1.75rem] w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-xs font-bold text-primary dark:text-white print:bg-gray-100 print:text-gray-700 overflow-hidden">
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-semibold text-primary dark:text-white text-sm print:text-gray-900">{step.title}</h4>
+                                                    {step.pageIcon && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 dark:bg-accent/30 text-xs text-primary dark:text-accent print:bg-gray-200 print:text-gray-700">
+                                                            <Icon name={step.pageIcon} className="text-xs" />
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-primary/70 dark:text-white/70 mt-1 print:text-gray-600">{step.content}</p>
+                                                {step.imageUrl && (
+                                                    <img src={step.imageUrl} alt="" className="mt-2 rounded-lg max-w-full h-auto print:max-w-xs" />
                                                 )}
                                             </div>
-                                            <p className="text-sm text-primary/70 dark:text-white/70 mt-1 print:text-gray-600">{step.content}</p>
-                                            {step.imageUrl && (
-                                                <img src={step.imageUrl} alt="" className="mt-2 rounded-lg max-w-full h-auto print:max-w-xs" />
-                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

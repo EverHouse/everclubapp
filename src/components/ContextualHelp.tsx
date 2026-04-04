@@ -105,28 +105,30 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                 </div>
 
                 <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
-                  <div className="cls-safe-inner px-5 pb-5 space-y-4">
-                    {section.steps.map((step, index) => (
-                      <div key={index} className="flex gap-4">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-primary dark:text-white">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold text-primary dark:text-white text-sm">{step.title}</h4>
-                            {step.pageIcon && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 dark:bg-accent/30 text-xs text-primary dark:text-accent">
-                                <Icon name={step.pageIcon} className="text-xs" />
-                              </span>
+                  <div className="cls-safe-inner">
+                    <div className="px-8 pt-4 pb-8 space-y-4">
+                      {section.steps.map((step, index) => (
+                        <div key={index} className="flex gap-4">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-primary dark:text-white">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-primary dark:text-white text-sm">{step.title}</h4>
+                              {step.pageIcon && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/20 dark:bg-accent/30 text-xs text-primary dark:text-accent">
+                                  <Icon name={step.pageIcon} className="text-xs" />
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-primary/70 dark:text-white/70 mt-1">{step.content}</p>
+                            {step.imageUrl && (
+                              <img src={step.imageUrl} alt="" className="mt-2 rounded-lg max-w-full h-auto" loading="lazy" width={400} height={225} />
                             )}
                           </div>
-                          <p className="text-sm text-primary/70 dark:text-white/70 mt-1">{step.content}</p>
-                          {step.imageUrl && (
-                            <img src={step.imageUrl} alt="" className="mt-2 rounded-lg max-w-full h-auto" loading="lazy" width={400} height={225} />
-                          )}
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
