@@ -1728,39 +1728,9 @@ html.dark .border-accessible {
   animation: bannerSlideDown 0.3s var(--m3-emphasized-decel) both;
 }
 
-/* Pop Out Animation - Exit animation for toasts and modals */
-@keyframes popOut {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-}
-
-.animate-pop-out {
-  animation: popOut 0.25s var(--m3-standard-accel) forwards;
-}
-
 @keyframes toast-progress {
   0% { transform: scaleX(1); }
   100% { transform: scaleX(0); }
-}
-
-/* Fade Out Animation - Alternative exit animation for elements */
-@keyframes fadeOut {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-.animate-fade-out {
-  animation: fadeOut 0.25s var(--m3-standard-accel) forwards;
 }
 
 /* Modal/Dialog Animations (used by StaffMobileSidebar, RedemptionSuccessCard) */

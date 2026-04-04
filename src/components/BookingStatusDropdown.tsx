@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo, type MouseEvent, type KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, useId, type MouseEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Icon from './icons/Icon';
@@ -48,7 +48,8 @@ export function BookingStatusDropdown({
   const itemTextSize = isSm ? 'text-xs' : 'text-sm';
   const iconSize = isSm ? 'w-5 h-5' : 'w-6 h-6';
   const iconTextSize = isSm ? 'text-xs' : 'text-sm';
-  const listboxId = 'booking-status-listbox';
+  const instanceId = useId();
+  const listboxId = `booking-status-listbox-${instanceId}`;
 
   const handleButtonClick = (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();

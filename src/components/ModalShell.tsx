@@ -99,11 +99,12 @@ export function ModalShell({
     const myLayer = currentCount + 1;
     document.body.setAttribute('data-modal-count', String(myLayer));
     
-    setTimeout(() => {
+    const focusTimer = setTimeout(() => {
       modalRef.current?.focus();
     }, 50);
 
     return () => {
+      clearTimeout(focusTimer);
       const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
       if (currentCount <= 1) {
         document.body.removeAttribute('data-modal-count');
