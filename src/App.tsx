@@ -212,16 +212,19 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 const WaiverGate: React.FC = () => {
-  const { user, isViewingAs } = useAuthData();
+  const { user, actualUser, isViewingAs } = useAuthData();
   const [showWaiverModal, setShowWaiverModal] = useState(false);
   const [currentVersion, setCurrentVersion] = useState('1.0');
   const queryClient = useQueryClient();
+
+  const isStaff = actualUser?.role === 'admin' || actualUser?.role === 'staff' ||
+    user?.role === 'admin' || user?.role === 'staff';
 
   const waiverEmailParam = isViewingAs && user?.email ? `?user_email=${encodeURIComponent(user.email)}` : '';
   const { data: waiverStatus, isError, isPending } = useQuery<{ needsWaiverUpdate?: boolean; currentVersion?: string }>({
     queryKey: ['waiverStatus', user?.email],
     queryFn: () => fetchWithCredentials<{ needsWaiverUpdate?: boolean; currentVersion?: string }>(`/api/waivers/status${waiverEmailParam}`),
-    enabled: !!user?.email,
+    enabled: !!user?.email && !isStaff,
     staleTime: 5 * 60 * 1000,
     retry: 3,
   });
@@ -235,6 +238,8 @@ const WaiverGate: React.FC = () => {
       setShowWaiverModal(false);
     }
   }, [waiverStatus]);
+
+  if (isStaff) return null;
 
   if (isPending) {
     return (
