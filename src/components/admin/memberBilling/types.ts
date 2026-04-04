@@ -23,7 +23,6 @@ export interface MemberBillingTabProps {
   guestPassInfo?: { remainingPasses: number; totalUsed: number } | null;
   guestHistory?: GuestHistoryItem[];
   guestCheckInsHistory?: GuestCheckInItem[];
-  purchases?: Array<{ id: number | string; category?: string; description?: string; amount?: number; date?: string; created_at?: string; product_name?: string; quantity?: number; status?: string }>;
 }
 
 export interface Subscription {
@@ -104,6 +103,8 @@ export interface BillingInfo {
   migrationRequestedBy?: string | null;
   migrationTierSnapshot?: string | null;
   membershipStatus?: string | null;
+  subscriptionCreatedBy?: string;
+  subscriptionCreatedAt?: string | null;
 }
 
 export interface OutstandingData {
@@ -139,24 +140,6 @@ export interface CouponOption {
   duration: string;
 }
 
-export interface PurchaseRecord {
-  id: number | string;
-  category?: string;
-  itemCategory?: string;
-  description?: string;
-  amount?: number;
-  date?: string;
-  created_at?: string;
-  product_name?: string;
-  quantity?: number;
-  status?: string;
-  saleDate?: string;
-  amountCents?: number;
-  salePriceCents?: number;
-  type?: string;
-  itemName?: string;
-}
-
 export const BILLING_PROVIDERS = [
   { value: 'stripe', label: 'Stripe' },
   { value: 'mindbody', label: 'Mindbody' },
@@ -169,9 +152,10 @@ export const formatDatePacific = (dateStr: string | null | undefined): string =>
   try {
     const normalizedDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
     const d = new Date(normalizedDate);
+    if (isNaN(d.getTime())) return '\u2014';
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
   } catch {
-    return dateStr || '';
+    return '\u2014';
   }
 };
 
@@ -183,43 +167,3 @@ export const formatTime12Hour = (timeStr: string): string => {
   return `${hour12}:${String(minutes).padStart(2, '0')} ${period}`;
 };
 
-export const CATEGORY_LABELS: Record<string, string> = {
-  sim_walk_in: 'Sim Walk-In',
-  guest_pass: 'Guest Pass',
-  membership: 'Membership',
-  cafe: 'Cafe',
-  retail: 'Retail',
-  add_funds: 'Account Top-Up',
-  subscription: 'Subscription',
-  payment: 'Payment',
-  invoice: 'Invoice',
-  other: 'Other',
-};
-
-export const CATEGORY_ICONS: Record<string, string> = {
-  sim_walk_in: 'golf_course',
-  guest_pass: 'badge',
-  membership: 'card_membership',
-  cafe: 'local_cafe',
-  retail: 'shopping_bag',
-  add_funds: 'account_balance_wallet',
-  subscription: 'autorenew',
-  payment: 'payments',
-  invoice: 'receipt_long',
-  other: 'receipt',
-};
-
-export const CATEGORY_ORDER = ['add_funds', 'subscription', 'membership', 'sim_walk_in', 'guest_pass', 'payment', 'invoice', 'cafe', 'retail', 'other'];
-
-export const getCategoryColors = (isDark: boolean): Record<string, string> => ({
-  sim_walk_in: isDark ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700',
-  guest_pass: isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700',
-  membership: isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700',
-  cafe: isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-100 text-orange-700',
-  retail: isDark ? 'bg-pink-500/20 text-pink-300' : 'bg-pink-100 text-pink-700',
-  add_funds: isDark ? 'bg-emerald-500/20 text-emerald-300' : 'bg-emerald-100 text-emerald-700',
-  subscription: isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-100 text-indigo-700',
-  payment: isDark ? 'bg-cyan-500/20 text-cyan-300' : 'bg-cyan-100 text-cyan-700',
-  invoice: isDark ? 'bg-amber-500/20 text-amber-300' : 'bg-amber-100 text-amber-700',
-  other: isDark ? 'bg-gray-500/20 text-gray-300' : 'bg-gray-100 text-gray-700',
-});

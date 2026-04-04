@@ -17,26 +17,13 @@ import Icon from './icons/Icon';
 import type { MemberHistory, GuestVisit, MemberNote, CommunicationLog, TabType, BookingHistoryItem } from './memberProfile/memberProfileTypes';
 import {
   useMemberDetails, useMemberHistory, useMemberNotes, useMemberCommunications,
-  useMemberGuests, useMemberPayments, useMemberBalance, useMemberIdImage,
+  useMemberGuests, useMemberBalance, useMemberIdImage,
   useMemberAddOptions, useAddMemberNote, useUpdateMemberNote, useDeleteMemberNote,
   useAddCommunication, useDeleteCommunication, useApplyCredit, useSaveIdImage,
   useDeleteIdImage, useRemoveLinkedEmail, useDeleteMember, useChangeMemberEmail,
   useUpdateMemberContactInfo, useAssignTier, useSendPaymentLink, useSendReactivationLink,
   useMergePreview, useExecuteMerge, memberProfileKeys,
 } from '../hooks/queries';
-
-interface PurchaseItem {
-  id: number | string;
-  description?: string;
-  amount?: number;
-  date?: string;
-  status?: string;
-  type?: string;
-  category?: string;
-  product_name?: string;
-  quantity?: number;
-  created_at?: string;
-}
 
 interface MergePreviewData {
   sourceEmail: string;
@@ -157,7 +144,6 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const notesQuery = useMemberNotes(memberEmail);
   const commsQuery = useMemberCommunications(memberEmail);
   const guestsQuery = useMemberGuests(memberEmail);
-  const paymentsQuery = useMemberPayments(memberEmail);
   const balanceQuery = useMemberBalance(memberEmail);
   const idImageQuery = useMemberIdImage(memberId ? String(memberId) : undefined, { enabled: isOpen && isAdmin });
   const addOptionsQuery = useMemberAddOptions({ enabled: isOpen && visitorMode && isAdmin });
@@ -167,8 +153,6 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const notes = (notesQuery.data as unknown as MemberNote[]) ?? [];
   const communications = (commsQuery.data as unknown as CommunicationLog[]) ?? [];
   const guestHistory = (guestsQuery.data as unknown as GuestVisit[]) ?? [];
-  const rawPurchases = paymentsQuery.data as { payments?: PurchaseItem[] } | PurchaseItem[] | undefined;
-  const purchases: PurchaseItem[] = rawPurchases ? (Array.isArray(rawPurchases) ? rawPurchases : (Array.isArray((rawPurchases as { payments?: PurchaseItem[] }).payments) ? (rawPurchases as { payments: PurchaseItem[] }).payments : [])) : [];
   const accountBalance = (balanceQuery.data as { balanceCents: number; balanceDollars: number }) ?? null;
   const idImageUrl = (idImageQuery.data as { idImageUrl: string | null })?.idImageUrl ?? null;
   const isLoadingIdImage = idImageQuery.isLoading;
@@ -558,7 +542,6 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
             guestPassInfo={history?.guestPassInfo ?? null}
             guestHistory={guestHistory}
             guestCheckInsHistory={history?.guestCheckInsHistory || []}
-            purchases={purchases}
           />
         );
 

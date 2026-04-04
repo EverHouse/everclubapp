@@ -81,6 +81,8 @@ interface StripeBillingSectionProps {
   isSendingActivation?: boolean;
   onCopyActivationLink?: () => void;
   onUpdateCardViaReader?: () => void;
+  subscriptionCreatedBy?: string;
+  subscriptionCreatedAt?: string | null;
 }
 
 function formatCurrency(cents: number): string {
@@ -144,6 +146,8 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
   isSendingActivation = false,
   onCopyActivationLink,
   onUpdateCardViaReader,
+  subscriptionCreatedBy,
+  subscriptionCreatedAt,
 }) => {
   const getStatusBadge = (status: string) => getBillingStatusBadge(status, isDark);
 
@@ -248,6 +252,15 @@ export const StripeBillingSection: React.FC<StripeBillingSectionProps> = ({
                 </div>
               )}
             </div>
+
+            {subscriptionCreatedBy && (
+              <div className={`col-span-2`}>
+                <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Created by</p>
+                <p className={isDark ? 'text-white' : 'text-primary'}>
+                  {subscriptionCreatedBy}{subscriptionCreatedAt ? ` on ${formatDate(subscriptionCreatedAt)}` : ''}
+                </p>
+              </div>
+            )}
 
             {activeSubscription.status === 'active' && (!paymentMethods || paymentMethods.length === 0) && (
               <div className={`p-2 rounded-lg flex items-center gap-2 ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>

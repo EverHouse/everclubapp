@@ -330,6 +330,24 @@ router.get('/api/member-billing/:email', isStaffOrAdmin, async (req, res) => {
       billingInfo.outstandingBalanceError = true;
     }
 
+    try {
+      const auditResult = await db.execute(sql`
+        SELECT staff_email, created_at
+        FROM admin_audit_log
+        WHERE action IN ('subscription_created', 'new_member_subscription_created')
+          AND resource_id = ${String(member.id)}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      const auditRow = auditResult.rows[0] as { staff_email?: string; created_at?: string } | undefined;
+      if (auditRow?.staff_email) {
+        billingInfo.subscriptionCreatedBy = auditRow.staff_email;
+        billingInfo.subscriptionCreatedAt = auditRow.created_at || null;
+      }
+    } catch (auditErr) {
+      logger.warn('[MemberBilling] Error fetching subscription creator from audit log', { extra: { error: getErrorMessage(auditErr) } });
+    }
+
     res.json(billingInfo);
   } catch (error: unknown) {
     logger.error('[MemberBilling] Error getting billing info', { extra: { error: getErrorMessage(error) } });

@@ -46,19 +46,6 @@ export interface GuestVisit {
   [key: string]: unknown;
 }
 
-export interface PurchaseItem {
-  id: number | string;
-  description?: string;
-  amount?: number;
-  date?: string;
-  status?: string;
-  type?: string;
-  category?: string;
-  product_name?: string;
-  quantity?: number;
-  created_at?: string;
-}
-
 export interface AccountBalance {
   balanceCents: number;
   balanceDollars: number;
@@ -127,18 +114,6 @@ export function useMemberGuests(email: string | undefined, options?: { enabled?:
   return useQuery({
     queryKey: memberProfileKeys.guests(email ?? ''),
     queryFn: () => fetchWithCredentials<GuestVisit[]>(`/api/members/${encodeURIComponent(email!)}/guests`),
-    enabled: (options?.enabled ?? true) && !!email,
-  });
-}
-
-export function useMemberPayments(email: string | undefined, options?: { enabled?: boolean }) {
-  return useQuery({
-    queryKey: memberProfileKeys.payments(email ?? ''),
-    queryFn: async () => {
-      const data = await fetchWithCredentials<{ payments?: PurchaseItem[] } | PurchaseItem[]>(`/api/stripe/payments/${encodeURIComponent(email!)}`);
-      const paymentsArray = Array.isArray(data) ? data : (data.payments || []);
-      return Array.isArray(paymentsArray) ? paymentsArray : [];
-    },
     enabled: (options?.enabled ?? true) && !!email,
   });
 }

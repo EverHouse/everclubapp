@@ -13,7 +13,6 @@ interface BillingTabProps {
   guestPassInfo: GuestPassInfo | null;
   guestHistory: GuestVisit[];
   guestCheckInsHistory: GuestCheckInItem[];
-  purchases: Array<{ id: number | string; description?: string; amount?: number; date?: string; status?: string; type?: string; product_name?: string; quantity?: number; created_at?: string }>;
 }
 
 const BillingTab: React.FC<BillingTabProps> = ({
@@ -26,7 +25,6 @@ const BillingTab: React.FC<BillingTabProps> = ({
   guestPassInfo,
   guestHistory,
   guestCheckInsHistory,
-  purchases,
 }) => {
   return (
     <div className="space-y-4">
@@ -44,7 +42,6 @@ const BillingTab: React.FC<BillingTabProps> = ({
           guestPassInfo={guestPassInfo ? { remainingPasses: guestPassInfo.remainingPasses, totalUsed: guestPassInfo.usedPasses } : undefined}
           guestHistory={guestHistory}
           guestCheckInsHistory={guestCheckInsHistory.map(c => ({ id: c.id, guestName: c.guest_name ?? null, checkInDate: c.check_in_date }))}
-          purchases={purchases}
         />
       </div>
     </div>

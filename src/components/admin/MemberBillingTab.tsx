@@ -19,7 +19,6 @@ import { MembershipLevelSection } from './memberBilling/MembershipLevelSection';
 import { OutstandingFeesSection } from './memberBilling/OutstandingFeesSection';
 import { StripeSetupSection } from './memberBilling/StripeSetupSection';
 import { GuestPassesSection } from './memberBilling/GuestPassesSection';
-import { PurchaseHistorySection } from './memberBilling/PurchaseHistorySection';
 import { postWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../icons/Icon';
 
@@ -33,7 +32,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
   guestPassInfo,
   guestHistory = [],
   guestCheckInsHistory = [],
-  purchases = []
 }) => {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
@@ -144,6 +142,8 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           isSendingActivation={billing.isSendingActivation}
           onCopyActivationLink={billing.billingInfo.activeSubscription?.status === 'incomplete' ? billing.handleCopyActivationLink : undefined}
           onUpdateCardViaReader={billing.billingInfo?.stripeCustomerId ? () => billing.setShowUpdateCardTerminal(true) : undefined}
+          subscriptionCreatedBy={billing.billingInfo?.subscriptionCreatedBy}
+          subscriptionCreatedAt={billing.billingInfo?.subscriptionCreatedAt}
         />
       )}
 
@@ -302,11 +302,6 @@ const MemberBillingTab: React.FC<MemberBillingTabProps> = ({
           </p>
         )}
       </div>
-
-      <PurchaseHistorySection
-        purchases={purchases}
-        isDark={isDark}
-      />
 
       <ApplyCreditModal
         isOpen={billing.showCreditModal}
