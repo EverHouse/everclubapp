@@ -499,7 +499,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
           className={`ptr-refresh-overlay${isDismissing ? ' ptr-refresh-overlay--dismissing' : ''}`}
         >
           {!isDismissing && (
-            <>
+            <div className="ptr-refresh-content ptr-refresh-content--animate">
               <img
                 src="/assets/logos/walking-mascot-white.gif"
                 alt=""
@@ -513,7 +513,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
               >
                 {refreshPhase === 'done' ? 'Done ✓' : refreshMessage}
               </span>
-            </>
+            </div>
           )}
         </div>,
         document.body

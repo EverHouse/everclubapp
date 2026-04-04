@@ -3281,6 +3281,17 @@ body[data-ptr-active="true"]:has(.ptr-refresh-overlay) header[role="banner"] {
   }
 }
 
+.ptr-refresh-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ptr-refresh-content--animate {
+  animation: ptrTextCrossfade 0.35s ease both;
+}
+
 .ptr-refresh-mascot {
   width: 64px;
   height: 64px;
