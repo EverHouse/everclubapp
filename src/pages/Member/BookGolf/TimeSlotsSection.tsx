@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { haptic } from '../../../utils/haptics';
 import { EmptySlots } from '../../../components/EmptyState';
@@ -40,6 +40,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
 }) => {
   const prefersReducedMotion = useReducedMotion();
   const noMotion = { duration: 0 };
+  const [scrollingElement, setScrollingElement] = useState<HTMLElement | null>(null);
   const hasLoadedOnce = useRef(false);
   if (!isLoading) hasLoadedOnce.current = true;
   const showSkeleton = isLoading && !hasLoadedOnce.current;
@@ -64,19 +65,20 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
             return (
               <div key={hourGroup.hour24} className="scroll-mt-20">
                 <button
+                  id={`hour-trigger-${hourGroup.hour24}`}
                   onClick={(e) => {
                     haptic.light();
                     const isExpanding = !isExpanded;
                     setExpandedHour(isExpanding ? hourGroup.hour24 : null);
                     if (isExpanding) {
                       const el = e.currentTarget.parentElement;
-                      if (el) {
-                        setTimeout(() => {
-                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }, 150);
-                      }
+                      if (el) setScrollingElement(el);
+                    } else {
+                      setScrollingElement(null);
                     }
                   }}
+                  aria-expanded={isExpanded}
+                  aria-controls={`hour-content-${hourGroup.hour24}`}
                   className={`w-full p-4 rounded-xl border text-left transition-transform duration-fast active:scale-[0.99] flex items-center justify-between ${
                     hasSelectedSlot
                       ? (isDark ? 'bg-white/10 border-white/30' : 'bg-primary/5 border-primary/20')
@@ -109,10 +111,19 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
+                      id={`hour-content-${hourGroup.hour24}`}
+                      role="region"
+                      aria-labelledby={`hour-trigger-${hourGroup.hour24}`}
                       initial={{ height: 0 }}
                       animate={{ height: 'auto' }}
                       exit={{ height: 0 }}
                       transition={prefersReducedMotion ? noMotion : expandSpring}
+                      onAnimationComplete={() => {
+                        if (scrollingElement) {
+                          scrollingElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          setScrollingElement(null);
+                        }
+                      }}
                       className="overflow-hidden"
                     >
                       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 mt-2 pl-6">
@@ -120,7 +131,8 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                           const isRequestedOnly = !slot.available && slot.requestedResourceDbIds.length > 0;
                           if (isRequestedOnly) {
                             return (
-                              <motion.div
+                              <motion.button
+                                disabled
                                 key={slot.id}
                                 initial={{ y: prefersReducedMotion ? 0 : 8 }}
                                 animate={{ y: 0 }}
@@ -131,7 +143,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                               >
                                 <div className={`font-bold text-sm ${isDark ? 'text-white/60' : 'text-primary/60'}`}>{slot.start}</div>
                                 <div className={`text-[10px] font-bold uppercase tracking-wide ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>Requested</div>
-                              </motion.div>
+                              </motion.button>
                             );
                           }
                           const isSelected = selectedSlot?.id === slot.id;
