@@ -63,6 +63,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   const [isSpringBack, setIsSpringBack] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTouchCapable] = useState(() => isTouchDevice());
+  const isRefreshInProgressRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef<number | null>(null);
   const isPullingRef = useRef(false);
@@ -128,7 +129,8 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   }, []);
 
   const triggerRefresh = useCallback(async () => {
-    if (isRefreshing || isFillingScreen || isDismissing) return;
+    if (isRefreshInProgressRef.current) return;
+    isRefreshInProgressRef.current = true;
     
     wheelAccumulatorRef.current = 0;
     isWheelPullingRef.current = false;
@@ -159,7 +161,8 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     setIsRefreshing(false);
     setIsDismissing(false);
     setRefreshPhase('idle');
-  }, [isRefreshing, isFillingScreen, isDismissing, onRefresh]);
+    isRefreshInProgressRef.current = false;
+  }, [onRefresh]);
 
   useEffect(() => {
     if (!isTouchCapable) return;
@@ -360,7 +363,8 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
       startYRef.current = null;
       const currentPullDistance = pullDistanceRef.current;
 
-      if (currentPullDistance >= PULL_THRESHOLD && !isRefreshingRef.current && !isFillingScreenRef.current) {
+      if (currentPullDistance >= PULL_THRESHOLD && !isRefreshInProgressRef.current) {
+        isRefreshInProgressRef.current = true;
         setIsFillingScreen(true);
         setPullDistance(0);
 
@@ -387,6 +391,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         setIsRefreshing(false);
         setIsDismissing(false);
         setRefreshPhase('idle');
+        isRefreshInProgressRef.current = false;
       } else {
         if (currentPullDistance > 5) {
           animateSpringBackRef.current(currentPullDistance);
