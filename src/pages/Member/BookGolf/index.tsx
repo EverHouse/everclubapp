@@ -119,10 +119,10 @@ const BookGolf: React.FC = () => {
                   key="player-slot-editor"
                   layout={prefersReducedMotion ? false : "position"}
                   ref={playerSlotRef}
-                  initial={{ opacity: 0, scaleY: 0 }}
-                  animate={{ opacity: 1, scaleY: 1 }}
-                  exit={{ opacity: 0, scaleY: 0 }}
-                  transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={prefersReducedMotion ? instantTransition : { duration: 0.15 }}
                   style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                 >
                   <div className="cls-safe-inner">
@@ -154,7 +154,7 @@ const BookGolf: React.FC = () => {
                   onSelectDate={(d) => { setSelectedDateObj(d); setExpandedHour(null); }}
                   isDark={isDark}
                 />
-                <motion.div layout={prefersReducedMotion ? false : "position"} className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
+                <div className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
                   <DurationSelector
                     activeTab={activeTab}
                     playerCount={playerCount}
@@ -167,7 +167,7 @@ const BookGolf: React.FC = () => {
                     overageRatePerBlockDollars={overageRatePerBlockDollars}
                     tierPermissions={tierPermissions}
                   />
-                </motion.div>
+                </div>
               </div>
             </motion.section>
 
