@@ -2079,6 +2079,9 @@ describe('Webhook Framework — event priority edge cases', () => {
 });
 
 describe('Webhook Retry Regression — out-of-order event forces retry via throw', () => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+  const envLivemode = !!isProduction;
+
   it('processStripeWebhook throws when out-of-order event is detected, forcing Stripe retry', async () => {
     const mockClient = {
       query: vi.fn(),
@@ -2112,7 +2115,7 @@ describe('Webhook Retry Regression — out-of-order event forces retry via throw
       type: 'payment_intent.created',
       created: Math.floor(Date.now() / 1000),
       data: { object: { id: 'pi_ooo_test', metadata: {} } },
-      livemode: false,
+      livemode: envLivemode,
     };
     const payload = Buffer.from(JSON.stringify(event));
 
@@ -2150,7 +2153,7 @@ describe('Webhook Retry Regression — out-of-order event forces retry via throw
       type: 'payment_intent.succeeded',
       created: Math.floor(Date.now() / 1000),
       data: { object: { id: 'pi_dup_test', metadata: {} } },
-      livemode: false,
+      livemode: envLivemode,
     };
     const payload = Buffer.from(JSON.stringify(event));
 
@@ -2167,6 +2170,9 @@ describe('Webhook Retry Regression — out-of-order event forces retry via throw
 });
 
 describe('Webhook deferred actions — execute only after COMMIT', () => {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
+  const envLivemode = !!isProduction;
+
   it('COMMIT fires before deferred actions are scheduled via setImmediate', async () => {
     const eventSequence: string[] = [];
 
@@ -2206,7 +2212,7 @@ describe('Webhook deferred actions — execute only after COMMIT', () => {
         type: 'payment_intent.succeeded',
         created: Math.floor(Date.now() / 1000),
         data: { object: { id: 'pi_deferred', metadata: {} } },
-        livemode: false,
+        livemode: envLivemode,
       };
       const payload = Buffer.from(JSON.stringify(event));
 
