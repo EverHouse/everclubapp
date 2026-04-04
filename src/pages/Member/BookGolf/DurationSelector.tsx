@@ -63,8 +63,10 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
         const isSelected = duration === mins;
 
         return (
-          <button
+          <motion.button
             key={mins}
+            layout={prefersReducedMotion ? false : true}
+            transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 35 }}
             onClick={() => { haptic.selection(); setDuration(mins); setExpandedHour(null); setHasUserSelectedDuration(true); }}
             aria-pressed={isSelected}
             className={`relative p-3 rounded-[4px] border transition-colors duration-150 active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
@@ -111,7 +113,7 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
                 </motion.div>
               )}
             </AnimatePresence>
-          </button>
+          </motion.button>
         );
       })}
     </>
