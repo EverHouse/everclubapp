@@ -336,7 +336,7 @@ const TeamTab: React.FC = () => {
   if (!isAdmin) {
     return (
       <AnimatedPage>
-        <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-white/25 text-center animate-content-enter-delay-1">
+        <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-white/25 flex flex-col items-center text-center animate-content-enter-delay-1">
           <Icon name="lock" className="text-6xl mb-4 text-gray-400 dark:text-white/40" />
           <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Admin Access Required</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">

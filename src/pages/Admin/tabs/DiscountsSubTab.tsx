@@ -182,7 +182,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
 
   if (error && coupons.length === 0) {
     return (
-      <div className="text-center py-12 px-6 rounded-xl border-2 border-dashed border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-900/10">
+      <div className="flex flex-col items-center text-center py-12 px-6 rounded-xl border-2 border-dashed border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-900/10">
         <Icon name="error" className="text-5xl mb-4 text-red-500" />
         <h3 className="text-lg font-bold mb-2 text-red-700 dark:text-red-400">Error Loading Coupons</h3>
         <p className="text-sm text-red-600 dark:text-red-300">{error}</p>

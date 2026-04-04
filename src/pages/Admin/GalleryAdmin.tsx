@@ -361,8 +361,8 @@ const GalleryAdmin: React.FC = () => {
                     <Icon name="progress_activity" className="animate-spin text-3xl text-gray-500 dark:text-gray-400" />
                 </div>
             ) : images.length === 0 ? (
-                <div className="bg-white dark:bg-surface-dark rounded-xl p-8 text-center shadow-sm border border-gray-200 dark:border-white/20">
-                    <Icon name="photo_library" className="text-5xl text-gray-500 dark:text-gray-500 mb-3 block" />
+                <div className="bg-white dark:bg-surface-dark rounded-xl p-8 flex flex-col items-center text-center shadow-sm border border-gray-200 dark:border-white/20">
+                    <Icon name="photo_library" className="text-5xl text-gray-500 dark:text-gray-500 mb-3" />
                     <h3 className="text-lg font-bold text-primary dark:text-white mb-2">No Images</h3>
                     <p className="text-gray-600 dark:text-gray-300">Add images to the gallery to get started.</p>
                 </div>

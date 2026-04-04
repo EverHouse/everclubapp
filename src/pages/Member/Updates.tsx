@@ -377,8 +377,8 @@ const MemberUpdates: React.FC = () => {
       {isLoading ? (
         <PageLoadingSpinner />
       ) : sortedAnnouncements.length === 0 ? (
-        <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <Icon name="campaign" className="text-6xl mb-4 block mx-auto opacity-30" />
+        <div className={`flex flex-col items-center text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+          <Icon name="campaign" className="text-6xl mb-4 opacity-30" />
           <p className="text-lg font-medium">No announcements right now</p>
           <p className="text-sm mt-1 opacity-70">Check back soon for the latest news.</p>
         </div>
@@ -542,8 +542,8 @@ const MemberUpdates: React.FC = () => {
       {closuresLoading ? (
         <PageLoadingSpinner />
       ) : (isStaffView ? closures.length === 0 : activeNotices.length === 0) ? (
-        <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <Icon name="event_available" className="text-6xl mb-4 block mx-auto opacity-30" />
+        <div className={`flex flex-col items-center text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+          <Icon name="event_available" className="text-6xl mb-4 opacity-30" />
           <p className="text-lg font-medium">No active notices</p>
           <p className="text-sm mt-1 opacity-70">The club is open as usual.</p>
         </div>
@@ -710,8 +710,8 @@ const MemberUpdates: React.FC = () => {
       {notificationsLoading ? (
         <PageLoadingSpinner />
       ) : notifications.length === 0 ? (
-        <div className={`text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
-          <Icon name="notifications_none" className="text-6xl mb-4 block mx-auto opacity-30" />
+        <div className={`flex flex-col items-center text-center py-16 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
+          <Icon name="notifications_none" className="text-6xl mb-4 opacity-30" />
           <p className="text-lg font-medium">No activity yet</p>
           <p className="text-sm mt-1 opacity-70">Booking updates and alerts will appear here.</p>
         </div>

@@ -249,8 +249,8 @@ const UpdatesTab: React.FC = () => {
                     </div>
                 ))
             ) : notifications.length === 0 ? (
-                <div className="text-center py-16 text-primary/70 dark:text-white/70">
-                    <Icon name="notifications_off" className="text-6xl mb-4 block mx-auto opacity-30" />
+                <div className="flex flex-col items-center text-center py-16 text-primary/70 dark:text-white/70">
+                    <Icon name="notifications_off" className="text-6xl mb-4 opacity-30" />
                     <p className="text-lg font-medium">No new alerts</p>
                     <p className="text-sm mt-1 opacity-70">New tours, booking requests, and system alerts will appear here.</p>
                 </div>
@@ -337,8 +337,8 @@ const UpdatesTab: React.FC = () => {
                         </div>
                     ))
                 ) : announcements.length === 0 ? (
-                    <div className="text-center py-16 text-primary/70 dark:text-white/70">
-                        <Icon name="campaign" className="text-6xl mb-4 block mx-auto opacity-30" />
+                    <div className="flex flex-col items-center text-center py-16 text-primary/70 dark:text-white/70">
+                        <Icon name="campaign" className="text-6xl mb-4 opacity-30" />
                         <p className="text-lg font-medium">No announcements</p>
                         <p className="text-sm mt-1 opacity-70">Published announcements will appear here.</p>
                     </div>

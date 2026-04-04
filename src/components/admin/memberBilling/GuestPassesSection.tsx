@@ -93,7 +93,7 @@ export function GuestPassesSection({
       )}
 
       {guestHistory.length === 0 && guestCheckInsHistory.length === 0 && !guestPassInfo && (
-        <div className={`text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+        <div className={`flex flex-col items-center text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           <Icon name="group_off" className="text-3xl mb-2" />
           <p className="text-sm">No guest activity recorded</p>
         </div>

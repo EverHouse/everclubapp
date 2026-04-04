@@ -96,8 +96,8 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
 
   if (error) {
     return (
-      <div className="text-center py-16 animate-content-enter">
-        <Icon name="info" className="text-5xl text-amber-500 mb-4 block" />
+      <div className="flex flex-col items-center text-center py-16 animate-content-enter">
+        <Icon name="info" className="text-5xl text-amber-500 mb-4" />
         <p className="text-amber-700 dark:text-amber-300 text-base mb-4">{error}</p>
         <a
           href="/membership"
@@ -528,8 +528,8 @@ function DayPassesSection() {
 
   if (error && !selectedProduct) {
     return (
-      <div className="text-center py-8 animate-content-enter">
-        <Icon name="info" className="text-4xl text-amber-500 mb-2 block" />
+      <div className="flex flex-col items-center text-center py-8 animate-content-enter">
+        <Icon name="info" className="text-4xl text-amber-500 mb-2" />
         <p className="text-amber-700 dark:text-amber-300 text-sm">{error}</p>
       </div>
     );
@@ -793,8 +793,8 @@ function CheckoutSuccess() {
 
   if (status === 'error') {
     return (
-      <div className="text-center py-16">
-        <Icon name="info" className="text-5xl text-amber-500 mb-4 block" />
+      <div className="flex flex-col items-center text-center py-16">
+        <Icon name="info" className="text-5xl text-amber-500 mb-4" />
         <h2 className="text-2xl font-semibold text-primary dark:text-white mb-2">Something went wrong</h2>
         <p className="text-primary/70 dark:text-white/70 mb-6">{errorDetail || 'We couldn\'t verify your payment. Please contact support.'}</p>
         <a

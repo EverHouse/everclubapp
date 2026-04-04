@@ -51,7 +51,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
 
     if (configuredClosures.length === 0) {
         return (
-            <div className="text-center py-12 text-gray-600 dark:text-white/70">
+            <div className="flex flex-col items-center text-center py-12 text-gray-600 dark:text-white/70">
                 <Icon name="event_available" className="text-4xl mb-2" />
                 <p>{closuresCount === 0 ? 'No notices' : 'No notices match filters'}</p>
             </div>

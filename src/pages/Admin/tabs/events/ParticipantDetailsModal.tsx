@@ -344,8 +344,8 @@ export const ParticipantDetailsModal: React.FC<ParticipantDetailsModalProps> = (
                         )}
 
                         {allParticipants.length === 0 ? (
-                            <div className="text-center py-12 text-gray-600 dark:text-gray-500">
-                                <Icon name={type === 'rsvp' ? 'event_busy' : 'person_off'} className="text-4xl mb-2 block" />
+                            <div className="flex flex-col items-center text-center py-12 text-gray-600 dark:text-gray-500">
+                                <Icon name={type === 'rsvp' ? 'event_busy' : 'person_off'} className="text-4xl mb-2" />
                                 <p>No {type === 'rsvp' ? 'RSVPs' : 'enrollments'} yet</p>
                             </div>
                         ) : (() => {

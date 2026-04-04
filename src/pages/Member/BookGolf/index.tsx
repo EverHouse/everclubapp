@@ -64,7 +64,7 @@ const BookGolf: React.FC = () => {
       </section>
 
       {effectiveUser?.status && !['active', 'trialing', 'past_due'].includes(effectiveUser.status.toLowerCase()) ? (
-        <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+        <section className={`rounded-xl p-6 border flex flex-col items-center text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
           <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
           <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Membership Not Active</h3>
           <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
@@ -89,7 +89,7 @@ const BookGolf: React.FC = () => {
         </section>
 
         {activeTab === 'simulator' && isTierLoaded && !canBookSimulators ? (
-          <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+          <section className={`rounded-xl p-6 border flex flex-col items-center text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
             <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
             <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade to Book Simulators</h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
@@ -100,7 +100,7 @@ const BookGolf: React.FC = () => {
             </a>
           </section>
         ) : activeTab === 'conference' && isTierLoaded && !canBookConference ? (
-          <section className={`rounded-xl p-6 border text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+          <section className={`rounded-xl p-6 border flex flex-col items-center text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
             <Icon name="lock" className="text-4xl text-accent-dark dark:text-accent mb-4" />
             <h3 className={`text-lg font-bold mb-2 ${isDark ? 'text-white' : 'text-primary'}`}>Upgrade for Conference Room Access</h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
