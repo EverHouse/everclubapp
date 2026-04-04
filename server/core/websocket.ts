@@ -16,7 +16,10 @@ interface ClientConnection {
   isStaff: boolean;
   sessionId?: string;
   tokenExp?: number;
+  hasAttemptedStaffUpgrade?: boolean;
 }
+
+const MAX_CONNECTIONS_PER_USER = 10;
 
 export interface NotificationDeliveryResult {
   success: boolean;
@@ -364,6 +367,15 @@ export async function initWebSocketServer(server: Server) {
       
       const existing = clients.get(userEmail) || [];
       const pruned = existing.filter(c => c.ws.readyState === WebSocket.OPEN || c.ws.readyState === WebSocket.CONNECTING);
+
+      if (pruned.length >= MAX_CONNECTIONS_PER_USER) {
+        logger.warn(`[WebSocket] Connection rejected: ${userEmail} exceeded max concurrent connections (${MAX_CONNECTIONS_PER_USER})`, {
+          extra: { event: 'websocket.rejected', userEmail, reason: 'max_connections', count: pruned.length }
+        });
+        ws.terminate();
+        return;
+      }
+
       if (!pruned.some(c => c.ws === ws)) {
         pruned.push(connection);
       }
@@ -460,6 +472,13 @@ export async function initWebSocketServer(server: Server) {
               
               const existing = clients.get(userEmail) || [];
               const pruned = existing.filter(c => c.ws.readyState === WebSocket.OPEN || c.ws.readyState === WebSocket.CONNECTING);
+
+              if (pruned.length >= MAX_CONNECTIONS_PER_USER) {
+                logger.warn(`[WebSocket] Auth rejected: ${userEmail} exceeded max concurrent connections (${MAX_CONNECTIONS_PER_USER})`);
+                ws.terminate();
+                return;
+              }
+
               if (!pruned.some(c => c.ws === ws)) {
                 pruned.push(connection);
               }
@@ -525,7 +544,17 @@ export async function initWebSocketServer(server: Server) {
         
         if (message.type === 'staff_register' && userEmail && isAuthenticated) {
           const connections = clients.get(userEmail) || [];
-          
+          const thisConn = connections.find(c => c.ws === ws);
+
+          if (!thisConn) {
+            return;
+          }
+
+          if (thisConn.isStaff || thisConn.hasAttemptedStaffUpgrade) {
+            return;
+          }
+          thisConn.hasAttemptedStaffUpgrade = true;
+
           let isStaffUser = false;
           const verifiedStaff = await getVerifiedUserFromRequest(req);
           if (verifiedStaff?.isStaff) {

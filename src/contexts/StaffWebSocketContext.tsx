@@ -76,16 +76,20 @@ export function useStaffWebSocketCallback(id: string, callback: EventCallback | 
   // eslint-disable-next-line react-hooks/refs
   callbackRef.current = callback;
 
+  const hasCallback = !!callback;
+
   const stableCallback = useCallback((event: BookingEvent) => {
     callbackRef.current?.(event);
   }, []);
 
   React.useEffect(() => {
-    if (callback) {
+    if (hasCallback) {
       registerCallback(id, stableCallback);
+    } else {
+      unregisterCallback(id);
     }
     return () => {
       unregisterCallback(id);
     };
-  }, [id, callback, stableCallback, registerCallback, unregisterCallback]);
+  }, [id, hasCallback, stableCallback, registerCallback, unregisterCallback]);
 }

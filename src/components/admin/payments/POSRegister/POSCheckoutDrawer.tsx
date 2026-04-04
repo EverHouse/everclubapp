@@ -99,7 +99,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
                   placeholder="customer@example.com"
                   className="w-full px-3 py-2.5 rounded-xl bg-white/80 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white placeholder:text-primary/40 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/30 text-sm mb-3"
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && guestReceiptEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestReceiptEmail.trim())) {
+                    if (e.key === 'Enter' && !attachingEmail && !receiptSending && guestReceiptEmail.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestReceiptEmail.trim())) {
                       handleGuestReceiptSubmit();
                     }
                   }}
