@@ -657,6 +657,7 @@ router.get('/api/members/frequent-partners', isAuthenticated, async (req, res) =
       tier: r.tier || undefined,
       type: 'member' as const,
       frequency: r.frequency,
+      _dedupEmail: (r.email || '').toLowerCase().trim(),
     }));
 
     const guestResults = (guestPartners.rows as GuestRow[]).map(r => {
@@ -672,10 +673,25 @@ router.get('/api/members/frequent-partners', isAuthenticated, async (req, res) =
         emailRedacted: redactEmail(r.email || ''),
         type: 'guest' as const,
         frequency: r.frequency,
+        _dedupEmail: (r.email || '').toLowerCase().trim(),
       };
     });
 
-    const combined = [...members, ...guestResults]
+    const dedupMap = new Map<string, (typeof members)[number] | (typeof guestResults)[number]>();
+    for (const entry of [...members, ...guestResults]) {
+      const key = entry._dedupEmail;
+      if (!key) {
+        dedupMap.set(`__no_email_${entry.id}`, entry);
+        continue;
+      }
+      const existing = dedupMap.get(key);
+      if (!existing || entry.frequency > existing.frequency) {
+        dedupMap.set(key, entry);
+      }
+    }
+
+    const combined = Array.from(dedupMap.values())
+      .map(({ _dedupEmail, ...rest }) => rest)
       .sort((a, b) => b.frequency - a.frequency)
       .slice(0, 10);
 

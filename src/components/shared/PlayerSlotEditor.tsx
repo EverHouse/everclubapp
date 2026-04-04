@@ -211,12 +211,22 @@ const PlayerSlotEditor: React.FC<PlayerSlotEditorProps> = ({
                       type="button"
                       onClick={() => handlePartnerSelect(partner)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-transform duration-fast active:scale-95 border ${
-                        isDark
-                          ? 'bg-white/5 border-white/15 text-white/80 hover:bg-white/10 hover:border-white/25'
-                          : 'bg-primary/5 border-primary/10 text-primary/80 hover:bg-primary/10 hover:border-primary/20'
+                        partner.type === 'member'
+                          ? isDark
+                            ? 'bg-emerald-500/10 border-emerald-400/20 text-white/80 hover:bg-emerald-500/20 hover:border-emerald-400/30'
+                            : 'bg-emerald-50 border-emerald-200 text-primary/80 hover:bg-emerald-100 hover:border-emerald-300'
+                          : isDark
+                            ? 'bg-amber-500/10 border-amber-400/20 text-white/80 hover:bg-amber-500/20 hover:border-amber-400/30'
+                            : 'bg-amber-50 border-amber-200 text-primary/80 hover:bg-amber-100 hover:border-amber-300'
                       }`}
                     >
-                      <Icon name={partner.type === 'member' ? 'person' : 'person_add'} className="text-sm" />
+                      <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold leading-none ${
+                        partner.type === 'member'
+                          ? isDark ? 'bg-emerald-400/25 text-emerald-300' : 'bg-emerald-200 text-emerald-700'
+                          : isDark ? 'bg-amber-400/25 text-amber-300' : 'bg-amber-200 text-amber-700'
+                      }`}>
+                        {partner.type === 'member' ? 'M' : 'G'}
+                      </span>
                       {partner.name}
                     </button>
                   ))}
