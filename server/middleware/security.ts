@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../core/logger';
 
@@ -53,9 +53,9 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (internalHeader) {
     const internalSecret = process.env.INTERNAL_API_SECRET;
     if (internalSecret) {
-      const headerBuf = Buffer.from(internalHeader, 'utf8');
-      const secretBuf = Buffer.from(internalSecret, 'utf8');
-      if (headerBuf.byteLength === secretBuf.byteLength && timingSafeEqual(headerBuf, secretBuf)) {
+      const headerHash = createHash('sha256').update(internalHeader).digest();
+      const secretHash = createHash('sha256').update(internalSecret).digest();
+      if (timingSafeEqual(headerHash, secretHash)) {
         return next();
       }
     }
@@ -93,9 +93,7 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
 }
 
 function injectNonceIntoHtml(html: string, nonce: string): string {
-  const placeholder = `__CSP_NONCE_${randomBytes(8).toString('hex')}__`;
-  const prepared = html.replaceAll('__CSP_NONCE__', placeholder);
-  return prepared.replaceAll(placeholder, nonce);
+  return html.replace(/(<(?:script|style)\b[^>]*?\s)nonce="__CSP_NONCE__"/gi, `$1nonce="${nonce}"`);
 }
 
 const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';

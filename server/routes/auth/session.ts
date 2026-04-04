@@ -228,18 +228,13 @@ sessionRouter.post('/api/auth/password-login', authRateLimiterByIp, async (req, 
     }
     
     if (!userRecord) {
-      const isMember = await db.select({ id: users.id }).from(users).where(sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`).limit(1);
-      if (isMember.length > 0) {
-        await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
-        return logAndRespond(req, res, 400, 'Members should log in using the email link or OTP method.');
-      }
       await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
       return logAndRespond(req, res, 401, 'Invalid email or password');
     }
     
     if (!userRecord.passwordHash) {
       await bcrypt.compare(password, DUMMY_BCRYPT_HASH);
-      return logAndRespond(req, res, 400, 'Password not set. Please use magic link or contact an admin.');
+      return logAndRespond(req, res, 401, 'Invalid email or password');
     }
     
     const isValid = await bcrypt.compare(password, userRecord.passwordHash);
@@ -401,7 +396,7 @@ sessionRouter.post('/api/auth/set-password', authRateLimiterByIp, async (req, re
 
 // DEV ROUTE - bypass login for development (blocked in production)
 sessionRouter.post('/api/auth/dev-login', async (req, res) => {
-  if (isProduction) {
+  if (process.env.NODE_ENV !== 'development' || process.env.REPLIT_DEPLOYMENT === '1') {
     return logAndRespond(req, res, 403, 'Dev login not available in production');
   }
   

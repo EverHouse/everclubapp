@@ -5,11 +5,7 @@ export function validateBody<T>(schema: ZodSchema<T>) {
   return (req: Request, res: Response, next: NextFunction) => {
     let body = req.body === undefined || req.body === null ? {} : req.body;
     if (typeof body === 'string') {
-      try {
-        body = JSON.parse(body);
-      } catch { /* intentional: malformed JSON body — return 400 */
-        return res.status(400).json({ error: 'Invalid JSON in request body' });
-      }
+      return res.status(400).json({ error: 'Request body must be parsed JSON, not a raw string' });
     }
     const result = schema.safeParse(body);
     if (!result.success) {

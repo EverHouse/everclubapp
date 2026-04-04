@@ -59,7 +59,7 @@ if (forcePoolerRedirect && poolerUrl) {
   logger.info('[Database] FORCE_POOLER_REDIRECT active — using shared Supabase database via pooler');
 }
 
-const sslConfig = { rejectUnauthorized: false };
+const sslConfig = { rejectUnauthorized: true };
 const needsSsl = !isLocalDatabase(effectiveConnectionString);
 
 function appendSearchPath(connString: string | undefined): string | undefined {
@@ -159,6 +159,10 @@ const trackedClients = new WeakMap<PoolClient, PoolClient['release']>();
 function trackCheckout(client: PoolClient): void {
   const stack = new Error().stack?.split('\n').slice(2, 6).join('\n') || 'unknown';
   activeCheckouts.set(client, { checkedOutAt: Date.now(), stack, warnedAt: 0, erroredAt: 0 });
+
+  if (trackedClients.has(client)) {
+    return;
+  }
 
   const originalRelease = client.release.bind(client);
   const wrappedRelease: PoolClient['release'] = function trackedRelease(err?: boolean | Error) {
@@ -518,11 +522,19 @@ export async function withConnection<T>(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let released = false;
 
-  const release = () => {
+  const release = (destroy?: boolean) => {
     if (!released) {
       released = true;
       if (timer) clearTimeout(timer);
-      safeRelease(client);
+      if (destroy) {
+        try {
+          client.release(new Error('Connection destroyed after timeout'));
+        } catch {
+          // Already released or pool destroyed — safe to ignore
+        }
+      } else {
+        safeRelease(client);
+      }
     }
   };
 
@@ -531,7 +543,7 @@ export async function withConnection<T>(
 
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
-        release();
+        release(true);
         reject(new Error(`[Database] withConnection timed out after ${timeoutMs}ms — connection forcibly released`));
       }, timeoutMs);
       timer.unref();

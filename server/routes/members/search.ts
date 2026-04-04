@@ -586,11 +586,13 @@ router.get('/api/members/frequent-partners', isAuthenticated, async (req, res) =
     const isStaff = sessionUser.isStaff || sessionUser.role === 'admin' || sessionUser.role === 'staff';
 
     const requestedUserId = req.query.userId as string | undefined;
+    logger.info('[FrequentPartners] Request received', { extra: { sessionUserId: sessionUser.id, requestedUserId, isStaff, queryParams: req.query } });
     if (requestedUserId && requestedUserId !== sessionUser.id && !isStaff) {
       return res.status(403).json({ error: 'Not authorized to view other members\' partners' });
     }
 
     const userId = (requestedUserId && isStaff) ? requestedUserId : sessionUser.id;
+    logger.info('[FrequentPartners] Using userId for query', { extra: { userId, isViewAs: userId !== sessionUser.id } });
 
     let userEmail: string | undefined;
     if (userId !== sessionUser.id) {
