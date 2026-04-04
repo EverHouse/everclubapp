@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { bookingsKeys, simulatorKeys, financialsKeys, cafeKeys, toursKeys, commandCenterKeys } from './queries/adminKeys';
 import { bookGolfKeys } from '../pages/Member/BookGolf/bookGolfTypes';
+import { createBatchedInvalidator } from '../lib/batchedInvalidation';
 
 const directoryKeys = {
   all: ['directory'] as const,
@@ -25,146 +26,149 @@ export function useWebSocketQuerySync() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const batcher = createBatchedInvalidator(queryClient);
+    const batchedInvalidate = batcher.invalidate;
+
     const invalidateCommandCenterBookings = () => {
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.all });
+      batchedInvalidate({ queryKey: commandCenterKeys.all });
     };
 
     const handleBookingUpdate = (event: CustomEvent) => {
       const detail = event.detail;
       if (!detail) return;
 
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
       invalidateCommandCenterBookings();
 
       if (detail.eventType === 'check_in' || detail.eventType === 'check_out' || detail.eventType === 'payment') {
-        queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+        batchedInvalidate({ queryKey: financialsKeys.all });
       }
 
       if (detail.eventType?.startsWith('rsvp_')) {
-        queryClient.invalidateQueries({ queryKey: eventKeys.all });
-        queryClient.invalidateQueries({ queryKey: eventKeys.needsReview() });
+        batchedInvalidate({ queryKey: eventKeys.all });
+        batchedInvalidate({ queryKey: eventKeys.needsReview() });
         if (detail.bookingId) {
-          queryClient.invalidateQueries({ queryKey: eventKeys.rsvps(detail.bookingId) });
+          batchedInvalidate({ queryKey: eventKeys.rsvps(detail.bookingId) });
         }
       }
 
       if (detail.eventType?.startsWith('wellness_')) {
-        queryClient.invalidateQueries({ queryKey: wellnessKeys.all });
-        queryClient.invalidateQueries({ queryKey: wellnessKeys.needsReview() });
+        batchedInvalidate({ queryKey: wellnessKeys.all });
+        batchedInvalidate({ queryKey: wellnessKeys.needsReview() });
         if (detail.bookingId) {
-          queryClient.invalidateQueries({ queryKey: wellnessKeys.enrollments(detail.bookingId) });
+          batchedInvalidate({ queryKey: wellnessKeys.enrollments(detail.bookingId) });
         }
       }
     };
 
     const handleBookingActionCompleted = () => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
       invalidateCommandCenterBookings();
     };
 
     const handleCafeMenuUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: cafeKeys.all });
+      batchedInvalidate({ queryKey: cafeKeys.all });
     };
 
     const handleTourUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: toursKeys.all });
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.scheduling() });
+      batchedInvalidate({ queryKey: toursKeys.all });
+      batchedInvalidate({ queryKey: commandCenterKeys.scheduling() });
     };
 
     const handleDirectoryUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
-      queryClient.invalidateQueries({ queryKey: directoryKeys.team() });
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.hubspotContacts() });
+      batchedInvalidate({ queryKey: directoryKeys.all });
+      batchedInvalidate({ queryKey: directoryKeys.team() });
+      batchedInvalidate({ queryKey: commandCenterKeys.hubspotContacts() });
     };
 
     const handleBillingUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
-      queryClient.invalidateQueries({ queryKey: ['member'] });
-      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.facility() });
+      batchedInvalidate({ queryKey: financialsKeys.all });
+      batchedInvalidate({ queryKey: ['member'] });
+      batchedInvalidate({ queryKey: directoryKeys.all });
+      batchedInvalidate({ queryKey: commandCenterKeys.facility() });
     };
 
     const handleTierUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['member'] });
-      queryClient.invalidateQueries({ queryKey: ['membership-tiers'] });
-      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
+      batchedInvalidate({ queryKey: ['members'] });
+      batchedInvalidate({ queryKey: ['member'] });
+      batchedInvalidate({ queryKey: ['membership-tiers'] });
+      batchedInvalidate({ queryKey: directoryKeys.all });
     };
 
     const handleMemberStatsUpdated = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['member'] });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
+      batchedInvalidate({ queryKey: ['member'] });
+      batchedInvalidate({ queryKey: ['members'] });
+      batchedInvalidate({ queryKey: bookGolfKeys.all });
     };
 
     const handleMemberDataUpdated = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['member'] });
-      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
+      batchedInvalidate({ queryKey: ['members'] });
+      batchedInvalidate({ queryKey: ['member'] });
+      batchedInvalidate({ queryKey: directoryKeys.all });
     };
 
     const handleDataIntegrityUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
+      batchedInvalidate({ queryKey: ['data-integrity'] });
     };
 
     const handleDayPassUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-      queryClient.invalidateQueries({ queryKey: directoryKeys.all });
+      batchedInvalidate({ queryKey: bookGolfKeys.all });
+      batchedInvalidate({ queryKey: directoryKeys.all });
     };
 
     const handleClosureUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['closures'] });
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.facility() });
+      batchedInvalidate({ queryKey: ['closures'] });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: bookGolfKeys.all });
+      batchedInvalidate({ queryKey: commandCenterKeys.facility() });
     };
 
     const handleBookingRosterUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
-      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
-      queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: financialsKeys.all });
+      batchedInvalidate({ queryKey: bookGolfKeys.all });
       invalidateCommandCenterBookings();
     };
 
     const handleBookingInvoiceUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: ['member'] });
+      batchedInvalidate({ queryKey: financialsKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: ['member'] });
     };
 
     const handleWaitlistUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
-      queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-      queryClient.invalidateQueries({ queryKey: wellnessKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: bookGolfKeys.all });
+      batchedInvalidate({ queryKey: wellnessKeys.all });
     };
 
     const handleTrackmanUnmatchedUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['trackman', 'unmatched'] });
-      queryClient.invalidateQueries({ queryKey: ['trackman', 'needs-players'] });
-      queryClient.invalidateQueries({ queryKey: ['data-integrity'] });
+      batchedInvalidate({ queryKey: ['trackman', 'unmatched'] });
+      batchedInvalidate({ queryKey: ['trackman', 'needs-players'] });
+      batchedInvalidate({ queryKey: ['data-integrity'] });
     };
 
     const handleBookingAutoConfirmed = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
       invalidateCommandCenterBookings();
     };
 
     const handleBookingConfirmed = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
       invalidateCommandCenterBookings();
     };
 
     const handleAvailabilityUpdate = (_event: CustomEvent) => {
-      queryClient.invalidateQueries({ queryKey: bookingsKeys.all });
-      queryClient.invalidateQueries({ queryKey: simulatorKeys.all });
-      queryClient.invalidateQueries({ queryKey: bookGolfKeys.all });
-      queryClient.invalidateQueries({ queryKey: commandCenterKeys.facility() });
+      batchedInvalidate({ queryKey: bookingsKeys.all });
+      batchedInvalidate({ queryKey: simulatorKeys.all });
+      batchedInvalidate({ queryKey: bookGolfKeys.all });
+      batchedInvalidate({ queryKey: commandCenterKeys.facility() });
     };
 
     window.addEventListener('booking-update', handleBookingUpdate as EventListener);
@@ -188,6 +192,7 @@ export function useWebSocketQuerySync() {
     window.addEventListener('waitlist-update', handleWaitlistUpdate as EventListener);
 
     return () => {
+      batcher.cancel();
       window.removeEventListener('booking-update', handleBookingUpdate as EventListener);
       window.removeEventListener('booking-action-completed', handleBookingActionCompleted as EventListener);
       window.removeEventListener('cafe-menu-update', handleCafeMenuUpdate as EventListener);
