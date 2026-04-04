@@ -8,6 +8,41 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.33",
+    date: "2026-04-04",
+    title: "Approved Bookings Speed Boost",
+    changes: [
+      "Fixed: The staff calendar now loads bookings much faster — reduced from over 1 second to under 200ms on repeat views.",
+      "Fixed: Today's bookings list no longer makes a duplicate request, improving command center load time.",
+    ]
+  },
+  {
+    version: "8.98.32",
+    date: "2026-04-04",
+    title: "Database Connection Stability",
+    changes: [
+      "Fixed: Database connections are now better managed during busy periods — increased connection capacity and added monitoring to prevent slowdowns when multiple staff are using the app simultaneously.",
+    ]
+  },
+  {
+    version: "8.98.31",
+    date: "2026-04-04",
+    title: "Faster Server Startup",
+    changes: [
+      "Fixed: Server startup database checks are now significantly faster — a table existence check that took ~7 seconds now completes near-instantly.",
+      "Fixed: Orphan cleanup and status repair tasks now run in efficient batches instead of scanning the entire database each time.",
+    ]
+  },
+  {
+    version: "8.98.30",
+    date: "2026-04-04",
+    title: "Guest Pass Booking Fix",
+    changes: [
+      "Fixed: Adding a guest via guest pass no longer fails when that guest happens to also be a member — previously the system would incorrectly enforce the guest-member's own booking limits.",
+      "Fixed: Daily booking limit error messages now show the actual reason for the limit instead of a generic message.",
+    ]
+  },
+  {
     version: "8.98.29",
     date: "2026-04-03",
     title: "Fee Waive/Void Fix",

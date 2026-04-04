@@ -2,6 +2,46 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.33] - 2026-04-04
+
+### Approved Bookings API Performance (Task #408)
+- **Fix: Removed expensive `LOWER()` email LEFT JOIN from main approved-bookings query.** Main booking query no longer joins with users table for name resolution. User names are now resolved via a separate batch lookup using `ANY(text[])`, allowing the main query to use standard indexes without the `LOWER()` join penalty.
+- **Fix: Combined 3 parallel sub-queries into 1 unified query.** Payment status, fee snapshots, and filled slots are now fetched in a single SQL statement, reducing database round trips and connection pool pressure. Removed redundant identical CASE branches in `filled_count`.
+- **Fix: Calendar fetch now starts before main DB query.** The Google Calendar promise begins before the main query executes, running in parallel to reduce total wall time.
+- **Fix: Eliminated duplicate frontend API call for today's bookings.** `todaysBookings` is now derived from `upcomingBookings` (which is a superset), removing a redundant network request from the staff command center.
+- **Observability: Approved-bookings responses now tracked by global slow-query telemetry.** The existing request logger warns when any API response exceeds 500ms, providing visibility into approved-bookings performance regressions.
+
+Files changed: `server/routes/bays/calendar.ts`, `src/components/staff-command-center/hooks/useCommandCenterData.ts`
+
+## [8.98.32] - 2026-04-04
+
+### Database Pool Exhaustion Fix (Task #407)
+- **Fix: Increased dev pool max from 10 → 15 connections.** Accommodates legitimate concurrent demand from staff command center (6+ parallel queries) and other simultaneous API calls.
+- **Fix: Reduced statement_timeout from 60s → 30s.** Configurable via `DB_STATEMENT_TIMEOUT_MS` env var. 60s was excessive and allowed slow queries to hold connections too long.
+- **Fix: Aligned dev connection/idle timeouts with production values.** Connection timeout 30s→10s, idle timeout 30s→20s. Long dev timeouts were masking pool pressure.
+- **New: Connection hold-time watchdog.** Tracks all `pool.connect()` checkouts via WeakSet-guarded release wrappers. Warns at 10s, errors at 25s with backoff (warn once, error every 30s).
+- **New: `withConnection<T>()` utility.** Safe connection wrapper enforcing 15s hold timeout with guaranteed release.
+- **New: Enhanced pool monitoring.** Frequency increased from 300s→60s in dev. Pressure warnings fire at 70% utilization with escalation to error at full exhaustion. `getPoolStatus()` now includes `checkedOut` count and utilization percentage.
+
+Files changed: `server/core/db.ts`
+
+## [8.98.31] - 2026-04-04
+
+### Slow Startup Queries Fix (Task #406)
+- **Fix: `pgRateLimitStore.ts` table existence check.** Replaced `pg_catalog.pg_tables` scan with `SELECT to_regclass('public.rate_limit_hits')` — a single catalog lookup vs full table scan, reducing from ~7s to near-instant.
+- **Fix: Orphan `booking_participants` cleanup.** Replaced unbounded `NOT EXISTS` subquery with batched `LEFT JOIN + LIMIT 1000` loop. Each batch deletes up to 1000 rows, looping until all orphans are cleaned (up to 100 iterations = 100k max).
+- **Fix: Status date spike repair.** Added fast `EXISTS` pre-check (`SELECT 1 ... LIMIT 1`) before the expensive `GROUP BY/HAVING` query. When no matching users exist (common case after initial repair), skips the entire spike repair block. Added upper date bounds to audit_log scans to prevent unbounded queries.
+
+Files changed: `server/middleware/pgRateLimitStore.ts`, `server/db-init.ts`
+
+## [8.98.30] - 2026-04-04
+
+### Guest Participant Daily Limit Fix (Task #409)
+- **Fix: Guest pass participants skip daily limit checks.** When a member adds a guest via guest pass and that guest's email matches an existing member account, `sanitizeAndResolveParticipants` reclassifies the participant from `'guest'` to `'member'`. Previously, `checkParticipantDailyLimits` then enforced the guest-member's own daily booking limits, which could fail if they had a restricted tier or exceeded their limit. Added `isGuestPassParticipant` boolean flag to `SanitizedParticipant` interface to track participants originally submitted as guests, and filter them out from daily limit checks.
+- **Fix: Error messages now show actual limit reason.** Updated the error to use the actual `reason` from `checkDailyBookingLimit` instead of a hardcoded message, with fallback to the original message.
+
+Files changed: `server/core/bookingService/createBooking.ts`, `server/core/bookingService/bookingTypes.ts`, `tests/participantDailyLimits.test.ts`
+
 ## [8.98.29] - 2026-04-03
 
 ### Fee Waive/Void Fix — Waived Fees No Longer Overwritten by Recalculation
