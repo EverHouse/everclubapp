@@ -16,6 +16,7 @@ import { isAuthenticated } from '../../core/middleware';
 import { syncBookingInvoice, finalizeAndPayInvoice, getBookingInvoiceId } from '../../core/billing/bookingInvoiceService';
 import { createGuestPassHold } from '../../core/billing/guestPassHoldService';
 import { ensureSessionForBooking, createSessionWithUsageTracking, createTxQueryClient } from '../../core/bookingService/sessionManager';
+import { tryConferenceAutoConfirm } from '../../core/bookingService/conferenceAutoConfirm';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { ensureTimeString } from '../../utils/dateTimeUtils';
 import { resolveUserByEmail } from '../../core/stripe/customers';
@@ -243,50 +244,21 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           const [endH, endM] = confEndTime.split(':').map(Number);
           const confDurationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
 
-          const confParticipants = [{
-            participantType: 'owner' as const,
+          const confirmResult = await tryConferenceAutoConfirm({
+            bookingId: dbRow.id as number,
+            resourceId: dbRow.resource_id as number,
+            sessionDate: request_date,
+            startTime: start_time,
+            endTime: confEndTime,
+            ownerEmail: requestEmail,
+            durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
             displayName: resolvedUserName || requestEmail,
             userId: resolvedUserId || sessionUser?.id || undefined,
-            guestId: undefined
-          }];
+          }, tx);
 
-          try {
-            const sessionResult = await createSessionWithUsageTracking({
-              bookingId: dbRow.id as number,
-              resourceId: dbRow.resource_id as number,
-              sessionDate: request_date,
-              startTime: start_time,
-              endTime: confEndTime,
-              ownerEmail: requestEmail,
-              durationMinutes: confDurationMinutes > 0 ? confDurationMinutes : duration_minutes,
-              declaredPlayerCount: 1,
-              participants: confParticipants
-            }, 'member_request', tx as unknown as Parameters<typeof createSessionWithUsageTracking>[2]);
-
-            if (!sessionResult.success) {
-              logger.error('[ConferenceRoom] Usage tracking failed, leaving as pending for staff review', {
-                extra: { bookingId: dbRow.id, error: sessionResult.error }
-              });
-              await tx.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: usage tracking error. Please review and approve manually.', updated_at = NOW() WHERE id = ${dbRow.id}`);
-            } else {
-              const sessionCheck = await tx.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${dbRow.id} LIMIT 1`);
-              confSessionId = sessionCheck.rows[0]?.session_id as number | null;
-
-              if (!confSessionId) {
-                logger.error('[ConferenceRoom] Session creation failed — no session_id after successful tracking, leaving as pending', {
-                  extra: { bookingId: dbRow.id }
-                });
-                await tx.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${dbRow.id}`);
-              } else {
-                await tx.execute(sql`UPDATE booking_requests SET status = 'confirmed', updated_at = NOW() WHERE id = ${dbRow.id} AND status = 'pending'`);
-                finalStatus = 'confirmed';
-              }
-            }
-          } catch (confError) {
-            logger.error('[ConferenceRoom] Conference room auto-confirm failed inside transaction, leaving as pending', {
-              extra: { error: getErrorMessage(confError), bookingId: dbRow.id }
-            });
-            await tx.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: ' || ${getErrorMessage(confError)} || '. Please review and approve manually.', updated_at = NOW() WHERE id = ${dbRow.id}`);
+          if (confirmResult.confirmed) {
+            confSessionId = confirmResult.sessionId;
+            finalStatus = 'confirmed';
           }
         }
 

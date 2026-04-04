@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../server/core/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -16,11 +16,12 @@ vi.mock('drizzle-orm', () => ({
   or: vi.fn(),
 }));
 
+const mockParseAffectedAreasBatch = vi.fn();
 vi.mock('../server/core/affectedAreas', () => ({
-  parseAffectedAreasBatch: vi.fn(),
+  parseAffectedAreasBatch: (...args: unknown[]) => mockParseAffectedAreasBatch(...args),
 }));
 
-import { parseTimeToMinutes, hasTimeOverlap } from '../server/core/bookingValidation';
+import { parseTimeToMinutes, hasTimeOverlap, checkClosureConflict } from '../server/core/bookingValidation';
 
 describe('parseTimeToMinutes', () => {
   it('returns 0 for null', () => {
@@ -114,5 +115,120 @@ describe('hasTimeOverlap', () => {
 
   it('handles zero-length ranges', () => {
     expect(hasTimeOverlap(60, 60, 60, 120)).toBe(false);
+  });
+});
+
+describe('checkClosureConflict — null resource regression', () => {
+  const mockDbSelect = vi.fn();
+  const mockDbFrom = vi.fn();
+  const mockDbWhere = vi.fn();
+
+  function makeTxClient() {
+    return {
+      select: mockDbSelect as any,
+      execute: vi.fn() as any,
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDbWhere.mockResolvedValue([]);
+    mockDbFrom.mockReturnValue({ where: mockDbWhere });
+    mockDbSelect.mockReturnValue({ from: mockDbFrom });
+  });
+
+  it('blocks booking when resourceId is null and closure has affected areas', async () => {
+    const closure = {
+      id: 1,
+      title: 'Full Facility Maintenance',
+      startDate: '2025-06-15',
+      endDate: '2025-06-15',
+      startTime: null,
+      endTime: null,
+      isActive: true,
+      affectedAreas: '[1,2,3]',
+    };
+
+    const txClient = makeTxClient();
+    mockDbWhere.mockResolvedValue([closure]);
+    mockParseAffectedAreasBatch.mockResolvedValue([[1, 2, 3]]);
+
+    const result = await checkClosureConflict(null, '2025-06-15', '10:00', '11:00', txClient as any);
+
+    expect(result.hasConflict).toBe(true);
+    expect(result.closureTitle).toBe('Full Facility Maintenance');
+  });
+
+  it('passes when resourceId is null and closure has no affected areas (empty list)', async () => {
+    const closure = {
+      id: 2,
+      title: 'Specific Bay Closure',
+      startDate: '2025-06-15',
+      endDate: '2025-06-15',
+      startTime: null,
+      endTime: null,
+      isActive: true,
+      affectedAreas: null,
+    };
+
+    const txClient = makeTxClient();
+    mockDbWhere.mockResolvedValue([closure]);
+    mockParseAffectedAreasBatch.mockResolvedValue([[]]);
+
+    const result = await checkClosureConflict(null, '2025-06-15', '10:00', '11:00', txClient as any);
+
+    expect(result.hasConflict).toBe(false);
+  });
+
+  it('passes when no closures exist for the date', async () => {
+    const txClient = makeTxClient();
+    mockDbWhere.mockResolvedValue([]);
+    mockParseAffectedAreasBatch.mockResolvedValue([]);
+
+    const result = await checkClosureConflict(null, '2025-06-15', '10:00', '11:00', txClient as any);
+
+    expect(result.hasConflict).toBe(false);
+  });
+
+  it('blocks booking when resourceId is null and closure has partial-day time overlap', async () => {
+    const closure = {
+      id: 3,
+      title: 'Morning Maintenance',
+      startDate: '2025-06-15',
+      endDate: '2025-06-15',
+      startTime: '08:00',
+      endTime: '12:00',
+      isActive: true,
+      affectedAreas: '[1,2]',
+    };
+
+    const txClient = makeTxClient();
+    mockDbWhere.mockResolvedValue([closure]);
+    mockParseAffectedAreasBatch.mockResolvedValue([[1, 2]]);
+
+    const result = await checkClosureConflict(null, '2025-06-15', '10:00', '11:00', txClient as any);
+
+    expect(result.hasConflict).toBe(true);
+  });
+
+  it('passes when resourceId is null but booking time does not overlap closure time', async () => {
+    const closure = {
+      id: 4,
+      title: 'Morning Maintenance',
+      startDate: '2025-06-15',
+      endDate: '2025-06-15',
+      startTime: '08:00',
+      endTime: '10:00',
+      isActive: true,
+      affectedAreas: '[1,2]',
+    };
+
+    const txClient = makeTxClient();
+    mockDbWhere.mockResolvedValue([closure]);
+    mockParseAffectedAreasBatch.mockResolvedValue([[1, 2]]);
+
+    const result = await checkClosureConflict(null, '2025-06-15', '14:00', '15:00', txClient as any);
+
+    expect(result.hasConflict).toBe(false);
   });
 });

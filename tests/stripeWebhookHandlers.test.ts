@@ -2077,3 +2077,148 @@ describe('Webhook Framework — event priority edge cases', () => {
     expect(result).toBe(true);
   });
 });
+
+describe('Webhook Retry Regression — out-of-order event forces retry via throw', () => {
+  it('processStripeWebhook throws when out-of-order event is detected, forcing Stripe retry', async () => {
+    const mockClient = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+
+    let queryCallCount = 0;
+    mockClient.query.mockImplementation(async (text: string, values?: unknown[]) => {
+      queryCallCount++;
+      if (text === 'BEGIN') return { rows: [], rowCount: 0 };
+      if (text.includes('pg_advisory_xact_lock')) return { rows: [], rowCount: 0 };
+      if (text.includes('INSERT INTO webhook_processed_events')) {
+        return { rows: [{ event_id: 'evt_ooo_retry' }], rowCount: 1 };
+      }
+      if (text.includes('SELECT event_type')) {
+        return { rows: [{ event_type: 'payment_intent.succeeded', processed_at: new Date() }], rowCount: 1 };
+      }
+      if (text.includes('webhook_dead_letter_queue')) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    mockPoolConnect.mockResolvedValueOnce(mockClient);
+    const dlqClient = { query: vi.fn().mockResolvedValue({ rows: [] }), release: vi.fn() };
+    mockPoolConnect.mockResolvedValueOnce(dlqClient);
+
+    const event = {
+      id: 'evt_ooo_retry',
+      type: 'payment_intent.created',
+      created: Math.floor(Date.now() / 1000),
+      data: { object: { id: 'pi_ooo_test', metadata: {} } },
+      livemode: false,
+    };
+    const payload = Buffer.from(JSON.stringify(event));
+
+    const mockStripe = await mockGetStripeClient();
+    mockStripe.events.retrieve.mockResolvedValueOnce(event);
+
+    await expect(processStripeWebhook(payload, 'sig_test')).rejects.toThrow('Event out of order');
+
+    const rollbackCalls = mockClient.query.mock.calls.filter(
+      (c: unknown[]) => c[0] === 'ROLLBACK'
+    );
+    expect(rollbackCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('processStripeWebhook returns 200 (does not throw) for duplicate events', async () => {
+    const mockClient = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+
+    mockClient.query.mockImplementation(async (text: string) => {
+      if (text === 'BEGIN') return { rows: [], rowCount: 0 };
+      if (text.includes('pg_advisory_xact_lock')) return { rows: [], rowCount: 0 };
+      if (text.includes('INSERT INTO webhook_processed_events')) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    mockPoolConnect.mockResolvedValueOnce(mockClient);
+
+    const event = {
+      id: 'evt_dup_test',
+      type: 'payment_intent.succeeded',
+      created: Math.floor(Date.now() / 1000),
+      data: { object: { id: 'pi_dup_test', metadata: {} } },
+      livemode: false,
+    };
+    const payload = Buffer.from(JSON.stringify(event));
+
+    const mockStripe = await mockGetStripeClient();
+    mockStripe.events.retrieve.mockResolvedValueOnce(event);
+
+    await expect(processStripeWebhook(payload, 'sig_test')).resolves.toBeUndefined();
+
+    const commitCalls = mockClient.query.mock.calls.filter(
+      (c: unknown[]) => c[0] === 'COMMIT'
+    );
+    expect(commitCalls.length).toBe(0);
+  });
+});
+
+describe('Webhook deferred actions — execute only after COMMIT', () => {
+  it('COMMIT fires before deferred actions are scheduled via setImmediate', async () => {
+    const eventSequence: string[] = [];
+
+    const mockClient = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+
+    mockClient.query.mockImplementation(async (text: string, values?: unknown[]) => {
+      if (text === 'BEGIN') return { rows: [], rowCount: 0 };
+      if (text.includes('pg_advisory_xact_lock')) return { rows: [], rowCount: 0 };
+      if (text.includes('INSERT INTO webhook_processed_events')) {
+        return { rows: [{ event_id: 'evt_deferred_test' }], rowCount: 1 };
+      }
+      if (text.includes('SELECT event_type')) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text === 'COMMIT') {
+        eventSequence.push('COMMIT');
+        return { rows: [], rowCount: 0 };
+      }
+      if (text === 'ROLLBACK') return { rows: [], rowCount: 0 };
+      return { rows: [], rowCount: 0 };
+    });
+
+    mockPoolConnect.mockResolvedValueOnce(mockClient);
+
+    const origSetImmediate = globalThis.setImmediate;
+    globalThis.setImmediate = ((fn: (...args: unknown[]) => void, ...args: unknown[]) => {
+      eventSequence.push('DEFERRED_SCHEDULED');
+      return origSetImmediate(fn, ...args);
+    }) as unknown as typeof setImmediate;
+
+    try {
+      const event = {
+        id: 'evt_deferred_test',
+        type: 'payment_intent.succeeded',
+        created: Math.floor(Date.now() / 1000),
+        data: { object: { id: 'pi_deferred', metadata: {} } },
+        livemode: false,
+      };
+      const payload = Buffer.from(JSON.stringify(event));
+
+      const mockStripe = await mockGetStripeClient();
+      mockStripe.events.retrieve.mockResolvedValueOnce(event);
+
+      await processStripeWebhook(payload, 'sig_test');
+
+      expect(eventSequence.indexOf('COMMIT')).toBeLessThan(eventSequence.indexOf('DEFERRED_SCHEDULED'));
+      expect(eventSequence[0]).toBe('COMMIT');
+    } finally {
+      globalThis.setImmediate = origSetImmediate;
+    }
+  });
+});
