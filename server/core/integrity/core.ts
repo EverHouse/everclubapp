@@ -915,7 +915,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
   const { checkUnmatchedTrackmanBookings, checkStalePastTours, checkBookingsWithoutSessions, checkSessionsWithoutParticipants, checkGuestPassAccountingDrift, checkStaleExpiredGuestPassHolds, checkStalePendingBookings, checkStaleCheckedInBookings, checkStuckUnpaidBookings, checkApprovedBookingsForInactiveMembers, checkUsageLedgerGaps, checkSessionsExceedingResourceCapacity, checkWalletPassBookingSync, checkWellnessBlockGaps } = await import('./bookingChecks');
   const { checkHubSpotSyncMismatch, checkHubSpotIdDuplicates } = await import('./hubspotChecks');
   const { checkCrossSystemDrift, checkEmailDeliveryHealth, checkUnreportedWellhubEvents, checkStuckPushNotifications, checkStalePushSubscriptions } = await import('./externalSystemChecks');
-  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync, checkFeeSnapshotStripeDrift } = await import('./stripeChecks');
+  const { checkStripeSubscriptionSync, checkDuplicateStripeCustomers, checkOrphanedPaymentIntents, checkBillingProviderHybridState, checkInvoiceBookingReconciliation, checkLateCancelPreservedPaymentIntents, checkBillingOrphans, checkOrphanedStripeSubscriptions, checkOrphanedBookingInvoices, checkUnresolvedFailedSideEffects, checkNegativeMerchStock, checkMerchStripeProductSync, checkFeeSnapshotStripeDrift, checkDeferredActionHealth } = await import('./stripeChecks');
   const { checkStuckTransitionalMembers, checkTierReconciliation, checkMindBodyStaleSyncMembers, checkMindBodyStatusMismatch, checkArchivedMemberLingeringData, checkActiveMembersWithoutWaivers, checkAuthLinkingDataIntegrity, checkStaleStripeSubscriptionIds } = await import('./memberChecks');
 
   const includeLegacy = options?.includeLegacy ?? (triggeredBy === 'manual');
@@ -944,6 +944,7 @@ export async function runAllIntegrityChecks(triggeredBy: 'manual' | 'scheduled' 
     () => safeCheck(() => checkStuckPushNotifications({ autoFix }), 'Stuck Push Notifications'),
     () => safeCheck(() => checkWalletPassBookingSync({ autoFix }), 'Wallet Pass Booking Sync'),
     () => safeCheck(checkFeeSnapshotStripeDrift, 'Fee Snapshot Stripe Drift'),
+    () => safeCheck(checkDeferredActionHealth, 'Deferred Action Health'),
     () => safeCheck(() => checkBookingsWithoutSessions({ autoFix }), 'Active Bookings Without Sessions'),
     () => safeCheck(() => checkOrphanedPaymentIntents({ autoFix }), 'Orphaned Payment Intents'),
     () => safeCheck(() => checkBillingProviderHybridState({ autoFix }), 'Billing Provider Hybrid State'),

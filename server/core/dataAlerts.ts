@@ -383,6 +383,77 @@ export async function alertOnTrackmanImportIssues(result: TrackmanImportResult):
   }
 }
 
+const deferredActionMetrics: Map<string, { successes: number; failures: number; lastUpdated: number }> = new Map();
+
+export function recordDeferredActionOutcome(source: string, successes: number, failures: number): void {
+  const existing = deferredActionMetrics.get(source) || { successes: 0, failures: 0, lastUpdated: 0 };
+  existing.successes += successes;
+  existing.failures += failures;
+  existing.lastUpdated = Date.now();
+  deferredActionMetrics.set(source, existing);
+}
+
+export function getDeferredActionMetrics(): Record<string, { successes: number; failures: number; lastUpdated: number }> {
+  const result: Record<string, { successes: number; failures: number; lastUpdated: number }> = {};
+  for (const [source, metrics] of deferredActionMetrics) {
+    result[source] = { ...metrics };
+  }
+  return result;
+}
+
+export async function alertOnDeferredActionFailure(
+  source: 'stripe_webhook' | 'conference_room_billing',
+  originId: string,
+  actionDescription: string,
+  error: Error | string,
+  isCriticalPath: boolean = false,
+  eventType?: string
+): Promise<void> {
+  const alertKey = `deferred_action:${source}:${originId}`;
+
+  if (!canSendAlert(alertKey)) {
+    return;
+  }
+
+  const errorMessage = getErrorMessage(error);
+  const sourceName = source === 'stripe_webhook' ? 'Stripe Webhook' : 'Conference Room Billing';
+
+  logger.error(`[DeferredAction] ${sourceName} deferred action failed: ${actionDescription} (origin: ${originId})`, {
+    extra: { source, originId, actionDescription, error: errorMessage, isCriticalPath, eventType }
+  });
+
+  try {
+    const { db } = await import('../db');
+    const { sql } = await import('drizzle-orm');
+    await db.execute(sql`
+      INSERT INTO system_alerts (severity, category, message, details, created_at)
+      VALUES (
+        ${isCriticalPath ? 'critical' : 'warning'},
+        'deferred_action_failure',
+        ${`[${sourceName}] ${actionDescription} for ${originId}. Error: ${errorMessage}`},
+        ${JSON.stringify({ source, originId, actionDescription, error: errorMessage, isCriticalPath, eventType: eventType || undefined })}::text,
+        NOW()
+      )
+      ON CONFLICT DO NOTHING
+    `);
+  } catch (dbErr: unknown) {
+    logger.error('[DeferredAction] Failed to persist deferred action failure to system_alerts:', { extra: { error: getErrorMessage(dbErr) } });
+  }
+
+  if (isCriticalPath) {
+    const title = `Deferred Action Failed: ${sourceName}`;
+    const message = `A post-commit ${sourceName.toLowerCase()} action failed for ${originId}: ${actionDescription}. Error: ${errorMessage}. ` +
+      `Side-effects (emails, billing sync, notifications) may not have executed.`;
+
+    await notifyAllStaff(title, message, 'system', {
+      url: '/admin/data-integrity',
+      sendPush: true
+    });
+  }
+
+  recordAlertSent(alertKey);
+}
+
 function getTodayKey(): string {
   return getTodayPacific();
 }

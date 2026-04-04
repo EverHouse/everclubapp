@@ -1698,3 +1698,116 @@ export async function checkFeeSnapshotStripeDrift(): Promise<IntegrityCheckResul
     lastRun: new Date()
   };
 }
+
+export async function checkDeferredActionHealth(): Promise<IntegrityCheckResult> {
+  const issues: IntegrityIssue[] = [];
+
+  try {
+    const { getDeferredActionMetrics } = await import('../dataAlerts');
+    const metrics = getDeferredActionMetrics();
+
+    const recentFailures = await db.execute(sql`
+      SELECT id, severity, category, message, details, created_at
+      FROM system_alerts
+      WHERE category = 'deferred_action_failure'
+        AND created_at > NOW() - INTERVAL '7 days'
+      ORDER BY created_at DESC
+      LIMIT 50
+    `);
+
+    interface DeferredAlertRow {
+      id: number;
+      severity: string;
+      category: string;
+      message: string;
+      details: string | null;
+      created_at: string;
+    }
+
+    const rows = recentFailures.rows as unknown as DeferredAlertRow[];
+
+    const last24h = rows.filter(r => {
+      const created = new Date(r.created_at);
+      return created > new Date(Date.now() - 24 * 60 * 60 * 1000);
+    });
+
+    const last7d = rows;
+
+    for (const row of last24h.slice(0, 20)) {
+      let parsedDetails: Record<string, unknown> = {};
+      try {
+        parsedDetails = JSON.parse(row.details || '{}');
+      } catch {}
+
+      issues.push({
+        category: 'billing_issue',
+        severity: row.severity === 'critical' ? 'error' : 'warning',
+        table: 'system_alerts',
+        recordId: row.id,
+        description: row.message.substring(0, 200),
+        suggestion: 'Check if side-effects (emails, HubSpot sync, billing) completed successfully. Review the webhook dead letter queue.',
+        context: {
+          issueType: `deferred_action_failure:${(parsedDetails.eventType as string) || 'unknown'}`,
+          source: (parsedDetails.source as string) || undefined,
+          createdAt: row.created_at,
+        }
+      });
+    }
+
+    const dlqCount = await db.execute(sql`
+      SELECT COUNT(*) as count
+      FROM webhook_dead_letter_queue
+      WHERE reason LIKE '%deferred_action_failure%'
+        AND created_at > NOW() - INTERVAL '7 days'
+    `);
+    const dlqFailures = Number((dlqCount.rows[0] as { count: string })?.count || 0);
+
+    if (dlqFailures > 0) {
+      issues.push({
+        category: 'billing_issue',
+        severity: 'warning',
+        table: 'webhook_dead_letter_queue',
+        recordId: 0,
+        description: `${dlqFailures} deferred action failure(s) in the dead letter queue from the last 7 days`,
+        suggestion: 'Review and replay failed webhook events from the dead letter queue.',
+      });
+    }
+
+    const metricsSummary = Object.entries(metrics).map(([source, m]) =>
+      `${source}: ${m.successes} succeeded, ${m.failures} failed`
+    ).join('; ');
+
+    if (metricsSummary) {
+      issues.push({
+        category: 'system_error',
+        severity: 'info',
+        table: 'system_alerts',
+        recordId: 0,
+        description: `Deferred action health (since process start): ${metricsSummary}`,
+        suggestion: 'This is an informational summary of deferred action success/failure counts since the last server restart.',
+      });
+    }
+
+    const statusLabel = last24h.length === 0
+      ? (last7d.length === 0 ? 'pass' : 'warning')
+      : 'fail';
+
+    return {
+      checkName: 'Deferred Action Health',
+      status: statusLabel,
+      issueCount: issues.filter(i => i.severity !== 'info').length,
+      issues,
+      lastRun: new Date()
+    };
+  } catch (err: unknown) {
+    logger.error('[DataIntegrity] Deferred action health check failed:', { extra: { error: getErrorMessage(err) } });
+    return {
+      checkName: 'Deferred Action Health',
+      status: 'error',
+      issueCount: 0,
+      issues: [],
+      lastRun: new Date(),
+      error: getErrorMessage(err)
+    };
+  }
+}

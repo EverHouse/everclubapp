@@ -319,15 +319,15 @@ export async function processStripeWebhook(
                 JSON.stringify({ deferredActions: capturedDeferredActions, failedCount: failedActions }),
               ]
             );
-            logger.warn(`[Stripe Webhook] Event ${capturedEventId} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
+            logger.warn(`[DeferredAction] Event ${capturedEventId} (${capturedEventType}) committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
           } catch (dlqErr) {
-            logger.error(`[Stripe Webhook] Failed to write deferred action failure to DLQ for ${capturedEventId}:`, { extra: { error: getErrorMessage(dlqErr) } });
+            logger.error(`[DeferredAction] Failed to write deferred action failure to DLQ for event ${capturedEventId}:`, { extra: { error: getErrorMessage(dlqErr) } });
           } finally {
             safeRelease(dlqClient);
           }
         }
       } catch (deferredError: unknown) {
-        logger.error(`[Stripe Webhook] executeDeferredActions threw for ${capturedEventId}:`, { extra: { error: getErrorMessage(deferredError) } });
+        logger.error(`[DeferredAction] executeDeferredActions threw for event ${capturedEventId} (${capturedEventType}):`, { extra: { error: getErrorMessage(deferredError) } });
       }
     });
 
@@ -392,9 +392,9 @@ export async function replayStripeEvent(
 
     let failedActions: number;
     try {
-      failedActions = await executeDeferredActions(deferredActions);
+      failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
     } catch (deferredError: unknown) {
-      logger.error(`[Stripe Webhook Replay] executeDeferredActions threw for ${event.id}:`, { extra: { error: getErrorMessage(deferredError) } });
+      logger.error(`[DeferredAction] executeDeferredActions threw for replay event ${event.id} (${event.type}):`, { extra: { error: getErrorMessage(deferredError) } });
       failedActions = deferredActions.length;
     }
     let dlqWriteSucceeded = false;
@@ -416,9 +416,9 @@ export async function replayStripeEvent(
           ]
         );
         dlqWriteSucceeded = true;
-        logger.warn(`[Stripe Webhook Replay] Event ${event.id} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
+        logger.warn(`[DeferredAction] Replay event ${event.id} (${event.type}) committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
       } catch (dlqErr) {
-        logger.error(`[Stripe Webhook Replay] Failed to write deferred action failure to DLQ for ${event.id}:`, { extra: { error: getErrorMessage(dlqErr) } });
+        logger.error(`[DeferredAction] Failed to write deferred action failure to DLQ for replay event ${event.id}:`, { extra: { error: getErrorMessage(dlqErr) } });
       } finally {
         safeRelease(dlqClient);
       }

@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../../utils/errorUtils';
 import type { PoolClient } from 'pg';
 import { pool, safeRelease } from '../../db';
 import type { DeferredAction, StripeEventObject, CacheTransactionParams } from './types';
+import { alertOnDeferredActionFailure, recordDeferredActionOutcome } from '../../dataAlerts';
 
 const EVENT_DEDUP_WINDOW_DAYS = 30;
 
@@ -171,33 +172,38 @@ export async function checkResourceEventOrder(
 export async function executeDeferredActions(actions: DeferredAction[], eventContext?: { eventId: string; eventType: string }): Promise<number> {
   let failedCount = 0;
   const failedIndices: number[] = [];
+  const eventId = eventContext?.eventId || 'unknown';
+  const eventType = eventContext?.eventType || 'unknown';
   const results = await Promise.allSettled(actions.map(action => Promise.resolve().then(() => action())));
   for (let i = 0; i < results.length; i++) {
     if (results[i].status === 'rejected') {
       failedCount++;
       failedIndices.push(i);
-      logger.error(`[Stripe Webhook] Deferred action ${i + 1}/${actions.length} failed (non-critical):`, { 
-        extra: { error: getErrorMessage((results[i] as PromiseRejectedResult).reason), ...(eventContext ? { eventId: eventContext.eventId, eventType: eventContext.eventType } : {}) }
+      const errorMsg = getErrorMessage((results[i] as PromiseRejectedResult).reason);
+      logger.error(`[DeferredAction] Action ${i + 1}/${actions.length} failed for event ${eventId} (${eventType}):`, { 
+        extra: { error: errorMsg, eventId, eventType, actionIndex: i }
       });
     }
   }
+
+  const successCount = actions.length - failedCount;
+  recordDeferredActionOutcome('stripe_webhook', successCount, failedCount);
+
   if (failedCount > 0) {
-    logger.warn(`[Stripe Webhook] ${failedCount}/${actions.length} deferred actions failed for event ${eventContext?.eventId || 'unknown'} (${eventContext?.eventType || 'unknown'})`);
-    try {
-      await db.execute(sql`
-        INSERT INTO system_alerts (severity, category, message, details, created_at)
-        VALUES (
-          'critical',
-          'deferred_action_failure',
-          ${`${failedCount}/${actions.length} deferred actions failed after webhook commit for event ${eventContext?.eventId || 'unknown'} (${eventContext?.eventType || 'unknown'}). Side-effects (emails, HubSpot sync, notifications) may not have executed.`},
-          ${JSON.stringify({ eventId: eventContext?.eventId, eventType: eventContext?.eventType, failedCount, totalCount: actions.length, failedIndices })}::text,
-          NOW()
-        )
-        ON CONFLICT DO NOTHING
-      `);
-    } catch (alertErr: unknown) {
-      logger.error('[Stripe Webhook] Failed to record deferred action failure alert:', { extra: { error: getErrorMessage(alertErr) } });
-    }
+    logger.warn(`[DeferredAction] ${failedCount}/${actions.length} deferred actions failed for event ${eventId} (${eventType})`);
+
+    const isCriticalEvent = eventType.startsWith('payment_intent.') ||
+      eventType.startsWith('invoice.') ||
+      eventType.startsWith('checkout.session.') ||
+      eventType.startsWith('charge.');
+    alertOnDeferredActionFailure(
+      'stripe_webhook',
+      eventId,
+      `${failedCount}/${actions.length} deferred actions failed`,
+      `Event ${eventId} (${eventType}): side-effects may not have executed`,
+      isCriticalEvent,
+      eventType
+    ).catch(err => logger.error('[DeferredAction] Failed to send deferred action alert:', { extra: { error: getErrorMessage(err) } }));
   }
   return failedCount;
 }

@@ -26,6 +26,7 @@ import { acquireBookingLocks, BookingConflictError } from '../../core/bookingSer
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { GuestPassHoldError } from '../../core/errors';
 import { isConstraintError } from '../../core/db';
+import { alertOnDeferredActionFailure, recordDeferredActionOutcome } from '../../core/dataAlerts';
 
 interface BookingOverlapRow {
   id: number;
@@ -401,54 +402,44 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           const syncResult = await syncBookingInvoice(bookingId, confSessionId);
 
           if (!syncResult.success) {
-            logger.warn('[ConferenceRoom] Invoice sync returned failure', {
-              extra: { bookingId, error: syncResult.error }
+            logger.warn(`[DeferredAction] Conference room invoice sync failed for booking #${bookingId}`, {
+              extra: { bookingId, sessionId: confSessionId, error: syncResult.error }
             });
             await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${syncResult.error || 'Unknown'}, updated_at = NOW() WHERE id = ${bookingId}`);
-            notifyAllStaff(
-              'Booking invoice sync failed',
-              `Booking #${bookingId} was confirmed but invoice creation failed. Manual billing review is needed.`,
-              'payment',
-              { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-            ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId, error: getErrorMessage(notifErr) } }));
+            recordDeferredActionOutcome('conference_room_billing', 0, 1);
+            alertOnDeferredActionFailure('conference_room_billing', `booking:${bookingId}`, 'Invoice sync failed', syncResult.error || 'Unknown error', true).catch((alertErr: unknown) => logger.warn('[DeferredAction] Failed to record conference room billing alert', { extra: { bookingId, error: getErrorMessage(alertErr) } }));
           } else {
             const invoiceId = await getBookingInvoiceId(bookingId);
             if (invoiceId) {
               try {
                 const payResult = await finalizeAndPayInvoice({ bookingId });
-                logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
+                logger.info(`[DeferredAction] Conference room invoice finalized and payment attempted for booking #${bookingId}`, {
                   extra: { bookingId, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
                 });
+                recordDeferredActionOutcome('conference_room_billing', 1, 0);
               } catch (payErr: unknown) {
-                logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete — member can pay via dashboard', {
+                logger.warn(`[DeferredAction] Conference room invoice finalize/pay failed for booking #${bookingId} — member can pay via dashboard`, {
                   extra: { bookingId, error: getErrorMessage(payErr) }
                 });
                 await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice finalization/payment failed. Member can pay via dashboard. Error: ' || ${getErrorMessage(payErr)}, updated_at = NOW() WHERE id = ${bookingId}`);
-                notifyAllStaff(
-                  'Booking invoice payment failed',
-                  `Booking #${bookingId} invoice was created but finalization/payment failed. Member can pay via dashboard.`,
-                  'payment',
-                  { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-                ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice pay failure', { extra: { bookingId, error: getErrorMessage(notifErr) } }));
+                recordDeferredActionOutcome('conference_room_billing', 0, 1);
+                alertOnDeferredActionFailure('conference_room_billing', `booking:${bookingId}`, 'Invoice finalize/pay failed', payErr instanceof Error ? payErr : String(payErr), true).catch((alertErr: unknown) => logger.warn('[DeferredAction] Failed to record conference room billing alert', { extra: { bookingId, error: getErrorMessage(alertErr) } }));
               }
             } else {
-              logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
+              logger.info(`[DeferredAction] Conference room booking #${bookingId} — no fees due, skipping invoice finalization`, {
                 extra: { bookingId, sessionId: confSessionId }
               });
+              recordDeferredActionOutcome('conference_room_billing', 1, 0);
             }
           }
         } catch (invoiceErr: unknown) {
-          logger.error('[ConferenceRoom] Async billing failed post-response', {
-            extra: { bookingId, error: getErrorMessage(invoiceErr) }
+          logger.error(`[DeferredAction] Conference room async billing failed for booking #${bookingId}`, {
+            extra: { bookingId, sessionId: confSessionId, error: getErrorMessage(invoiceErr) }
           });
+          recordDeferredActionOutcome('conference_room_billing', 0, 1);
+          alertOnDeferredActionFailure('conference_room_billing', `booking:${bookingId}`, 'Async billing failed completely', invoiceErr instanceof Error ? invoiceErr : String(invoiceErr), true).catch((alertErr: unknown) => logger.warn('[DeferredAction] Failed to record conference room billing alert', { extra: { bookingId, error: getErrorMessage(alertErr) } }));
           try {
             await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${getErrorMessage(invoiceErr)}, updated_at = NOW() WHERE id = ${bookingId}`);
-            notifyAllStaff(
-              'Booking invoice sync failed',
-              `Booking #${bookingId} was confirmed but invoice creation failed. Manual billing review is needed.`,
-              'payment',
-              { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-            ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId, error: getErrorMessage(notifErr) } }));
           } catch (flagErr: unknown) {
             logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
               extra: { bookingId, error: getErrorMessage(flagErr) }
