@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { queryWithRetry } from '../core/db';
 import { getTodayPacific, formatTimePacific, formatDateFromDb } from '../utils/dateUtils';
 import { notifyAllStaff } from '../core/notificationService';
@@ -436,7 +436,7 @@ async function guardedAutoComplete(): Promise<void> {
   }
   isRunning = true;
   try {
-    await autoCompletePastBookings();
+    await withLeaderLock('Booking Auto-Complete', autoCompletePastBookings);
   } finally {
     isRunning = false;
   }

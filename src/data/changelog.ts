@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.36",
+    date: "2026-04-04",
+    title: "Security Hardening",
+    changes: [
+      "Improved: Background tasks now use leader election to prevent duplicate execution when multiple servers are running — protects billing, invoicing, and booking processes.",
+      "Improved: Login code verification is now more resilient against automated guessing attempts.",
+    ]
+  },
+  {
     version: "8.98.35",
     date: "2026-04-04",
     title: "Performance Optimization & Animation Fixes",

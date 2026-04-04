@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { queryWithRetry } from '../core/db';
 import { getStripeClient } from '../core/stripe/client';
 import { notifyAllStaff } from '../core/notificationService';
@@ -167,7 +167,7 @@ async function guardedAutoFinalize(): Promise<void> {
   }
   isRunning = true;
   try {
-    await autoFinalizeDraftInvoices();
+    await withLeaderLock(SCHEDULER_NAME, autoFinalizeDraftInvoices);
   } finally {
     isRunning = false;
   }

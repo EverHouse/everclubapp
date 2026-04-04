@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { db } from '../db';
 import { systemSettings } from '../../shared/schema';
 import { sql } from 'drizzle-orm';
@@ -121,7 +121,7 @@ async function guardedCheckAndRunReconciliation(): Promise<void> {
   }
   isRunning = true;
   try {
-    await checkAndRunReconciliation();
+    await withLeaderLock('Stripe Reconciliation', checkAndRunReconciliation);
   } finally {
     isRunning = false;
   }

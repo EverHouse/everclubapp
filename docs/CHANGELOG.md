@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.36] - 2026-04-04
+
+### Security Hardening — Scheduler Leader Election & OTP Race Condition Fix
+- **Fixed: Scheduler leader election via `pg_try_advisory_lock`.** Added `withLeaderLock()` utility in `server/core/schedulerTracker.ts` that acquires a PostgreSQL session-level advisory lock (keyed on MD5 hash of scheduler name) using `directPool` to guarantee session-mode connection compatibility. Lock is acquired with `pg_try_advisory_lock` (non-blocking) and released in `finally` with `pg_advisory_unlock`. Applied to 7 critical financial schedulers: Invoice Auto-Finalize, Stripe Reconciliation, Grace Period, Guest Pass Reset, Booking Auto-Complete, Stuck Cancellation, Booking Expiry. Each scheduler's `guarded*` function wraps its inner task call with `withLeaderLock`, ensuring only one instance executes per tick across horizontally-scaled replicas.
+- **Fixed: OTP brute-force race condition.** The verify-otp endpoint now wraps the rate-limit check + OTP consumption + failure recording inside a `db.transaction()` with `pg_advisory_xact_lock` keyed on the normalized email hash. This serializes concurrent verification attempts for the same email, closing the TOCTOU window where concurrent requests could bypass the rate limiter before failure counters update. The outer rate-limit check remains as a fast-path rejection before acquiring the lock.
+- **Confirmed false positive: WebSocket origin check.** Already implemented via `isAllowedOrigin()` in `server/core/websocket.ts` with domain allowlist (Replit, localhost, everclub.app, ALLOWED_ORIGINS env var).
+- **Confirmed false positive: OAuth pre-hijack risk.** App is invitation-only with no self-registration path — members are pre-created by staff. Google and Apple auth only link to pre-existing user records. No pre-hijack vector exists.
+
+Files changed: `server/core/schedulerTracker.ts`, `server/schedulers/invoiceAutoFinalizeScheduler.ts`, `server/schedulers/stripeReconciliationScheduler.ts`, `server/schedulers/gracePeriodScheduler.ts`, `server/schedulers/guestPassResetScheduler.ts`, `server/schedulers/bookingAutoCompleteScheduler.ts`, `server/schedulers/stuckCancellationScheduler.ts`, `server/schedulers/bookingExpiryScheduler.ts`, `server/routes/auth/otp.ts`
+
 ## [8.98.35] - 2026-04-04
 
 ### Performance Optimization & Animation Fixes

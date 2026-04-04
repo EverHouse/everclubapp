@@ -467,30 +467,49 @@ otpRouter.post('/api/auth/verify-otp', ...authRateLimiter, async (req, res) => {
       });
     }
     
-    const atomicResult = await db.execute(sql`WITH latest_token AS (
-        SELECT id FROM magic_links
-        WHERE email = ${normalizedEmail}
-        AND token = ${normalizedCode}
-        AND used = false
-        AND expires_at > NOW()
-        ORDER BY created_at DESC
-        LIMIT 1
-      )
-      UPDATE magic_links
-      SET used = true
-      WHERE id = (SELECT id FROM latest_token)
-      RETURNING *`);
-    
-    if (atomicResult.rows.length === 0) {
-      await recordOtpVerifyFailure(normalizedEmail, clientIp);
+    const lockKey = crypto.createHash('md5').update(`otp_verify:${normalizedEmail}`).digest().readInt32BE(0);
+    const verifyResult = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockKey})`);
+
+      const innerAttemptCheck = await checkOtpVerifyAttempts(normalizedEmail, clientIp);
+      if (!innerAttemptCheck.allowed) {
+        return { status: 'rate_limited' as const, retryAfter: innerAttemptCheck.retryAfter };
+      }
+
+      const atomicResult = await tx.execute(sql`WITH latest_token AS (
+          SELECT id FROM magic_links
+          WHERE email = ${normalizedEmail}
+          AND token = ${normalizedCode}
+          AND used = false
+          AND expires_at > NOW()
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
+        UPDATE magic_links
+        SET used = true
+        WHERE id = (SELECT id FROM latest_token)
+        RETURNING *`);
+
+      if (atomicResult.rows.length === 0) {
+        await recordOtpVerifyFailure(normalizedEmail, clientIp);
+        return { status: 'invalid' as const };
+      }
+
+      await clearOtpVerifyAttempts(normalizedEmail, clientIp);
+      return { status: 'success' as const };
+    });
+
+    if (verifyResult.status === 'rate_limited') {
+      return res.status(429).json({
+        error: `Too many failed attempts. Please try again in ${Math.ceil((verifyResult.retryAfter || 0) / 60)} minutes.`
+      });
+    }
+
+    if (verifyResult.status === 'invalid') {
       return res.status(400).json({ 
         error: 'Invalid or expired code. Please try again or request a new code.'
       });
     }
-    
-    await clearOtpVerifyAttempts(normalizedEmail, clientIp);
-    
-    const _otpRecord = atomicResult.rows[0];
     
     const role = await getUserRole(normalizedEmail);
     const sessionTtl = 30 * 24 * 60 * 60 * 1000;

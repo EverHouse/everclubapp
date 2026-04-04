@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { queryWithRetry, pool, safeRelease } from '../core/db';
 import { getTodayPacific, formatTimePacific } from '../utils/dateUtils';
 import { notifyAllStaff } from '../core/notificationService';
@@ -210,7 +210,7 @@ async function guardedExpiry(): Promise<void> {
   }
   isRunning = true;
   try {
-    await expireStaleBookingRequests();
+    await withLeaderLock('Booking Expiry', expireStaleBookingRequests);
   } finally {
     isRunning = false;
   }

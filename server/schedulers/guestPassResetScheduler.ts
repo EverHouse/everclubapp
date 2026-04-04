@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { alertOnScheduledTaskFailure } from '../core/dataAlerts';
 import { queryWithRetry } from '../core/db';
 import { getPacificHour, getPacificDayOfMonth, getPacificDateParts } from '../utils/dateUtils';
@@ -99,7 +99,7 @@ async function guardedResetGuestPasses(): Promise<void> {
   }
   isRunning = true;
   try {
-    await resetGuestPasses();
+    await withLeaderLock('Guest Pass Reset', resetGuestPasses);
   } finally {
     isRunning = false;
   }

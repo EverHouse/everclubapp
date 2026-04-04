@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { getPacificHour, CLUB_TIMEZONE } from '../utils/dateUtils';
@@ -181,7 +181,7 @@ async function guardedProcessGracePeriodMembers(): Promise<void> {
   }
   isRunning = true;
   try {
-    await processGracePeriodMembers();
+    await withLeaderLock('Grace Period', processGracePeriodMembers);
   } finally {
     isRunning = false;
   }

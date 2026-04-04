@@ -1,4 +1,4 @@
-import { schedulerTracker } from '../core/schedulerTracker';
+import { schedulerTracker, withLeaderLock } from '../core/schedulerTracker';
 import { queryWithRetry } from '../core/db';
 import { notifyAllStaff } from '../core/notificationService';
 import { logger } from '../core/logger';
@@ -92,7 +92,7 @@ async function guardedCheck(): Promise<void> {
   }
   isRunning = true;
   try {
-    await checkStuckCancellations();
+    await withLeaderLock('Stuck Cancellation', checkStuckCancellations);
   } finally {
     isRunning = false;
   }

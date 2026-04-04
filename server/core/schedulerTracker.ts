@@ -1,4 +1,8 @@
+import { createHash } from 'crypto';
 import { isSchedulerEnabled } from './settingsHelper';
+import { directPool } from './db';
+import { logger } from './logger';
+import { getErrorMessage } from '../utils/errorUtils';
 
 interface SchedulerStatus {
   taskName: string;
@@ -10,6 +14,31 @@ interface SchedulerStatus {
   runCount: number;
   lastDurationMs: number | null;
   isEnabled: boolean;
+}
+
+export async function withLeaderLock(jobName: string, task: () => Promise<void>): Promise<boolean> {
+  const lockKey = createHash('md5').update(`scheduler:${jobName}`).digest().readInt32BE(0);
+  const client = await directPool.connect();
+  try {
+    const { rows } = await client.query('SELECT pg_try_advisory_lock($1) AS acquired', [lockKey]);
+    if (!rows[0].acquired) {
+      logger.debug(`[Scheduler] Another instance holds lock for "${jobName}", skipping`);
+      return false;
+    }
+    try {
+      await task();
+    } finally {
+      await client.query('SELECT pg_advisory_unlock($1)', [lockKey]).catch((err: unknown) =>
+        logger.warn(`[Scheduler] Advisory unlock failed for "${jobName}"`, { extra: { error: getErrorMessage(err) } })
+      );
+    }
+    return true;
+  } catch (err: unknown) {
+    logger.error(`[Scheduler] Leader lock error for "${jobName}"`, { extra: { error: getErrorMessage(err) } });
+    return false;
+  } finally {
+    client.release();
+  }
 }
 
 class SchedulerTracker {
