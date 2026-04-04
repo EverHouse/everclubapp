@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { LayoutGroup } from 'framer-motion';
 import { useAuthData, useEventData, EventData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../stores/pageReadyStore';
@@ -281,17 +282,20 @@ const MemberEvents: React.FC = () => {
       </section>
 
       <section className={`mb-6 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
-        <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
-          {['All', 'Social', 'Golf', 'Tournaments', 'Dining', 'Networking', 'Workshops', 'Family', 'Entertainment', 'Charity'].map(cat => (
-            <TabButton 
-              key={cat} 
-              label={cat} 
-              active={filter === cat} 
-              onClick={() => setFilter(cat)} 
-              isDark={isDark}
-            />
-          ))}
-        </div>
+        <LayoutGroup id="event-category-tabs">
+          <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
+            {['All', 'Social', 'Golf', 'Tournaments', 'Dining', 'Networking', 'Workshops', 'Family', 'Entertainment', 'Charity'].map(cat => (
+              <TabButton 
+                key={cat} 
+                label={cat} 
+                active={filter === cat} 
+                onClick={() => setFilter(cat)} 
+                isDark={isDark}
+                layoutGroupId="event-category"
+              />
+            ))}
+          </div>
+        </LayoutGroup>
       </section>
 
       <section key={filter} className="mb-6 animate-content-enter-delay-3">

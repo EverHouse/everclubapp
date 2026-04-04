@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, useMotionValue, useTransform, animate, LayoutGroup } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../contexts/ThemeContext';
+import { useReducedMotion } from '../utils/motion';
 import { useBottomNav } from '../stores/bottomNavStore';
 import TierBadge from './TierBadge';
 import { formatPhoneNumber } from '../utils/formatting';
@@ -104,6 +106,9 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const { effectiveTheme } = useTheme();
   const { setDrawerOpen } = useBottomNav();
   const isDark = effectiveTheme === 'dark';
+  const reducedMotion = useReducedMotion();
+  const x = useMotionValue(0);
+  const backdropDragOpacity = useTransform(x, [0, 400], [1, 0.2]);
   
   useEffect(() => {
     setDrawerOpen(isOpen);
@@ -280,8 +285,55 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     setShowAddComm(false);
     setNewCommSubject('');
     setNewCommBody('');
-    onClose();
-  }, [hasUnsavedContent, onClose]);
+    const dismissWidth = window.innerWidth;
+    if (reducedMotion) {
+      x.jump(dismissWidth);
+      onClose();
+    } else {
+      animate(x, dismissWidth, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+        .then(() => onClose());
+    }
+  }, [hasUnsavedContent, onClose, x, reducedMotion]);
+
+  const handleProfileDragEnd = useCallback((_: unknown, info: { velocity: { x: number }; offset: { x: number } }) => {
+    const shouldDismiss = info.velocity.x > 400 || info.offset.x > 200;
+    if (shouldDismiss) {
+      if (hasUnsavedContent) {
+        if (!window.confirm('You have unsaved changes. Discard and close?')) {
+          if (reducedMotion) { x.jump(0); } else { animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 }); }
+          return;
+        }
+      }
+      const dismissWidth = window.innerWidth;
+      setNewNoteContent('');
+      setEditingNoteId(null);
+      setEditingNoteContent('');
+      setShowAddComm(false);
+      setNewCommSubject('');
+      setNewCommBody('');
+      if (reducedMotion) {
+        x.jump(dismissWidth);
+        onClose();
+      } else {
+        animate(x, dismissWidth, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+          .then(() => onClose());
+      }
+    } else {
+      if (reducedMotion) { x.jump(0); } else { animate(x, 0, { type: 'spring', stiffness: 500, damping: 30, mass: 0.5 }); }
+    }
+  }, [x, hasUnsavedContent, onClose, reducedMotion]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const startX = window.innerWidth;
+      x.jump(startX);
+      if (reducedMotion) {
+        x.jump(0);
+      } else {
+        animate(x, 0, { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 });
+      }
+    }
+  }, [isOpen, x, reducedMotion]);
 
   useScrollLock(isOpen, handleDrawerClose);
 
@@ -564,22 +616,27 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
 
   const drawerContent = (
     <div className={`fixed inset-0 ${isDark ? 'dark' : ''}`} style={{ zIndex: 'var(--z-modal)', height: '100%' }}>
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal"
-        style={{ height: '100%' }}
+      <motion.div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+        style={{ height: '100%', opacity: backdropDragOpacity }}
         onClick={handleDrawerClose}
         aria-hidden="true"
       />
       
-      <div 
-        className={`fixed top-0 w-full max-w-xl rounded-tl-[2rem] ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} shadow-2xl transform transition-transform duration-normal flex flex-col overflow-hidden`}
+      <motion.div 
+        className={`fixed top-0 w-full max-w-xl rounded-tl-[2rem] ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} shadow-2xl flex flex-col overflow-hidden`}
         style={{ 
-          animation: 'slideInRight 0.4s var(--spring-bounce)',
           paddingTop: 'max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px))',
           right: '-100px',
           paddingRight: '100px',
-          bottom: 0
+          bottom: 0,
+          x,
         }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={{ left: 0.05, right: 0.5 }}
+        dragMomentum={false}
+        onDragEnd={handleProfileDragEnd}
       >
         <div 
           className={`flex-shrink-0 px-4 pb-4 sm:px-6 sm:pb-6 border-b ${isDark ? 'border-white/10' : 'border-gray-200'} pt-4`}
@@ -1439,23 +1496,33 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           </div>
         )}
 
-        <div className={`flex-shrink-0 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-          <div className="flex overflow-x-auto scrollbar-hide">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-shrink-0 flex flex-col items-center gap-0.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 tactile-btn ${
-                  activeTab === tab.id
-                    ? `border-brand-green ${isDark ? 'text-white' : 'text-gray-900'}`
-                    : `border-transparent ${isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'}`
-                }`}
-              >
-                <Icon name={tab.icon} className="text-lg" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
+        <div className="flex-shrink-0">
+          <LayoutGroup id="member-profile-tabs">
+            <div className="flex overflow-x-auto scrollbar-hide px-2 py-1.5 gap-1">
+              {visibleTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-shrink-0 relative flex flex-col items-center gap-0.5 px-3 py-2 text-xs font-medium transition-colors tactile-btn rounded-full ${
+                    activeTab === tab.id
+                      ? `${isDark ? 'text-white' : 'text-gray-900'}`
+                      : `${isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'}`
+                  }`}
+                >
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="profileTabPill"
+                      className={`absolute inset-0 rounded-full ${isDark ? 'bg-white/15' : 'bg-gray-100'}`}
+                      transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
+                      style={{ zIndex: 0 }}
+                    />
+                  )}
+                  <Icon name={tab.icon} className="text-lg relative z-10" />
+                  <span className="relative z-10">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </LayoutGroup>
         </div>
 
         <div 
@@ -1464,7 +1531,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         >
           {renderContent()}
         </div>
-      </div>
+      </motion.div>
       {showIdImageFull && idImageUrl && (
         <div 
           className="fixed inset-0 flex items-center justify-center bg-black/80 p-4"

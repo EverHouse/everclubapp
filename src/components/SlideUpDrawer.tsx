@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
+import { useReducedMotion } from '../utils/motion';
 import Icon from './icons/Icon';
 
 const BASE_DRAWER_Z_INDEX = 10000;
 const STANDARD_DRAWER_Z_INDEX = 5000;
 const Z_INDEX_INCREMENT = 10;
-const DRAG_THRESHOLD = 260;
-const VELOCITY_THRESHOLD = 1.2;
+const DISMISS_VELOCITY = 500;
+const DISMISS_DISTANCE_RATIO = 0.3;
 
 interface SlideUpDrawerProps {
   isOpen: boolean;
@@ -54,22 +56,17 @@ export function SlideUpDrawer({
   const contentRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
-  const dismissibleRef = useRef(dismissible);
   const [drawerZIndex, setDrawerZIndex] = useState(isModal ? BASE_DRAWER_Z_INDEX : STANDARD_DRAWER_Z_INDEX);
   const [isClosing, setIsClosing] = useState(false);
-  const [hasAnimatedIn, setHasAnimatedIn] = useState(false);
-  
-  const [dragState, setDragState] = useState({
-    isDragging: false,
-    startY: 0,
-    currentY: 0,
-    startTime: 0
-  });
-  const closingFromDrag = useRef(false);
+  const reducedMotion = useReducedMotion();
+  const allowDragRef = useRef(true);
+
+  const y = useMotionValue(0);
+  const dragProgress = useTransform(y, [0, 260], [0, 1]);
+  const backdropOpacity = useTransform(y, [0, 400], [1, 0.2]);
 
   useEffect(() => {
     onCloseRef.current = onClose;
-    dismissibleRef.current = dismissible;
   });
 
   useScrollLockManager(isOpen && isModal, isModal && dismissible ? onClose : undefined);
@@ -77,18 +74,18 @@ export function SlideUpDrawer({
 
   useEffect(() => {
     if (!isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      y.jump(0);
       setIsClosing(false);
-      setHasAnimatedIn(false);
-      closingFromDrag.current = false;
-      if (drawerRef.current) {
-        drawerRef.current.style.transform = '';
-        drawerRef.current.style.transition = '';
-      }
       return;
     }
 
-    const timer = setTimeout(() => setHasAnimatedIn(true), 350);
+    const startY = window.innerHeight;
+    y.jump(startY);
+    if (reducedMotion) {
+      y.jump(0);
+    } else {
+      animate(y, 0, { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 });
+    }
 
     if (isModal) {
       previousActiveElement.current = document.activeElement as HTMLElement;
@@ -106,7 +103,6 @@ export function SlideUpDrawer({
     }
 
     return () => {
-      clearTimeout(timer);
       if (isModal) {
         const currentCount = parseInt(document.body.getAttribute('data-modal-count') || '0', 10);
         if (currentCount <= 1) {
@@ -121,20 +117,26 @@ export function SlideUpDrawer({
         }
       }
     };
-  }, [isOpen, isModal]);
+  }, [isOpen, isModal, y, reducedMotion]);
 
-  const handleClose = useCallback(() => {
-    if (!dismissible) return;
+  const animateClose = useCallback(() => {
+    if (!dismissible || isClosing) return;
     setIsClosing(true);
-    setTimeout(() => {
+
+    const height = drawerRef.current?.getBoundingClientRect().height || 600;
+    if (reducedMotion) {
+      y.jump(height + 40);
       onCloseRef.current();
-    }, 300);
-  }, [dismissible]);
+    } else {
+      animate(y, height + 40, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+        .then(() => onCloseRef.current());
+    }
+  }, [dismissible, isClosing, y, reducedMotion]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && dismissible) {
       e.preventDefault();
-      handleClose();
+      animateClose();
       return;
     }
 
@@ -158,67 +160,61 @@ export function SlideUpDrawer({
         }
       }
     }
-  }, [dismissible, handleClose, isModal]);
+  }, [dismissible, animateClose, isModal]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!dismissible) return;
-    
+  const handleDragStart = useCallback(() => {
     const contentEl = contentRef.current;
     if (contentEl && contentEl.scrollTop > 0) {
+      allowDragRef.current = false;
+    } else {
+      allowDragRef.current = true;
+    }
+  }, []);
+
+  const handleDrag = useCallback((_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (!allowDragRef.current) {
+      y.set(0);
       return;
     }
-    
-    setDragState({
-      isDragging: true,
-      startY: e.touches[0].clientY,
-      currentY: e.touches[0].clientY,
-      startTime: Date.now()
-    });
-  }, [dismissible]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!dragState.isDragging) return;
-    
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - dragState.startY;
-    
-    if (deltaY > 0) {
-      setDragState(prev => ({ ...prev, currentY }));
+    if (info.offset.y < 0) {
+      y.set(info.offset.y * 0.05);
     }
-  }, [dragState.isDragging, dragState.startY]);
+  }, [y]);
 
-  const handleTouchEnd = useCallback(() => {
-    if (!dragState.isDragging) return;
-    
-    const deltaY = dragState.currentY - dragState.startY;
-    const deltaTime = Date.now() - dragState.startTime;
-    const velocity = deltaY / deltaTime;
-    
-    if (deltaY > DRAG_THRESHOLD || velocity > VELOCITY_THRESHOLD) {
-      closingFromDrag.current = true;
+  const handleDragEnd = useCallback((_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (!allowDragRef.current) {
+      allowDragRef.current = true;
+      animate(y, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      return;
+    }
+
+    if (!dismissible) {
+      animate(y, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      return;
+    }
+
+    const height = drawerRef.current?.getBoundingClientRect().height || 400;
+    const shouldDismiss =
+      info.velocity.y > DISMISS_VELOCITY ||
+      info.offset.y > height * DISMISS_DISTANCE_RATIO;
+
+    if (shouldDismiss) {
       setIsClosing(true);
-      const el = drawerRef.current;
-      if (el) {
-        el.style.transition = 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1)';
-        el.style.transform = 'translateY(100%)';
-      }
-      setTimeout(() => {
+      if (reducedMotion) {
+        y.jump(height + 40);
         onCloseRef.current();
-        closingFromDrag.current = false;
-      }, 300);
+      } else {
+        animate(y, height + 40, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+          .then(() => onCloseRef.current());
+      }
+    } else {
+      if (reducedMotion) {
+        y.jump(0);
+      } else {
+        animate(y, 0, { type: 'spring', stiffness: 500, damping: 30, mass: 0.5 });
+      }
     }
-    
-    setDragState({
-      isDragging: false,
-      startY: 0,
-      currentY: 0,
-      startTime: 0
-    });
-  }, [dragState]);
-
-  const dragOffset = dragState.isDragging 
-    ? Math.max(0, dragState.currentY - dragState.startY) 
-    : 0;
+  }, [dismissible, y, reducedMotion]);
 
   if (!isOpen) return null;
 
@@ -233,46 +229,45 @@ export function SlideUpDrawer({
       }}
     >
       {isModal && (
-        <div 
-          className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal ${isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'}`}
+        <motion.div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           aria-hidden="true"
-          style={{ touchAction: 'none', height: '100%' }}
-          onClick={dismissible ? handleClose : undefined}
+          style={{ touchAction: 'none', height: '100%', opacity: backdropOpacity }}
+          onClick={dismissible ? animateClose : undefined}
         />
       )}
       
-      <div 
+      <motion.div 
         ref={drawerRef}
         role="dialog"
         aria-modal={isModal ? 'true' : undefined}
         aria-labelledby={title ? 'drawer-title' : undefined}
         aria-label={title ? undefined : 'Dialog'}
         tabIndex={-1}
-        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl transition-transform duration-normal ease-spring-smooth ${isClosing ? 'translate-y-full' : hasAnimatedIn ? '' : 'animate-slide-up-drawer'} ${className}`}
-        style={{
-          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragState.isDragging ? 'none' : undefined,
-        }}
+        className={`fixed inset-x-0 bottom-0 flex flex-col pointer-events-auto ${maxHeightClasses[maxHeight]} ${isDark ? 'bg-[#1a1d15]' : 'bg-white'} rounded-t-3xl ${className}`}
+        style={{ y }}
+        drag={dismissible ? 'y' : false}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0.05, bottom: 0.6 }}
+        dragMomentum={true}
+        onDragStart={handleDragStart}
+        onDrag={handleDrag}
+        onDragEnd={handleDragEnd}
         onKeyDown={handleKeyDown}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         {!hideHandle && (
-          <div className="flex flex-col items-center pt-3 pb-1 cursor-grab active:cursor-grabbing">
+          <div className="flex flex-col items-center pt-3 pb-1 cursor-grab active:cursor-grabbing" style={{ touchAction: 'none' }}>
             <div className={`h-1 rounded-full transition-colors duration-200 ease-out w-10 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
-            {dismissible && dragOffset > 0 && (
-              <div 
+            {dismissible && (
+              <motion.div 
                 className="mt-1.5 flex items-center gap-1 select-none"
-                style={{ opacity: Math.min(1, dragOffset / DRAG_THRESHOLD) }}
+                style={{ opacity: dragProgress }}
               >
-                <Icon name="keyboard_arrow_down" className={`text-sm transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`} />
-                <span 
-                  className={`text-xs font-medium tracking-wide uppercase transition-colors duration-150 ${dragOffset >= DRAG_THRESHOLD ? (isDark ? 'text-white' : 'text-primary') : (isDark ? 'text-white/40' : 'text-gray-400')}`}
-                >
-                  {dragOffset >= DRAG_THRESHOLD ? 'release to close' : 'close'}
+                <Icon name="keyboard_arrow_down" className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                <span className={`text-xs font-medium tracking-wide uppercase ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                  close
                 </span>
-              </div>
+              </motion.div>
             )}
           </div>
         )}
@@ -289,7 +284,7 @@ export function SlideUpDrawer({
             ) : <div />}
             {showCloseButton && (
               <button
-                onClick={handleClose}
+                onClick={animateClose}
                 className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
                 aria-label="Close drawer"
               >
@@ -311,11 +306,7 @@ export function SlideUpDrawer({
           }}
           onScroll={onContentScroll}
         >
-          <div
-            className={isClosing ? '' : 'animate-drawer-content-enter'}
-          >
-            {children}
-          </div>
+          {children}
         </div>
         
         {stickyFooter && (
@@ -326,7 +317,7 @@ export function SlideUpDrawer({
             {stickyFooter}
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 
