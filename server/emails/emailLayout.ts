@@ -27,6 +27,7 @@ export async function refreshClubAddress(): Promise<void> {
 export interface EmailLayoutOptions {
   addressLine1?: string;
   cityStateZip?: string;
+  logoUrl?: string;
 }
 
 export function emailLayout(content: string, options?: EmailLayoutOptions): string {
@@ -52,7 +53,7 @@ export function emailLayout(content: string, options?: EmailLayoutOptions): stri
 
                 <tr>
                   <td style="text-align: center; padding-bottom: 32px;">
-                    <img src="https://everclub.app/images/everclub-logo-dark.png" alt="Ever Club" width="180" height="60" style="display: inline-block;">
+                    <img src="${options?.logoUrl || 'https://everclub.app/images/everclub-logo-dark.png'}" alt="Ever Club" width="180" height="60" style="display: inline-block;">
                   </td>
                 </tr>
 

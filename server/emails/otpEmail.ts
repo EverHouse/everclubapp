@@ -35,7 +35,7 @@ export function getOtpEmailHtml(params: { firstName: string; code: string; logoU
                   </td>
                 </tr>`;
 
-  return emailLayout(content);
+  return emailLayout(content, { logoUrl: params.logoUrl });
 }
 
 export function getOtpEmailText(params: { firstName: string; code: string }): string {
