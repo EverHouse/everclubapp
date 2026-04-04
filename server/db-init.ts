@@ -339,12 +339,24 @@ export async function ensureDatabaseConstraints() {
 
   try {
     await retryDbOperation(async () => {
-      await db.execute(sql`
-        DELETE FROM booking_participants
-        WHERE NOT EXISTS (
-          SELECT 1 FROM booking_sessions WHERE booking_sessions.id = booking_participants.session_id
-        );
-      `);
+      let totalDeleted = 0;
+      for (let i = 0; i < 100; i++) {
+        const result = await db.execute(sql`
+          DELETE FROM booking_participants
+          WHERE id IN (
+            SELECT bp.id FROM booking_participants bp
+            LEFT JOIN booking_sessions bs ON bs.id = bp.session_id
+            WHERE bs.id IS NULL
+            LIMIT 1000
+          );
+        `);
+        const deleted = result.rowCount || 0;
+        totalDeleted += deleted;
+        if (deleted < 1000) break;
+      }
+      if (totalDeleted > 0) {
+        logger.info(`[DB Init] Deleted ${totalDeleted} orphaned booking participants`);
+      }
     }, 'orphaned booking_participants cleanup');
 
     await new Promise(r => setTimeout(r, 50));
@@ -764,59 +776,72 @@ export async function ensureDatabaseConstraints() {
     } catch (err: unknown) { logger.debug('[DB Init] membership_status_changed_at backfill failed: ' + getErrorMessage(err)); }
 
     try {
-      const spikeCheck = await db.execute(sql`
-        SELECT TO_CHAR(DATE_TRUNC('month', membership_status_changed_at), 'YYYY-MM') AS month, COUNT(*)::int AS cnt
-        FROM users
+      const hasAny = await db.execute(sql`
+        SELECT 1 FROM users
         WHERE role = 'member'
           AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
           AND membership_status_changed_at IS NOT NULL
           AND membership_status_changed_at >= '2026-01-01'::timestamp
-        GROUP BY DATE_TRUNC('month', membership_status_changed_at)
-        HAVING COUNT(*) > 30
+        LIMIT 1
       `);
-      const spikeMonths = spikeCheck.rows as Array<{ month: string; cnt: number }>;
-      if (spikeMonths.length > 0) {
-        let totalAuditRepaired = 0;
-        let totalNulled = 0;
-        for (const { month } of spikeMonths) {
-          const monthStart = `${month}-01`;
-          const auditRepair = await db.execute(sql`
-            UPDATE users u
-            SET membership_status_changed_at = sub.audit_date
-            FROM (
-              SELECT DISTINCT ON (LOWER(a.resource_name))
-                LOWER(a.resource_name) AS email,
-                a.created_at AS audit_date
-              FROM admin_audit_log a
-              WHERE a.action = 'contact_status_changed'
-                AND a.created_at >= ${monthStart}::timestamp - INTERVAL '6 months'
-              ORDER BY LOWER(a.resource_name), a.created_at DESC
-            ) sub
-            WHERE LOWER(u.email) = sub.email
-              AND u.role = 'member'
-              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
-              AND u.membership_status_changed_at >= ${monthStart}::timestamp
-              AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
-          `);
-          totalAuditRepaired += auditRepair.rowCount || 0;
-
-          const nullRepair = await db.execute(sql`
-            UPDATE users u
-            SET membership_status_changed_at = NULL
-            WHERE u.role = 'member'
-              AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
-              AND u.membership_status_changed_at >= ${monthStart}::timestamp
-              AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
-              AND cancellation_effective_date IS NULL
-              AND NOT EXISTS (
-                SELECT 1 FROM admin_audit_log a
+      if (hasAny.rows.length > 0) {
+        const spikeCheck = await db.execute(sql`
+          SELECT TO_CHAR(DATE_TRUNC('month', membership_status_changed_at), 'YYYY-MM') AS month, COUNT(*)::int AS cnt
+          FROM users
+          WHERE role = 'member'
+            AND membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
+            AND membership_status_changed_at IS NOT NULL
+            AND membership_status_changed_at >= '2026-01-01'::timestamp
+          GROUP BY DATE_TRUNC('month', membership_status_changed_at)
+          HAVING COUNT(*) > 30
+        `);
+        const spikeMonths = spikeCheck.rows as Array<{ month: string; cnt: number }>;
+        if (spikeMonths.length > 0) {
+          let totalAuditRepaired = 0;
+          let totalNulled = 0;
+          for (const { month } of spikeMonths) {
+            const monthStart = `${month}-01`;
+            const auditRepair = await db.execute(sql`
+              UPDATE users u
+              SET membership_status_changed_at = sub.audit_date
+              FROM (
+                SELECT DISTINCT ON (LOWER(a.resource_name))
+                  LOWER(a.resource_name) AS email,
+                  a.created_at AS audit_date
+                FROM admin_audit_log a
                 WHERE a.action = 'contact_status_changed'
-                  AND LOWER(a.resource_name) = LOWER(u.email)
-              )
-          `);
-          totalNulled += nullRepair.rowCount || 0;
+                  AND a.created_at >= ${monthStart}::timestamp - INTERVAL '6 months'
+                  AND a.created_at < ${monthStart}::timestamp + INTERVAL '1 month'
+                ORDER BY LOWER(a.resource_name), a.created_at DESC
+              ) sub
+              WHERE LOWER(u.email) = sub.email
+                AND u.role = 'member'
+                AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
+                AND u.membership_status_changed_at >= ${monthStart}::timestamp
+                AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
+            `);
+            totalAuditRepaired += auditRepair.rowCount || 0;
+
+            const nullRepair = await db.execute(sql`
+              UPDATE users u
+              SET membership_status_changed_at = NULL
+              WHERE u.role = 'member'
+                AND u.membership_status IN ('terminated', 'expired', 'suspended', 'inactive', 'cancelled', 'frozen', 'declined', 'former_member')
+                AND u.membership_status_changed_at >= ${monthStart}::timestamp
+                AND u.membership_status_changed_at < (${monthStart}::timestamp + INTERVAL '1 month')
+                AND cancellation_effective_date IS NULL
+                AND NOT EXISTS (
+                  SELECT 1 FROM admin_audit_log a
+                  WHERE a.action = 'contact_status_changed'
+                    AND LOWER(a.resource_name) = LOWER(u.email)
+                    AND a.created_at >= ${monthStart}::timestamp - INTERVAL '6 months'
+                    AND a.created_at < ${monthStart}::timestamp + INTERVAL '1 month'
+                )
+            `);
+            totalNulled += nullRepair.rowCount || 0;
+          }
+          logger.info(`[DB Init] Status date spike repair (${spikeMonths.map(s => s.month).join(', ')}): ${totalAuditRepaired} corrected from audit log, ${totalNulled} cleared (no traceable date)`);
         }
-        logger.info(`[DB Init] Status date spike repair (${spikeMonths.map(s => s.month).join(', ')}): ${totalAuditRepaired} corrected from audit log, ${totalNulled} cleared (no traceable date)`);
       }
     } catch (err: unknown) { logger.debug('[DB Init] Status date spike repair failed: ' + getErrorMessage(err)); }
 

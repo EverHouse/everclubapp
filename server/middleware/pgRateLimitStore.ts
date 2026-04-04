@@ -14,10 +14,10 @@ function ensureTable(): Promise<void> {
   if (!tablePromise) {
     tablePromise = (async () => {
       try {
-        const exists = await db.execute(sql`
-          SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'rate_limit_hits' LIMIT 1
+        const exists = await db.execute<{ oid: string | null }>(sql`
+          SELECT to_regclass('public.rate_limit_hits') AS oid
         `);
-        if (exists.rows.length === 0) {
+        if (!exists.rows[0]?.oid) {
           await db.execute(sql`
             CREATE TABLE IF NOT EXISTS rate_limit_hits (
               key TEXT NOT NULL,
