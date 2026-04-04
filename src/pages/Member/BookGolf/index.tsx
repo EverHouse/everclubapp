@@ -125,6 +125,7 @@ const BookGolf: React.FC = () => {
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
                   style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                 >
+                  <div className="cls-safe-inner">
                   <PlayerSlotEditor
                     playerCount={playerCount}
                     onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}
@@ -137,6 +138,7 @@ const BookGolf: React.FC = () => {
                     showPlayerCountSelector={true}
                     ownerMemberId={effectiveUser?.id}
                   />
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
