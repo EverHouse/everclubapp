@@ -643,6 +643,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
           x,
         }}
         drag="x"
+        dragDirectionLock
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={{ left: 0.05, right: 0.5 }}
         dragMomentum={false}
