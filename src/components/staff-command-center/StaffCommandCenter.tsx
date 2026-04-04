@@ -8,7 +8,6 @@ import { EventFormDrawer } from '../admin/EventFormDrawer';
 import { WellnessFormDrawer } from '../admin/WellnessFormDrawer';
 import { useBottomNav } from '../../stores/bottomNavStore';
 import { useIsMobile } from '../../hooks/useBreakpoint';
-import PullToRefresh from '../PullToRefresh';
 import { useToast } from '../Toast';
 import { getTodayPacific, formatTime12Hour } from '../../utils/dateUtils';
 import { StaffCommandCenterSkeleton } from '../skeletons';
@@ -519,10 +518,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   }, [refresh]);
 
 
-  const handleRefresh = useCallback(async () => {
-    await refresh();
-  }, [refresh]);
-
   const handlePaymentClick = useCallback((bookingId: number) => {
     setBillingModal({ isOpen: true, bookingId });
   }, []);
@@ -550,7 +545,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   }
 
   return (
-    <PullToRefresh onRefresh={handleRefresh}>
       <AnimatedPage className="pb-40">
         <div className="flex items-start justify-between mb-4 lg:mb-6 animate-content-enter-delay-1">
           <div>
@@ -993,7 +987,6 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           window.dispatchEvent(new CustomEvent('refreshWellnessData'));
         }}
       />
-    </PullToRefresh>
   );
 };
 

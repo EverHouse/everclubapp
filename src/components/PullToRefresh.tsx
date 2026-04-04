@@ -1,8 +1,6 @@
-import React, { useState, useRef, useCallback, useEffect, useContext, createContext } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { hasActiveLocks } from '../hooks/useScrollLockManager';
-
-const PullToRefreshActiveContext = createContext(false);
 
 interface PullToRefreshProps {
   children: React.ReactNode;
@@ -56,7 +54,6 @@ const getRandomGolfMessage = () =>
   golfLoadingMessages[Math.floor(Math.random() * golfLoadingMessages.length)];
 
 const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disabled = false, className = '' }) => {
-  const hasParentPTR = useContext(PullToRefreshActiveContext);
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
@@ -67,7 +64,6 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTouchCapable] = useState(() => isTouchDevice());
   const isRefreshInProgressRef = useRef(false);
-  const effectiveDisabled = disabled || hasParentPTR;
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef<number | null>(null);
   const isPullingRef = useRef(false);
@@ -175,7 +171,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     if (!container) return;
     
     const handleWheel = (e: WheelEvent) => {
-      if (effectiveDisabled || isModalOpen || isRefreshing || isFillingScreen || isSpringBack) return;
+      if (disabled || isModalOpen || isRefreshing || isFillingScreen || isSpringBack) return;
       if (document.body.hasAttribute('data-programmatic-scroll')) return;
       
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
@@ -248,9 +244,9 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         clearTimeout(settleTimeoutRef.current);
       }
     };
-  }, [isTouchCapable, effectiveDisabled, isModalOpen, isRefreshing, isFillingScreen, isSpringBack, triggerRefresh, animateSpringBack]);
+  }, [isTouchCapable, disabled, isModalOpen, isRefreshing, isFillingScreen, isSpringBack, triggerRefresh, animateSpringBack]);
 
-  const disabledRef = useRef(effectiveDisabled);
+  const disabledRef = useRef(disabled);
   const isModalOpenRef = useRef(isModalOpen);
   const isRefreshingRef = useRef(isRefreshing);
   const isSpringBackRef = useRef(isSpringBack);
@@ -259,7 +255,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   const animateSpringBackRef = useRef(animateSpringBack);
   const onRefreshRef = useRef(onRefresh);
 
-  useEffect(() => { disabledRef.current = effectiveDisabled; }, [effectiveDisabled]);
+  useEffect(() => { disabledRef.current = disabled; }, [disabled]);
   useEffect(() => { isModalOpenRef.current = isModalOpen; }, [isModalOpen]);
   useEffect(() => { isRefreshingRef.current = isRefreshing; }, [isRefreshing]);
   useEffect(() => { isSpringBackRef.current = isSpringBack; }, [isSpringBack]);
@@ -523,9 +519,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         document.body
       )}
 
-      <PullToRefreshActiveContext.Provider value={true}>
-        {children}
-      </PullToRefreshActiveContext.Provider>
+      {children}
     </div>
   );
 };

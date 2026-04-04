@@ -17,7 +17,6 @@ import { useUndoAction } from '../../hooks/useUndoAction';
 import { TabTransition } from '../../components/motion';
 
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
-import PullToRefresh from '../../components/PullToRefresh';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
 import CleanupAlertModal from '../../components/staff-command-center/modals/CleanupAlertModal';
 import { useToast } from '../../components/Toast';
@@ -53,10 +52,6 @@ const AdminDashboard: React.FC = () => {
   const { pendingRequestsCount, refetch: refetchPendingCounts } = usePendingCounts();
   const { unreadNotifCount } = useUnreadNotifications(actualUser?.email);
   const adminQueryClient = useQueryClient();
-  const handleAdminRefresh = useCallback(async () => {
-    window.dispatchEvent(new Event('app-refresh'));
-    await adminQueryClient.refetchQueries({ type: 'active' });
-  }, [adminQueryClient]);
 
   const [checkinConfirmation, setCheckinConfirmation] = useState<{
     isOpen: boolean;
@@ -340,7 +335,6 @@ const AdminDashboard: React.FC = () => {
       {createPortal(headerContent, document.getElementById('header-root') ?? document.body)}
 
       <main className="flex-1 px-4 md:px-8 pt-[calc(max(env(safe-area-inset-top,0px),env(titlebar-area-height,0px))+112px)] relative z-0 md:ml-20 xl:ml-64 w-full md:w-auto min-h-screen">
-        <PullToRefresh onRefresh={handleAdminRefresh}>
           <TabTransition activeKey={activeTab}>
             {activeTab === 'training' ? (
               <PageErrorBoundary pageName="Training">
@@ -355,7 +349,6 @@ const AdminDashboard: React.FC = () => {
             )}
           </TabTransition>
           <BottomSentinel />
-        </PullToRefresh>
       </main>
 
       <div className="md:hidden">
