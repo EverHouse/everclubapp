@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthData } from '../../../../contexts/DataContext';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { bookingsKeys, simulatorKeys } from '../../../../hooks/queries/adminKeys';
 import { putWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { BookingRequest } from '../simulator/simulatorTypes';

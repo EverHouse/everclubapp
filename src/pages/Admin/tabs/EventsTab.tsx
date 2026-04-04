@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '../../../lib/apiRequest';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import FloatingActionButton from '../../../components/FloatingActionButton';
 import PageErrorBoundary from '../../../components/PageErrorBoundary';
 import { EventsAdminContent } from './events/EventsAdminContent';

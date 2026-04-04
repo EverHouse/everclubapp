@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { sortBySeverity } from '../../../../data/integrityCheckMetadata';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { MemberProfile } from '../../../../types/data';

@@ -4,7 +4,7 @@ import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-m
 import EmptyState from '../../../components/EmptyState';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useAuthData } from '../../../contexts/DataContext';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { formatDateTimePacific, formatDateDisplayWithDay, formatTime12Hour } from '../../../utils/dateUtils';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import ModalShell from '../../../components/ModalShell';

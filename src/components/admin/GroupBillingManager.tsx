@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import TierBadge from '../TierBadge';
 import { MemberSearchInput, SelectedMember } from '../shared/MemberSearchInput';
-import { useToast } from '../Toast';
+import { useToast } from '../../hooks/useToast';
 import { getNetworkErrorMessage } from '../../utils/errorHandling';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
 import Icon from '../icons/Icon';

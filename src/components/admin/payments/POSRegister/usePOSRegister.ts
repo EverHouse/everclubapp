@@ -6,7 +6,7 @@ import { useIsMobile } from '../../../../hooks/useBreakpoint';
 import { useCafeMenu } from '../../../../hooks/queries/useCafeQueries';
 import { useMerchItems } from '../../../../hooks/queries/useMerchQueries';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
-import { useToast } from '../../../Toast';
+import { useToast } from '../../../../hooks/useToast';
 import type { CafeItem } from '../../../../types/data';
 import {
   type CartItem,

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { MemberProfile } from '../../../../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../../../../hooks/queries/useFetch';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import {
     type MemberTab,
     type ActivityFilter,

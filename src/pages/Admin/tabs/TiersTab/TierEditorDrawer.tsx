@@ -6,7 +6,7 @@ import type { MembershipTier, TierFeature, StripePrice } from './tiersTypes';
 import { BOOLEAN_FIELDS } from './tiersTypes';
 import CompareTableSection from './CompareTableSection';
 import Icon from '../../../../components/icons/Icon';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 
 interface TierEditorDrawerProps {
     isEditing: boolean;

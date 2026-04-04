@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useToast } from '../../Toast';
+import { useToast } from '../../../hooks/useToast';
 import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 import { TerminalPayment } from '../TerminalPayment';
 import SlideUpDrawer from '../../SlideUpDrawer';

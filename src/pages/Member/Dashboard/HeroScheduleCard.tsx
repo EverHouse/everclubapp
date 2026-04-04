@@ -4,7 +4,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { createPacificDate } from '../../../utils/dateUtils';
 import { downloadICalFile } from '../../../utils/icalUtils';
 import { RosterManager } from '../../../components/booking';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { getIconForType, type ScheduleItem, type DashboardBookingItem, type DBBookingRequest, type DBBooking, type DBRSVP, type DBWellnessEnrollment } from './dashboardTypes';
 import { PopInSection } from '../../../components/motion';
 import Icon from '../../../components/icons/Icon';

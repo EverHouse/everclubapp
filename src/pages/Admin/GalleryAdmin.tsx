@@ -7,7 +7,7 @@ import FloatingActionButton from '../../components/FloatingActionButton';
 import ModalShell from '../../components/ModalShell';
 import { haptic } from '../../utils/haptics';
 import { useDragAutoScroll } from '../../hooks/useDragAutoScroll';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { useGalleryImages, useSaveGalleryImage, useDeleteGalleryImage, useUploadImage, useReorderGallery, adminTabKeys } from '../../hooks/queries';
 import Icon from '../../components/icons/Icon';
 

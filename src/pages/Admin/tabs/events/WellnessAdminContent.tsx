@@ -3,7 +3,7 @@ import EmptyState from '../../../../components/EmptyState';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../../../utils/dateUtils';
 import { getApiErrorMessage, getNetworkErrorMessage } from '../../../../utils/errorHandling';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { SlideUpDrawer } from '../../../../components/SlideUpDrawer';
 import { fetchWithCredentials, deleteWithCredentials } from '../../../../hooks/queries/useFetch';
 import { EventsTabSkeleton } from '../../../../components/skeletons';

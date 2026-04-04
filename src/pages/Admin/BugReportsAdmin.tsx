@@ -6,7 +6,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import ModalShell from '../../components/ModalShell';
 import { getBugReportStatusColor, formatStatusLabel, getRoleColor } from '../../utils/statusColors';
 import { formatRelativeTime, formatCardTimestamp } from '../../utils/dateUtils';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { useUndoAction } from '../../hooks/useUndoAction';
 import { haptic } from '../../utils/haptics';
 import { useBugReports, useUpdateBugReport, useDeleteBugReport } from '../../hooks/queries';

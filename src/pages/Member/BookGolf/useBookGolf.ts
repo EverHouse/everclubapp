@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthData } from '../../../contexts/DataContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { usePageReady } from '../../../stores/pageReadyStore';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { bookingEvents } from '../../../lib/bookingEvents';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials, ApiError, isAbortError } from '../../../hooks/queries/useFetch';
 import { usePricing } from '../../../hooks/usePricing';

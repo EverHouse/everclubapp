@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, putWithCredentials } from '../../../../hooks/queries/useFetch';
 import type { FeeProduct, MembershipTier } from './tiersTypes';
 import Icon from '../../../../components/icons/Icon';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 
 function feeToTier(fee: FeeProduct): MembershipTier {
     return {

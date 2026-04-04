@@ -4,7 +4,7 @@ import { LayoutGroup } from 'framer-motion';
 import { useAuthData, useEventData, EventData } from '../../contexts/DataContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../stores/pageReadyStore';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../hooks/queries/useFetch';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import TabButton from '../../components/TabButton';

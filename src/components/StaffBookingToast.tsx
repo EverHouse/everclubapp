@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useAuthData } from '../contexts/DataContext';
-import { useToast } from './Toast';
+import { useToast } from '../hooks/useToast';
 import { playSound } from '../utils/sounds';
 
 interface BookingEventData {

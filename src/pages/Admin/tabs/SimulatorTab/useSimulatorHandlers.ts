@@ -2,7 +2,7 @@ import { useCallback, useRef, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthData } from '../../../../contexts/DataContext';
 import { getTodayPacific } from '../../../../utils/dateUtils';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { useBookingActions } from '../../../../hooks/useBookingActions';
 import { parseQrCode } from '../../../../utils/qrCodeParser';
 import { bookingsKeys, simulatorKeys } from '../../../../hooks/queries/adminKeys';

@@ -5,7 +5,7 @@ import { copyToClipboard } from '../../../lib/copyToClipboard';
 import Toggle from '../../../components/Toggle';
 import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import Icon from '../../../components/icons/Icon';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 interface SettingsState {
   dataIntegrityAlerts: boolean;

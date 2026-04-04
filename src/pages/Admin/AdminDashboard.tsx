@@ -19,7 +19,7 @@ import { TabTransition } from '../../components/motion';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
 import CleanupAlertModal from '../../components/staff-command-center/modals/CleanupAlertModal';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { haptic } from '../../utils/haptics';
 
 import { TabType, getTabFromPathname, tabToPath } from './layout/types';

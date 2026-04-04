@@ -4,7 +4,7 @@ import { BottomSentinel } from '../../../components/layout/BottomSentinel';
 import WaiverModal from '../../../components/WaiverModal';
 import BillingSection from '../../../components/profile/BillingSection';
 import { AnimatedPage } from '../../../components/motion';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { useProfileData } from './useProfileData';
 import { Section } from './ProfileShared';
 import AccountSection from './AccountSection';

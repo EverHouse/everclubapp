@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePageReady } from '../../../stores/pageReadyStore';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import ModalShell from '../../../components/ModalShell';
 import { useCafeMenu, useUploadCafeImage, useSeedCafeMenu, useCreateCafeItem, useUpdateCafeItem, useDeleteCafeItem, useDeleteAllInactiveCafeItems } from '../../../hooks/queries/useCafeQueries';
 import type { CafeItem } from '../../../types/data';

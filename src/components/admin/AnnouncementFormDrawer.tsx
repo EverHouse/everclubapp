@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAnnouncementData, Announcement } from '../../contexts/DataContext';
-import { useToast } from '../Toast';
+import { useToast } from '../../hooks/useToast';
 import { SlideUpDrawer } from '../SlideUpDrawer';
 import Icon from '../icons/Icon';
 

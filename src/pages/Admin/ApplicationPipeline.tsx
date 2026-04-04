@@ -4,7 +4,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import ModalShell from '../../components/ModalShell';
 import { formatRelativeTime } from '../../utils/dateUtils';
 import { ApplicationPipelineSkeleton } from '../../components/skeletons';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { haptic } from '../../utils/haptics';
 import { useApplications, useUpdateApplicationStatus, useSaveApplicationNotes, useSendApplicationInvite, useSyncHubSpotApplications, useMembershipTiers } from '../../hooks/queries';
 import Icon from '../../components/icons/Icon';

@@ -7,7 +7,7 @@ import { useAuthData } from '../../../contexts/DataContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { bookingEvents } from '../../../lib/bookingEvents';
 import { formatTime12Hour, getTodayString, getNowTimePacific } from '../../../utils/dateUtils';
 import { useTierPermissions } from '../../../hooks/useTierPermissions';

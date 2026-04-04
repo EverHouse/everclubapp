@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '../Toast';
+import { useToast } from '../../hooks/useToast';
 import { useAuthData } from '../../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
 import { billingKeys } from '../../hooks/queries/adminKeys';

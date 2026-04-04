@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiRequest } from '../../lib/apiRequest';
-import { useToast } from '../Toast';
+import { useToast } from '../../hooks/useToast';
 import { haptic } from '../../utils/haptics';
 import ModalShell from '../ModalShell';
 import MemberPaymentModal from './MemberPaymentModal';

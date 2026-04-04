@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ModalShell } from '../../ModalShell';
-import { useToast } from '../../Toast';
+import { useToast } from '../../../hooks/useToast';
 import { formatTime12Hour, formatDateShort } from '../../../utils/dateUtils';
 import type { BookingRequest } from '../types';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';

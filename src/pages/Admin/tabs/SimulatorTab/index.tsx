@@ -5,7 +5,7 @@ import { useAuthData, useMemberData } from '../../../../contexts/DataContext';
 import { usePageReady } from '../../../../stores/pageReadyStore';
 import { getTodayPacific } from '../../../../utils/dateUtils';
 import { usePricing } from '../../../../hooks/usePricing';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { TabType, tabToPath } from '../../layout/types';
 import QrScannerModal from '../../../../components/staff-command-center/modals/QrScannerModal';

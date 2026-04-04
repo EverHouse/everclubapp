@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ModalShell from '../../../../components/ModalShell';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { getTodayPacific, formatTime12Hour } from '../../../../utils/dateUtils';
 import { MemberSearchInput, type SelectedMember } from '../../../../components/shared/MemberSearchInput';
 import type { Resource, ManualBookingResult } from './simulatorTypes';

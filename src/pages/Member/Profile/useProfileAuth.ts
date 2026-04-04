@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/types';
 import { useQuery } from '@tanstack/react-query';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 
 export function useProfileAuth(userExists: boolean) {

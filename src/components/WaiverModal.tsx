@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import SlideUpDrawer from './SlideUpDrawer';
 import { useTheme } from '../contexts/ThemeContext';
-import { useToast } from './Toast';
+import { useToast } from '../hooks/useToast';
 import { postWithCredentials } from '../hooks/queries/useFetch';
 import Icon from './icons/Icon';
 import { WAIVER_PREAMBLE, WAIVER_SECTIONS, WAIVER_CLOSING } from '../../shared/waiver-content';

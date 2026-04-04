@@ -4,7 +4,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import ModalShell from '../../components/ModalShell';
 import { getInquiryStatusColor, formatStatusLabel } from '../../utils/statusColors';
 import { formatRelativeTime } from '../../utils/dateUtils';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { haptic } from '../../utils/haptics';
 import { useInquiries, useUpdateInquiry, useArchiveInquiry, useSyncHubSpotSubmissions } from '../../hooks/queries';
 import Icon from '../../components/icons/Icon';

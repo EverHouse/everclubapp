@@ -15,7 +15,7 @@ import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import { FinancialsSubTabSkeleton } from '../../../components/skeletons';
 import { postWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../../components/icons/Icon';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 
 interface _SubscriptionListItem {

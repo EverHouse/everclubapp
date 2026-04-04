@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, postWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import { copyToClipboard } from '../../../lib/copyToClipboard';
-import { useToast } from '../../Toast';
+import { useToast } from '../../../hooks/useToast';
 import { useTierNames } from '../../../hooks/useTierNames';
 import type { BillingInfo, OutstandingData, MigrationEligibility, CouponOption } from './types';
 

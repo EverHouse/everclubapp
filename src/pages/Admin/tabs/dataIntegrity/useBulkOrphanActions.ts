@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { postWithCredentials } from '../../../../hooks/queries/useFetch';
 
 const BATCH_SIZE = 100;

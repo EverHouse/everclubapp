@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useToast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 
 interface UndoActionOptions {
   message: string;

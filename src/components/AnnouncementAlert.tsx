@@ -4,7 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAnnouncementBadge } from '../stores/announcementBadgeStore';
 import { Announcement } from '../contexts/DataContext';
 import { haptic } from '../utils/haptics';
-import { useToast } from './Toast';
+import { useToast } from '../hooks/useToast';
 import Icon from './icons/Icon';
 
 const EXIT_DURATION = 250;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useBottomNav } from '../../../stores/bottomNavStore';
-import { useToast } from '../../Toast';
+import { useToast } from '../../../hooks/useToast';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import IdScannerModal from '../modals/IdScannerModal';
 import { MemberFlow } from './newUser/MemberFlow';

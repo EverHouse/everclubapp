@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials, putWithCredentials, ApiError } from '../../../../hooks/queries/useFetch';
 import { useUndoAction } from '../../../../hooks/useUndoAction';
-import { useToast } from '../../../../components/Toast';
+import { useToast } from '../../../../hooks/useToast';
 import { useConfirmDialog } from '../../../../components/ConfirmDialog';
 import type { SubTab, MembershipTier, TierFeature, StripePrice, TierRecord, FeeProduct } from './tiersTypes';
 

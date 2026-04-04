@@ -10,7 +10,7 @@ import { putWithCredentials } from '../../../../hooks/queries/useFetch';
 import { simulatorKeys } from '../../../../hooks/queries/adminKeys';
 import type { BookingRequest as CommandCenterBookingRequest } from '../../../../components/staff-command-center/types';
 import type { BookingRequest, Resource, ManualBookingResult } from '../simulator/simulatorTypes';
-import type { ToastType } from '../../../../components/Toast';
+import type { ToastType } from '../../../../hooks/useToast';
 
 export interface SimulatorBottomModalsProps {
   trackmanModal: { isOpen: boolean; booking: BookingRequest | null };

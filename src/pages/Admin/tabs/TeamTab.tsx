@@ -10,7 +10,7 @@ import { AnimatedPage } from '../../../components/motion';
 import { useUndoAction } from '../../../hooks/useUndoAction';
 import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../../components/icons/Icon';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 
 type StaffRole = 'staff' | 'admin' | 'golf_instructor';
 

@@ -1,15 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { springPresets, useReducedMotion } from '../utils/motion';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from './icons/Icon';
-
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
-
-interface ToastAction {
-  label: string;
-  onClick: () => void;
-}
+import { ToastContext } from '../hooks/useToast';
+import type { ToastType, ToastAction } from '../hooks/useToast';
 
 interface ToastMessage {
   id: string;
@@ -20,22 +15,6 @@ interface ToastMessage {
   createdAt?: number;
   action?: ToastAction;
 }
-
-interface ToastContextType {
-  showToast: (message: string, type?: ToastType, duration?: number, key?: string, action?: ToastAction) => void;
-  hideToast: (id: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | null>(null);
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const useToast = () => {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
-};
 
 const getIconForType = (type: ToastType): string => {
   switch (type) {
@@ -326,5 +305,4 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-export type { ToastAction };
 export default ToastProvider;

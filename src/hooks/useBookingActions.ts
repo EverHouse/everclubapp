@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { useToast } from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import { bookingsKeys, simulatorKeys } from './queries/adminKeys';
 import { apiRequest, ApiResult } from '../lib/apiRequest';
 

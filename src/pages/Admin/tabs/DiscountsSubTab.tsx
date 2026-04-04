@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import ModalShell from '../../../components/ModalShell';
 import EmptyState from '../../../components/EmptyState';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { haptic } from '../../../utils/haptics';
 import { useStripeCoupons, useCreateCoupon, useUpdateCoupon, useDeleteCoupon } from '../../../hooks/queries';
 import Icon from '../../../components/icons/Icon';

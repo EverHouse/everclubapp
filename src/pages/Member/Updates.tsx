@@ -9,7 +9,7 @@ import { MotionList, MotionListItem, AnimatedPage, AnimatedSection } from '../..
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 import { useNotificationStore } from '../../stores/notificationStore';
-import { useToast } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 import { haptic } from '../../utils/haptics';
 import { fetchWithCredentials, putWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';

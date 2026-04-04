@@ -5,7 +5,7 @@ import { useAuthData } from '../../../contexts/DataContext';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
-import { useToast } from '../../../components/Toast';
+import { useToast } from '../../../hooks/useToast';
 import { isPushSupported, isSubscribedToPush, subscribeToPush, unsubscribeFromPush } from '../../../services/pushNotifications';
 import { fetchWithCredentials, postWithCredentials, patchWithCredentials, putWithCredentials } from '../../../hooks/queries/useFetch';
 import type { AccountBalanceData, StaffDetailsData, WaiverStatusData, PreferencesData, StaffAdminCheckData } from './profileTypes';

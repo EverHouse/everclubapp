@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData } from '../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../hooks/queries/useFetch';
-import { useToast } from './Toast';
+import { useToast } from '../hooks/useToast';
 import Icon from './icons/Icon';
 
 interface OnboardingStep {
