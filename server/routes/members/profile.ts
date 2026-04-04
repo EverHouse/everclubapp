@@ -840,8 +840,8 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
 
     const wellhubItems = [...validatedWellhubItems, ...failedWellhubItems];
 
-    const getSortTimestamp = (item: { id: string; bookingDate: string | Date | null }): number => {
-      const rawTs = walkInRawTimestamps.get(item.id);
+    const getSortTimestamp = (item: { id: string | number; bookingDate: string | Date | null }): number => {
+      const rawTs = walkInRawTimestamps.get(String(item.id));
       if (rawTs) return new Date(rawTs).getTime();
       return new Date(String(item.bookingDate)).getTime();
     };
