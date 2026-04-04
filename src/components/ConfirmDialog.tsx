@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
+import { springPresets, noMotion, useReducedMotion } from '../utils/motion';
 import Icon from './icons/Icon';
 
 const BASE_DIALOG_Z_INDEX = 10100;
@@ -69,15 +71,55 @@ function ConfirmDialogComponent({
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
   const [dialogZIndex, setDialogZIndex] = useState(BASE_DIALOG_Z_INDEX);
-  const [isClosing, setIsClosing] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const [isVisible, setIsVisible] = useState(false);
+  const pendingActionRef = useRef<'confirm' | 'cancel' | null>(null);
+  const onConfirmRef = useRef(onConfirm);
+  const onCancelRef = useRef(onCancel);
 
-  useScrollLockManager(isOpen, onCancel);
+  useEffect(() => {
+    onConfirmRef.current = onConfirm;
+    onCancelRef.current = onCancel;
+  });
+
+  const handleConfirm = useCallback(() => {
+    if (isLoading || pendingActionRef.current) return;
+    pendingActionRef.current = 'confirm';
+    setIsVisible(false);
+  }, [isLoading]);
+
+  const handleCancel = useCallback(() => {
+    if (isLoading || pendingActionRef.current) return;
+    pendingActionRef.current = 'cancel';
+    setIsVisible(false);
+  }, [isLoading]);
+
+  const handleExitComplete = useCallback(() => {
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    if (action === 'confirm') {
+      onConfirmRef.current();
+    } else if (action === 'cancel') {
+      onCancelRef.current();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      pendingActionRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsVisible(true);
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsVisible(false);
+    }
+  }, [isOpen]);
+
+  useScrollLockManager(isOpen, handleCancel);
   useSafariThemeColor(isOpen);
 
   useEffect(() => {
     if (!isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset animation state on close
-      setIsClosing(false);
       return;
     }
 
@@ -108,42 +150,13 @@ function ConfirmDialogComponent({
     };
   }, [isOpen]);
 
-  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-      if (cancelTimerRef.current) clearTimeout(cancelTimerRef.current);
-    };
-  }, []);
-
-  const handleConfirm = useCallback(() => {
-    if (isLoading) return;
-    setIsClosing(true);
-    confirmTimerRef.current = setTimeout(() => {
-      onConfirm();
-    }, 200);
-  }, [isLoading, onConfirm]);
-
-  const handleCancel = useCallback(() => {
-    if (isLoading) return;
-    setIsClosing(true);
-    cancelTimerRef.current = setTimeout(() => {
-      onCancel();
-    }, 200);
-  }, [isLoading, onCancel]);
-
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isLoading) return;
       
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleCancel();
-      } else if (e.key === 'Enter') {
+      if (e.key === 'Enter') {
         e.preventDefault();
         handleConfirm();
       } else if (e.key === 'Tab') {
@@ -170,115 +183,123 @@ function ConfirmDialogComponent({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isLoading, handleCancel, handleConfirm]);
-
-  if (!isOpen) return null;
+  }, [isOpen, isLoading, handleConfirm]);
 
   const variantConfig = variantStyles[variant];
+  const backdropTransition = prefersReducedMotion ? noMotion : { duration: 0.2 };
+  const panelTransition = prefersReducedMotion ? noMotion : springPresets.smooth;
 
   const dialogContent = (
-    <div
-      className={`fixed inset-0 ${isDark ? 'dark' : ''}`}
-      style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: dialogZIndex, height: '100%' }}
-    >
-      <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal ${
-          isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'
-        }`}
-        aria-hidden="true"
-        style={{ touchAction: 'none', height: '100%' }}
-        onClick={!isLoading ? handleCancel : undefined}
-      />
-
-      <div
-        className="fixed inset-0 flex items-center justify-center p-4"
-        style={{ overscrollBehavior: 'contain', height: '100%' }}
-      >
+    <AnimatePresence onExitComplete={handleExitComplete}>
+      {isVisible && (
         <div
-          ref={dialogRef}
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="confirm-dialog-title"
-          aria-describedby="confirm-dialog-message"
-          className={`relative w-full max-w-sm transform transition-gpu duration-normal ease-spring-smooth ${
-            isClosing ? 'scale-95 opacity-0' : 'animate-dialog-scale-in'
-          }`}
+          className={`fixed inset-0 ${isDark ? 'dark' : ''}`}
+          style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: dialogZIndex, height: '100%' }}
         >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={backdropTransition}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            aria-hidden="true"
+            style={{ touchAction: 'none', height: '100%' }}
+            onClick={!isLoading ? handleCancel : undefined}
+          />
+
           <div
-            className={`
-              rounded-xl p-6 shadow-2xl
-              backdrop-blur-xl backdrop-saturate-150
-              ${isDark 
-                ? 'bg-[#1a1d15]/90 border border-white/10 shadow-black/50' 
-                : 'bg-white/90 border border-white/20 shadow-gray-900/20'
-              }
-            `}
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ overscrollBehavior: 'contain', height: '100%' }}
           >
-            <div className="flex flex-col items-center text-center">
-              <div className={`mb-4 p-3 rounded-full ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
-                <Icon name={variantConfig.icon} className={`text-3xl ${variantConfig.iconColor}`} />
-              </div>
-
-              <h2
-                id="confirm-dialog-title"
-                className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
+            <motion.div
+              ref={dialogRef}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="confirm-dialog-title"
+              aria-describedby="confirm-dialog-message"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={panelTransition}
+              className="relative w-full max-w-sm"
+            >
+              <div
+                className={`
+                  rounded-xl p-6 shadow-2xl
+                  backdrop-blur-xl backdrop-saturate-150
+                  ${isDark 
+                    ? 'bg-[#1a1d15]/90 border border-white/10 shadow-black/50' 
+                    : 'bg-white/90 border border-white/20 shadow-gray-900/20'
+                  }
+                `}
               >
-                {title}
-              </h2>
+                <div className="flex flex-col items-center text-center">
+                  <div className={`mb-4 p-3 rounded-full ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                    <Icon name={variantConfig.icon} className={`text-3xl ${variantConfig.iconColor}`} />
+                  </div>
 
-              <p
-                id="confirm-dialog-message"
-                className={`text-sm mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
-              >
-                {message}
-              </p>
+                  <h2
+                    id="confirm-dialog-title"
+                    className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
+                  >
+                    {title}
+                  </h2>
 
-              <div className="flex w-full gap-3">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  disabled={isLoading}
-                  className={`
-                    flex-1 px-4 py-3 rounded-xl font-medium text-sm
-                    transition-gpu duration-fast ease-out
-                    disabled:opacity-50 disabled:cursor-not-allowed tactile-btn
-                    ${isDark 
-                      ? 'text-white/70 hover:bg-white/5 active:bg-white/10' 
-                      : 'text-primary/70 hover:bg-primary/5 active:bg-primary/10'
-                    }
-                  `}
-                >
-                  {cancelText}
-                </button>
+                  <p
+                    id="confirm-dialog-message"
+                    className={`text-sm mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
+                  >
+                    {message}
+                  </p>
 
-                <button
-                  ref={confirmButtonRef}
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={isLoading}
-                  className={`
-                    flex-1 px-4 py-3 rounded-xl font-medium text-sm
-                    transition-gpu duration-fast ease-out
-                    disabled:opacity-70 disabled:cursor-not-allowed tactile-btn
-                    ${isDark ? variantConfig.dark : variantConfig.light}
-                    flex items-center justify-center gap-2
-                  `}
-                >
-                  {isLoading ? (
-                    <>
-                      <span className={`w-4 h-4 border-2 rounded-full animate-spin ${variantConfig.spinnerBorder}`} />
-                      <span>Loading...</span>
-                    </>
-                  ) : (
-                    confirmText
-                  )}
-                </button>
+                  <div className="flex w-full gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      disabled={isLoading}
+                      className={`
+                        flex-1 px-4 py-3 rounded-xl font-medium text-sm
+                        transition-gpu duration-fast ease-out
+                        disabled:opacity-50 disabled:cursor-not-allowed tactile-btn
+                        ${isDark 
+                          ? 'text-white/70 hover:bg-white/5 active:bg-white/10' 
+                          : 'text-primary/70 hover:bg-primary/5 active:bg-primary/10'
+                        }
+                      `}
+                    >
+                      {cancelText}
+                    </button>
+
+                    <button
+                      ref={confirmButtonRef}
+                      type="button"
+                      onClick={handleConfirm}
+                      disabled={isLoading}
+                      className={`
+                        flex-1 px-4 py-3 rounded-xl font-medium text-sm
+                        transition-gpu duration-fast ease-out
+                        disabled:opacity-70 disabled:cursor-not-allowed tactile-btn
+                        ${isDark ? variantConfig.dark : variantConfig.light}
+                        flex items-center justify-center gap-2
+                      `}
+                    >
+                      {isLoading ? (
+                        <>
+                          <span className={`w-4 h-4 border-2 rounded-full animate-spin ${variantConfig.spinnerBorder}`} />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        confirmText
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 
   return createPortal(dialogContent, document.body);

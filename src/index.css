@@ -1763,7 +1763,7 @@ html.dark .border-accessible {
   animation: fadeOut 0.25s var(--m3-standard-accel) forwards;
 }
 
-/* Modal Animations */
+/* Modal/Dialog Animations (used by StaffMobileSidebar, RedemptionSuccessCard) */
 @keyframes backdropFadeIn {
   0% {
     opacity: 0;
@@ -1790,21 +1790,6 @@ html.dark .border-accessible {
 
 .animate-modal-slide-up {
   animation: modalSlideUp 0.25s var(--m3-emphasized-decel) forwards;
-}
-
-@keyframes dialogScaleIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-dialog-scale-in {
-  animation: dialogScaleIn 0.25s var(--m3-emphasized-decel) forwards;
 }
 
 @keyframes slideUpDrawer {
@@ -2325,7 +2310,6 @@ html.dark .border-accessible {
 .animate-card-fade-out,
 .animate-slide-up-drawer,
 .animate-modal-slide-up,
-.animate-dialog-scale-in,
 .animate-drawer-content-enter {
   contain: layout style;
 }
@@ -2339,8 +2323,7 @@ html.dark .border-accessible {
 .animate-slide-up-drawer,
 .animate-slide-in-right,
 .animate-slide-in-left,
-.animate-modal-slide-up,
-.animate-dialog-scale-in {
+.animate-modal-slide-up {
   contain: layout style;
   will-change: transform, opacity;
 }
@@ -2641,7 +2624,6 @@ html.dark .border-accessible {
   .animate-slide-up-stagger,
   [class*="animate-content-enter-delay-"],
   .animate-header-title,
-  .animate-dialog-scale-in,
   .animate-drawer-content-enter,
   .animate-tab-enter,
   .animate-tab-exit,

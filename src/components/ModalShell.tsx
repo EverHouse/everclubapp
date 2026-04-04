@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
+import { springPresets, noMotion, useReducedMotion } from '../utils/motion';
 import Icon from './icons/Icon';
 
 const BASE_MODAL_Z_INDEX = 10000;
@@ -48,28 +50,44 @@ export function ModalShell({
   const onCloseRef = useRef(onClose);
   const dismissibleRef = useRef(dismissible);
   const [modalZIndex, setModalZIndex] = useState(BASE_MODAL_Z_INDEX);
-  const [isClosing, setIsClosing] = useState(false);
-
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    setIsClosing(true);
-    setTimeout(() => {
-      onCloseRef.current();
-    }, 250);
-  }, [isClosing]);
+  const prefersReducedMotion = useReducedMotion();
+  const [isVisible, setIsVisible] = useState(false);
+  const closeRequestedRef = useRef(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
     dismissibleRef.current = dismissible;
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      closeRequestedRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsVisible(true);
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsVisible(false);
+    }
+  }, [isOpen]);
+
+  const handleClose = useCallback(() => {
+    if (closeRequestedRef.current) return;
+    closeRequestedRef.current = true;
+    setIsVisible(false);
+  }, []);
+
+  const handleExitComplete = useCallback(() => {
+    if (closeRequestedRef.current) {
+      closeRequestedRef.current = false;
+      onCloseRef.current();
+    }
+  }, []);
+
   useScrollLockManager(isOpen, dismissible ? handleClose : undefined);
   useSafariThemeColor(isOpen);
 
   useEffect(() => {
     if (!isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsClosing(false);
       return;
     }
 
@@ -101,78 +119,91 @@ export function ModalShell({
     };
   }, [isOpen]);
 
-  if (!isOpen && !isClosing) return null;
+  const backdropTransition = prefersReducedMotion ? noMotion : { duration: 0.2 };
+  const panelTransition = prefersReducedMotion ? noMotion : springPresets.smooth;
 
   const modalContent = (
-    <div 
-      className={`fixed inset-0 ${isDark ? 'dark' : ''}`}
-      style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: modalZIndex, height: '100%' }}
-    >
-      <div 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-normal ${isClosing ? 'opacity-0' : 'animate-backdrop-fade-in'}`}
-        aria-hidden="true"
-        style={{ touchAction: 'none', height: '100%' }}
-      />
-      
-      <div 
-        className="fixed inset-0 overflow-y-auto"
-        style={{ overscrollBehavior: 'contain', height: '100%' }}
-        onClick={(e) => {
-          if (dismissible && e.target === e.currentTarget) {
-            handleClose();
-          }
-        }}
-      >
+    <AnimatePresence onExitComplete={handleExitComplete}>
+      {isVisible && (
         <div 
-          className="flex min-h-full items-center justify-center p-4"
-          onClick={(e) => {
-            if (dismissible && e.target === e.currentTarget) {
-              handleClose();
-            }
-          }}
+          className={`fixed inset-0 ${isDark ? 'dark' : ''}`}
+          style={{ overscrollBehavior: 'contain', touchAction: 'none', zIndex: modalZIndex, height: '100%' }}
         >
-          <div
-            ref={modalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={title ? 'modal-title' : undefined}
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-            className={`relative w-full ${sizeClasses[size]} ${isDark ? 'bg-[#1a1d15] border-white/10' : 'bg-white border-gray-200'} rounded-xl shadow-2xl border transform transition-gpu duration-normal ease-spring-smooth ${isClosing ? 'scale-95 opacity-0' : 'animate-modal-slide-up'} ${className}`}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={backdropTransition}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            aria-hidden="true"
+            style={{ touchAction: 'none', height: '100%' }}
+          />
+          
+          <div 
+            className="fixed inset-0 overflow-y-auto"
+            style={{ overscrollBehavior: 'contain', height: '100%' }}
+            onClick={(e) => {
+              if (dismissible && e.target === e.currentTarget) {
+                handleClose();
+              }
+            }}
           >
-            {(title || showCloseButton) && (
-              <div className={`flex items-center justify-between p-4 ${hideTitleBorder ? '' : `border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}`}>
-                {title && (
-                  <h3 
-                    id="modal-title"
-                    className={`text-xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}
-                  >
-                    {title}
-                  </h3>
-                )}
-                {showCloseButton && (
-                  <button
-                    onClick={handleClose}
-                    className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
-                    aria-label="Close modal"
-                  >
-                    <Icon name="close" className="text-xl" />
-                  </button>
-                )}
-              </div>
-            )}
-            
             <div 
-              className={`modal-keyboard-aware ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'} max-h-[85dvh]`}
-              data-scroll-lock-allow=""
-              style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+              className="flex min-h-full items-center justify-center p-4"
+              onClick={(e) => {
+                if (dismissible && e.target === e.currentTarget) {
+                  handleClose();
+                }
+              }}
             >
-              {children}
+              <motion.div
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={title ? 'modal-title' : undefined}
+                tabIndex={-1}
+                onClick={(e) => e.stopPropagation()}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={panelTransition}
+                className={`relative w-full ${sizeClasses[size]} ${isDark ? 'bg-[#1a1d15] border-white/10' : 'bg-white border-gray-200'} rounded-xl shadow-2xl border ${className}`}
+              >
+                {(title || showCloseButton) && (
+                  <div className={`flex items-center justify-between p-4 ${hideTitleBorder ? '' : `border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}`}>
+                    {title && (
+                      <h3 
+                        id="modal-title"
+                        className={`text-xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}
+                      >
+                        {title}
+                      </h3>
+                    )}
+                    {showCloseButton && (
+                      <button
+                        onClick={handleClose}
+                        className={`p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-100 text-gray-600'}`}
+                        aria-label="Close modal"
+                      >
+                        <Icon name="close" className="text-xl" />
+                      </button>
+                    )}
+                  </div>
+                )}
+                
+                <div 
+                  className={`modal-keyboard-aware ${overflowVisible ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'} max-h-[85dvh]`}
+                  data-scroll-lock-allow=""
+                  style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+                >
+                  {children}
+                </div>
+              </motion.div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 
   return createPortal(modalContent, document.body);
