@@ -15,6 +15,7 @@ interface ClientConnection {
   isAlive: boolean;
   isStaff: boolean;
   sessionId?: string;
+  tokenExp?: number;
 }
 
 export interface NotificationDeliveryResult {
@@ -201,7 +202,7 @@ export function createWsAuthToken(email: string, role: string): string {
   return `${payloadB64}.${sig}`;
 }
 
-function verifyWsAuthToken(token: string): { email: string; role: string; isStaff: boolean } | null {
+function verifyWsAuthToken(token: string): { email: string; role: string; isStaff: boolean; exp: number } | null {
   const secret = process.env.SESSION_SECRET;
   if (!secret || !token) return null;
 
@@ -228,6 +229,7 @@ function verifyWsAuthToken(token: string): { email: string; role: string; isStaf
       email: payload.email.toLowerCase(),
       role,
       isStaff: role === 'staff' || role === 'admin',
+      exp: payload.exp,
     };
   } catch { /* intentional: invalid/expired token — return null to reject auth */
     return null;
@@ -442,7 +444,8 @@ export async function initWebSocketServer(server: Server) {
                 userEmail, 
                 isAlive: true, 
                 isStaff: verifiedUser.isStaff,
-                sessionId
+                sessionId,
+                tokenExp: 'exp' in verifiedUser ? (verifiedUser as { exp: number }).exp : undefined,
               };
               
               const existing = clients.get(userEmail) || [];
@@ -613,6 +616,11 @@ export async function initWebSocketServer(server: Server) {
     for (const [email, connections] of clients) {
       const valid: ClientConnection[] = [];
       for (const conn of connections) {
+        if (conn.tokenExp && conn.tokenExp < Date.now()) {
+          logger.info(`[WebSocket] Token expired for ${email} — terminating connection`);
+          conn.ws.terminate();
+          continue;
+        }
         if (!conn.sessionId) {
           valid.push(conn);
           continue;
@@ -709,11 +717,13 @@ function deliverToLocalConnections(target: BroadcastTarget, payload: string): nu
 
     case 'user_and_staff': {
       const emailLower = target.email.toLowerCase();
+      const sentSockets = new Set<WebSocket>();
       const memberConns = clients.get(emailLower) || [];
       memberConns.forEach((conn) => {
         if (conn.ws.readyState === WebSocket.OPEN) {
           try {
             conn.ws.send(payload);
+            sentSockets.add(conn.ws);
             sent++;
           } catch (err: unknown) {
             logger.warn('[WebSocket] Error in local delivery (user_and_staff:user)', { extra: { error: getErrorMessage(err) } });
@@ -722,9 +732,10 @@ function deliverToLocalConnections(target: BroadcastTarget, payload: string): nu
       });
       clients.forEach((connections) => {
         connections.forEach((conn) => {
-          if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN && (!target.excludeUserFromStaff || conn.userEmail !== emailLower)) {
+          if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN && !sentSockets.has(conn.ws) && (!target.excludeUserFromStaff || conn.userEmail !== emailLower)) {
             try {
               conn.ws.send(payload);
+              sentSockets.add(conn.ws);
               sent++;
             } catch (err: unknown) {
               logger.warn('[WebSocket] Error in local delivery (user_and_staff:staff)', { extra: { error: getErrorMessage(err) } });

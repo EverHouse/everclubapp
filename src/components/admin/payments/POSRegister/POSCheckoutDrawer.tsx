@@ -241,12 +241,13 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
         </h4>
         {useGuestCheckout ? (
           <button
+            disabled={isCreatingIntent || isProcessing || checkingSavedCard}
             onClick={() => handleSelectPaymentMethod('terminal')}
             className={`w-full flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
               selectedPaymentMethod === 'terminal'
                 ? 'bg-primary dark:bg-lavender text-white shadow-sm'
                 : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
-            }`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Icon name="contactless" className="text-xl" />
             Card Reader
@@ -254,35 +255,38 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
         ) : (
         <div className={`grid gap-2 ${savedCard?.hasSavedCard && !useNewCustomer ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <button
+            disabled={isCreatingIntent || isProcessing || checkingSavedCard}
             onClick={() => handleSelectPaymentMethod('online_card')}
             className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
               selectedPaymentMethod === 'online_card'
                 ? 'bg-primary dark:bg-lavender text-white shadow-sm'
                 : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
-            }`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Icon name="credit_card" className="text-xl" />
             Online Card
           </button>
           <button
+            disabled={isCreatingIntent || isProcessing || checkingSavedCard}
             onClick={() => handleSelectPaymentMethod('terminal')}
             className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
               selectedPaymentMethod === 'terminal'
                 ? 'bg-primary dark:bg-lavender text-white shadow-sm'
                 : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
-            }`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Icon name="contactless" className="text-xl" />
             Card Reader
           </button>
           {savedCard?.hasSavedCard && !useNewCustomer && (
             <button
+              disabled={isCreatingIntent || isProcessing || checkingSavedCard}
               onClick={() => handleSelectPaymentMethod('saved_card')}
               className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl text-sm font-medium transition-colors ${
                 selectedPaymentMethod === 'saved_card'
                   ? 'bg-primary dark:bg-lavender text-white shadow-sm'
                   : 'bg-white/60 dark:bg-white/5 text-primary dark:text-white border border-primary/10 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10'
-              }`}
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               <Icon name="wallet" className="text-xl" />
               <span className="leading-tight text-center">Card on File{savedCard.cardLast4 ? ` ••${savedCard.cardLast4}` : ''}</span>

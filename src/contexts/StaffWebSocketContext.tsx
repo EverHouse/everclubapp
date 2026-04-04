@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useCallback, useState, useMemo } from 'react';
+import React, { createContext, useContext, useRef, useCallback, useMemo } from 'react';
 import { useStaffWebSocket, type BookingEvent } from '../hooks/useStaffWebSocket';
 import { useAuthData } from './DataContext';
 
@@ -16,19 +16,10 @@ const StaffWebSocketContext = createContext<StaffWebSocketContextType | null>(nu
 export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { actualUser, sessionChecked } = useAuthData();
   const callbacksRef = useRef<Map<string, EventCallback>>(new Map());
-  const [lastEventFromContext, setLastEventFromContext] = useState<BookingEvent | null>(null);
-  const mountIdRef = useRef<number>(0);
-
-  // eslint-disable-next-line react-hooks/refs
-  if (mountIdRef.current === 0) {
-    // eslint-disable-next-line react-hooks/refs
-    mountIdRef.current = 1;
-  }
 
   const isStaff = actualUser?.role === 'staff' || actualUser?.role === 'admin';
 
   const handleBookingEvent = useCallback((event: BookingEvent) => {
-    setLastEventFromContext(event);
     callbacksRef.current.forEach((callback) => {
       try {
         callback(event);
@@ -57,10 +48,10 @@ export const StaffWebSocketProvider: React.FC<{ children: React.ReactNode }> = (
 
   const contextValue = useMemo<StaffWebSocketContextType>(() => ({
     isConnected,
-    lastEvent: lastEventFromContext || lastEvent,
+    lastEvent,
     registerCallback,
     unregisterCallback,
-  }), [isConnected, lastEventFromContext, lastEvent, registerCallback, unregisterCallback]);
+  }), [isConnected, lastEvent, registerCallback, unregisterCallback]);
 
   return (
     <StaffWebSocketContext.Provider value={contextValue}>
