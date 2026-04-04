@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getTodayPacific, addDaysToPacificDate, getNowTimePacific } from '../../../utils/dateUtils';
 import { bookingsKeys, simulatorKeys, commandCenterKeys } from '../../../hooks/queries/adminKeys';
 import {
-  useCommandCenterTodaysBookings,
   useCommandCenterUpcomingBookings,
   useCommandCenterPendingRequests,
   useCommandCenterScheduling,
@@ -19,7 +18,6 @@ export const REFRESH_INTERVAL = 5 * 60 * 1000;
 export function useCommandCenterData(userEmail?: string) {
   const queryClient = useQueryClient();
 
-  const todaysBookingsQuery = useCommandCenterTodaysBookings();
   const upcomingBookingsQuery = useCommandCenterUpcomingBookings();
   const pendingRequestsQuery = useCommandCenterPendingRequests();
   const schedulingQuery = useCommandCenterScheduling();
@@ -71,13 +69,16 @@ export function useCommandCenterData(userEmail?: string) {
   }, [pendingRequestsQuery.data, getDisplayName, memberNameByEmail]);
 
   const todaysBookings = useMemo((): BookingRequest[] => {
-    const raw = todaysBookingsQuery.data;
+    const raw = upcomingBookingsQuery.data;
     if (!raw) return [];
-    return raw.map((b: BookingRequest) => ({
-      ...b,
-      user_name: getDisplayName(b.user_email, b.user_name)
-    }));
-  }, [todaysBookingsQuery.data, getDisplayName]);
+    const weekAheadDate = addDaysToPacificDate(getTodayPacific(), 7);
+    return raw
+      .filter((b: BookingRequest) => b.request_date <= weekAheadDate)
+      .map((b: BookingRequest) => ({
+        ...b,
+        user_name: getDisplayName(b.user_email, b.user_name)
+      }));
+  }, [upcomingBookingsQuery.data, getDisplayName]);
 
   const upcomingBookings = useMemo((): UpcomingBooking[] => {
     const raw = upcomingBookingsQuery.data;
@@ -405,7 +406,7 @@ export function useCommandCenterData(userEmail?: string) {
   }, [activityQuery.data?.notifications]);
 
   const isLoading =
-    todaysBookingsQuery.isLoading ||
+    upcomingBookingsQuery.isLoading ||
     pendingRequestsQuery.isLoading ||
     schedulingQuery.isLoading ||
     facilityQuery.isLoading ||
@@ -414,7 +415,7 @@ export function useCommandCenterData(userEmail?: string) {
 
   const lastSynced = useMemo(() => {
     const timestamps = [
-      todaysBookingsQuery.dataUpdatedAt,
+      upcomingBookingsQuery.dataUpdatedAt,
       pendingRequestsQuery.dataUpdatedAt,
       schedulingQuery.dataUpdatedAt,
       facilityQuery.dataUpdatedAt,
@@ -423,7 +424,7 @@ export function useCommandCenterData(userEmail?: string) {
     if (timestamps.length === 0) return new Date();
     return new Date(Math.max(...timestamps));
   }, [
-    todaysBookingsQuery.dataUpdatedAt,
+    upcomingBookingsQuery.dataUpdatedAt,
     pendingRequestsQuery.dataUpdatedAt,
     schedulingQuery.dataUpdatedAt,
     facilityQuery.dataUpdatedAt,
@@ -439,7 +440,7 @@ export function useCommandCenterData(userEmail?: string) {
   }, [queryClient]);
 
   const today = getTodayPacific();
-  const weekAhead = addDaysToPacificDate(today, 7);
+  const futureDate = addDaysToPacificDate(today, 30);
 
   const updatePendingRequests = useCallback((updater: (prev: BookingRequest[]) => BookingRequest[]) => {
     queryClient.setQueryData(commandCenterKeys.pendingRequests(), (old: { bookingRequests: BookingRequest[]; pendingBookings: BookingRequest[] } | undefined) => {
@@ -476,13 +477,13 @@ export function useCommandCenterData(userEmail?: string) {
 
   const updateTodaysBookings = useCallback((updater: (prev: BookingRequest[]) => BookingRequest[]) => {
     queryClient.setQueryData(
-      simulatorKeys.approvedBookings(today, weekAhead),
+      simulatorKeys.approvedBookings(today, futureDate),
       (old: BookingRequest[] | undefined) => {
         if (!old) return old;
         return updater(old);
       }
     );
-  }, [queryClient, today, weekAhead]);
+  }, [queryClient, today, futureDate]);
 
   const updateRecentActivity = useCallback((updater: (prev: RecentActivity[]) => RecentActivity[]) => {
     queryClient.setQueryData(

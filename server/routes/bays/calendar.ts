@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../../db';
-import { bookingRequests, resources, users } from '../../../shared/schema';
+import { bookingRequests, resources } from '../../../shared/schema';
 import { eq, and, or, gte, lte, asc, SQL, sql } from 'drizzle-orm';
 import { getConferenceRoomBookingsFromCalendar } from '../../core/calendar/index';
 import { isStaffOrAdmin } from '../../core/middleware';
@@ -9,23 +9,8 @@ import { logAndRespond, logger } from '../../core/logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getSessionUser } from '../../types/session';
 import { getTodayPacific, addDaysToPacificDate } from '../../utils/dateUtils';
-import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
+import { toIntArrayLiteral, toTextArrayLiteral } from '../../utils/sqlArrayLiteral';
 
-interface PaymentStatusRow {
-  booking_id: number;
-  total_owed: string;
-  all_participants_paid: boolean;
-}
-
-interface FeeSnapshotRow {
-  booking_id: number;
-  snapshot_created_at: string;
-}
-
-interface FilledSlotsRow {
-  booking_id: number;
-  filled_count: string;
-}
 
 const router = Router();
 
@@ -89,13 +74,23 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     conditions.push(gte(bookingRequests.requestDate, defaultStartDate as string));
     conditions.push(lte(bookingRequests.requestDate, defaultEndDate as string));
     
+    const calendarPromise = (async () => {
+      try {
+        const [calendarEvents, confRoomId] = await Promise.all([
+          getConferenceRoomBookingsFromCalendar(),
+          getConferenceRoomId(),
+        ]);
+        return { calendarEvents, confRoomId };
+      } catch (calError) {
+        logger.error('Failed to fetch calendar conference bookings (non-blocking)', { extra: { error: getErrorMessage(calError) } });
+        return { calendarEvents: [] as Array<{ id: string; date: string; startTime: string; endTime: string; memberName?: string; description?: string }>, confRoomId: null as number | null };
+      }
+    })();
+
     const dbResult = await db.select({
       id: bookingRequests.id,
       user_email: bookingRequests.userEmail,
-      user_name: sql<string>`COALESCE(
-        NULLIF(TRIM(CONCAT_WS(' ', ${users.firstName}, ${users.lastName})), ''),
-        ${bookingRequests.userName}
-      )`.as('user_name'),
+      user_name: bookingRequests.userName,
       resource_id: bookingRequests.resourceId,
       resource_preference: bookingRequests.resourcePreference,
       request_date: bookingRequests.requestDate,
@@ -122,66 +117,40 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
-    .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
     .where(and(...conditions))
     .orderBy(asc(bookingRequests.requestDate), asc(bookingRequests.startTime));
     
     const bookingIds = dbResult.map(b => b.id).filter(Boolean);
     const bookingIdsLiteral = toIntArrayLiteral(bookingIds);
-    const dbCalendarEventIds = new Set(
-      dbResult
-        .filter(r => r.calendar_event_id)
-        .map(r => r.calendar_event_id)
-    );
-    
+
+    const uniqueEmails = [...new Set(dbResult.map(b => b.user_email).filter(Boolean))] as string[];
+
+    const userNameMap = new Map<string, string>();
     const paymentStatusMap = new Map<number, { hasUnpaidFees: boolean; totalOwed: number }>();
     const filledSlotsMap = new Map<number, number>();
     let feeSnapshotPaidSet = new Set<number>();
 
-    const calendarPromise = (async () => {
-      try {
-        const [calendarEvents, confRoomId] = await Promise.all([
-          getConferenceRoomBookingsFromCalendar(),
-          getConferenceRoomId(),
-        ]);
-        return calendarEvents
-          .filter(event => {
-            if (dbCalendarEventIds.has(event.id)) return false;
-            if (event.date < (defaultStartDate as string)) return false;
-            if (event.date > (defaultEndDate as string)) return false;
-            return true;
-          })
-          .map(event => ({
-            id: `cal_${event.id}`,
-            user_email: null,
-            user_name: event.memberName ?? '',
-            resource_id: confRoomId,
-            resource_preference: null,
-            request_date: event.date,
-            start_time: event.startTime + ':00',
-            duration_minutes: null,
-            end_time: event.endTime + ':00',
-            notes: event.description,
-            status: 'approved',
-            staff_notes: null,
-            suggested_time: null,
-            reviewed_by: null,
-            reviewed_at: null,
-            created_at: null,
-            updated_at: null,
-            calendar_event_id: event.id,
-            resource_name: 'Conference Room',
-            resource_type: 'conference_room',
-            source: 'calendar'
-          }));
-      } catch (calError) {
-        logger.error('Failed to fetch calendar conference bookings (non-blocking)', { extra: { error: getErrorMessage(calError) } });
-        return [] as Array<Record<string, unknown>>;
-      }
-    })();
+    const parallelQueries: Promise<void>[] = [];
+
+    if (uniqueEmails.length > 0) {
+      const emailArrayLiteral = toTextArrayLiteral(uniqueEmails.map(e => e.toLowerCase()));
+      parallelQueries.push(
+        db.execute(sql`
+          SELECT LOWER(email) as email_lower, TRIM(CONCAT_WS(' ', first_name, last_name)) as full_name
+          FROM users
+          WHERE LOWER(email) = ANY(${emailArrayLiteral}::text[])
+        `).then((result) => {
+          for (const row of result.rows as Array<{ email_lower: string; full_name: string }>) {
+            if (row.full_name && row.full_name.trim()) {
+              userNameMap.set(row.email_lower, row.full_name);
+            }
+          }
+        })
+      );
+    }
 
     if (bookingIds.length > 0) {
-      const [paymentStatusResult, feeSnapshotResult, filledSlotsResult] = await Promise.all([
+      parallelQueries.push(
         db.execute(sql`
           SELECT 
             br.id as booking_id,
@@ -192,7 +161,9 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
                 AND NOT EXISTS (SELECT 1 FROM booking_participants bp3 WHERE bp3.session_id = br.session_id AND bp3.payment_status IN ('pending', 'refunded') AND COALESCE(bp3.cached_fee_cents, 0) > 0)
               THEN true
               ELSE false
-            END as all_participants_paid
+            END as all_participants_paid,
+            COALESCE((SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id), 0) as filled_count,
+            CASE WHEN EXISTS (SELECT 1 FROM booking_fee_snapshots bfs WHERE bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')) THEN true ELSE false END as has_paid_snapshot
           FROM booking_requests br
           LEFT JOIN LATERAL (
             SELECT SUM(COALESCE(bp.cached_fee_cents, 0)) / 100.0 as total_owed
@@ -201,46 +172,37 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
               AND bp.payment_status IN ('pending', 'refunded')
           ) pending_fees ON true
           WHERE br.id = ANY(${bookingIdsLiteral}::int[])
-        `),
-        db.execute(sql`
-          SELECT br.id as booking_id, bfs.created_at as snapshot_created_at
-          FROM booking_requests br
-          INNER JOIN booking_fee_snapshots bfs ON bfs.session_id = br.session_id AND bfs.status IN ('completed', 'paid')
-          WHERE br.id = ANY(${bookingIdsLiteral}::int[])
-        `),
-        db.execute(sql`
-          SELECT 
-            br.id as booking_id,
-            CASE 
-              WHEN br.session_id IS NOT NULL AND EXISTS (SELECT 1 FROM booking_participants bp WHERE bp.session_id = br.session_id)
-              THEN (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id)
-              ELSE (SELECT COUNT(*) FROM booking_participants bp WHERE bp.session_id = br.session_id)
-            END as filled_count
-          FROM booking_requests br
-          WHERE br.id = ANY(${bookingIdsLiteral}::int[])
-        `),
-      ]);
-
-      feeSnapshotPaidSet = new Set<number>((feeSnapshotResult.rows as unknown as FeeSnapshotRow[]).map(r => r.booking_id));
-
-      for (const row of paymentStatusResult.rows as unknown as PaymentStatusRow[]) {
-        const totalOwed = parseFloat(row.total_owed) || 0;
-        const snapshotPaid = (feeSnapshotPaidSet.has(row.booking_id) && totalOwed === 0) || row.all_participants_paid === true;
-        paymentStatusMap.set(row.booking_id, {
-          hasUnpaidFees: snapshotPaid ? false : totalOwed > 0,
-          totalOwed: snapshotPaid ? 0 : totalOwed
-        });
-        if (snapshotPaid) {
-          feeSnapshotPaidSet.add(row.booking_id);
-        }
-      }
-      
-      for (const row of filledSlotsResult.rows as unknown as FilledSlotsRow[]) {
-        filledSlotsMap.set(row.booking_id, parseInt(row.filled_count, 10) || 0);
-      }
+        `).then((result) => {
+          for (const row of result.rows as Array<{ booking_id: number; total_owed: string; all_participants_paid: boolean; filled_count: string; has_paid_snapshot: boolean }>) {
+            const totalOwed = parseFloat(row.total_owed) || 0;
+            if (row.has_paid_snapshot) {
+              feeSnapshotPaidSet.add(row.booking_id);
+            }
+            const snapshotPaid = (row.has_paid_snapshot && totalOwed === 0) || row.all_participants_paid === true;
+            paymentStatusMap.set(row.booking_id, {
+              hasUnpaidFees: snapshotPaid ? false : totalOwed > 0,
+              totalOwed: snapshotPaid ? 0 : totalOwed
+            });
+            if (snapshotPaid) {
+              feeSnapshotPaidSet.add(row.booking_id);
+            }
+            filledSlotsMap.set(row.booking_id, parseInt(row.filled_count, 10) || 0);
+          }
+        })
+      );
     }
-    
+
+    await Promise.all(parallelQueries);
+
+    const dbCalendarEventIds = new Set(
+      dbResult
+        .filter(r => r.calendar_event_id)
+        .map(r => r.calendar_event_id)
+    );
+
     const enrichedDbResult = dbResult.map(b => {
+      const emailLower = b.user_email?.toLowerCase();
+      const resolvedUserName = (emailLower && userNameMap.get(emailLower)) || b.user_name;
       const declaredPlayers = b.declared_player_count || 1;
       const actualFilledSlots = filledSlotsMap.get(b.id);
       const filledSlots = actualFilledSlots !== undefined && actualFilledSlots > 0
@@ -250,6 +212,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       
       return {
         ...b,
+        user_name: resolvedUserName,
         has_unpaid_fees: paymentStatusMap.get(b.id)?.hasUnpaidFees || false,
         total_owed: paymentStatusMap.get(b.id)?.totalOwed || 0,
         fee_snapshot_paid: feeSnapshotPaidSet.has(b.id) && !(paymentStatusMap.get(b.id)?.hasUnpaidFees),
@@ -258,7 +221,38 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       };
     });
     
-    const calendarBookings = await calendarPromise;
+    const { calendarEvents, confRoomId } = await calendarPromise;
+    const calendarBookings = calendarEvents
+      .filter(event => {
+        if (dbCalendarEventIds.has(event.id)) return false;
+        if (event.date < (defaultStartDate as string)) return false;
+        if (event.date > (defaultEndDate as string)) return false;
+        return true;
+      })
+      .map(event => ({
+        id: `cal_${event.id}`,
+        user_email: null,
+        user_name: event.memberName ?? '',
+        resource_id: confRoomId,
+        resource_preference: null,
+        request_date: event.date,
+        start_time: event.startTime + ':00',
+        duration_minutes: null,
+        end_time: event.endTime + ':00',
+        notes: event.description,
+        status: 'approved',
+        staff_notes: null,
+        suggested_time: null,
+        reviewed_by: null,
+        reviewed_at: null,
+        created_at: null,
+        updated_at: null,
+        calendar_event_id: event.id,
+        resource_name: 'Conference Room',
+        resource_type: 'conference_room',
+        source: 'calendar'
+      }));
+
     const allBookings = ([...enrichedDbResult, ...calendarBookings] as Array<Record<string, unknown>>)
       .sort((a, b) => {
         const dateCompare = (String(a.request_date || '')).localeCompare(String(b.request_date || ''));
