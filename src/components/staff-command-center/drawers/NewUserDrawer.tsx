@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useBottomNav } from '../../../stores/bottomNavStore';
 import { useToast } from '../../Toast';
@@ -23,6 +23,7 @@ import {
   EMAIL_REGEX,
 } from './newUser/newUserTypes';
 import { fetchWithCredentials, deleteWithCredentials } from '../../../hooks/queries/useFetch';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges';
 import Icon from '../../icons/Icon';
 
 export function NewUserDrawer({
@@ -67,7 +68,26 @@ export function NewUserDrawer({
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const cooldownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  
+  const isDirty = useMemo(() => {
+    if (!isOpen) return false;
+    const currentStep = mode === 'member' ? memberStep : visitorStep;
+    if (currentStep === 'success') return false;
+    if (mode === 'member') {
+      const m = memberForm;
+      const i = initialMemberForm;
+      return m.firstName !== i.firstName || m.lastName !== i.lastName || m.email !== i.email || m.phone !== i.phone || m.tierId !== i.tierId || m.dob !== i.dob || m.discountCode !== i.discountCode || m.streetAddress !== i.streetAddress || m.city !== i.city || m.state !== i.state || m.zipCode !== i.zipCode || m.freeTrialEnabled !== i.freeTrialEnabled || m.addGroupMembers !== i.addGroupMembers || m.joinExistingGroup !== i.joinExistingGroup;
+    }
+    const v = visitorForm;
+    const iv = initialVisitorForm;
+    return v.firstName !== iv.firstName || v.lastName !== iv.lastName || v.email !== iv.email || v.phone !== iv.phone || v.productId !== iv.productId || v.dob !== iv.dob || v.notes !== iv.notes || v.streetAddress !== iv.streetAddress || v.city !== iv.city || v.state !== iv.state || v.zipCode !== iv.zipCode;
+  }, [isOpen, mode, memberStep, visitorStep, memberForm, visitorForm]);
+
+  const { guardedClose, UnsavedChangesDialog } = useUnsavedChanges({
+    isDirty,
+    message: 'You have unsaved user details. Are you sure you want to close? Your changes will be lost.',
+  });
+
+
 
   useEffect(() => {
     return () => {
@@ -198,10 +218,14 @@ export function NewUserDrawer({
     }
   }, [isOpen, setDrawerOpen, resetForm]);
 
-  const handleClose = useCallback(() => {
+  const actualClose = useCallback(() => {
     setDrawerOpen(false);
     onClose();
   }, [onClose, setDrawerOpen]);
+
+  const handleClose = useCallback(() => {
+    guardedClose(actualClose);
+  }, [guardedClose, actualClose]);
 
   const handleIdScanComplete = useCallback((data: {
     firstName: string;
@@ -452,6 +476,7 @@ export function NewUserDrawer({
         )}
       </div>
     </SlideUpDrawer>
+    <UnsavedChangesDialog />
     <IdScannerModal
       isOpen={showIdScanner}
       onClose={() => { setShowIdScanner(false); setScanningSubMemberIndex(null); }}

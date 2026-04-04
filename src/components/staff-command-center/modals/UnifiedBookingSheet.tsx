@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { SheetHeader } from './SheetHeader';
@@ -11,6 +12,7 @@ import { isPlaceholderEmail } from './bookingSheetTypes';
 import { isPlaceholderGuestName } from '../../../utils/rosterUtils';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { formatTime12Hour } from '../../../utils/dateUtils';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { springPresets, noMotion } from '../../../utils/motion';
@@ -57,6 +59,20 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
   } = props;
 
   const logic = useUnifiedBookingLogic(props);
+
+  const assignModeDirty = useMemo(() => {
+    if (!isOpen || logic.isManageMode) return false;
+    return logic.hasOwner || logic.filledSlotsCount > 0;
+  }, [isOpen, logic.isManageMode, logic.hasOwner, logic.filledSlotsCount]);
+
+  const { guardedClose, UnsavedChangesDialog } = useUnsavedChanges({
+    isDirty: assignModeDirty,
+    message: 'You have unsaved booking assignments. Are you sure you want to close? Your changes will be lost.',
+  });
+
+  const guardedOnClose = useCallback(() => {
+    guardedClose(onClose);
+  }, [guardedClose, onClose]);
 
   if (logic.isManageMode) {
     const validation = logic.rosterData?.validation;
@@ -290,15 +306,16 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
       feeEstimate={logic.feeEstimate}
       isCalculatingFees={logic.isCalculatingFees}
       isConferenceRoom={logic.isConferenceRoom}
-      onClose={onClose}
+      onClose={guardedOnClose}
       handleFinalizeBooking={logic.handleFinalizeBooking}
     />
   );
 
   return (
+    <>
     <SlideUpDrawer
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={guardedOnClose}
       title={drawerTitle}
       maxHeight="full"
       stickyFooter={stickyFooterContent}
@@ -414,5 +431,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         )}
       </div>
     </SlideUpDrawer>
+    <UnsavedChangesDialog />
+    </>
   );
 }

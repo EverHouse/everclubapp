@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { MemberSearchInput, type SelectedMember } from '../../shared/MemberSearchInput';
 import { useToast } from '../../Toast';
 import { getTodayPacific, formatTime12Hour } from '../../../utils/dateUtils';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
+import { useUnsavedChanges } from '../../../hooks/useUnsavedChanges';
 import Icon from '../../icons/Icon';
 
 interface FeeEstimate {
@@ -47,6 +48,16 @@ export function StaffManualBookingModal({
   const [confSubmitting, setConfSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isDirty = useMemo(() => {
+    if (!isOpen) return false;
+    return !!(confHostMember || confDate !== (defaultDate ?? getTodayPacific()) || confStartTime !== (defaultStartTime ?? '08:30') || confDuration !== 60);
+  }, [isOpen, confHostMember, confDate, confStartTime, confDuration, defaultDate, defaultStartTime]);
+
+  const { guardedClose, UnsavedChangesDialog } = useUnsavedChanges({
+    isDirty,
+    message: 'You have unsaved booking details. Are you sure you want to close? Your changes will be lost.',
+  });
+
   useEffect(() => {
     if (isOpen) {
       setConfDate(defaultDate ?? getTodayPacific());
@@ -84,7 +95,7 @@ export function StaffManualBookingModal({
     };
   }, [isOpen, confHostMember, confDate, confDuration]);
 
-  const handleClose = useCallback(() => {
+  const actualClose = useCallback(() => {
     setConfDate(getTodayPacific());
     setConfDuration(60);
     setConfStartTime('08:30');
@@ -93,6 +104,10 @@ export function StaffManualBookingModal({
     setError(null);
     onClose();
   }, [onClose]);
+
+  const handleClose = useCallback(() => {
+    guardedClose(actualClose);
+  }, [guardedClose, actualClose]);
 
   const handleConferenceSubmit = useCallback(async () => {
     if (!confHostMember || !confStartTime || !confDate) {
@@ -113,7 +128,7 @@ export function StaffManualBookingModal({
       });
 
       showToast(`Conference room booked for ${confHostMember.name}`, 'success');
-      handleClose();
+      actualClose();
     } catch (err: unknown) {
       const errorMsg = (err instanceof Error ? err.message : String(err)) || 'Failed to create conference room booking';
       setError(errorMsg);
@@ -121,7 +136,7 @@ export function StaffManualBookingModal({
     } finally {
       setConfSubmitting(false);
     }
-  }, [confHostMember, confStartTime, confDate, confDuration, showToast, handleClose]);
+  }, [confHostMember, confStartTime, confDate, confDuration, showToast, actualClose]);
 
   const canCreateConferenceBooking = confHostMember && confStartTime && confDate;
 
@@ -153,6 +168,7 @@ export function StaffManualBookingModal({
   );
 
   return (
+    <>
     <SlideUpDrawer
       isOpen={isOpen}
       onClose={handleClose}
@@ -287,6 +303,8 @@ export function StaffManualBookingModal({
         </div>
       </div>
     </SlideUpDrawer>
+    <UnsavedChangesDialog />
+    </>
   );
 }
 

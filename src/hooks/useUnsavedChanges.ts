@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
+import { useConfirmDialog } from '../components/ConfirmDialog';
 
 interface UseUnsavedChangesOptions {
   isDirty: boolean;
@@ -6,8 +7,10 @@ interface UseUnsavedChangesOptions {
 }
 
 export function useUnsavedChanges({ isDirty, message }: UseUnsavedChangesOptions) {
-  const defaultMessage = message || 'You have unsaved changes. Discard changes?';
+  const defaultMessage = message || 'You have unsaved changes. Are you sure you want to close? Your changes will be lost.';
   const [showDialog, setShowDialog] = useState(false);
+
+  const { confirm, ConfirmDialogComponent } = useConfirmDialog();
 
   useEffect(() => {
     if (!isDirty) return;
@@ -29,11 +32,30 @@ export function useUnsavedChanges({ isDirty, message }: UseUnsavedChangesOptions
     setShowDialog(false);
   }, []);
 
+  const guardedClose = useCallback(async (actualClose: () => void) => {
+    if (!isDirty) {
+      actualClose();
+      return;
+    }
+    const confirmed = await confirm({
+      title: 'Unsaved Changes',
+      message: defaultMessage,
+      confirmText: 'Discard Changes',
+      cancelText: 'Keep Editing',
+      variant: 'warning',
+    });
+    if (confirmed) {
+      actualClose();
+    }
+  }, [isDirty, confirm, defaultMessage]);
+
   return {
     showDialog,
     dialogTitle: 'Unsaved Changes',
     dialogMessage: defaultMessage,
     confirmDiscard,
     cancelDiscard,
+    guardedClose,
+    UnsavedChangesDialog: ConfirmDialogComponent,
   };
 }

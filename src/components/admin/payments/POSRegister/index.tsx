@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { SlideUpDrawer } from '../../../SlideUpDrawer';
 import IdScannerModal from '../../../staff-command-center/modals/IdScannerModal';
 import RedeemDayPassSection from '../RedeemPassCard';
@@ -8,10 +8,32 @@ import POSCustomerSection from './POSCustomerSection';
 import POSCheckoutDrawer from './POSCheckoutDrawer';
 import { usePOSRegister } from './usePOSRegister';
 import { CATEGORY_TABS } from './posTypes';
+import { useUnsavedChanges } from '../../../../hooks/useUnsavedChanges';
 import Icon from '../../../icons/Icon';
 
 const POSRegister: React.FC = () => {
   const pos = usePOSRegister();
+
+  const checkoutDirty = useMemo(() => {
+    if (!pos.drawerOpen) return false;
+    return pos.selectedPaymentMethod !== null || pos.clientSecret !== null;
+  }, [pos.drawerOpen, pos.selectedPaymentMethod, pos.clientSecret]);
+
+  const { guardedClose: guardedCheckoutClose, UnsavedChangesDialog } = useUnsavedChanges({
+    isDirty: checkoutDirty,
+    message: 'You have a payment in progress. Are you sure you want to close? Your payment details will be lost.',
+  });
+
+  const handleCheckoutClose = useCallback(() => {
+    if (pos.success || pos.isProcessing || pos.isCreatingIntent) return;
+    guardedCheckoutClose(() => {
+      pos.setDrawerOpen(false);
+      pos.setSelectedPaymentMethod(null);
+      pos.setClientSecret(null);
+      pos.setPaymentIntentId(null);
+      pos.setError(null);
+    });
+  }, [pos.success, pos.isProcessing, pos.isCreatingIntent, guardedCheckoutClose, pos]);
 
   const renderMobileCartDrawerContent = () => (
     <div className="space-y-4 px-5 pb-5">
@@ -220,21 +242,15 @@ const POSRegister: React.FC = () => {
 
         <SlideUpDrawer
           isOpen={pos.drawerOpen}
-          onClose={() => {
-            if (!pos.success) {
-              pos.setDrawerOpen(false);
-              pos.setSelectedPaymentMethod(null);
-              pos.setClientSecret(null);
-              pos.setPaymentIntentId(null);
-              pos.setError(null);
-            }
-          }}
+          onClose={handleCheckoutClose}
           title="Review & Charge"
           maxHeight="large"
           dismissible={!pos.success && !pos.isProcessing && !pos.isCreatingIntent}
         >
           {drawerContent}
         </SlideUpDrawer>
+
+        <UnsavedChangesDialog />
       </div>
     );
   }
@@ -307,21 +323,15 @@ const POSRegister: React.FC = () => {
 
       <SlideUpDrawer
         isOpen={pos.drawerOpen}
-        onClose={() => {
-          if (!pos.success) {
-            pos.setDrawerOpen(false);
-            pos.setSelectedPaymentMethod(null);
-            pos.setClientSecret(null);
-            pos.setPaymentIntentId(null);
-            pos.setError(null);
-          }
-        }}
+        onClose={handleCheckoutClose}
         title="Review & Charge"
         maxHeight="large"
         dismissible={!pos.success && !pos.isProcessing && !pos.isCreatingIntent}
       >
         {drawerContent}
       </SlideUpDrawer>
+
+      <UnsavedChangesDialog />
 
       <IdScannerModal
         isOpen={pos.showIdScanner}
