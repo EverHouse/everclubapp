@@ -109,6 +109,7 @@ export function TerminalPayment({
   const clearPollingRef = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
+      clearTimeout(pollingRef.current);
       pollingRef.current = null;
     }
   }, []);
@@ -169,6 +170,12 @@ export function TerminalPayment({
     const MAX_POLLS = 15;
     let pollCount = 0;
     let resolved = false;
+
+    const scheduleNextPoll = () => {
+      if (!resolved && pollCount < MAX_POLLS) {
+        pollingRef.current = setTimeout(poll, POLL_INTERVAL);
+      }
+    };
 
     const poll = async () => {
       if (resolved) return;
@@ -268,6 +275,8 @@ export function TerminalPayment({
           setStatusMessage(intentType === 'setup'
             ? 'Unable to confirm card save status. Please check your connection and try again.'
             : 'Unable to confirm payment status. Please check your connection and try again.');
+        } else {
+          scheduleNextPoll();
         }
       } catch (err: unknown) {
         console.error('Recovery poll error:', err);
@@ -278,6 +287,8 @@ export function TerminalPayment({
             clearRecoveryTimeout();
             setRecoveryFailed(true);
             setStatusMessage('Still unable to reach server — please check your connection.');
+          } else {
+            scheduleNextPoll();
           }
         } else {
           resolved = true;
@@ -293,7 +304,6 @@ export function TerminalPayment({
 
     await poll();
     if (!resolved && pollCount < MAX_POLLS) {
-      pollingRef.current = setInterval(poll, POLL_INTERVAL);
       recoveryTimeoutRef.current = setTimeout(() => {
         if (!resolved) {
           resolved = true;
