@@ -682,7 +682,9 @@ async function initializeApp() {
     try {
       const indexPath = path.join(distDir, 'index.html');
       const fs = await import('fs');
-      cachedIndexHtml = fs.readFileSync(indexPath, 'utf8');
+      const { getCspPlaceholder } = await import('./middleware/security');
+      const rawHtml = fs.readFileSync(indexPath, 'utf8');
+      cachedIndexHtml = rawHtml.replace(/nonce="__CSP_NONCE__"/g, `nonce="${getCspPlaceholder()}"`);
       const cssMatch = cachedIndexHtml.match(/href="(\/assets\/[^"]+\.css)"/);
       if (cssMatch) {
         mainCssPath = cssMatch[1];

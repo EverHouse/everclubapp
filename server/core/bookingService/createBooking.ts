@@ -147,16 +147,30 @@ export async function sanitizeAndResolveParticipants(
 
   if (emailsToLookup.length > 0) {
     try {
-      const dbLike = tx as unknown as { select: typeof import('../../db').db.select };
-      const emailUsers = await dbLike.select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        membershipStatus: users.membershipStatus
-      }).from(users)
-        .where(inArray(sql`LOWER(${users.email})`, emailsToLookup));
-      const emailMap = new Map(emailUsers.map((u: { id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }) => [u.email?.toLowerCase() || '', u]));
+      const dbLike = tx as unknown as { select: typeof import('../../db').db.select; execute: typeof import('../../db').db.execute };
+      const linkedEmailQuery = await dbLike.execute(sql`
+        SELECT DISTINCT u.id, u.email, u.first_name AS "firstName", u.last_name AS "lastName", u.membership_status AS "membershipStatus"
+        FROM users u
+        LEFT JOIN user_linked_emails ule ON LOWER(ule.primary_email) = LOWER(u.email)
+        WHERE LOWER(u.email) IN (${sql.join(emailsToLookup.map(e => sql`${e}`), sql`, `)})
+           OR LOWER(ule.linked_email) IN (${sql.join(emailsToLookup.map(e => sql`${e}`), sql`, `)})
+      `);
+      const emailUsers = (linkedEmailQuery as { rows: Array<{ id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }> }).rows;
+      const emailMap = new Map<string, typeof emailUsers[0]>();
+      for (const u of emailUsers) {
+        if (u.email) emailMap.set(u.email.toLowerCase(), u);
+      }
+      const linkedRows = await dbLike.execute(sql`
+        SELECT LOWER(linked_email) AS linked, LOWER(primary_email) AS primary_email
+        FROM user_linked_emails
+        WHERE LOWER(linked_email) IN (${sql.join(emailsToLookup.map(e => sql`${e}`), sql`, `)})
+      `);
+      for (const row of (linkedRows as { rows: Array<{ linked: string; primary_email: string }> }).rows) {
+        const primaryUser = emailMap.get(row.primary_email);
+        if (primaryUser && !emailMap.has(row.linked)) {
+          emailMap.set(row.linked, primaryUser);
+        }
+      }
       for (const participant of sanitizedParticipants) {
         if (participant.email && !participant.userId) {
           const found = emailMap.get(participant.email.toLowerCase());

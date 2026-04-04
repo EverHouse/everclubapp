@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../core/logger';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const CSP_PLACEHOLDER = `__CSP_${randomBytes(16).toString('hex')}__`;
 
 const defaultEverclubSubdomains = ['everclub.app', 'www.everclub.app', 'api.everclub.app', 'admin.everclub.app'];
 const envSubdomains = (process.env.ALLOWED_EVERCLUB_SUBDOMAINS || '')
@@ -65,8 +66,9 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   if (req.path === '/api/wallet/v1/log') return next();
   if (req.path.startsWith('/api/wallet/v1/') && req.headers.authorization?.startsWith('ApplePass ')) return next();
 
-  const internalHeader = req.headers['x-internal-request'] as string | undefined;
-  if (internalHeader) {
+  const internalHeaderRaw = req.headers['x-internal-request'];
+  const internalHeader = Array.isArray(internalHeaderRaw) ? internalHeaderRaw[0] : internalHeaderRaw;
+  if (typeof internalHeader === 'string') {
     const internalSecret = process.env.INTERNAL_API_SECRET;
     if (internalSecret) {
       const headerHash = createHash('sha256').update(internalHeader).digest();
@@ -108,8 +110,13 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
   next();
 }
 
+export function getCspPlaceholder(): string {
+  return CSP_PLACEHOLDER;
+}
+
 function injectNonceIntoHtml(html: string, nonce: string): string {
-  return html.replace(/(<(?:script|style)\b[^>]*?\s)nonce="__CSP_NONCE__"/gi, `$1nonce="${nonce}"`);
+  const safeRegex = new RegExp(`(<(?:script|style)\\b[^>]*?\\s)nonce="${CSP_PLACEHOLDER}"`, 'gi');
+  return html.replace(safeRegex, `$1nonce="${nonce}"`);
 }
 
 const isProduction = process.env.NODE_ENV === 'production' || process.env.REPLIT_DEPLOYMENT === '1';
@@ -153,6 +160,7 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
       try {
         if (typeof body === 'string' && body.length > 0 && shouldInjectNonce(body)) {
           body = injectNonceIntoHtml(body, nonce);
+          res.removeHeader('Content-Length');
         }
       } catch (nonceErr) {
         logger.error('[CSP] Nonce injection failed in res.send — serving original response', { extra: { error: String(nonceErr) } });
@@ -165,10 +173,12 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
       try {
         if (typeof chunk === 'string' && chunk.length > 0 && shouldInjectNonce(chunk)) {
           chunk = injectNonceIntoHtml(chunk, nonce);
+          res.removeHeader('Content-Length');
         } else if (Buffer.isBuffer(chunk) && chunk.length > 0) {
           const str = chunk.toString('utf8');
           if (shouldInjectNonce(str)) {
             chunk = Buffer.from(injectNonceIntoHtml(str, nonce), 'utf8');
+            res.removeHeader('Content-Length');
           }
         }
       } catch (nonceErr) {

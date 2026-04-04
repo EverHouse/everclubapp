@@ -113,7 +113,8 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
           participantEmails: earlyParticipantEmails,
         });
 
-        if (!isStaffRequest || isViewAsMode) {
+        const forceOverride = !!(req.body.force_override && isStaffRequest);
+        if (!forceOverride) {
           const memberOverlapCheck = await tx.execute(sql`
             SELECT br.id, br.start_time, br.end_time, r.name AS resource_name
             FROM booking_requests br
@@ -165,7 +166,10 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         }
         
         await checkParticipantOverlaps(sanitizedParticipants, request_date, start_time, end_time, tx as unknown as Parameters<typeof checkParticipantOverlaps>[4]);
-        await checkParticipantDailyLimits(sanitizedParticipants, request_date, duration_minutes, resourceType, tx as unknown as { execute: typeof db.execute });
+        const participantsForLimitCheck = isStaffRequest
+          ? sanitizedParticipants
+          : sanitizedParticipants.filter(p => p.email.toLowerCase() === requestEmail.toLowerCase());
+        await checkParticipantDailyLimits(participantsForLimitCheck, request_date, duration_minutes, resourceType, tx as unknown as { execute: typeof db.execute });
 
         const initialStatus: 'pending' | 'confirmed' = 'pending';
         

@@ -563,9 +563,11 @@ export function seoMiddleware(options: SeoMiddlewareOptions) {
         const indexPath = path.join(options.distDir, 'index.html');
         try {
           const { readFileSync } = require('fs') as typeof import('fs');
+          const { getCspPlaceholder } = require('./security') as { getCspPlaceholder: () => string };
           const rawHtml = readFileSync(indexPath, 'utf8');
+          const html = rawHtml.replace(/nonce="__CSP_NONCE__"/g, `nonce="${getCspPlaceholder()}"`);
           res.setHeader('Content-Type', 'text/html');
-          return res.send(rawHtml);
+          return res.send(html);
         } catch {
           return res.status(500).send('Server error: unable to load application');
         }

@@ -322,6 +322,7 @@ export async function initWebSocketServer(server: Server) {
   });
 
   wss.on('connection', async (ws, req) => {
+   try {
     const origin = req.headers.origin;
     if (!isAllowedOrigin(origin)) {
       logger.warn('[WebSocket] Connection rejected - invalid origin', { 
@@ -596,6 +597,10 @@ export async function initWebSocketServer(server: Server) {
         if (conn) conn.isAlive = true;
       }
     });
+   } catch (error) {
+     logger.error('[WebSocket] Connection handler threw an unhandled exception', { extra: { error: getErrorMessage(error) } });
+     try { ws.close(1011, 'Internal Server Error'); } catch {}
+   }
   });
 
   heartbeatIntervalId = setInterval(() => {
