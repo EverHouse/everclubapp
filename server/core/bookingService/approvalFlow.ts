@@ -598,13 +598,17 @@ export async function approveBooking(params: ApproveBookingParams) {
     notifyApprovalParticipants(bookingId, updated as unknown as BookingUpdateResult)
       .catch(err => logger.error('[Approval] Group notification failed', { extra: { error: getErrorMessage(err) } }));
 
-    cancelCleanupAlert(bookingId)
-      .then(() => scheduleCleanupAlert({
+    try {
+      await cancelCleanupAlert(bookingId);
+      await scheduleCleanupAlert({
         bookingId,
         requestDate: updated.requestDate,
         endTime: updated.endTime,
-      }))
-      .catch(err => logger.error('[Approval] Cleanup alert scheduling failed (non-blocking)', { extra: { error: getErrorMessage(err) } }));
+      });
+    } catch (err: unknown) {
+      logger.error('[Approval] Cleanup alert scheduling failed', { extra: { bookingId, error: getErrorMessage(err) } });
+      notifyAllStaff('Cleanup Alert Scheduling Failed', `Failed to schedule cleanup alert for booking #${bookingId}. The reconciliation scheduler will retry automatically.`, 'system', { sendPush: false }).catch(() => {});
+    }
   }
 
   const requestParticipantsForVisitors = (updated as Record<string, unknown>).requestParticipants as Array<{

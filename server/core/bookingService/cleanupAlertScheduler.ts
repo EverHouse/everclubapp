@@ -36,6 +36,7 @@ export async function scheduleCleanupAlert(params: {
     logger.error(`[CleanupAlert] Failed to schedule cleanup alert for booking ${bookingId}`, {
       extra: { error: getErrorMessage(err) }
     });
+    throw err;
   }
 }
 
@@ -56,5 +57,6 @@ export async function cancelCleanupAlert(bookingId: number): Promise<void> {
     logger.error(`[CleanupAlert] Failed to cancel cleanup alert for booking ${bookingId}`, {
       extra: { error: getErrorMessage(err) }
     });
+    throw err;
   }
 }

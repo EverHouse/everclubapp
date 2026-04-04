@@ -415,13 +415,17 @@ export async function devConfirmBooking(params: DevConfirmParams) {
   }
 
   if (booking.request_date && booking.end_time) {
-    cancelCleanupAlert(bookingId)
-      .then(() => scheduleCleanupAlert({
+    try {
+      await cancelCleanupAlert(bookingId);
+      await scheduleCleanupAlert({
         bookingId,
         requestDate: typeof booking.request_date === 'string' ? booking.request_date : String(booking.request_date),
         endTime: typeof booking.end_time === 'string' ? booking.end_time : String(booking.end_time),
-      }))
-      .catch(err => logger.error('[Dev Confirm] Cleanup alert scheduling failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
+      });
+    } catch (err: unknown) {
+      logger.error('[Dev Confirm] Cleanup alert scheduling failed', { extra: { bookingId, error: getErrorMessage(err) } });
+      notifyAllStaff('Cleanup Alert Scheduling Failed', `Failed to schedule cleanup alert for booking #${bookingId}. The reconciliation scheduler will retry automatically.`, 'system', { sendPush: false }).catch(() => {});
+    }
   }
 
   return { success: true, bookingId, sessionId, totalFeeCents: resolvedTotalFeeCents, booking, dateStr, timeStr };

@@ -657,11 +657,16 @@ export async function createManualBooking(params: {
     isManualBooking: true
   }, { notifyMember: true, notifyStaff: true }).catch(err => logger.error('Booking event publish failed', { extra: { error: getErrorMessage(err) } }));
 
-  scheduleCleanupAlert({
-    bookingId: newBooking.id,
-    requestDate: params.bookingDate,
-    endTime,
-  }).catch(err => logger.error('[ManualBooking] Cleanup alert scheduling failed (non-blocking)', { extra: { bookingId: newBooking.id, error: getErrorMessage(err) } }));
+  try {
+    await scheduleCleanupAlert({
+      bookingId: newBooking.id,
+      requestDate: params.bookingDate,
+      endTime,
+    });
+  } catch (err: unknown) {
+    logger.error('[ManualBooking] Cleanup alert scheduling failed', { extra: { bookingId: newBooking.id, error: getErrorMessage(err) } });
+    notifyAllStaff('Cleanup Alert Scheduling Failed', `Failed to schedule cleanup alert for booking #${newBooking.id}. The reconciliation scheduler will retry automatically.`, 'system', { sendPush: false }).catch(() => {});
+  }
 
   return {
     booking: {

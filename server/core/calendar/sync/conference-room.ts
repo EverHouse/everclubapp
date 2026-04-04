@@ -551,9 +551,12 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               });
 
               logger.info(`[Conference Room Sync] Updated booking ${existingBooking.id} time: ${existingDate} ${existingStartTime}-${existingEndTime} → ${eventDate} ${startTime}-${endTime}`);
-              cancelCleanupAlert(existingBooking.id)
-                .then(() => scheduleCleanupAlert({ bookingId: existingBooking.id, requestDate: eventDate, endTime }))
-                .catch(err => logger.warn('[Conference Room Sync] Cleanup alert reschedule failed', { extra: { bookingId: existingBooking.id, error: getErrorMessage(err) } }));
+              try {
+                await cancelCleanupAlert(existingBooking.id);
+                await scheduleCleanupAlert({ bookingId: existingBooking.id, requestDate: eventDate, endTime });
+              } catch (err: unknown) {
+                logger.warn('[Conference Room Sync] Cleanup alert reschedule failed', { extra: { bookingId: existingBooking.id, error: getErrorMessage(err) } });
+              }
               updated++;
             } catch (updateErr: unknown) {
               const errMsg = getErrorMessage(updateErr);
@@ -651,8 +654,11 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
 
           if (newBooking) {
             if (eventStatus === 'approved') {
-              scheduleCleanupAlert({ bookingId: newBooking.id, requestDate: eventDate, endTime })
-                .catch(err => logger.warn('[Conference Room Sync] Cleanup alert scheduling failed', { extra: { bookingId: newBooking.id, error: getErrorMessage(err) } }));
+              try {
+                await scheduleCleanupAlert({ bookingId: newBooking.id, requestDate: eventDate, endTime });
+              } catch (err: unknown) {
+                logger.warn('[Conference Room Sync] Cleanup alert scheduling failed', { extra: { bookingId: newBooking.id, error: getErrorMessage(err) } });
+              }
             }
             try {
               const sessionResult = await ensureSessionForBooking({

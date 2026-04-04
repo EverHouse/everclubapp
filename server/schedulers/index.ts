@@ -28,6 +28,7 @@ import { startInvoiceAutoFinalizeScheduler, stopInvoiceAutoFinalizeScheduler } f
 import { startFailedSideEffectsScheduler, stopFailedSideEffectsScheduler } from './failedSideEffectsScheduler';
 import { startVisitorReconciliationScheduler, stopVisitorReconciliationScheduler } from './visitorReconciliationScheduler';
 import { startWellhubEventReconciliationScheduler, stopWellhubEventReconciliationScheduler } from './wellhubEventReconciliationScheduler';
+import { startCleanupAlertReconciliationScheduler, stopCleanupAlertReconciliationScheduler } from './cleanupAlertReconciliationScheduler';
 import { stopRealtimeRecovery } from '../core/supabase/client';
 import { startJobProcessor, stopJobProcessor } from '../core/jobQueue';
 import { stopBookingValidationPruner } from '../core/bookingValidation';
@@ -93,6 +94,7 @@ export function initSchedulers(): void {
   schedulerTracker.registerScheduler('Visitor Reconciliation', 6 * 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Wellhub Event Reconciliation', 60 * 60 * 1000);
   schedulerTracker.registerScheduler('Wellhub Monthly Sweep', 6 * 60 * 60 * 1000);
+  schedulerTracker.registerScheduler('Cleanup Alert Reconciliation', 30 * 60 * 1000);
   schedulerTracker.registerScheduler('Job Queue Processor', 30000);
 
   logger.info(`[Schedulers] Staggering scheduler startup over ~${27 * STAGGER_INTERVAL_MS / 1000}s to prevent DB connection spikes`);
@@ -208,6 +210,9 @@ export function initSchedulers(): void {
   slot++;
 
   staggerStart(slot * STAGGER_INTERVAL_MS, 'Wellhub Event Reconciliation', () => startWellhubEventReconciliationScheduler());
+  slot++;
+
+  staggerStart(slot * STAGGER_INTERVAL_MS, 'Cleanup Alert Reconciliation', () => startCleanupAlertReconciliationScheduler());
   // eslint-disable-next-line no-useless-assignment
   slot++;
 }
@@ -249,6 +254,7 @@ export function stopSchedulers(): void {
   stopWellhubEventReconciliationScheduler();
   stopInvoiceAutoFinalizeScheduler();
   stopFailedSideEffectsScheduler();
+  stopCleanupAlertReconciliationScheduler();
   stopRealtimeRecovery();
   stopJobProcessor();
   stopBookingValidationPruner();
