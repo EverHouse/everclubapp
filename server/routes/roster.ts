@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm';
 import { getSessionUser } from '../types/session';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { checkMemberAvailability } from '../core/bookingService/conflictDetection';
+import { isConstraintError } from '../core/db';
 import {
   isStaffOrAdminCheck,
   getBookingWithSession,
@@ -58,7 +59,6 @@ async function handleConstraintAndRespond(
   const mapped = mapServiceError(res, error);
   if (mapped) return;
 
-  const { isConstraintError } = await import('../core/db');
   const constraint = isConstraintError(error);
   if (constraint.type === 'unique') {
     res.status(409).json({ error: 'This operation may have already been completed. Please refresh and try again.' });

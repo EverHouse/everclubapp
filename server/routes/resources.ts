@@ -8,6 +8,7 @@ import { logFromRequest } from '../core/auditLog';
 import { getErrorMessage, getErrorCode, getErrorStatusCode } from '../utils/errorUtils';
 import { numericIdParam } from '../middleware/paramSchemas';
 import { processBookingDayPassRedemptions } from '../core/billing/dayPassRedemption';
+import { isConstraintError } from '../core/db';
 import { recalculateSessionFees, invalidateSessionCachedFees } from '../core/billing/unifiedFeeService';
 import { memberCancelSchema } from '../../shared/validators/roster';
 import {
@@ -502,7 +503,6 @@ router.post('/api/bookings', bookingRateLimiter, validateBody(createBookingSchem
         ...(err.remainingMinutes !== undefined && { remainingMinutes: err.remainingMinutes }),
       });
     }
-    const { isConstraintError } = await import('../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique' || constraint.type === 'exclusion') {
       return res.status(409).json({ error: 'This time slot was just booked by someone else. Please refresh and pick a different time.' });
