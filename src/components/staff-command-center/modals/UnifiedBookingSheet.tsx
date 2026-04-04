@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { SheetHeader } from './SheetHeader';
 import { PaymentSummaryBody, PaymentActionFooter, InlinePaymentBody } from './PaymentSection';
@@ -13,7 +13,7 @@ import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
-import { springPresets } from '../../../utils/motion';
+import { springPresets, noMotion } from '../../../utils/motion';
 
 const sectionVariants = {
   initial: { opacity: 0, y: 10 },
@@ -26,6 +26,7 @@ const buttonSpring = springPresets.buttonPress;
 export type { BookingType, SheetMode, UnifiedBookingSheetProps } from './bookingSheetTypes';
 
 export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
+  const prefersReducedMotion = useReducedMotion();
   const {
     isOpen,
     onClose,
@@ -126,8 +127,8 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
               <Icon name="error" className="text-4xl text-red-500 mb-2" />
               <p className="text-red-600 dark:text-red-400">{logic.rosterError}</p>
               <motion.button
-                whileTap={buttonTap}
-                transition={buttonSpring}
+                whileTap={prefersReducedMotion ? undefined : buttonTap}
+                transition={prefersReducedMotion ? noMotion : buttonSpring}
                 type="button"
                 onClick={() => logic.fetchRosterData()}
                 className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm"
@@ -161,7 +162,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                       key={`${filledCount}-${totalCount}`}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      transition={springPresets.popIn}
+                      transition={prefersReducedMotion ? noMotion : springPresets.popIn}
                       className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                         filledCount === totalCount 
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
@@ -355,13 +356,13 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
           toggleDayPassForSlot={logic.toggleDayPassForSlot}
         />
 
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
         {logic.shouldShowRememberEmail() && (
           <motion.div
             key="remember-email"
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto', transition: springPresets.ease }}
-            exit={{ opacity: 0, height: 0, transition: { duration: 0.15 } }}
+            animate={{ opacity: 1, height: 'auto', transition: prefersReducedMotion ? noMotion : springPresets.ease }}
+            exit={{ opacity: 0, height: 0, transition: prefersReducedMotion ? noMotion : { duration: 0.15 } }}
             className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30 overflow-hidden">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
@@ -386,11 +387,12 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
             variants={sectionVariants}
             initial="initial"
             animate="animate"
+            {...(prefersReducedMotion ? { transition: noMotion } : {})}
             className="pt-2 border-t border-primary/10 dark:border-white/10"
           >
             <motion.button
-              whileTap={logic.deleting ? undefined : buttonTap}
-              transition={buttonSpring}
+              whileTap={logic.deleting || prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               onClick={logic.handleDeleteBooking}
               disabled={logic.deleting}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-red-400 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"

@@ -1,10 +1,10 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
-import { springPresets } from '../../../utils/motion';
+import { springPresets, noMotion } from '../../../utils/motion';
 
 const slotVariants = {
   initial: { opacity: 0, scale: 0.95, y: 8 },
@@ -98,6 +98,7 @@ export function AssignModeSlots({
   toggleDayPassForSlot,
   sessionDurationMinutes,
 }: AssignModeSlotsProps) {
+  const prefersReducedMotion = useReducedMotion();
   const renderSlotInner = (slotIndex: number, isOwnerSlot: boolean) => {
     const slot = slots[slotIndex];
     const isActive = activeSlotIndex === slotIndex;
@@ -110,6 +111,7 @@ export function AssignModeSlots({
           initial="initial"
           animate="animate"
           exit="exit"
+          {...(prefersReducedMotion ? { transition: noMotion } : {})}
           layout
           className={`p-3 rounded-xl border ${isOwnerSlot ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'}`}>
           <div className="flex items-center justify-between">
@@ -218,6 +220,7 @@ export function AssignModeSlots({
             initial="initial"
             animate="animate"
             exit="exit"
+            {...(prefersReducedMotion ? { transition: noMotion } : {})}
             className="p-3 rounded-xl border border-green-200 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-sm text-primary dark:text-white">Create New Visitor</h4>
@@ -302,8 +305,8 @@ export function AssignModeSlots({
             )}
 
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               onClick={handleCreateVisitorAndAssign}
               disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || isCreatingVisitor}
               className="tactile-btn w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
@@ -331,6 +334,7 @@ export function AssignModeSlots({
           initial="initial"
           animate="animate"
           exit="exit"
+          {...(prefersReducedMotion ? { transition: noMotion } : {})}
           className="p-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 space-y-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-primary/60 dark:text-white/60">
@@ -355,8 +359,8 @@ export function AssignModeSlots({
           <div className="flex gap-2 pt-1">
             {!isOwnerSlot && (
               <motion.button
-                whileTap={buttonTap}
-                transition={buttonSpring}
+                whileTap={prefersReducedMotion ? undefined : buttonTap}
+                transition={prefersReducedMotion ? noMotion : buttonSpring}
                 onClick={() => handleAddGuestPlaceholder(slotIndex)}
                 className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1"
               >
@@ -365,8 +369,8 @@ export function AssignModeSlots({
               </motion.button>
             )}
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               onClick={() => setShowAddVisitor(true)}
               className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center justify-center gap-1"
             >
@@ -385,7 +389,8 @@ export function AssignModeSlots({
         initial="initial"
         animate="animate"
         exit="exit"
-        whileTap={buttonTap}
+        {...(prefersReducedMotion ? { transition: noMotion } : {})}
+        whileTap={prefersReducedMotion ? undefined : buttonTap}
         onClick={() => setActiveSlotIndex(slotIndex)}
         className={`tactile-btn w-full p-3 rounded-xl border-2 border-dashed transition-colors text-left ${
           isOwnerSlot 
@@ -464,8 +469,8 @@ export function AssignModeSlots({
 
       {!isLessonOrStaffBlock && slots.slice(1).some(s => s.type === 'empty') && (
         <motion.button
-          whileTap={buttonTap}
-          transition={buttonSpring}
+          whileTap={prefersReducedMotion ? undefined : buttonTap}
+          transition={prefersReducedMotion ? noMotion : buttonSpring}
           onClick={() => {
             const emptyIndex = slots.findIndex((s, i) => i > 0 && s.type === 'empty');
             if (emptyIndex > 0) handleAddGuestPlaceholder(emptyIndex);

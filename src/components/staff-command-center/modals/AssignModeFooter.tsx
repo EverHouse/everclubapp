@@ -1,6 +1,6 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Icon from '../../icons/Icon';
-import { springPresets } from '../../../utils/motion';
+import { springPresets, noMotion } from '../../../utils/motion';
 
 const buttonTap = { scale: 0.97 };
 const buttonSpring = springPresets.buttonPress;
@@ -31,9 +31,10 @@ export function AssignModeFooter({
   onClose,
   handleFinalizeBooking,
 }: AssignModeFooterProps) {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <div className="p-4 space-y-2">
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {feeEstimate && feeEstimate.totalCents > 0 && (
           <motion.div
             key="fee-estimate"
@@ -41,6 +42,7 @@ export function AssignModeFooter({
             initial="initial"
             animate="animate"
             exit="exit"
+            {...(prefersReducedMotion ? { transition: noMotion } : {})}
             className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 overflow-hidden"
           >
             <div className="flex items-center justify-between">
@@ -63,7 +65,7 @@ export function AssignModeFooter({
           </motion.div>
         )}
       </AnimatePresence>
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isCalculatingFees && (
           <motion.div
             key="calculating"
@@ -79,16 +81,16 @@ export function AssignModeFooter({
       </AnimatePresence>
       <div className="flex gap-3">
         <motion.button
-          whileTap={buttonTap}
-          transition={buttonSpring}
+          whileTap={prefersReducedMotion ? undefined : buttonTap}
+          transition={prefersReducedMotion ? noMotion : buttonSpring}
           onClick={onClose}
           className="tactile-btn flex-1 py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
         >
           Cancel
         </motion.button>
         <motion.button
-          whileTap={!hasOwner || linking ? undefined : buttonTap}
-          transition={buttonSpring}
+          whileTap={!hasOwner || linking || prefersReducedMotion ? undefined : buttonTap}
+          transition={prefersReducedMotion ? noMotion : buttonSpring}
           onClick={handleFinalizeBooking}
           disabled={!hasOwner || linking}
           className="tactile-btn flex-1 py-2.5 px-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"

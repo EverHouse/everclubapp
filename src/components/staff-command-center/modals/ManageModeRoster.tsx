@@ -1,11 +1,11 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { MemberSearchInput } from '../../shared/MemberSearchInput';
 import type { BookingMember, ManageModeRosterData, MemberMatchWarning } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
 import { isPlaceholderGuestName } from '../../../utils/rosterUtils';
-import { springPresets } from '../../../utils/motion';
+import { springPresets, noMotion } from '../../../utils/motion';
 
 const rosterItemVariants = {
   initial: { opacity: 0, x: -12 },
@@ -78,6 +78,7 @@ export function ManageModeRoster({
   bookingId,
   rosterLocked,
 }: ManageModeRosterProps) {
+  const prefersReducedMotion = useReducedMotion();
   const isPlaceholderGuest = (member: BookingMember): boolean => {
     if (!member.guestInfo) return false;
     return isPlaceholderGuestName(member.guestInfo.guestName);
@@ -107,6 +108,7 @@ export function ManageModeRoster({
         initial="initial"
         animate="animate"
         exit="exit"
+        {...(prefersReducedMotion ? { transition: noMotion } : {})}
         layout
         className={`relative p-3 rounded-xl border transition-colors duration-fast ${
           isOwner 
@@ -305,16 +307,16 @@ export function ManageModeRoster({
               </p>
               <div className="flex gap-2">
                 <motion.button
-                  whileTap={buttonTap}
-                  transition={buttonSpring}
+                  whileTap={prefersReducedMotion ? undefined : buttonTap}
+                  transition={prefersReducedMotion ? noMotion : buttonSpring}
                   onClick={() => handleManageModeMemberMatchResolve('member')}
                   className="tactile-btn flex-1 py-1.5 px-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
                 >
                   Add as Member
                 </motion.button>
                 <motion.button
-                  whileTap={buttonTap}
-                  transition={buttonSpring}
+                  whileTap={prefersReducedMotion ? undefined : buttonTap}
+                  transition={prefersReducedMotion ? noMotion : buttonSpring}
                   onClick={() => handleManageModeMemberMatchResolve('guest')}
                   className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
                 >
@@ -325,8 +327,8 @@ export function ManageModeRoster({
           )}
 
           <motion.button
-            whileTap={buttonTap}
-            transition={buttonSpring}
+            whileTap={prefersReducedMotion ? undefined : buttonTap}
+            transition={prefersReducedMotion ? noMotion : buttonSpring}
             onClick={() => handleManageModeAddGuest(slotNumber)}
             disabled={!manageModeGuestData.firstName || !manageModeGuestData.lastName || !manageModeGuestData.email || isAddingManageGuest}
             className="tactile-btn w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
@@ -402,8 +404,8 @@ export function ManageModeRoster({
           </div>
           <div className="flex gap-1.5">
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               onClick={() => {
                 setManageModeSearchSlot(slotNumber);
                 setManageModeGuestForm(null);
@@ -414,8 +416,8 @@ export function ManageModeRoster({
               Search
             </motion.button>
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               onClick={() => {
                 setManageModeGuestForm(slotNumber);
                 setManageModeSearchSlot(null);
@@ -436,7 +438,7 @@ export function ManageModeRoster({
     if (filledMembers.length > 0) {
       return (
         <div className="space-y-2">
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {filledMembers.filter(m => m.isPrimary).map((member, idx) => renderManageModeSlot(member, idx))}
           </AnimatePresence>
         </div>
@@ -447,7 +449,7 @@ export function ManageModeRoster({
 
   return (
     <div className="space-y-2">
-      <AnimatePresence>
+      <AnimatePresence mode="popLayout">
         {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
       </AnimatePresence>
       {emptySlotNumbers.map(slotNum => renderManageModeEmptySlot(slotNum))}

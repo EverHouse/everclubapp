@@ -53,7 +53,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
       {canBook && (
         <div ref={requestButtonRef} className="fixed bottom-24 left-0 right-0 z-20 px-4 sm:px-6 flex flex-col items-center w-full max-w-lg sm:max-w-xl lg:max-w-2xl mx-auto animate-in slide-in-from-bottom-4 duration-normal gap-2">
           <div ref={feeRef} className="w-full flex flex-col gap-2">
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {activeTab === 'conference' && conferencePaymentRequired && conferenceOverageFee > 0 && (
                 <motion.div key="overage-fee" {...feeReveal} className={`overflow-hidden w-full px-3 sm:px-4 py-3 rounded-xl backdrop-blur-md border flex items-start gap-3 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
                   <Icon name="payments" className={`text-lg flex-shrink-0 mt-0.5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
@@ -70,7 +70,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
                 </motion.div>
               )}
             </AnimatePresence>
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {activeTab === 'conference' && (
                 <motion.div key="fee-breakdown" {...feeReveal} className="overflow-hidden">
                   <FeeBreakdownCard

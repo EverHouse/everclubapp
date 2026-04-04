@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'framer-motion';
 import EmptyState from '../../../components/EmptyState';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useAuthData } from '../../../contexts/DataContext';
@@ -14,7 +14,7 @@ import { fetchWithCredentials, putWithCredentials, postWithCredentials } from '.
 import { TrackmanTabSkeleton } from '../../../components/skeletons';
 import TrackmanWebhookEventsSection from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
 import Icon from '../../../components/icons/Icon';
-import { springPresets } from '../../../utils/motion';
+import { springPresets, noMotion } from '../../../utils/motion';
 
 const cardVariants = {
   initial: { opacity: 0, y: 20, scale: 0.97 },
@@ -158,6 +158,7 @@ interface NeedsPlayersResponse {
 }
 
 const TrackmanTab: React.FC = () => {
+  const prefersReducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const pageReadyContext = usePageReady();
   const authData = useAuthData();
@@ -653,6 +654,7 @@ const TrackmanTab: React.FC = () => {
                         initial="initial"
                         animate={isLinking ? 'linking' : 'animate'}
                         exit="exit"
+                        {...(prefersReducedMotion ? { transition: noMotion } : {})}
                         layout
                         className={`rounded-xl p-4 border transition-colors duration-normal ${
                           isLinking 
@@ -660,7 +662,7 @@ const TrackmanTab: React.FC = () => {
                             : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'
                         }`}
                       >
-                        <AnimatePresence>
+                        <AnimatePresence mode="wait">
                           {isLinking && (
                             <motion.div
                               initial={{ opacity: 0, height: 0 }}
@@ -710,7 +712,7 @@ const TrackmanTab: React.FC = () => {
                             <motion.span
                               key={`mobile-status-${booking.id}-${booking.status}`}
                               initial={{ scale: 0.85, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1, transition: springPresets.statusBadge }}
+                              animate={{ scale: 1, opacity: 1, transition: prefersReducedMotion ? noMotion : springPresets.statusBadge }}
                               className={`text-xs px-2 py-1 rounded-full font-medium ${
                                 booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
                                 booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
@@ -724,7 +726,7 @@ const TrackmanTab: React.FC = () => {
                           )}
                         </div>
                         <motion.button
-                          whileTap={buttonTapSpring}
+                          whileTap={prefersReducedMotion ? undefined : buttonTapSpring}
                           onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
                           disabled={isLinking}
                           className="tactile-btn w-full py-2 bg-accent text-primary rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
@@ -773,6 +775,7 @@ const TrackmanTab: React.FC = () => {
                             initial="initial"
                             animate={isLinking ? 'linking' : 'animate'}
                             exit="exit"
+                            {...(prefersReducedMotion ? { transition: noMotion } : {})}
                             layout
                             className={`tactile-row transition-colors ${
                               isLinking 
@@ -801,7 +804,7 @@ const TrackmanTab: React.FC = () => {
                                 <motion.span
                                   key={`status-${booking.id}-${booking.status}`}
                                   initial={{ scale: 0.85, opacity: 0 }}
-                                  animate={{ scale: 1, opacity: 1, transition: springPresets.statusBadge }}
+                                  animate={{ scale: 1, opacity: 1, transition: prefersReducedMotion ? noMotion : springPresets.statusBadge }}
                                   className={`inline-block text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
                                     booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
                                     booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
@@ -816,7 +819,7 @@ const TrackmanTab: React.FC = () => {
                             </td>
                             <td className="py-2 px-3 text-right">
                               <motion.button
-                                whileTap={buttonTapSpring}
+                                whileTap={prefersReducedMotion ? undefined : buttonTapSpring}
                                 onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
                                 disabled={isLinking}
                                 className="tactile-btn px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
@@ -904,6 +907,7 @@ const TrackmanTab: React.FC = () => {
                     initial="initial"
                     animate="animate"
                     exit="exit"
+                    {...(prefersReducedMotion ? { transition: noMotion } : {})}
                     layout
                     className="flex items-center justify-between p-3 bg-white/50 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10"
                   >
@@ -915,7 +919,7 @@ const TrackmanTab: React.FC = () => {
                         <motion.span
                           key={`${booking.id}-${assignedCount}-${expectedCount}`}
                           initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1, transition: springPresets.statusBadge }}
+                          animate={{ scale: 1, opacity: 1, transition: prefersReducedMotion ? noMotion : springPresets.statusBadge }}
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             isComplete 
                               ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' 
@@ -933,7 +937,7 @@ const TrackmanTab: React.FC = () => {
                       </p>
                     </div>
                     <motion.button
-                      whileTap={buttonTapSpring}
+                      whileTap={prefersReducedMotion ? undefined : buttonTapSpring}
                       onClick={() => setBookingSheet({ 
                         bookingId: booking.id,
                         bookingContext: {
@@ -1245,7 +1249,7 @@ const TrackmanTab: React.FC = () => {
               Cancel
             </button>
             <motion.button
-              whileTap={buttonTapSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTapSpring}
               onClick={handleResolveFuzzyMatch}
               disabled={!fuzzyMatchModal?.selectedEmail || resolveMutation.isPending}
               className="px-6 py-2.5 rounded-full bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-fast"

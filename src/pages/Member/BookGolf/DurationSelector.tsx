@@ -69,7 +69,7 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
             aria-pressed={isSelected}
             className={`relative p-3 rounded-[4px] border transition-colors duration-150 active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
               isSelected
-                ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
+                ? (isDark ? 'bg-transparent text-primary border-white' : 'bg-transparent text-white border-primary')
                 : isLowTime
                   ? (isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
                   : (isDark ? 'bg-transparent border-white/20 text-white/80 hover:bg-white/5' : 'bg-white border-black/10 text-primary/80 hover:bg-black/5')
@@ -96,7 +96,7 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
                 </div>
               )}
             </div>
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
               {hasOverage && !isSelected && (
                 <motion.div
                   initial={{ scale: 0, opacity: 0 }}

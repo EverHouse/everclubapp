@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ManageModeRosterData, FetchedContext } from './bookingSheetTypes';
 import { StripePaymentForm } from '../../stripe/StripePaymentForm';
 import { TerminalPayment } from '../TerminalPayment';
@@ -8,7 +8,7 @@ import { BookingStatusDropdown } from '../../BookingStatusDropdown';
 import { postWithCredentials, patchWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
-import { springPresets } from '../../../utils/motion';
+import { springPresets, noMotion } from '../../../utils/motion';
 
 const footerButtonVariants = {
   initial: { opacity: 0, y: 6 },
@@ -256,6 +256,7 @@ export function PaymentActionFooter({
   onCancelBooking,
   bookingStatus,
 }: PaymentActionFooterProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [checkingIn, setCheckingIn] = React.useState(false);
   const [localStatus, setLocalStatus] = React.useState<'attended' | 'no_show' | null>(null);
 
@@ -330,16 +331,16 @@ export function PaymentActionFooter({
     <div className="px-4 py-3 backdrop-blur-xl bg-white/80 dark:bg-[#1a1d15]/80">
       <AnimatePresence mode="wait">
       {processingPayment ? (
-        <motion.div key="processing" variants={footerButtonVariants} initial="initial" animate="animate" exit="exit" className="flex items-center justify-center gap-2 py-3">
+        <motion.div key="processing" variants={footerButtonVariants} initial="initial" animate="animate" exit="exit" {...(prefersReducedMotion ? { transition: noMotion } : {})} className="flex items-center justify-center gap-2 py-3">
           <Icon name="progress_activity" className="animate-spin text-lg text-green-600 dark:text-green-400" />
           <span className="text-sm font-medium text-primary/70 dark:text-white/70">Confirming payment...</span>
         </motion.div>
       ) : (
-        <motion.div key={footerKey} variants={footerButtonVariants} initial="initial" animate="animate" exit="exit">
+        <motion.div key={footerKey} variants={footerButtonVariants} initial="initial" animate="animate" exit="exit" {...(prefersReducedMotion ? { transition: noMotion } : {})}>
           {needsPayment ? (
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               type="button"
               onClick={() => setShowInlinePayment(true)}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
@@ -366,8 +367,8 @@ export function PaymentActionFooter({
             />
           ) : !showInlinePayment ? (
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               type="button"
               onClick={onClose}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
@@ -376,8 +377,8 @@ export function PaymentActionFooter({
             </motion.button>
           ) : (
             <motion.button
-              whileTap={buttonTap}
-              transition={buttonSpring}
+              whileTap={prefersReducedMotion ? undefined : buttonTap}
+              transition={prefersReducedMotion ? noMotion : buttonSpring}
               type="button"
               onClick={closePaymentOptions}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-white/20 text-primary dark:text-white text-sm font-medium hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
