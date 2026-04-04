@@ -3,10 +3,12 @@ import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useAuthData } from '../../../contexts/DataContext';
+import { useAnnouncementData } from '../../../contexts/AnnouncementDataContext';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import { useNotificationSounds } from '../../../hooks/useNotificationSounds';
 import { AnimatedPage } from '../../../components/motion';
+import { AnnouncementFormDrawer } from '../../../components/admin/AnnouncementFormDrawer';
 import { fetchWithCredentials } from '../../../hooks/queries/useFetch';
 import type { Announcement } from '../../../types/data';
 import Icon from '../../../components/icons/Icon';
@@ -34,8 +36,11 @@ const UpdatesTab: React.FC = () => {
     const queryClient = useQueryClient();
     const { setPageReady } = usePageReady();
     const { actualUser } = useAuthData();
+    const { deleteAnnouncement } = useAnnouncementData();
     const [notificationsRef] = useAutoAnimate();
     const [activeSubTab, setActiveSubTab] = useState<'alerts' | 'announcements'>('alerts');
+    const [announcementFormOpen, setAnnouncementFormOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
     const { processNotifications } = useNotificationSounds(true, actualUser?.email);
 
     const { data: notificationsData, isLoading: notificationsLoading } = useStaffNotifications(actualUser?.email, {
@@ -292,10 +297,38 @@ const UpdatesTab: React.FC = () => {
         </div>
     );
 
+    const handleEditAnnouncement = (ann: Announcement) => {
+        setEditingAnnouncement(ann);
+        setAnnouncementFormOpen(true);
+    };
+
+    const handleDeleteAnnouncement = async (ann: Announcement) => {
+        if (!window.confirm(`Delete "${ann.title}"? This cannot be undone.`)) return;
+        try {
+            await deleteAnnouncement(ann.id);
+            queryClient.invalidateQueries({ queryKey: ['announcements-feed'] });
+        } catch {
+            // error handled by context
+        }
+    };
+
+    const handleAnnouncementFormClose = () => {
+        setAnnouncementFormOpen(false);
+        setEditingAnnouncement(null);
+        queryClient.invalidateQueries({ queryKey: ['announcements-feed'] });
+    };
+
     const renderAnnouncementsFeed = () => {
         const announcements = Array.isArray(announcementsData) ? announcementsData : [];
         return (
             <div className="animate-content-enter space-y-3">
+                <button
+                    onClick={() => { setEditingAnnouncement(null); setAnnouncementFormOpen(true); }}
+                    className="w-full py-3 px-4 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors tactile-btn shadow-md"
+                >
+                    <Icon name="add" className="text-lg" />
+                    New Announcement
+                </button>
                 {announcementsLoading ? (
                     Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="p-4 rounded-xl animate-pulse bg-white dark:bg-white/[0.03]">
@@ -332,9 +365,25 @@ const UpdatesTab: React.FC = () => {
                                     </div>
                                     <p className="text-xs mt-0.5 text-primary/70 dark:text-white/70 line-clamp-2">{ann.desc}</p>
                                 </div>
-                                <span className="text-[10px] shrink-0 text-primary/50 dark:text-white/50">
-                                    {ann.date ? formatRelativeTime(ann.date) : ''}
-                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <span className="text-[10px] text-primary/50 dark:text-white/50 mr-1">
+                                        {ann.createdAt ? formatRelativeTime(ann.createdAt) : (ann.date || '')}
+                                    </span>
+                                    <button
+                                        onClick={() => handleEditAnnouncement(ann)}
+                                        className="p-1.5 rounded-lg hover:bg-primary/10 dark:hover:bg-white/10 transition-colors"
+                                        title="Edit announcement"
+                                    >
+                                        <Icon name="edit" className="text-base text-primary/60 dark:text-white/60" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteAnnouncement(ann)}
+                                        className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                        title="Delete announcement"
+                                    >
+                                        <Icon name="delete" className="text-base text-red-500/70 dark:text-red-400/70" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))
@@ -375,6 +424,12 @@ const UpdatesTab: React.FC = () => {
 
                 {activeSubTab === 'alerts' && renderAlertsTab()}
                 {activeSubTab === 'announcements' && renderAnnouncementsFeed()}
+
+                <AnnouncementFormDrawer
+                    isOpen={announcementFormOpen}
+                    onClose={handleAnnouncementFormClose}
+                    editItem={editingAnnouncement}
+                />
             </AnimatedPage>
     );
 };
