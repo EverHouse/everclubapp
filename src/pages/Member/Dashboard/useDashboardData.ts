@@ -103,7 +103,7 @@ export function useDashboardData() {
     queryFn: () => fetchWithCredentials<DashboardBookingItem[]>(`/api/member/dashboard/conference-rooms${viewAsParam}`),
     ...dashboardQueryOpts,
   });
-  const { data: statsData, error: statsError } = useQuery({
+  const { data: statsData, isLoading: statsLoading, error: statsError } = useQuery({
     queryKey: [...dashboardQueryBase, 'stats'],
     queryFn: () => fetchWithCredentials<{ guestPasses: GuestPasses | null; lifetimeVisitCount: number }>(`/api/member/dashboard/stats${viewAsParam}`),
     enabled: !!user?.email && !isStaffOrAdminProfile,
@@ -647,6 +647,7 @@ export function useDashboardData() {
     coreScheduleLoading,
     initialLoading,
     isLoading,
+    statsLoading,
     error,
     rsvpSectionError,
     wellnessSectionError,

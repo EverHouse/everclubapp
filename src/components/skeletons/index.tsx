@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Skeleton from './SkeletonPrimitive';
 export { Skeleton };
 
@@ -12,55 +13,87 @@ interface SkeletonCrossfadeProps {
   skeleton: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-  duration?: number;
+  delay?: number;
 }
+
+const skeletonExitSpring = {
+  type: 'spring' as const,
+  stiffness: 200,
+  damping: 24,
+  mass: 0.6,
+};
+
+const contentEnterSpring = {
+  type: 'spring' as const,
+  stiffness: 160,
+  damping: 20,
+  mass: 0.8,
+};
 
 export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({ 
   loading, 
   skeleton, 
   children, 
   className = '',
-  duration = 250
+  delay = 0,
 }) => {
-  const [showSkeleton, setShowSkeleton] = useState(loading);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const containerRef = React.useRef<HTMLDivElement>(null);
+  const prefersReduced = useReducedMotion();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [lockedHeight, setLockedHeight] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!loading && showSkeleton) {
-      if (containerRef.current) {
-        setLockedHeight(containerRef.current.offsetHeight);
-      }
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsTransitioning(true);
-      const timer = setTimeout(() => {
-        setShowSkeleton(false);
-        setIsTransitioning(false);
-      }, duration);
-      const heightTimer = setTimeout(() => {
-        setLockedHeight(null);
-      }, duration * 2);
-      return () => { clearTimeout(timer); clearTimeout(heightTimer); };
-    } else if (loading) {
-      setShowSkeleton(true);
+    if (!loading && lockedHeight === null && containerRef.current) {
+      setLockedHeight(containerRef.current.offsetHeight);
+    }
+    if (loading) {
       setLockedHeight(null);
     }
-  }, [loading, showSkeleton, duration]);
+  }, [loading, lockedHeight]);
+
+  const handleExitComplete = () => {
+    setLockedHeight(null);
+  };
 
   const heightStyle = lockedHeight != null ? { minHeight: lockedHeight } : undefined;
 
-  if (showSkeleton) {
+  const contentTransition = useMemo(() => ({
+    ...contentEnterSpring,
+    delay: delay / 1000,
+  }), [delay]);
+
+  if (prefersReduced) {
     return (
-      <div ref={containerRef} className={`${className} ${isTransitioning ? 'animate-skeleton-out' : ''}`} style={heightStyle}>
-        {skeleton}
+      <div className={className}>
+        {loading ? skeleton : children}
       </div>
     );
   }
 
   return (
-    <div className={`animate-content-in ${className}`} style={heightStyle}>
-      {children}
+    <div style={heightStyle}>
+      <AnimatePresence mode="wait" onExitComplete={handleExitComplete}>
+        {loading ? (
+          <motion.div
+            key="skeleton"
+            ref={containerRef}
+            className={className}
+            initial={{ opacity: 1, scale: 1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98, transition: skeletonExitSpring }}
+          >
+            {skeleton}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="content"
+            className={className}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1, transition: contentTransition }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

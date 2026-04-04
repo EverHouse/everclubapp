@@ -1,7 +1,8 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { getPacificHour, CLUB_TIMEZONE } from '../../../utils/dateUtils';
-import { DashboardSkeleton } from '../../../components/skeletons';
+import { DashboardSkeleton, SkeletonCrossfade, DashboardCardSkeleton, BookingCardSkeleton } from '../../../components/skeletons';
 import { SmoothReveal } from '../../../components/motion/SmoothReveal';
 import { AnimatedPage } from '../../../components/motion';
 import ClosureAlert from '../../../components/ClosureAlert';
@@ -18,6 +19,33 @@ import { ScheduleSection } from './ScheduleSection';
 import { PasskeyNudge, BannerAlert, MembershipStatusAlert } from './DashboardAlerts';
 import Icon from '../../../components/icons/Icon';
 
+const skeletonExitTransition = {
+  type: 'spring' as const,
+  stiffness: 200,
+  damping: 24,
+  mass: 0.6,
+};
+
+const contentSpring = {
+  type: 'spring' as const,
+  stiffness: 160,
+  damping: 20,
+  mass: 0.8,
+};
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 8, scale: 0.95 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      ...contentSpring,
+      delay: i * 0.06,
+    },
+  }),
+};
+
 const getGreeting = () => {
   const hour = getPacificHour();
   if (hour < 12) return 'Good morning';
@@ -29,6 +57,7 @@ const Dashboard: React.FC = () => {
   const data = useDashboardData();
   useTierNames();
   const [scheduleRef] = useAutoAnimate();
+  const prefersReduced = useReducedMotion();
 
   const {
     navigate, queryClient, user, isDark, isStaffOrAdminProfile, tierPermissions,
@@ -46,6 +75,7 @@ const Dashboard: React.FC = () => {
 
     coreScheduleLoading,
     initialLoading,
+    statsLoading,
     error,
     rsvpSectionError,
     wellnessSectionError,
@@ -90,13 +120,27 @@ const Dashboard: React.FC = () => {
 
   return (
     <AnimatedPage>
-    <SmoothReveal isLoaded={!initialLoading}>
     <div className="full-bleed-page flex flex-col">
+    <AnimatePresence mode="wait">
     {initialLoading ? (
-      <DashboardSkeleton />
+      <motion.div
+        key="dashboard-skeleton"
+        initial={{ opacity: 1 }}
+        exit={prefersReduced
+          ? { opacity: 0, transition: { duration: 0 } }
+          : { opacity: 0, scale: 0.98, transition: skeletonExitTransition }
+        }
+      >
+        <DashboardSkeleton />
+      </motion.div>
     ) : (
-    <>
-    <div className="flex-1 flex flex-col">
+    <motion.div
+      key="dashboard-content"
+      className="flex-1 flex flex-col"
+      initial={prefersReduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={prefersReduced ? { duration: 0 } : contentSpring}
+    >
       <div className="px-6 lg:px-8 xl:px-12 pt-4 md:pt-2 pb-32 font-sans relative flex-1">
         <ClosureAlert />
         <AnnouncementAlert />
@@ -131,7 +175,14 @@ const Dashboard: React.FC = () => {
         
         <OnboardingChecklist />
         
-        <div className="mb-6 animate-content-enter" style={{ minHeight: '72px' }}>
+        <motion.div
+          className="mb-6"
+          style={{ minHeight: '72px' }}
+          {...(prefersReduced
+            ? {}
+            : { variants: sectionVariants, initial: 'hidden', animate: 'visible', custom: 0 }
+          )}
+        >
           <div className="flex items-center gap-3">
             <h1 className={`text-3xl sm:text-4xl md:text-5xl leading-none translate-y-[1px] ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>
               {getGreeting()}, {user?.firstName || (user?.name && !user.name.includes('@') ? user.name.split(' ')[0] : 'there')}
@@ -140,71 +191,87 @@ const Dashboard: React.FC = () => {
           <p className={`text-sm lg:text-base font-medium mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
             {new Date().toLocaleDateString('en-US', { timeZone: CLUB_TIMEZONE, weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
-        </div>
+        </motion.div>
 
-        <SmoothReveal isLoaded={!isStaffOrAdminProfile} delay={150}>
         {!isStaffOrAdminProfile && (
-          <>
-            <MembershipCard
-              user={user}
-              isDark={isDark}
-              isStaffOrAdminProfile={isStaffOrAdminProfile}
-              statsData={statsData}
-              guestPasses={guestPasses}
-              tierPermissions={tierPermissions}
-              simMinutesToday={simMinutesToday}
-              confMinutesToday={confMinutesToday}
-              nextWellnessClass={nextWellnessClass}
-              nextEvent={nextEvent}
-              walletPassAvailable={walletPassAvailable}
-              isCardOpen={isCardOpen}
-              setIsCardOpen={setIsCardOpen}
-              navigate={navigate}
-              showToast={showToast}
-            />
+          <div>
+            <SkeletonCrossfade
+              loading={!!statsLoading}
+              delay={60}
+              skeleton={
+                <div className="mb-6 p-5 rounded-xl backdrop-blur-xl border shadow-lg shadow-black/5 bg-white/10 border-white/20 space-y-3">
+                  <DashboardCardSkeleton isDark={isDark} />
+                  <DashboardCardSkeleton isDark={isDark} />
+                </div>
+              }
+            >
+              <MembershipCard
+                user={user}
+                isDark={isDark}
+                isStaffOrAdminProfile={isStaffOrAdminProfile}
+                statsData={statsData}
+                guestPasses={guestPasses}
+                tierPermissions={tierPermissions}
+                simMinutesToday={simMinutesToday}
+                confMinutesToday={confMinutesToday}
+                nextWellnessClass={nextWellnessClass}
+                nextEvent={nextEvent}
+                walletPassAvailable={walletPassAvailable}
+                isCardOpen={isCardOpen}
+                setIsCardOpen={setIsCardOpen}
+                navigate={navigate}
+                showToast={showToast}
+              />
+            </SkeletonCrossfade>
             {statsSectionError && (
               <div className={`mt-3 p-3 rounded-xl text-xs flex items-center gap-2 ${isDark ? 'bg-red-500/10 border border-red-500/20 text-red-300' : 'bg-red-50 border border-red-200 text-red-600'}`}>
                 <Icon name="error" className="text-sm" />
                 Unable to load membership stats. Other sections are up to date.
               </div>
             )}
-          </>
+          </div>
         )}
-        </SmoothReveal>
 
-        <SmoothReveal isLoaded={!coreScheduleLoading} delay={200}>
-        {error ? (
-        <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3 mb-6">
-          <Icon name="error" />
-          {error}
+        <div>
+          <SkeletonCrossfade
+            loading={coreScheduleLoading}
+            delay={120}
+            skeleton={
+              <div style={{ minHeight: '200px' }}>
+                <div className="mb-4 px-1">
+                  <div className="skeleton-shimmer bg-gray-200 dark:bg-white/10 h-7 w-32 rounded" />
+                </div>
+                <div className="space-y-3">
+                  <BookingCardSkeleton isDark={isDark} />
+                  <BookingCardSkeleton isDark={isDark} />
+                  <BookingCardSkeleton isDark={isDark} />
+                </div>
+              </div>
+            }
+          >
+            <ScheduleSection
+              isDark={isDark}
+              upcomingItemsFiltered={upcomingItemsFiltered}
+              isStaffOrAdminProfile={isStaffOrAdminProfile}
+              walletPassAvailable={walletPassAvailable}
+              walletPassDownloading={walletPassDownloading}
+              rsvpSectionError={rsvpSectionError}
+              wellnessSectionError={wellnessSectionError}
+              eventsSectionError={eventsSectionError}
+              conferenceRoomSectionError={conferenceRoomSectionError}
+              startNavigation={startNavigation}
+              navigate={navigate}
+              refetchAllData={refetchAllData}
+              handleCancelBooking={handleCancelBooking}
+              handleLeaveBooking={handleLeaveBooking}
+              handleCancelRSVP={handleCancelRSVP}
+              handleCancelWellness={handleCancelWellness}
+              handleDownloadBookingWalletPass={handleDownloadBookingWalletPass}
+              scheduleRef={scheduleRef}
+            />
+          </SkeletonCrossfade>
         </div>
-      ) : (
-        <>
-          <ScheduleSection
-            isDark={isDark}
-            upcomingItemsFiltered={upcomingItemsFiltered}
-            isStaffOrAdminProfile={isStaffOrAdminProfile}
-            walletPassAvailable={walletPassAvailable}
-            walletPassDownloading={walletPassDownloading}
-            rsvpSectionError={rsvpSectionError}
-            wellnessSectionError={wellnessSectionError}
-            eventsSectionError={eventsSectionError}
-            conferenceRoomSectionError={conferenceRoomSectionError}
-            startNavigation={startNavigation}
-            navigate={navigate}
-            refetchAllData={refetchAllData}
-            handleCancelBooking={handleCancelBooking}
-            handleLeaveBooking={handleLeaveBooking}
-            handleCancelRSVP={handleCancelRSVP}
-            handleCancelWellness={handleCancelWellness}
-            handleDownloadBookingWalletPass={handleDownloadBookingWalletPass}
-            scheduleRef={scheduleRef}
-          />
-        </>
-      )}
-      </SmoothReveal>
       </div>
-    </div>
 
     <ModalShell 
       isOpen={!!confirmModal} 
@@ -244,10 +311,10 @@ const Dashboard: React.FC = () => {
       onClose={() => setNfcCheckinData(null)}
       checkinData={nfcCheckinData}
     />
-    </>
+    </motion.div>
   )}
+    </AnimatePresence>
     </div>
-    </SmoothReveal>
     </AnimatedPage>
   );
 };

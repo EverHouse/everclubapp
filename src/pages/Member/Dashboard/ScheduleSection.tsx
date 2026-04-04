@@ -38,7 +38,7 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
   handleDownloadBookingWalletPass, scheduleRef,
 }) => {
   return (
-    <div className="animate-content-enter-delay-4" style={{ minHeight: '200px' }}>
+    <div style={{ minHeight: '200px' }}>
       <div className="flex justify-between items-center mb-4 px-1">
         <h3 className={`text-2xl leading-tight ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)' }}>Your Schedule</h3>
         <button
