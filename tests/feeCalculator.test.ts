@@ -6,7 +6,17 @@ vi.mock('../server/core/logger', () => ({
 }));
 
 vi.mock('../server/db', () => ({
-  db: { execute: vi.fn(), transaction: vi.fn() },
+  db: {
+    execute: vi.fn(),
+    transaction: vi.fn(),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockReturnValue({
+          catch: vi.fn(),
+        }),
+      }),
+    }),
+  },
 }));
 
 vi.mock('drizzle-orm', () => ({

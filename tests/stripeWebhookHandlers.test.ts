@@ -290,7 +290,7 @@ describe('Webhook Framework — extractResourceId', () => {
 
   it('extracts subscription resource id', () => {
     const event = { type: 'customer.subscription.created', data: { object: { id: 'sub_789' } } } as unknown as Stripe.Event;
-    expect(extractResourceId(event)).toBe('sub_789');
+    expect(extractResourceId(event)).toBe('sub:sub_789');
   });
 
   it('extracts checkout session resource id', () => {
