@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthData, useMemberData } from '../../contexts/DataContext';
 import { AnnouncementFormDrawer } from '../admin/AnnouncementFormDrawer';
 import { NoticeFormDrawer } from '../admin/NoticeFormDrawer';
@@ -12,6 +13,7 @@ import { useToast } from '../Toast';
 import { getTodayPacific, formatTime12Hour } from '../../utils/dateUtils';
 import { StaffCommandCenterSkeleton } from '../skeletons';
 import { AnimatedPage } from '../motion';
+import { springPresets, useReducedMotion } from '../../utils/motion';
 import { useBookingActions } from '../../hooks/useBookingActions';
 import { playSound } from '../../utils/sounds';
 import { parseQrCode } from '../../utils/qrCodeParser';
@@ -35,6 +37,154 @@ import { tabToPath } from '../../lib/nav-constants';
 import type { StaffCommandCenterProps, BookingRequest, RecentActivity, TabType } from './types';
 import { BOOKING_STATUS } from '../../../shared/constants/statuses';
 import Icon from '../icons/Icon';
+
+const FAB_MENU_ITEMS = [
+  { key: 'announcement', label: 'Announcement', icon: 'campaign', colorClass: 'bg-[#CCB8E4]', iconClass: 'text-[#293515]', action: 'onAnnouncement' },
+  { key: 'event', label: 'New Event', icon: 'celebration', colorClass: 'bg-indigo-500', iconClass: 'text-white', action: 'onEvent' },
+  { key: 'wellness', label: 'New Wellness', icon: 'spa', colorClass: 'bg-teal-500', iconClass: 'text-white', action: 'onWellness' },
+  { key: 'notice', label: 'New Notice', icon: 'notifications', colorClass: 'bg-amber-500', iconClass: 'text-white', action: 'onNotice' },
+  { key: 'guest', label: 'New Guest', icon: 'person_add', colorClass: 'bg-green-600', iconClass: 'text-white', action: 'onNewGuest' },
+  { key: 'checkin', label: 'Check In', icon: 'qr_code_scanner', colorClass: 'bg-primary dark:bg-white/90', iconClass: 'text-white dark:text-primary', action: 'onCheckIn' },
+] as const;
+
+type FabAction = typeof FAB_MENU_ITEMS[number]['action'];
+
+interface StaffFabMenuProps {
+  fabOpen: boolean;
+  setFabOpen: (open: boolean) => void;
+  isMobile: boolean;
+  isAtBottom: boolean;
+  onAnnouncement: () => void;
+  onEvent: () => void;
+  onWellness: () => void;
+  onNotice: () => void;
+  onNewGuest: () => void;
+  onCheckIn: () => void;
+}
+
+const fabMenuItemVariants = {
+  initial: { opacity: 0, y: 20, scale: 0.8 },
+  animate: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { ...springPresets.popIn, delay: i * 0.04 },
+  }),
+  exit: (i: number) => ({
+    opacity: 0,
+    y: 10,
+    scale: 0.85,
+    transition: { ...springPresets.stiffQuick, delay: i * 0.03 },
+  }),
+};
+
+const fabMenuItemReducedVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0 } },
+  exit: { opacity: 0, transition: { duration: 0 } },
+};
+
+const StaffFabMenu: React.FC<StaffFabMenuProps> = ({
+  fabOpen,
+  setFabOpen,
+  isMobile,
+  isAtBottom,
+  ...actions
+}) => {
+  const prefersReducedMotion = useReducedMotion();
+  const actionHandlers: Record<FabAction, () => void> = {
+    onCheckIn: actions.onCheckIn,
+    onNewGuest: actions.onNewGuest,
+    onNotice: actions.onNotice,
+    onWellness: actions.onWellness,
+    onEvent: actions.onEvent,
+    onAnnouncement: actions.onAnnouncement,
+  };
+
+  const variants = prefersReducedMotion ? fabMenuItemReducedVariants : fabMenuItemVariants;
+
+  return createPortal(
+    <>
+      <AnimatePresence>
+        {fabOpen && (
+          <motion.div
+            key="fab-backdrop"
+            className="fixed inset-0"
+            style={{ zIndex: 'var(--z-fab)' }}
+            onClick={() => setFabOpen(false)}
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.15 }}
+          />
+        )}
+      </AnimatePresence>
+      <div
+        className="fixed right-5 flex flex-col items-end gap-3"
+        style={{
+          zIndex: 'var(--z-fab)',
+          bottom: isMobile
+            ? 'calc(140px + env(safe-area-inset-bottom, 0px))'
+            : '24px',
+          transform: isMobile && isAtBottom ? 'translateY(116px)' : 'translateY(0)',
+          transition: 'transform 0.3s ease-out',
+        }}
+      >
+        <AnimatePresence>
+          {fabOpen && (
+            <motion.div
+              key="fab-menu"
+              className="flex flex-col items-end gap-2"
+              role="menu"
+              initial={false}
+              animate="animate"
+              exit="exit"
+            >
+              {FAB_MENU_ITEMS.map((item, index) => {
+                const reverseIndex = FAB_MENU_ITEMS.length - 1 - index;
+                return (
+                  <motion.button
+                    key={item.key}
+                    custom={prefersReducedMotion ? 0 : reverseIndex}
+                    variants={variants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    onClick={actionHandlers[item.action]}
+                    className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 hover:scale-105 active:scale-95"
+                    role="menuitem"
+                  >
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">{item.label}</span>
+                    <div className={`w-10 h-10 rounded-full ${item.colorClass} flex items-center justify-center`}>
+                      <Icon name={item.icon} className={`text-xl ${item.iconClass}`} />
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <button
+          onClick={() => setFabOpen(!fabOpen)}
+          aria-label={fabOpen ? 'Close quick actions menu' : 'Open quick actions menu'}
+          aria-expanded={fabOpen}
+          aria-haspopup="menu"
+          className={`fab-main-btn w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-transform duration-normal hover:scale-110 active:scale-95 ${
+            fabOpen
+              ? 'bg-red-500/80 text-white backdrop-blur-xl rotate-45'
+              : 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl'
+          } border border-white/30`}
+          title="Quick Actions"
+        >
+          <Icon name="add" className="text-2xl" />
+        </button>
+      </div>
+    </>,
+    document.body,
+  );
+};
 
 interface OptimisticUpdateRef {
   bookingId: number | string;
@@ -792,134 +942,18 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         }}
       />
 
-      {createPortal(
-        <>
-          {fabOpen && (
-            <div 
-              className="fixed inset-0" 
-              style={{ zIndex: 'var(--z-fab)' }}
-              onClick={() => setFabOpen(false)}
-              aria-hidden="true"
-            />
-          )}
-          <div 
-            className="fixed right-5 flex flex-col items-end gap-3"
-            style={{ 
-              zIndex: 'var(--z-fab)',
-              bottom: isMobile 
-                ? 'calc(140px + env(safe-area-inset-bottom, 0px))'
-                : '24px',
-              transform: isMobile && isAtBottom ? 'translateY(116px)' : 'translateY(0)',
-              transition: 'transform 0.3s ease-out'
-            }}
-          >
-            {fabOpen && (
-              <div className="flex flex-col items-end gap-2" role="menu">
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
-                    setAnnouncementDrawerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-transform duration-fast hover:scale-105 active:scale-95 animate-fab-item-6"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">Announcement</span>
-                  <div className="w-10 h-10 rounded-full bg-[#CCB8E4] flex items-center justify-center">
-                    <Icon name="campaign" className="text-xl text-[#293515]" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
-                    setEventDrawerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-transform duration-fast hover:scale-105 active:scale-95 animate-fab-item-5"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Event</span>
-                  <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center">
-                    <Icon name="celebration" className="text-xl text-white" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
-                    setWellnessDrawerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-transform duration-fast hover:scale-105 active:scale-95 animate-fab-item-4"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Wellness</span>
-                  <div className="w-10 h-10 rounded-full bg-teal-500 flex items-center justify-center">
-                    <Icon name="spa" className="text-xl text-white" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
-                    setNoticeDrawerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-transform duration-fast hover:scale-105 active:scale-95 animate-fab-item-3"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Notice</span>
-                  <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center">
-                    <Icon name="notifications" className="text-xl text-white" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
-                    setNewUserDrawerMode('member');
-                    setNewUserDrawerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-transform duration-fast hover:scale-105 active:scale-95 animate-fab-item-2"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">New Guest</span>
-                  <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
-                    <Icon name="person_add" className="text-xl text-white" />
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => { 
-                    setFabOpen(false); 
-                    setQrScannerOpen(true);
-                  }}
-                  className="fab-menu-item flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-full bg-white/50 dark:bg-white/10 backdrop-blur-xl shadow-lg border border-white/40 dark:border-white/20 transition-transform duration-fast hover:scale-105 active:scale-95 animate-fab-item-1"
-                  role="menuitem"
-                >
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">Check In</span>
-                  <div className="w-10 h-10 rounded-full bg-primary dark:bg-white/90 flex items-center justify-center">
-                    <Icon name="qr_code_scanner" className="text-xl text-white dark:text-primary" />
-                  </div>
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={() => setFabOpen(!fabOpen)}
-              aria-label={fabOpen ? 'Close quick actions menu' : 'Open quick actions menu'}
-              aria-expanded={fabOpen}
-              aria-haspopup="menu"
-              className={`fab-main-btn w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-transform duration-normal hover:scale-110 active:scale-95 ${
-                fabOpen 
-                  ? 'bg-red-500/80 text-white backdrop-blur-xl rotate-45' 
-                  : 'bg-primary/50 dark:bg-white/50 text-white dark:text-primary backdrop-blur-xl'
-              } border border-white/30`}
-              title="Quick Actions"
-            >
-              <Icon name="add" className="text-2xl" />
-            </button>
-          </div>
-        </>,
-        document.body
-      )}
+      <StaffFabMenu
+        fabOpen={fabOpen}
+        setFabOpen={setFabOpen}
+        isMobile={isMobile}
+        isAtBottom={isAtBottom}
+        onAnnouncement={() => { setFabOpen(false); setAnnouncementDrawerOpen(true); }}
+        onEvent={() => { setFabOpen(false); setEventDrawerOpen(true); }}
+        onWellness={() => { setFabOpen(false); setWellnessDrawerOpen(true); }}
+        onNotice={() => { setFabOpen(false); setNoticeDrawerOpen(true); }}
+        onNewGuest={() => { setFabOpen(false); setNewUserDrawerMode('member'); setNewUserDrawerOpen(true); }}
+        onCheckIn={() => { setFabOpen(false); setQrScannerOpen(true); }}
+      />
       
       <CheckinBillingModal
         isOpen={billingModal.isOpen}

@@ -1728,21 +1728,6 @@ html.dark .border-accessible {
   animation: bannerSlideDown 0.3s var(--m3-emphasized-decel) both;
 }
 
-@keyframes fabEnter {
-  0% {
-    opacity: 0;
-    transform: scale(0.85) translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.animate-fab-bounce-in {
-  animation: fabEnter 0.3s var(--m3-standard-decel) forwards;
-}
-
 /* Pop Out Animation - Exit animation for toasts and modals */
 @keyframes popOut {
   0% {
@@ -2058,25 +2043,6 @@ html.dark .border-accessible {
 .animate-list-item-delay-8 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 320ms both; }
 .animate-list-item-delay-9 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 360ms both; }
 .animate-list-item-delay-10 { animation: listItemEnter 0.35s var(--m3-emphasized-decel) 400ms both; }
-
-/* FAB expanding menu item animations */
-@keyframes fabItemEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(20px) scale(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.animate-fab-item-1 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.02s both; }
-.animate-fab-item-2 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.06s both; }
-.animate-fab-item-3 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.1s both; }
-.animate-fab-item-4 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.14s both; }
-.animate-fab-item-5 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.18s both; }
-.animate-fab-item-6 { animation: fabItemEnter 0.2s var(--spring-bounce) 0.22s both; }
 
 /* Skeleton crossfade - fades out skeleton while content fades in */
 @keyframes skeletonFadeOut {
@@ -2713,11 +2679,9 @@ html.dark .border-accessible {
   .animate-slide-out-right,
   .animate-slide-in-left,
   .animate-slide-out-left,
-  .animate-fab-bounce-in,
   .animate-card-remove,
   .animate-list-item,
   [class*="animate-list-item-delay-"],
-  [class*="animate-fab-item-"],
   .animate-slide-up-stagger,
   [class*="animate-content-enter-delay-"],
   .animate-header-title,

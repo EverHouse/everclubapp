@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useBottomNav } from '../stores/bottomNavStore';
 import { useScrollDirection } from '../hooks/useScrollDirection';
+import { springPresets, useReducedMotion } from '../utils/motion';
 import Icon from './icons/Icon';
 
 export type FABColor = 'brand' | 'amber' | 'green' | 'purple' | 'red';
@@ -24,6 +26,27 @@ const colorClasses: Record<FABColor, string> = {
   red: 'fab-main-btn bg-red-600/50 dark:bg-red-500/50 text-white backdrop-blur-xl border border-white/15 dark:border-red-400/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]',
 };
 
+const fabVariants = {
+  initial: { opacity: 0, scale: 0.85, y: 8 },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: springPresets.popIn,
+  },
+  exit: {
+    opacity: 0,
+    scale: 0.8,
+    transition: springPresets.stiffQuick,
+  },
+};
+
+const fabReducedVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0 } },
+  exit: { opacity: 0, transition: { duration: 0 } },
+};
+
 const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   onClick,
   color = 'brand',
@@ -35,8 +58,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 }) => {
   const { isAtBottom, drawerOpen } = useBottomNav();
   const { direction, isAtTop } = useScrollDirection(extended);
-  const [isExiting, setIsExiting] = useState(false);
-  const [shouldRender, setShouldRender] = useState(!drawerOpen);
+  const prefersReducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useState(false);
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -74,23 +96,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (drawerOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsExiting(true);
-      const timer = setTimeout(() => {
-        setShouldRender(false);
-        setIsExiting(false);
-      }, 100);
-      return () => clearTimeout(timer);
-    } else {
-      setShouldRender(true);
-      setIsExiting(false);
-    }
-  }, [drawerOpen]);
-
-  if (!shouldRender) return null;
-  
   const mobileBottom = isAtBottom 
     ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
     : 'calc(140px + env(safe-area-inset-bottom, 0px))';
@@ -106,37 +111,51 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
     <Icon name={icon} className="text-2xl shrink-0" />
   );
 
+  const variants = prefersReducedMotion ? fabReducedVariants : fabVariants;
+
+  const labelTransition = prefersReducedMotion
+    ? { duration: 0 }
+    : { width: springPresets.smooth, opacity: { duration: 0.2 } };
+
   const fabContent = (
-    <button
-      onClick={onClick}
-      className={`fixed right-5 md:right-8 bottom-8 shadow-lg flex items-center justify-center hover:shadow-xl hover:brightness-110 dark:hover:brightness-110 active:scale-[0.97] fab-button ${isExiting ? '' : 'animate-fab-bounce-in'} ${colorClasses[color]} ${
-        isExpanded
-          ? 'min-h-[56px] px-4 gap-2 rounded-2xl'
-          : 'w-14 h-14 rounded-full'
-      }`}
-      style={{ 
-        zIndex: 'var(--z-fab)',
-        '--fab-mobile-bottom': mobileBottom,
-        transition: 'border-radius 0.35s var(--m3-standard), transform 0.1s var(--m3-standard), box-shadow 0.2s var(--m3-standard), opacity 0.1s var(--m3-standard)',
-        ...(isExiting ? { transform: 'scale(0.8)', opacity: 0 } : {}),
-      } as React.CSSProperties}
-      aria-label={isExpanded && text ? text : label || 'Add new item'}
-    >
-      {iconContent}
-      {extended && (
-        <span
-          className="text-sm font-semibold whitespace-nowrap overflow-hidden"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isExpanded ? '1fr' : '0fr',
-            opacity: isExpanded ? 1 : 0,
-            transition: 'opacity 0.25s var(--m3-standard)',
-          }}
+    <AnimatePresence>
+      {!drawerOpen && (
+        <motion.button
+          key="fab"
+          variants={variants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          onClick={onClick}
+          className={`fixed right-5 md:right-8 bottom-8 shadow-lg flex items-center justify-center hover:shadow-xl hover:brightness-110 dark:hover:brightness-110 active:scale-[0.97] fab-button ${colorClasses[color]} ${
+            isExpanded
+              ? 'min-h-[56px] px-4 gap-2 rounded-2xl'
+              : 'w-14 h-14 rounded-full'
+          }`}
+          style={{ 
+            zIndex: 'var(--z-fab)',
+            '--fab-mobile-bottom': mobileBottom,
+            transition: 'border-radius 0.35s var(--m3-standard), box-shadow 0.2s var(--m3-standard)',
+          } as React.CSSProperties}
+          aria-label={isExpanded && text ? text : label || 'Add new item'}
         >
-          <span className="overflow-hidden">{text}</span>
-        </span>
+          {iconContent}
+          {extended && (
+            <motion.span
+              className="text-sm font-semibold whitespace-nowrap overflow-hidden"
+              animate={{
+                width: isExpanded ? 'auto' : 0,
+                opacity: isExpanded ? 1 : 0,
+              }}
+              initial={false}
+              transition={labelTransition}
+            >
+              {text}
+            </motion.span>
+          )}
+        </motion.button>
       )}
-    </button>
+    </AnimatePresence>
   );
   
   return createPortal(fabContent, document.body);
