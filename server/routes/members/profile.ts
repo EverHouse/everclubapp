@@ -759,7 +759,9 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
     
     const [walkInResult, wellhubResult] = await Promise.all([
       db.execute(sql`
-        SELECT id, member_email, checked_in_by_name, source, created_at
+        SELECT id, member_email, checked_in_by_name, source, created_at,
+          TO_CHAR(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM-DD"T"HH24:MI:SS') as pacific_datetime,
+          TO_CHAR(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles', 'HH24:MI:SS') as pacific_time
         FROM walk_in_visits
         WHERE LOWER(member_email) = ${normalizedEmail}
         ORDER BY created_at DESC
@@ -772,11 +774,15 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       `),
     ]);
 
-    interface WalkInRow { id: number; member_email: string; checked_in_by_name: string | null; source: string | null; created_at: string }
-    const walkInItems = (walkInResult.rows as unknown as WalkInRow[]).map((v) => ({
-      id: `walkin-${v.id}`,
-      bookingDate: v.created_at,
-      startTime: null,
+    interface WalkInRow { id: number; member_email: string; checked_in_by_name: string | null; source: string | null; created_at: string; pacific_datetime: string; pacific_time: string }
+    const walkInRawTimestamps = new Map<string, string>();
+    const walkInItems = (walkInResult.rows as unknown as WalkInRow[]).map((v) => {
+      const id = `walkin-${v.id}`;
+      walkInRawTimestamps.set(id, v.created_at);
+      return {
+      id,
+      bookingDate: v.pacific_datetime,
+      startTime: v.pacific_time,
       endTime: null,
       resourceName: v.source === 'wellhub' ? 'Wellhub Check-in' : 'Walk-in Visit',
       resourceType: 'walk_in',
@@ -784,14 +790,17 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
       checkedInBy: v.checked_in_by_name,
       isWalkIn: true,
       isWellhub: v.source === 'wellhub',
-    }));
+    };
+    });
 
     interface WellhubRow { id: number; event_type: string; validation_status: string; booking_number: string | null; event_reported_at: string | null; created_at: string }
     const allWellhubRows = wellhubResult.rows as unknown as WellhubRow[];
     const validatedWellhubItems = allWellhubRows
       .filter(w => w.validation_status === 'validated')
       .filter(w => !walkInItems.some(wi => {
-        const wiDate = new Date(wi.bookingDate).getTime();
+        const rawTs = walkInRawTimestamps.get(wi.id);
+        if (!rawTs) return false;
+        const wiDate = new Date(rawTs).getTime();
         const whDate = new Date(w.created_at).getTime();
         return Math.abs(wiDate - whDate) < 120000;
       }))
@@ -831,9 +840,14 @@ router.get('/api/members/:email/history', isStaffOrAdmin, async (req, res) => {
 
     const wellhubItems = [...validatedWellhubItems, ...failedWellhubItems];
 
-    const combinedVisitHistory = [...visitHistory, ...walkInItems, ...wellhubItems].sort((a, b) =>
-      new Date(String(b.bookingDate)).getTime() - new Date(String(a.bookingDate)).getTime()
-    );
+    const getSortTimestamp = (item: { id: string; bookingDate: string | Date | null }): number => {
+      const rawTs = walkInRawTimestamps.get(item.id);
+      if (rawTs) return new Date(rawTs).getTime();
+      return new Date(String(item.bookingDate)).getTime();
+    };
+
+    const combinedVisitHistory = [...visitHistory, ...walkInItems, ...wellhubItems]
+      .sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a));
 
     const attendedBookingsCount = visitHistory.length + walkInItems.length + validatedWellhubItems.length;
     const todayPacific = getTodayPacific();
