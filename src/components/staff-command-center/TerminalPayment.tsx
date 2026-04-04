@@ -1,8 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
-import { fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
+import { ApiError, fetchWithCredentials, postWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../icons/Icon';
+
+function isNetworkError(err: unknown): boolean {
+  if (err instanceof TypeError) return true;
+  if (err instanceof DOMException && err.name === 'AbortError') return false;
+  if (err instanceof ApiError) return false;
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    return msg.includes('failed to fetch') || msg.includes('network') || msg.includes('load failed') || msg.includes('networkerror');
+  }
+  return false;
+}
 
 interface TerminalReader {
   id: string;
@@ -69,18 +80,22 @@ export function TerminalPayment({
   const [selectedReader, setSelectedReader] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'waiting' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'waiting' | 'success' | 'error' | 'recovering'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [_setupIntentId, setSetupIntentId] = useState<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const recoveryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const paymentIntentIdRef = useRef<string | null>(null);
   const selectedReaderRef = useRef<string>('');
   const processingRef = useRef(false);
   const _setupIntentIdRef = useRef<string | null>(null);
   const [creatingSimulated, setCreatingSimulated] = useState(false);
+  const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const networkErrorCountRef = useRef(0);
+  const NETWORK_ERROR_THRESHOLD = 3;
 
   const isSaveCard = mode === 'save_card';
 
@@ -136,11 +151,166 @@ export function TerminalPayment({
     }
   }, [onError]);
 
+  const clearRecoveryTimeout = useCallback(() => {
+    if (recoveryTimeoutRef.current) {
+      clearTimeout(recoveryTimeoutRef.current);
+      recoveryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const startRecoveryPolling = useCallback(async (intentId: string, intentType: 'payment' | 'setup') => {
+    setStatus('recovering');
+    setStatusMessage(intentType === 'setup' ? 'Checking card save status...' : 'Checking payment status...');
+    setRecoveryFailed(false);
+    clearPollingRef();
+    clearTimeoutRef();
+
+    const POLL_INTERVAL = 2000;
+    const MAX_POLLS = 15;
+    let pollCount = 0;
+    let resolved = false;
+
+    const poll = async () => {
+      if (resolved) return;
+      pollCount++;
+      try {
+        if (intentType === 'payment') {
+          const data = await fetchWithCredentials<{ status: string; lastPaymentError?: { declineCode?: string; message?: string } }>(`/api/stripe/terminal/payment-status/${intentId}`);
+
+          if (data.status === 'succeeded') {
+            resolved = true;
+            clearPollingRef();
+            clearRecoveryTimeout();
+            processingRef.current = false;
+            setStatus('success');
+            setStatusMessage('Payment successful!');
+            if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+            successTimeoutRef.current = setTimeout(() => {
+              onSuccess(intentId);
+            }, 1500);
+            return;
+          } else if (data.status === 'requires_payment_method') {
+            resolved = true;
+            clearPollingRef();
+            clearRecoveryTimeout();
+            setStatus('error');
+            setStatusMessage(data.lastPaymentError?.declineCode
+              ? `Card declined: ${data.lastPaymentError.declineCode.replace(/_/g, ' ')}`
+              : (data.lastPaymentError?.message || 'Payment did not go through. You can try again.'));
+            setProcessing(false);
+            processingRef.current = false;
+            return;
+          } else if (data.status === 'canceled') {
+            resolved = true;
+            clearPollingRef();
+            clearRecoveryTimeout();
+            setStatus('error');
+            setStatusMessage('Payment was canceled');
+            setProcessing(false);
+            processingRef.current = false;
+            return;
+          }
+        } else {
+          const data = await fetchWithCredentials<{ status: string }>(`/api/stripe/terminal/setup-status/${intentId}`);
+
+          if (data.status === 'succeeded') {
+            resolved = true;
+            clearPollingRef();
+            clearRecoveryTimeout();
+            processingRef.current = false;
+            try {
+              const confirmData = await postWithCredentials<{ cardSaved?: boolean; error?: string }>('/api/stripe/terminal/confirm-save-card', {
+                setupIntentId: intentId,
+                customerId: paymentMetadata?.customerId,
+                subscriptionId
+              });
+              if (!confirmData.cardSaved) {
+                setStatus('error');
+                setStatusMessage(confirmData.error || 'Card was read but could not be saved. Please try again.');
+                setProcessing(false);
+                processingRef.current = false;
+                return;
+              }
+            } catch (confirmErr: unknown) {
+              console.error('Error confirming save card during recovery:', confirmErr);
+              setStatus('error');
+              setStatusMessage('Card was read but could not be saved. Please try again.');
+              setProcessing(false);
+              processingRef.current = false;
+              return;
+            }
+            setStatus('success');
+            setStatusMessage('Card saved successfully!');
+            if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+            successTimeoutRef.current = setTimeout(() => {
+              onSuccess(intentId);
+            }, 1500);
+            return;
+          } else if (data.status === 'canceled') {
+            resolved = true;
+            clearPollingRef();
+            clearRecoveryTimeout();
+            setStatus('error');
+            setStatusMessage('Card save was canceled');
+            setProcessing(false);
+            processingRef.current = false;
+            return;
+          }
+        }
+
+        networkErrorCountRef.current = 0;
+
+        if (pollCount >= MAX_POLLS) {
+          resolved = true;
+          clearPollingRef();
+          clearRecoveryTimeout();
+          setRecoveryFailed(true);
+          setStatusMessage(intentType === 'setup'
+            ? 'Unable to confirm card save status. Please check your connection and try again.'
+            : 'Unable to confirm payment status. Please check your connection and try again.');
+        }
+      } catch (err: unknown) {
+        console.error('Recovery poll error:', err);
+        if (isNetworkError(err)) {
+          if (pollCount >= MAX_POLLS) {
+            resolved = true;
+            clearPollingRef();
+            clearRecoveryTimeout();
+            setRecoveryFailed(true);
+            setStatusMessage('Still unable to reach server — please check your connection.');
+          }
+        } else {
+          resolved = true;
+          clearPollingRef();
+          clearRecoveryTimeout();
+          setStatus('error');
+          setStatusMessage(err instanceof Error ? err.message : 'An unexpected error occurred');
+          setProcessing(false);
+          processingRef.current = false;
+        }
+      }
+    };
+
+    await poll();
+    if (!resolved && pollCount < MAX_POLLS) {
+      pollingRef.current = setInterval(poll, POLL_INTERVAL);
+      recoveryTimeoutRef.current = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          clearPollingRef();
+          setRecoveryFailed(true);
+          setStatusMessage('Still unable to reach server — please check your connection.');
+        }
+      }, POLL_INTERVAL * MAX_POLLS + 1000);
+    }
+  }, [clearPollingRef, clearTimeoutRef, clearRecoveryTimeout, onSuccess, paymentMetadata?.customerId, subscriptionId]);
+
   useEffect(() => {
     fetchReaders();
     return () => {
       clearPollingRef();
       clearTimeoutRef();
+      clearRecoveryTimeout();
       if (successTimeoutRef.current) {
         clearTimeout(successTimeoutRef.current);
         successTimeoutRef.current = null;
@@ -171,6 +341,8 @@ export function TerminalPayment({
     try {
       const data = await fetchWithCredentials<{ status: string; lastPaymentError?: { declineCode?: string; message?: string } }>(`/api/stripe/terminal/payment-status/${piId}`);
       
+      networkErrorCountRef.current = 0;
+
       if (data.status === 'succeeded') {
         clearPollingRef();
         clearTimeoutRef();
@@ -200,12 +372,23 @@ export function TerminalPayment({
       }
     } catch (err: unknown) {
       console.error('Error polling payment status:', err);
+      if (isNetworkError(err)) {
+        networkErrorCountRef.current++;
+        if (networkErrorCountRef.current >= NETWORK_ERROR_THRESHOLD) {
+          networkErrorCountRef.current = 0;
+          clearPollingRef();
+          clearTimeoutRef();
+          startRecoveryPolling(piId, 'payment');
+        }
+      }
     }
-  }, [onSuccess, clearPollingRef, clearTimeoutRef]);
+  }, [onSuccess, clearPollingRef, clearTimeoutRef, startRecoveryPolling, NETWORK_ERROR_THRESHOLD]);
 
   const pollSetupStatus = useCallback(async (siId: string) => {
     try {
       const data = await fetchWithCredentials<{ status: string }>(`/api/stripe/terminal/setup-status/${siId}`);
+
+      networkErrorCountRef.current = 0;
 
       if (data.status === 'succeeded') {
         clearPollingRef();
@@ -248,8 +431,17 @@ export function TerminalPayment({
       }
     } catch (err: unknown) {
       console.error('Error polling setup status:', err);
+      if (isNetworkError(err)) {
+        networkErrorCountRef.current++;
+        if (networkErrorCountRef.current >= NETWORK_ERROR_THRESHOLD) {
+          networkErrorCountRef.current = 0;
+          clearPollingRef();
+          clearTimeoutRef();
+          startRecoveryPolling(siId, 'setup');
+        }
+      }
     }
-  }, [onSuccess, clearPollingRef, clearTimeoutRef, paymentMetadata?.customerId, subscriptionId]);
+  }, [onSuccess, clearPollingRef, clearTimeoutRef, paymentMetadata?.customerId, subscriptionId, startRecoveryPolling, NETWORK_ERROR_THRESHOLD]);
 
   const handleProcessPayment = async () => {
     if (!selectedReader) {
@@ -325,6 +517,7 @@ export function TerminalPayment({
 
       if (isSaveCard) {
         setSetupIntentId(data.setupIntentId);
+        _setupIntentIdRef.current = data.setupIntentId;
         pollingRef.current = setInterval(() => {
           pollSetupStatus(data.setupIntentId);
         }, 1500);
@@ -338,19 +531,51 @@ export function TerminalPayment({
 
     } catch (err: unknown) {
       console.error('Error processing terminal payment:', err);
-      setStatus('error');
-      setStatusMessage((err instanceof Error ? err.message : String(err)));
-      setProcessing(false);
-      processingRef.current = false;
+      if (isNetworkError(err)) {
+        const piId = paymentIntentIdRef.current || existingPaymentIntentId;
+        const siId = _setupIntentIdRef.current;
+        if (piId) {
+          startRecoveryPolling(piId, 'payment');
+        } else if (siId) {
+          startRecoveryPolling(siId, 'setup');
+        } else {
+          setStatus('error');
+          setStatusMessage('Network error — could not reach the server. Please check your connection and try again.');
+          setProcessing(false);
+          processingRef.current = false;
+        }
+      } else {
+        setStatus('error');
+        setStatusMessage((err instanceof Error ? err.message : String(err)));
+        setProcessing(false);
+        processingRef.current = false;
+      }
     }
   };
 
   const [canceling, setCanceling] = useState(false);
 
+  const [checkingAgain, setCheckingAgain] = useState(false);
+
+  const handleManualRecoveryCheck = useCallback(async () => {
+    if (checkingAgain) return;
+    setCheckingAgain(true);
+    const piId = paymentIntentIdRef.current;
+    const siId = _setupIntentIdRef.current;
+    if (piId) {
+      await startRecoveryPolling(piId, 'payment');
+    } else if (siId) {
+      await startRecoveryPolling(siId, 'setup');
+    }
+    setCheckingAgain(false);
+  }, [startRecoveryPolling, checkingAgain]);
+
   const handleCancelPayment = async () => {
     setCanceling(true);
     clearPollingRef();
     clearTimeoutRef();
+    clearRecoveryTimeout();
+    setRecoveryFailed(false);
     if (successTimeoutRef.current) {
       clearTimeout(successTimeoutRef.current);
       successTimeoutRef.current = null;
@@ -395,6 +620,7 @@ export function TerminalPayment({
     setPaymentIntentId(null);
     paymentIntentIdRef.current = null;
     setSetupIntentId(null);
+    _setupIntentIdRef.current = null;
     onCancel();
   };
 
@@ -582,6 +808,69 @@ export function TerminalPayment({
         </div>
       )}
 
+      {status === 'recovering' && (
+        <div className={`p-6 rounded-xl text-center border-2 border-dashed ${isDark ? 'bg-amber-900/10 border-amber-500/30' : 'bg-amber-50/50 border-amber-300'}`}>
+          <div className="flex justify-center mb-4">
+            {recoveryFailed ? (
+              <Icon name="wifi_off" className="text-5xl text-amber-500" />
+            ) : (
+              <Icon name="sync" className="text-5xl text-amber-500 animate-spin" />
+            )}
+          </div>
+          <h3 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {recoveryFailed ? 'Connection Issue' : (isSaveCard ? 'Checking card save status...' : 'Checking payment status...')}
+          </h3>
+          <p className={`text-sm mb-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+            {statusMessage}
+          </p>
+          {recoveryFailed ? (
+            <div className="flex flex-col gap-3 items-center">
+              <button
+                onClick={handleManualRecoveryCheck}
+                disabled={checkingAgain}
+                className={`tactile-btn px-6 py-2.5 rounded-lg font-medium transition-colors text-sm flex items-center gap-2 ${
+                  isDark
+                    ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {checkingAgain ? (
+                  <>
+                    <Icon name="progress_activity" className="animate-spin text-base" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="refresh" className="text-base" />
+                    Check Again
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  clearPollingRef();
+                  clearRecoveryTimeout();
+                  setRecoveryFailed(false);
+                  setStatus('error');
+                  setStatusMessage(isSaveCard
+                    ? 'Card save status could not be confirmed. Please verify in Stripe before retrying.'
+                    : 'Payment status could not be confirmed. Please verify in Stripe before retrying.');
+                  setProcessing(false);
+                  processingRef.current = false;
+                }}
+                className={`text-xs underline ${isDark ? 'text-gray-500 hover:text-gray-400' : 'text-gray-400 hover:text-gray-500'}`}
+              >
+                Stop checking
+              </button>
+            </div>
+          ) : (
+            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              A network issue was detected. Verifying with Stripe that nothing was missed...
+            </p>
+          )}
+        </div>
+      )}
+
       {status === 'success' && (
         <div className={`p-6 rounded-lg text-center ${isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
           <div className="flex justify-center mb-4">
@@ -615,7 +904,10 @@ export function TerminalPayment({
               setStatus('idle');
               setStatusMessage('');
               setPaymentIntentId(null);
+              paymentIntentIdRef.current = null;
               setSetupIntentId(null);
+              _setupIntentIdRef.current = null;
+              networkErrorCountRef.current = 0;
             }}
             className={`tactile-btn px-4 py-2 rounded-lg font-medium transition-colors ${
               isDark 
