@@ -41,7 +41,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
   const prefersReducedMotion = useReducedMotion();
   const noMotion = { duration: 0 };
   const hasLoadedOnce = useRef(false);
-  if (!isLoading && slotsByHour.length > 0) hasLoadedOnce.current = true;
+  if (!isLoading) hasLoadedOnce.current = true;
   const showSkeleton = isLoading && !hasLoadedOnce.current;
 
   return (
@@ -70,7 +70,11 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                     setExpandedHour(isExpanding ? hourGroup.hour24 : null);
                     if (isExpanding) {
                       const el = e.currentTarget.parentElement;
-                      if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+                      if (el) {
+                        setTimeout(() => {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 150);
+                      }
                     }
                   }}
                   className={`w-full p-4 rounded-xl border text-left transition-transform duration-fast active:scale-[0.99] flex items-center justify-between ${
@@ -141,7 +145,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                               aria-pressed={isSelected}
                               className={`relative p-3 rounded-[4px] border text-left transition-colors duration-150 active:scale-[0.98] focus:ring-2 focus:ring-accent focus:outline-none ${
                                 isSelected
-                                  ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
+                                  ? (isDark ? 'bg-transparent text-primary border-white' : 'bg-transparent text-white border-primary')
                                   : (isDark ? 'bg-transparent text-white hover:bg-white/10 border-white/15' : 'bg-white text-primary hover:bg-black/5 border-black/10')
                               }`}
                             >
