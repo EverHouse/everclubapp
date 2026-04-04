@@ -166,10 +166,7 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
         }
         
         await checkParticipantOverlaps(sanitizedParticipants, request_date, start_time, end_time, tx as unknown as Parameters<typeof checkParticipantOverlaps>[4]);
-        const participantsForLimitCheck = isStaffRequest
-          ? sanitizedParticipants
-          : sanitizedParticipants.filter(p => p.email.toLowerCase() === requestEmail.toLowerCase());
-        await checkParticipantDailyLimits(participantsForLimitCheck, request_date, duration_minutes, resourceType, tx as unknown as { execute: typeof db.execute });
+        await checkParticipantDailyLimits(sanitizedParticipants, request_date, duration_minutes, resourceType, tx as unknown as { execute: typeof db.execute });
 
         const initialStatus: 'pending' | 'confirmed' = 'pending';
         
