@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { users } from '../../../shared/schema';
-import { sql } from 'drizzle-orm';
+import { sql, and } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getErrorMessage } from '../../utils/errorUtils';

@@ -284,7 +284,7 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, validateBody(waiverVe
 
 router.get('/api/waivers/signatures/:userId', isStaffOrAdmin, async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.params.userId as string;
 
     const signatures = await db.select({
       id: waiverSignatures.id,
