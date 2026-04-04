@@ -545,6 +545,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   }
 
   return (
+    <>
       <AnimatedPage className="pb-40">
         <div className="flex items-start justify-between mb-4 lg:mb-6 animate-content-enter-delay-1">
           <div>
@@ -987,6 +988,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
           window.dispatchEvent(new CustomEvent('refreshWellnessData'));
         }}
       />
+    </>
   );
 };
 
