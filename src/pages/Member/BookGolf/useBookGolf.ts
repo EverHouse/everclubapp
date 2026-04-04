@@ -43,6 +43,16 @@ export function useBookGolf() {
   const activeTab: 'simulator' | 'conference' = searchParams.get('tab') === 'conference' ? 'conference' : 'simulator';
 
   const setActiveTab = (tab: 'simulator' | 'conference') => {
+    if (tab !== activeTab) {
+      prevTabRef.current = tab;
+      const firstDate = dates.length > 0 ? dates[0] : null;
+      setSelectedDateObj(prev => (prev?.date === firstDate?.date) ? prev : firstDate);
+      setDuration(60);
+      setPlayerCount(1);
+      setSelectedSlot(null);
+      setSelectedResource(null);
+      setHasUserSelectedDuration(false);
+    }
     setSearchParams(prev => {
       const newParams = new URLSearchParams(prev);
       if (tab === 'simulator') { newParams.delete('tab'); } else { newParams.set('tab', tab); }
@@ -77,7 +87,7 @@ export function useBookGolf() {
   const baySelectionRef = useRef<HTMLDivElement>(null);
   const requestButtonRef = useRef<HTMLDivElement>(null);
   const isFirstRenderRef = useRef(true);
-  const isFirstTabRenderRef = useRef(true);
+  const prevTabRef = useRef(activeTab);
   const prevDateRef = useRef<string | null>(null);
   const prevDurationRef = useRef<number | null>(null);
 
@@ -119,8 +129,8 @@ export function useBookGolf() {
     }
   }, [dates]);
 
-  useEffect(() => {
-    if (isFirstTabRenderRef.current) { isFirstTabRenderRef.current = false; return; }
+  if (prevTabRef.current !== activeTab) {
+    prevTabRef.current = activeTab;
     const firstDate = dates.length > 0 ? dates[0] : null;
     setSelectedDateObj(prev => (prev?.date === firstDate?.date) ? prev : firstDate);
     setDuration(60);
@@ -128,7 +138,7 @@ export function useBookGolf() {
     setSelectedSlot(null);
     setSelectedResource(null);
     setHasUserSelectedDuration(false);
-  }, [activeTab]);
+  }
 
   const resourceType = activeTab === 'simulator' ? 'simulator' : 'conference_room';
   const { data: resources = [], isLoading: resourcesLoading, error: resourcesError } = useQuery({
