@@ -96,10 +96,6 @@ vi.mock('../server/core/trackman/parser', () => ({
   parseNotesForPlayers: vi.fn().mockReturnValue([]),
 }));
 
-vi.mock('../server/core/trackman/matching', () => ({
-  getGolfInstructorEmails: vi.fn().mockResolvedValue(new Set()),
-}));
-
 vi.mock('../server/core/trackman/sessionMapper', () => ({
   createTrackmanSessionAndParticipants: vi.fn().mockResolvedValue(undefined),
 }));

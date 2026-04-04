@@ -7314,24 +7314,6 @@
     "reason": "pre-existing: missing rate-limit+validation"
   },
   {
-    "file": "server/routes/trackman/admin.ts",
-    "method": "POST",
-    "path": "/api/trackman/admin/cleanup-lessons",
-    "reason": "pre-existing: missing rate-limit+validation"
-  },
-  {
-    "file": "server/routes/trackman/admin.ts",
-    "method": "POST",
-    "path": "/api/trackman/admin/cleanup-lessons",
-    "reason": "pre-existing: missing rate-limit+validation"
-  },
-  {
-    "file": "server/routes/trackman/admin.ts",
-    "method": "POST",
-    "path": "/api/trackman/admin/cleanup-lessons",
-    "reason": "pre-existing: missing rate-limit+validation"
-  },
-  {
     "file": "server/routes/trackman/import.ts",
     "method": "POST",
     "path": "/api/admin/trackman/import",

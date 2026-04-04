@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
-import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, bookingSessions, availabilityBlocks } from '../../../shared/schema';
+import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, bookingSessions } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -18,32 +18,27 @@ import { refreshBookingPass, voidBookingPass } from '../../walletPass/bookingPas
 import type { TrackmanRow, PaidCheckRow } from './constants';
 import { isPlaceholderEmail, normalizeStatus, isFutureBooking, isTimeWithinTolerance } from './constants';
 import { parseCSVWithMultilineSupport, extractTime, extractDate, parseNotesForPlayers } from './parser';
-import { getGolfInstructorEmails, getAllHubSpotMembers, loadEmailMapping, resolveEmail, isConvertedToPrivateEventBlock, isEmailLinkedToUser } from './matching';
+import { getAllHubSpotMembers, loadEmailMapping, resolveEmail, isConvertedToPrivateEventBlock, isEmailLinkedToUser } from './matching';
 import { createTrackmanSessionAndParticipants, transferRequestParticipantsToSession } from './sessionMapper';
 
 export async function rescanUnmatchedBookings(performedBy: string = 'system'): Promise<{
   scanned: number;
   matched: number;
-  lessonsConverted: number;
   resolved: { trackmanId: string; memberEmail: string; matchReason: string }[];
   errors: string[];
 }> {
   const resolved: { trackmanId: string; memberEmail: string; matchReason: string }[] = [];
   const errors: string[] = [];
-  let lessonsConverted = 0;
   
   const unmatchedBookings = await db.select()
     .from(trackmanUnmatchedBookings)
     .where(sql`resolved_at IS NULL`);
   
   if (unmatchedBookings.length === 0) {
-    return { scanned: 0, matched: 0, lessonsConverted: 0, resolved: [], errors: [] };
+    return { scanned: 0, matched: 0, resolved: [], errors: [] };
   }
   
   logger.info(`[Trackman Rescan] Starting rescan of ${unmatchedBookings.length} unmatched bookings`);
-  
-  const instructorEmails = await getGolfInstructorEmails();
-  logger.info(`[Trackman Rescan] Loaded ${instructorEmails.length} golf instructor emails for lesson detection`);
   
   const hubSpotMembers = await getAllHubSpotMembers();
   
@@ -51,7 +46,6 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
     return { 
       scanned: unmatchedBookings.length, 
       matched: 0, 
-      lessonsConverted: 0,
       resolved: [], 
       errors: ['HubSpot unavailable - cannot fetch members for matching'] 
     };
@@ -96,62 +90,6 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
       const notes = booking.notes || '';
       
       const rawEmailLower = originalEmail.toLowerCase().trim();
-      const resolvedEmailValue = emailMapping.get(rawEmailLower) || 
-                       trackmanEmailMapping.get(rawEmailLower) || 
-                       rawEmailLower;
-      
-      const isInstructorEmail = resolvedEmailValue && (
-        instructorEmails.includes(resolvedEmailValue.toLowerCase()) ||
-        instructorEmails.includes(rawEmailLower)
-      );
-      const containsLessonKeyword = userName.toLowerCase().includes('lesson') || notes.toLowerCase().includes('lesson');
-      
-      if (isInstructorEmail || containsLessonKeyword) {
-        const resourceId = parseInt(booking.bayNumber || '', 10) || null;
-        const bookingDate = booking.bookingDate ? 
-          formatDateFromDb(booking.bookingDate as Date | string) : null;
-        const startTime = booking.startTime?.toString() || null;
-        const endTime = booking.endTime?.toString() || startTime;
-        
-        if (resourceId && resourceId > 0 && bookingDate && startTime) {
-          const existingBlock = await db.execute(sql`
-            SELECT ab.id FROM availability_blocks ab
-            WHERE ab.resource_id = ${resourceId}
-              AND ab.block_date = ${bookingDate}
-              AND ab.start_time < ${endTime}::time
-              AND ab.end_time > ${startTime}::time
-            LIMIT 1
-          `);
-          
-          if (existingBlock.rows.length === 0) {
-            await db.execute(sql`
-              INSERT INTO availability_blocks 
-                (resource_id, block_date, start_time, end_time, block_type, notes, created_by)
-              VALUES (${resourceId}, ${bookingDate}, ${startTime}, ${endTime}, 'blocked', ${`Lesson - ${userName || 'Unknown'}`}, ${performedBy})
-              ON CONFLICT DO NOTHING
-            `);
-            
-            logger.info(`[Trackman Rescan] Created availability block for lesson: ${userName} on ${bookingDate} ${startTime}-${endTime}`);
-          } else {
-            logger.info(`[Trackman Rescan] Block already exists for lesson: ${userName} on ${bookingDate} ${startTime}-${endTime}`);
-          }
-          
-          await db.update(trackmanUnmatchedBookings)
-            .set({
-              resolvedAt: new Date(),
-              resolvedBy: performedBy,
-              matchAttemptReason: 'Converted to Availability Block (Lesson)'
-            })
-            .where(eq(trackmanUnmatchedBookings.id, booking.id));
-          
-          lessonsConverted++;
-          logger.info(`[Trackman Rescan] Converted lesson booking: ${userName} (${originalEmail || 'no email'}) -> Availability Block`);
-        } else {
-          logger.info(`[Trackman Rescan] Skipping lesson ${booking.trackmanBookingId}: missing resource/date/time (bay=${resourceId}, date=${bookingDate}, time=${startTime})`);
-        }
-        
-        continue;
-      }
       
       let matchedEmail: string | null = null;
       let matchReason = '';
@@ -286,12 +224,11 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
     }
   }
   
-  logger.info(`[Trackman Rescan] Completed: scanned ${unmatchedBookings.length}, matched ${matchedCount}, lessons converted ${lessonsConverted}`);
+  logger.info(`[Trackman Rescan] Completed: scanned ${unmatchedBookings.length}, matched ${matchedCount}`);
   
   return {
     scanned: unmatchedBookings.length,
     matched: matchedCount,
-    lessonsConverted,
     resolved,
     errors
   };

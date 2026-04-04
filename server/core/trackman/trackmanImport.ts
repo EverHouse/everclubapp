@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { getErrorMessage, getErrorCode } from '../../utils/errorUtils';
-import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, bookingSessions, availabilityBlocks } from '../../../shared/schema';
+import { users, bookingRequests, trackmanUnmatchedBookings, trackmanImportRuns, bookingSessions } from '../../../shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import type { BookingStatus, TrackmanUnmatchedStatus } from '../../../shared/constants/statuses';
 import * as fs from 'fs';
@@ -20,7 +20,7 @@ import { refreshBookingPass, voidBookingPass } from '../../walletPass/bookingPas
 import type { TrackmanRow, PaidCheckRow } from './constants';
 import { isPlaceholderEmail, normalizeStatus, isFutureBooking, isTimeWithinTolerance } from './constants';
 import { parseCSVWithMultilineSupport, extractTime, extractDate, parseNotesForPlayers } from './parser';
-import { getGolfInstructorEmails, getAllHubSpotMembers, loadEmailMapping, resolveEmail, isConvertedToPrivateEventBlock, isEmailLinkedToUser } from './matching';
+import { getAllHubSpotMembers, loadEmailMapping, resolveEmail, isConvertedToPrivateEventBlock, isEmailLinkedToUser } from './matching';
 import { createTrackmanSessionAndParticipants, transferRequestParticipantsToSession } from './sessionMapper';
 
 export async function importTrackmanBookings(csvPath: string, importedBy?: string): Promise<{
@@ -29,7 +29,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   linkedRows: number;
   unmatchedRows: number;
   skippedRows: number;
-  skippedAsPrivateEventBlocks: number;
   removedFromUnmatched: number;
   cancelledBookings: number;
   updatedRows: number;
@@ -39,7 +38,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   const parsedRows = parseCSVWithMultilineSupport(content);
   
   if (parsedRows.length < 2) {
-    return { totalRows: 0, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, skippedAsPrivateEventBlocks: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: ['Empty or invalid CSV'] };
+    return { totalRows: 0, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: ['Empty or invalid CSV'] };
   }
 
   const hubSpotMembers = await getAllHubSpotMembers();
@@ -54,7 +53,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
       linkedRows: 0,
       unmatchedRows: 0, 
       skippedRows: 0, 
-      skippedAsPrivateEventBlocks: 0,
       removedFromUnmatched: 0,
       cancelledBookings: 0,
       updatedRows: 0,
@@ -112,9 +110,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     logger.error(`[Trackman Import] Error loading trackman_email mappings: ${getErrorMessage(err)}`);
   }
 
-  const INSTRUCTOR_EMAILS = await getGolfInstructorEmails();
-  logger.info(`[Trackman Import] Loaded ${INSTRUCTOR_EMAILS.length} golf instructor emails: ${INSTRUCTOR_EMAILS.join(', ') || '(none)'}`);
-
   let matchedRows = 0;
   let unmatchedRows = 0;
   let skippedRows = 0;
@@ -122,7 +117,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   let removedFromUnmatched = 0;
   let cancelledBookings = 0;
   let updatedRows = 0;
-  let skippedAsPrivateEventBlocks = 0;
   const errors: string[] = [];
   let mappingMatchCount = 0;
   let mappingFoundButNotInDb = 0;
@@ -186,57 +180,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         notes: fields[16] || ''
       };
 
-      const notesLower = (row.notes || '').toLowerCase();
-      const userNameLower = (row.userName || '').toLowerCase();
       const userEmailLower = (row.userEmail || '').toLowerCase().trim();
-      
-      const resolvedEmailForLesson = emailMapping.get(userEmailLower) || 
-                       trackmanEmailMapping.get(userEmailLower) || 
-                       userEmailLower;
-      
-      const isStaffLesson = 
-        INSTRUCTOR_EMAILS.includes(resolvedEmailForLesson.toLowerCase()) ||
-        INSTRUCTOR_EMAILS.includes(userEmailLower) ||
-        notesLower.includes('lesson') ||
-        notesLower.includes('private instruction') ||
-        userNameLower.includes('lesson');
-      
-      if (isStaffLesson && row.status.toLowerCase() !== 'cancelled' && row.status.toLowerCase() !== 'canceled') {
-        const bookingDate = extractDate(row.startDate);
-        const startTime = extractTime(row.startDate);
-        const endTime = extractTime(row.endDate);
-        const resourceId = parseInt(row.bayNumber, 10) || null;
-        
-        if (resourceId && bookingDate && startTime) {
-          const existingBlock = await isConvertedToPrivateEventBlock(
-            resourceId,
-            bookingDate,
-            startTime,
-            endTime
-          );
-          
-          if (!existingBlock) {
-            try {
-              await db.insert(availabilityBlocks).values({
-                resourceId,
-                blockDate: bookingDate,
-                startTime: startTime,
-                endTime: endTime || startTime,
-                blockType: 'blocked',
-                notes: `Lesson - ${row.userName}`,
-                createdBy: 'trackman_import'
-              }).onConflictDoNothing();
-              
-              logger.info(`[Trackman Import] Converted staff lesson to block: ${row.userEmail} -> "${row.userName}" on ${bookingDate}`);
-            } catch (blockErr: unknown) {
-              logger.error(`[Trackman Import] Error creating lesson block for ${row.bookingId}: ${getErrorMessage(blockErr)}`);
-            }
-          }
-          
-          skippedAsPrivateEventBlocks++;
-          continue;
-        }
-      }
 
       if (row.status.toLowerCase() === 'cancelled' || row.status.toLowerCase() === 'canceled') {
         const existingBookingToCancel = await db.select({ 
@@ -448,7 +392,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
         
         if (existing.userEmail === 'private-event@resolved' || existing.userEmail === 'private-event@club') {
           logger.info(`[Trackman Import] Skipping booking ${row.bookingId} - already converted to private event`);
-          skippedAsPrivateEventBlocks++;
+          skippedRows++;
           continue;
         }
         
@@ -722,7 +666,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
           matchedRows++;
         }
         
-        if (isWebhookCreated && !existing.sessionId && parsedBayId && bookingDate && startTime) {
+        if (!existing.sessionId && parsedBayId && bookingDate && startTime) {
           const ownerEmail = matchedEmail || existing.userEmail;
           const ownerName = row.userName || existing.userName;
           
@@ -743,9 +687,9 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
               trackmanEmailMapping: trackmanEmailMapping,
               isPast: !isUpcoming
             });
-            logger.info(`[Trackman Import] Backfilled session for webhook booking #${existing.id} (Trackman ID: ${row.bookingId})`);
+            logger.info(`[Trackman Import] Backfilled session for booking #${existing.id} (Trackman ID: ${row.bookingId})`);
           }
-        } else if (isWebhookCreated && existing.sessionId && parsedBayId && matchedEmail && existing.isUnmatched) {
+        } else if (existing.sessionId && parsedBayId && matchedEmail && existing.isUnmatched) {
           if (!financiallyFrozen) {
             try {
               await invalidateCachedFees(
@@ -1341,7 +1285,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             );
             if (alreadyPrivateEvent) {
               logger.info(`[Trackman Import] Skipping matched booking ${row.bookingId} (${matchedEmail}) - already converted to private event block`);
-              skippedAsPrivateEventBlocks++;
+              skippedRows++;
               continue;
             }
           }
@@ -1796,7 +1740,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     }
   }
 
-  logger.warn(`[Trackman Import] Summary: mappingMatchCount=${mappingMatchCount}, mappingFoundButNotInDb=${mappingFoundButNotInDb}, matchedRows=${matchedRows}, linkedRows=${linkedRows}, unmatchedRows=${unmatchedRows}, skipped=${skippedRows}, skippedAsPrivateEventBlocks=${skippedAsPrivateEventBlocks}`);
+  logger.warn(`[Trackman Import] Summary: mappingMatchCount=${mappingMatchCount}, mappingFoundButNotInDb=${mappingFoundButNotInDb}, matchedRows=${matchedRows}, linkedRows=${linkedRows}, unmatchedRows=${unmatchedRows}, skipped=${skippedRows}`);
 
   const unmatchedToRemove = await db.select({ 
     id: trackmanUnmatchedBookings.id, 
@@ -2106,7 +2050,6 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
     linkedRows,
     unmatchedRows,
     skippedRows,
-    skippedAsPrivateEventBlocks,
     removedFromUnmatched,
     cancelledBookings,
     updatedRows,

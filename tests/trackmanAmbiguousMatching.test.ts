@@ -135,48 +135,6 @@ describe('Trackman Ambiguous Matching', () => {
     });
   });
 
-  describe('getGolfInstructorEmails', () => {
-    it('returns instructor emails in lowercase', async () => {
-      mockDbSelect.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([
-            { email: 'Instructor@Golf.com' },
-            { email: 'coach@example.com' },
-          ]),
-        }),
-      });
-      const { getGolfInstructorEmails } = await import('../server/core/trackman/matching');
-      const result = await getGolfInstructorEmails();
-      expect(result).toEqual(['instructor@golf.com', 'coach@example.com']);
-    });
-
-    it('filters out null/undefined emails', async () => {
-      mockDbSelect.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([
-            { email: 'valid@test.com' },
-            { email: null },
-            { email: undefined },
-          ]),
-        }),
-      });
-      const { getGolfInstructorEmails } = await import('../server/core/trackman/matching');
-      const result = await getGolfInstructorEmails();
-      expect(result).toEqual(['valid@test.com']);
-    });
-
-    it('returns empty array on database error', async () => {
-      mockDbSelect.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockRejectedValue(new Error('DB connection failed')),
-        }),
-      });
-      const { getGolfInstructorEmails } = await import('../server/core/trackman/matching');
-      const result = await getGolfInstructorEmails();
-      expect(result).toEqual([]);
-    });
-  });
-
   describe('getAllHubSpotMembers', () => {
     it('filters contacts by valid membership statuses', async () => {
       const { getHubSpotClient } = await import('../server/core/integrations');

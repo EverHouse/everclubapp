@@ -1,6 +1,6 @@
 import { db } from '../../db';
-import { users, staffUsers } from '../../../shared/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { users } from '../../../shared/schema';
+import { sql } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getErrorMessage } from '../../utils/errorUtils';
@@ -10,24 +10,6 @@ import { logger } from '../logger';
 import { parseCSVLine } from './parser';
 import type { UserIdRow, LinkedEmailRow, HubSpotMember } from './constants';
 import { VALID_MEMBER_STATUSES } from './constants';
-
-export async function getGolfInstructorEmails(): Promise<string[]> {
-  try {
-    const instructors = await db.select({ email: staffUsers.email })
-      .from(staffUsers)
-      .where(and(
-        eq(staffUsers.role, 'golf_instructor'),
-        eq(staffUsers.isActive, true)
-      ));
-    
-    return instructors
-      .map(i => i.email?.toLowerCase())
-      .filter((email): email is string => !!email);
-  } catch (err: unknown) {
-    logger.error('[Trackman] Error fetching golf instructor emails:', { extra: { error: getErrorMessage(err) } });
-    return [];
-  }
-}
 
 export async function getAllHubSpotMembers(): Promise<HubSpotMember[]> {
   try {
