@@ -1102,7 +1102,7 @@ router.post('/api/member-billing/:email/migrate-to-stripe', isStaffOrAdmin, vali
       return res.status(400).json({ error: 'Member does not have a membership tier assigned' });
     }
 
-    const tierResult = await db.execute(sql`SELECT stripe_price_id, name FROM membership_tiers WHERE slug = ${currentTier} AND stripe_price_id IS NOT NULL`);
+    const tierResult = await db.execute(sql`SELECT stripe_price_id, name FROM membership_tiers WHERE (LOWER(name) = LOWER(${currentTier}) OR LOWER(slug) = LOWER(${currentTier})) AND stripe_price_id IS NOT NULL`);
     const tierRows = tierResult.rows as unknown as TierRow[];
     if (tierRows.length === 0) {
       return res.status(400).json({ error: `Tier '${currentTier}' does not have a valid Stripe price configured` });
