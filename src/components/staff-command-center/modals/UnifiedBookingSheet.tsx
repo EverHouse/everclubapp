@@ -196,9 +196,14 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                       disabled={logic.isUpdatingPlayerCount || rosterLocked}
                       className="px-2 py-1 rounded-lg bg-white dark:bg-white/10 border border-primary/20 dark:border-white/20 text-primary dark:text-white text-xs disabled:opacity-50"
                     >
-                      {[1, 2, 3, 4].map(n => (
-                        <option key={n} value={n}>{n}</option>
-                      ))}
+                      {[1, 2, 3, 4].map(n => {
+                        const belowRoster = n < filledCount;
+                        return (
+                          <option key={n} value={n} disabled={belowRoster}>
+                            {n}{belowRoster ? ' (remove players first)' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                     {logic.isUpdatingPlayerCount && (
                       <Icon name="progress_activity" className="animate-spin text-sm text-primary/50 dark:text-white/50" />

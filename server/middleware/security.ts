@@ -146,21 +146,29 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
 
     const originalSend = res.send.bind(res);
     res.send = function nonceInjectedSend(body?: unknown): Response {
-      if (typeof body === 'string' && body.length > 0 && shouldInjectNonce(body)) {
-        body = injectNonceIntoHtml(body, nonce);
+      try {
+        if (typeof body === 'string' && body.length > 0 && shouldInjectNonce(body)) {
+          body = injectNonceIntoHtml(body, nonce);
+        }
+      } catch (nonceErr) {
+        logger.error('[CSP] Nonce injection failed in res.send — serving original response', { extra: { error: String(nonceErr) } });
       }
       return originalSend(body);
     } as typeof res.send;
 
     const originalEnd = res.end.bind(res);
     res.end = function nonceInjectedEnd(chunk?: unknown, ...args: unknown[]): Response {
-      if (typeof chunk === 'string' && chunk.length > 0 && shouldInjectNonce(chunk)) {
-        chunk = injectNonceIntoHtml(chunk, nonce);
-      } else if (Buffer.isBuffer(chunk) && chunk.length > 0) {
-        const str = chunk.toString('utf8');
-        if (shouldInjectNonce(str)) {
-          chunk = Buffer.from(injectNonceIntoHtml(str, nonce), 'utf8');
+      try {
+        if (typeof chunk === 'string' && chunk.length > 0 && shouldInjectNonce(chunk)) {
+          chunk = injectNonceIntoHtml(chunk, nonce);
+        } else if (Buffer.isBuffer(chunk) && chunk.length > 0) {
+          const str = chunk.toString('utf8');
+          if (shouldInjectNonce(str)) {
+            chunk = Buffer.from(injectNonceIntoHtml(str, nonce), 'utf8');
+          }
         }
+      } catch (nonceErr) {
+        logger.error('[CSP] Nonce injection failed in res.end — serving original response', { extra: { error: String(nonceErr) } });
       }
       return (originalEnd as Function)(chunk, ...args);
     } as typeof res.end;

@@ -315,7 +315,7 @@ export async function closeWebSocketServer(): Promise<void> {
 }
 
 export async function initWebSocketServer(server: Server) {
-  wss = new WebSocketServer({ server, path: '/ws', maxPayload: 1024 * 1024 });
+  wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024 });
   
   wss.on('error', (error) => {
     logger.error('[WebSocket] Server error:', { extra: { error: getErrorMessage(error) } });
@@ -362,10 +362,11 @@ export async function initWebSocketServer(server: Server) {
       };
       
       const existing = clients.get(userEmail) || [];
-      if (!existing.some(c => c.ws === ws)) {
-        existing.push(connection);
+      const pruned = existing.filter(c => c.ws.readyState === WebSocket.OPEN || c.ws.readyState === WebSocket.CONNECTING);
+      if (!pruned.some(c => c.ws === ws)) {
+        pruned.push(connection);
       }
-      clients.set(userEmail, existing);
+      clients.set(userEmail, pruned);
       
       if (verifiedUser.isStaff) {
         staffEmails.add(userEmail);
@@ -396,6 +397,14 @@ export async function initWebSocketServer(server: Server) {
 
     ws.on('message', async (data) => {
       if (!isAuthenticated) {
+        const rawSize = Buffer.isBuffer(data) ? data.length : (typeof data === 'string' ? Buffer.byteLength(data) : (ArrayBuffer.isView(data) ? data.byteLength : (Array.isArray(data) ? data.reduce((sum: number, b: Buffer) => sum + b.length, 0) : 0)));
+        if (rawSize > 4096) {
+          logger.warn('[WebSocket] Oversized message from unauthenticated client — closing', {
+            extra: { event: 'websocket.oversized_payload', size: rawSize }
+          });
+          ws.close(4009, 'Payload too large');
+          return;
+        }
         try {
           const message = JSON.parse(data.toString());
           
@@ -449,10 +458,11 @@ export async function initWebSocketServer(server: Server) {
               };
               
               const existing = clients.get(userEmail) || [];
-              if (!existing.some(c => c.ws === ws)) {
-                existing.push(connection);
+              const pruned = existing.filter(c => c.ws.readyState === WebSocket.OPEN || c.ws.readyState === WebSocket.CONNECTING);
+              if (!pruned.some(c => c.ws === ws)) {
+                pruned.push(connection);
               }
-              clients.set(userEmail, existing);
+              clients.set(userEmail, pruned);
               
               if (verifiedUser.isStaff) {
                 staffEmails.add(userEmail);
@@ -613,16 +623,21 @@ export async function initWebSocketServer(server: Server) {
     const pool = getSessionPool();
     if (!pool) return;
 
-    for (const [email, connections] of clients) {
-      const valid: ClientConnection[] = [];
+    const snapshot = Array.from(clients.entries());
+    for (const [email, connections] of snapshot) {
       for (const conn of connections) {
         if (conn.tokenExp && conn.tokenExp < Date.now()) {
           logger.info(`[WebSocket] Token expired for ${email} — terminating connection`);
           conn.ws.terminate();
+          const current = clients.get(email);
+          if (current) {
+            const filtered = current.filter(c => c !== conn);
+            if (filtered.length === 0) { clients.delete(email); staffEmails.delete(email); }
+            else { clients.set(email, filtered); }
+          }
           continue;
         }
         if (!conn.sessionId) {
-          valid.push(conn);
           continue;
         }
         try {
@@ -633,21 +648,23 @@ export async function initWebSocketServer(server: Server) {
           if (result.rows.length === 0) {
             logger.info(`[WebSocket] Session expired/revoked for ${email} — terminating connection`);
             conn.ws.terminate();
-          } else if (conn.ws.readyState === WebSocket.OPEN) {
-            valid.push(conn);
+            const current = clients.get(email);
+            if (current) {
+              const filtered = current.filter(c => c !== conn);
+              if (filtered.length === 0) { clients.delete(email); staffEmails.delete(email); }
+              else { clients.set(email, filtered); }
+            }
+          } else if (conn.ws.readyState !== WebSocket.OPEN) {
+            const current = clients.get(email);
+            if (current) {
+              const filtered = current.filter(c => c !== conn);
+              if (filtered.length === 0) { clients.delete(email); staffEmails.delete(email); }
+              else { clients.set(email, filtered); }
+            }
           }
         } catch (revalidateErr) {
           logger.debug(`[WebSocket] Session revalidation DB error for ${email} — keeping connection`, { extra: { error: getErrorMessage(revalidateErr) } });
-          if (conn.ws.readyState === WebSocket.OPEN) {
-            valid.push(conn);
-          }
         }
-      }
-      if (valid.length === 0) {
-        clients.delete(email);
-        staffEmails.delete(email);
-      } else {
-        clients.set(email, valid);
       }
     }
   }, 5 * 60 * 1000);

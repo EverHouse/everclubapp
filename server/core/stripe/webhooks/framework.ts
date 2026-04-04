@@ -13,14 +13,26 @@ const EVENT_DEDUP_WINDOW_DAYS = 30;
 export function extractResourceId(event: Stripe.Event): string | null {
   const obj = event.data?.object as unknown as StripeEventObject | undefined;
   if (!obj || !obj.id) return null;
-  
-  if (event.type.startsWith('payment_intent.')) return obj.id;
-  if (event.type.startsWith('invoice.')) return obj.id;
-  if (event.type.startsWith('customer.subscription.')) return obj.id;
-  if (event.type.startsWith('checkout.session.')) return obj.id;
+
+  const metadata = obj.metadata as Record<string, string> | undefined;
+
+  if (event.type.startsWith('payment_intent.')) {
+    return metadata?.bookingId ? `booking:${metadata.bookingId}` : obj.id;
+  }
+  if (event.type.startsWith('invoice.')) {
+    return obj.subscription ? `sub:${obj.subscription}` : obj.id;
+  }
+  if (event.type.startsWith('customer.subscription.')) {
+    return `sub:${obj.id}`;
+  }
+  if (event.type.startsWith('checkout.session.')) {
+    if (metadata?.bookingId) return `booking:${metadata.bookingId}`;
+    if (obj.subscription) return `sub:${typeof obj.subscription === 'string' ? obj.subscription : obj.id}`;
+    return obj.id;
+  }
   if (event.type.startsWith('charge.')) return obj.payment_intent || obj.id;
   if (event.type.startsWith('setup_intent.')) return obj.id;
-  if (event.type.startsWith('subscription_schedule.')) return obj.id;
+  if (event.type.startsWith('subscription_schedule.')) return obj.subscription || obj.id;
   
   return null;
 }
