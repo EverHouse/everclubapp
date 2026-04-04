@@ -39,12 +39,22 @@ router.get('/api/member/wallet-pass/status', isAuthenticated, async (req, res) =
       return res.json({ available: false });
     }
 
+    let targetEmail = sessionUser.email;
+    const userEmailParam = req.query.user_email as string | undefined;
+    if (userEmailParam) {
+      const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+      if (!isStaff) {
+        return res.status(403).json({ error: 'Only staff can view other members\' wallet pass status' });
+      }
+      targetEmail = userEmailParam;
+    }
+
     const userResult = await db.select({
       role: users.role,
       membershipStatus: users.membershipStatus,
     })
       .from(users)
-      .where(sql`LOWER(${users.email}) = LOWER(${sessionUser.email})`)
+      .where(sql`LOWER(${users.email}) = LOWER(${targetEmail})`)
       .limit(1);
 
     if (userResult.length === 0) {

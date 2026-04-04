@@ -28,12 +28,15 @@ interface BeforeInstallPromptEvent extends Event {
 
 const OnboardingChecklist: React.FC = () => {
   const navigate = useNavigate();
-  const { user: _user } = useAuthData();
+  const { user: _user, isViewingAs, viewAsUser, actualUser } = useAuthData();
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
   const deferredPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
+  const isAdminViewingAs = actualUser?.role === 'admin' && isViewingAs;
+  const viewAsEmail = isAdminViewingAs && viewAsUser?.email ? viewAsUser.email : null;
+  const onboardingEmailParam = viewAsEmail ? `?user_email=${encodeURIComponent(viewAsEmail)}` : '';
 
   const isInStandaloneMode = typeof window !== 'undefined' && (
     (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
@@ -53,15 +56,15 @@ const OnboardingChecklist: React.FC = () => {
     let cancelled = false;
     const fetchStatus = async () => {
       try {
-        const data = await fetchWithCredentials<OnboardingStatus>('/api/member/onboarding');
+        const data = await fetchWithCredentials<OnboardingStatus>(`/api/member/onboarding${onboardingEmailParam}`);
         if (cancelled) return;
-        if (isInStandaloneMode && data.steps) {
+        if (isInStandaloneMode && !isAdminViewingAs && data.steps) {
           const appStep = data.steps.find((s: OnboardingStep) => s.key === 'app');
           if (appStep && !appStep.completed) {
             try {
               await postWithCredentials('/api/member/onboarding/complete-step', { step: 'app' });
               if (cancelled) return;
-              const refreshed = await fetchWithCredentials<OnboardingStatus>('/api/member/onboarding');
+              const refreshed = await fetchWithCredentials<OnboardingStatus>(`/api/member/onboarding${onboardingEmailParam}`);
               if (cancelled) return;
               setStatus(refreshed);
               if (refreshed.isComplete && !refreshed.isDismissed) {
@@ -86,11 +89,12 @@ const OnboardingChecklist: React.FC = () => {
     };
     fetchStatus();
     return () => { cancelled = true; };
-  }, [isInStandaloneMode]);
+  }, [isInStandaloneMode, onboardingEmailParam, isAdminViewingAs]);
 
   const { showToast } = useToast();
 
   const handleDismiss = async () => {
+    if (isAdminViewingAs) return;
     setDismissed(true);
     try {
       await postWithCredentials('/api/member/onboarding/dismiss', {});
@@ -101,6 +105,7 @@ const OnboardingChecklist: React.FC = () => {
   };
 
   const handleStepAction = async (step: OnboardingStep) => {
+    if (isAdminViewingAs) return;
     switch (step.key) {
       case 'profile':
         navigate('/profile');

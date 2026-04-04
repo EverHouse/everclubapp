@@ -131,9 +131,10 @@ export function useDashboardData() {
   const guestPasses = isStaffOrAdminProfile ? null : statsData?.guestPasses ?? null;
   const bannerAnnouncement = bannerAnnouncementData ?? undefined;
 
+  const walletPassEmailParam = viewAsEmail ? `?user_email=${encodeURIComponent(viewAsEmail)}` : '';
   const { data: walletPassStatus } = useQuery({
-    queryKey: ['wallet-pass-status'],
-    queryFn: () => fetchWithCredentials<{ available: boolean }>('/api/member/wallet-pass/status'),
+    queryKey: ['wallet-pass-status', viewAsEmail || user?.email],
+    queryFn: () => fetchWithCredentials<{ available: boolean }>(`/api/member/wallet-pass/status${walletPassEmailParam}`),
     enabled: !isStaffOrAdminProfile && !!user,
     staleTime: 5 * 60 * 1000,
   });
@@ -186,7 +187,7 @@ export function useDashboardData() {
   }, [user?.email, bannerAnnouncement]);
 
   useEffect(() => {
-    if (!user?.email || firstLoginCheckedRef.current) return;
+    if (!user?.email || firstLoginCheckedRef.current || isAdminViewingAs) return;
     firstLoginCheckedRef.current = true;
 
     const localKey = `eh_first_login_shown_${user.email}`;
@@ -196,7 +197,8 @@ export function useDashboardData() {
 
     (async () => {
       try {
-        const data = await fetchWithCredentials<Record<string, unknown>>('/api/member/onboarding');
+        const onboardingUrl = viewAsEmail ? `/api/member/onboarding?user_email=${encodeURIComponent(viewAsEmail)}` : '/api/member/onboarding';
+        const data = await fetchWithCredentials<Record<string, unknown>>(onboardingUrl);
         if (cancelled) return;
 
         if (data.firstLoginAt || data.onboardingCompletedAt || data.isDismissed) {
@@ -232,7 +234,7 @@ export function useDashboardData() {
     })();
 
     return () => { cancelled = true; };
-  }, [user?.email]);
+  }, [user?.email, isAdminViewingAs]);
 
   useEffect(() => {
     const handleCheckinNotification = (e: Event) => {

@@ -210,9 +210,10 @@ export function useBookGolf() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const walletPassEmailParam = isAdminViewingAs && effectiveUser?.email ? `?user_email=${encodeURIComponent(effectiveUser.email)}` : '';
   const { data: walletPassStatus } = useQuery({
-    queryKey: ['walletPassStatus'],
-    queryFn: () => fetchWithCredentials<{ available: boolean }>('/api/member/wallet-pass/status'),
+    queryKey: ['walletPassStatus', effectiveUser?.email],
+    queryFn: () => fetchWithCredentials<{ available: boolean }>(`/api/member/wallet-pass/status${walletPassEmailParam}`),
     staleTime: 1000 * 60 * 10,
   });
   const walletPassAvailable = walletPassStatus?.available ?? false;

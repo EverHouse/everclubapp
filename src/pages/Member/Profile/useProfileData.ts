@@ -73,9 +73,10 @@ export function useProfileData() {
     enabled: !!user?.email && isStaffOrAdminProfile,
   });
 
+  const waiverEmailParam = isViewingAs && user?.email ? `?user_email=${encodeURIComponent(user.email)}` : '';
   const { data: waiverStatus } = useQuery({
-    queryKey: ['waiverStatus'],
-    queryFn: () => fetchWithCredentials<WaiverStatusData>('/api/waivers/status'),
+    queryKey: ['waiverStatus', user?.email],
+    queryFn: () => fetchWithCredentials<WaiverStatusData>(`/api/waivers/status${waiverEmailParam}`),
     enabled: !!user?.email && !isStaffOrAdminProfile,
   });
 

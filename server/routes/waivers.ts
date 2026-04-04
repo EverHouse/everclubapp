@@ -25,6 +25,16 @@ router.get('/api/waivers/status', isAuthenticated, async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
+    let targetEmail = sessionUser.email;
+    const userEmailParam = req.query.user_email as string | undefined;
+    if (userEmailParam) {
+      const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+      if (!isStaff) {
+        return res.status(403).json({ error: 'Only staff can view other members\' waiver status' });
+      }
+      targetEmail = userEmailParam;
+    }
+
     const currentVersionResult = await db.select({ value: systemSettings.value })
       .from(systemSettings)
       .where(eq(systemSettings.key, 'current_waiver_version'))
@@ -38,7 +48,7 @@ router.get('/api/waivers/status', isAuthenticated, async (req, res) => {
       role: users.role,
     })
       .from(users)
-      .where(sql`LOWER(${users.email}) = ${sessionUser.email.toLowerCase()}`)
+      .where(sql`LOWER(${users.email}) = ${targetEmail.toLowerCase()}`)
       .limit(1);
 
     const user = userResult[0];

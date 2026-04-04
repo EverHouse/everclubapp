@@ -18,8 +18,17 @@ router.get('/api/member/onboarding', isAuthenticated, async (req, res) => {
     const sessionUser = getSessionUser(req);
     if (!sessionUser) return res.status(401).json({ error: 'Authentication required' });
     
-    const email = sessionUser.email?.toLowerCase();
+    let email = sessionUser.email?.toLowerCase();
     if (!email) return res.status(400).json({ error: 'User email required' });
+
+    const userEmailParam = req.query.user_email as string | undefined;
+    if (userEmailParam) {
+      const isStaff = sessionUser.role === 'admin' || sessionUser.role === 'staff';
+      if (!isStaff) {
+        return res.status(403).json({ error: 'Only staff can view other members\' onboarding status' });
+      }
+      email = userEmailParam.toLowerCase();
+    }
 
     const result = await db.execute(sql`
       SELECT 
