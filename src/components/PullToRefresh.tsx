@@ -57,6 +57,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
+  const [isTransitioningToDone, setIsTransitioningToDone] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState('');
   const [isFillingScreen, setIsFillingScreen] = useState(false);
   const [isSpringBack, setIsSpringBack] = useState(false);
@@ -147,7 +148,11 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
       console.error('[PullToRefresh] Refresh failed:', err);
     }
     
+    setIsTransitioningToDone(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     setIsRefreshing(false);
+    setIsTransitioningToDone(false);
     setIsDismissing(true);
     await new Promise(resolve => setTimeout(resolve, 400));
     setIsDismissing(false);
@@ -368,7 +373,11 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
           console.error('[PullToRefresh] Refresh failed:', err);
         }
 
+        setIsTransitioningToDone(true);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         setIsRefreshing(false);
+        setIsTransitioningToDone(false);
         setIsDismissing(true);
         await new Promise(resolve => setTimeout(resolve, 400));
         setIsDismissing(false);
@@ -485,7 +494,16 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             width={48}
             height={48}
           />
-          <span className="ptr-refresh-text">{isDismissing ? 'Done' : refreshMessage}</span>
+          <div className="ptr-refresh-text-wrapper">
+            <span className={`ptr-refresh-text${isTransitioningToDone ? ' ptr-text-exit' : ''}`}>
+              {refreshMessage}
+            </span>
+            {(isTransitioningToDone || isDismissing) && (
+              <span className={`ptr-refresh-text ptr-done-text${isTransitioningToDone ? ' ptr-text-enter' : ''}`}>
+                Done ✓
+              </span>
+            )}
+          </div>
         </div>,
         document.body
       )}
