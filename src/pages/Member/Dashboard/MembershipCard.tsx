@@ -65,11 +65,8 @@ function useCard3DTilt() {
 
   const edgeGlowX = useSpring(useTransform(mouseX, [0, 1], [6, -6]), SPRING_CONFIG);
   const edgeGlowY = useSpring(useTransform(mouseY, [0, 1], [6, -6]), SPRING_CONFIG);
-  const edgeGlow = useTransform(
-    [edgeGlowX, edgeGlowY],
-    ([gx, gy]: number[]) =>
-      `${gx}px ${gy}px 16px 2px rgba(255,255,255,0.15), ${gx * 0.5}px ${gy * 0.5}px 6px 1px rgba(255,255,255,0.1)`
-  );
+  const edgeGlowXHalf = useTransform(edgeGlowX, (v: number) => v * 0.5);
+  const edgeGlowYHalf = useTransform(edgeGlowY, (v: number) => v * 0.5);
 
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
@@ -189,7 +186,10 @@ function useCard3DTilt() {
     rotateX: prefersReducedMotion ? undefined : rotateX,
     rotateY: prefersReducedMotion ? undefined : rotateY,
     sheenBackground: prefersReducedMotion ? undefined : sheenBackground,
-    edgeGlow: prefersReducedMotion ? undefined : edgeGlow,
+    edgeGlowX: prefersReducedMotion ? undefined : edgeGlowX,
+    edgeGlowY: prefersReducedMotion ? undefined : edgeGlowY,
+    edgeGlowXHalf: prefersReducedMotion ? undefined : edgeGlowXHalf,
+    edgeGlowYHalf: prefersReducedMotion ? undefined : edgeGlowYHalf,
     handlePointerMove,
     handlePointerLeave,
     handleTouchStart,
@@ -212,32 +212,58 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
   const {
-    cardRef, rotateX, rotateY, sheenBackground, edgeGlow,
+    cardRef, rotateX, rotateY, sheenBackground,
+    edgeGlowX, edgeGlowY, edgeGlowXHalf, edgeGlowYHalf,
     handlePointerMove, handlePointerLeave, handleTouchStart, prefersReducedMotion,
   } = useCard3DTilt();
 
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
-        <motion.div
-          ref={cardRef}
-          onClick={() => setIsCardOpen(true)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
-          onTouchStart={handleTouchStart}
-          onPointerMove={handlePointerMove}
-          onPointerLeave={handlePointerLeave}
-          className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer group animate-content-enter-delay-2 ${prefersReducedMotion ? '' : 'active:scale-[0.98]'} ${isExpired ? 'grayscale-[30%]' : ''}`}
-          style={{
-            perspective: 800,
-            rotateX: prefersReducedMotion ? 0 : rotateX,
-            rotateY: prefersReducedMotion ? 0 : rotateY,
-            transformStyle: 'preserve-3d',
-            boxShadow: prefersReducedMotion ? undefined : edgeGlow,
-          }}
-          whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
-        >
+        <div className="relative h-56 lg:h-full lg:min-h-56" style={{ perspective: 800 }}>
+          {!prefersReducedMotion && (
+            <>
+              <motion.div
+                className="absolute -inset-[2px] rounded-xl pointer-events-none"
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  filter: 'blur(16px)',
+                  x: edgeGlowX,
+                  y: edgeGlowY,
+                  willChange: 'transform',
+                }}
+                aria-hidden="true"
+              />
+              <motion.div
+                className="absolute -inset-[1px] rounded-xl pointer-events-none"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  filter: 'blur(6px)',
+                  x: edgeGlowXHalf,
+                  y: edgeGlowYHalf,
+                  willChange: 'transform',
+                }}
+                aria-hidden="true"
+              />
+            </>
+          )}
+          <motion.div
+            ref={cardRef}
+            onClick={() => setIsCardOpen(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
+            onTouchStart={handleTouchStart}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group animate-content-enter-delay-2 ${prefersReducedMotion ? '' : 'active:scale-[0.98]'} ${isExpired ? 'grayscale-[30%]' : ''}`}
+            style={{
+              rotateX: prefersReducedMotion ? 0 : rotateX,
+              rotateY: prefersReducedMotion ? 0 : rotateY,
+              transformStyle: 'preserve-3d',
+            }}
+            whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
+          >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")` }}></div>
@@ -291,6 +317,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             </div>
           </div>
         </motion.div>
+        </div>
 
         <div className="h-full animate-content-enter-delay-1">
           <MetricsGrid
