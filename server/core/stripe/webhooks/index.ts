@@ -258,6 +258,7 @@ export async function processStripeWebhook(
   const resourceId = extractResourceId(event);
   const client = await pool.connect();
   let isCommitted = false;
+  let clientReleased = false;
 
   try {
     await client.query('BEGIN');
@@ -290,39 +291,45 @@ export async function processStripeWebhook(
 
     await client.query('COMMIT');
     isCommitted = true;
+    safeRelease(client);
+    clientReleased = true;
     logger.info(`[Stripe Webhook] Event ${event.id} committed successfully`);
 
-    let failedActions: number;
-    try {
-      failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
-    } catch (deferredError: unknown) {
-      logger.error(`[Stripe Webhook] executeDeferredActions threw for ${event.id}:`, { extra: { error: getErrorMessage(deferredError) } });
-      failedActions = deferredActions.length;
-    }
-    if (failedActions > 0) {
-      const dlqClient = await pool.connect();
+    const capturedDeferredActions = deferredActions;
+    const capturedEventId = event.id;
+    const capturedEventType = event.type;
+    const capturedResourceId = resourceId;
+    setImmediate(async () => {
       try {
-        await dlqClient.query(
-          `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (event_id) DO UPDATE SET
-             reason = webhook_dead_letter_queue.reason || E'\n' || EXCLUDED.reason,
-             event_payload = EXCLUDED.event_payload`,
-          [
-            event.id,
-            event.type,
-            resourceId || null,
-            `deferred_action_failure: ${failedActions} action(s) failed post-commit`,
-            JSON.stringify({ deferredActions, failedCount: failedActions }),
-          ]
-        );
-        logger.warn(`[Stripe Webhook] Event ${event.id} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
-      } catch (dlqErr) {
-        logger.error(`[Stripe Webhook] Failed to write deferred action failure to DLQ for ${event.id}:`, { extra: { error: getErrorMessage(dlqErr) } });
-      } finally {
-        safeRelease(dlqClient);
+        const failedActions = await executeDeferredActions(capturedDeferredActions, { eventId: capturedEventId, eventType: capturedEventType });
+        if (failedActions > 0) {
+          const dlqClient = await pool.connect();
+          try {
+            await dlqClient.query(
+              `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
+               VALUES ($1, $2, $3, $4, $5)
+               ON CONFLICT (event_id) DO UPDATE SET
+                 reason = webhook_dead_letter_queue.reason || E'\n' || EXCLUDED.reason,
+                 event_payload = EXCLUDED.event_payload`,
+              [
+                capturedEventId,
+                capturedEventType,
+                capturedResourceId || null,
+                `deferred_action_failure: ${failedActions} action(s) failed post-commit`,
+                JSON.stringify({ deferredActions: capturedDeferredActions, failedCount: failedActions }),
+              ]
+            );
+            logger.warn(`[Stripe Webhook] Event ${capturedEventId} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
+          } catch (dlqErr) {
+            logger.error(`[Stripe Webhook] Failed to write deferred action failure to DLQ for ${capturedEventId}:`, { extra: { error: getErrorMessage(dlqErr) } });
+          } finally {
+            safeRelease(dlqClient);
+          }
+        }
+      } catch (deferredError: unknown) {
+        logger.error(`[Stripe Webhook] executeDeferredActions threw for ${capturedEventId}:`, { extra: { error: getErrorMessage(deferredError) } });
       }
-    }
+    });
 
   } catch (handlerError: unknown) {
     if (!isCommitted) {
@@ -333,7 +340,7 @@ export async function processStripeWebhook(
     logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id})${isCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { extra: { error: getErrorMessage(handlerError) } });
     if (!isCommitted) throw handlerError;
   } finally {
-    safeRelease(client);
+    if (!clientReleased) safeRelease(client);
   }
 }
 

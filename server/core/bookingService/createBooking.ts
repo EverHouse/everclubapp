@@ -184,6 +184,7 @@ export async function sanitizeAndResolveParticipants(
             }
             participant.userId = found.id;
             participant.type = 'member';
+            participant.isGuestPassParticipant = false;
             if (isStaff && (!participant.name || participant.name.includes('@'))) {
               const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
               if (fullName) participant.name = fullName;
@@ -224,6 +225,7 @@ export async function sanitizeAndResolveParticipants(
             }
             participant.email = found.email?.toLowerCase() || '';
             participant.type = 'member';
+            participant.isGuestPassParticipant = false;
             if (isStaff && !participant.name) {
               const fullName = [found.firstName, found.lastName].filter(Boolean).join(' ').trim();
               participant.name = fullName || found.email || undefined;
@@ -308,14 +310,8 @@ export async function checkParticipantDailyLimits(
   const memberParticipants = participants.filter(p => p.type === 'member' && p.email && !p.isGuestPassParticipant);
   if (memberParticipants.length === 0) return;
 
-  const results = await Promise.all(
-    memberParticipants.map(async (participant) => {
-      const pLimitCheck = await checkDailyBookingLimit(participant.email, requestDate, durationMinutes, undefined, resourceType, tx);
-      return { participant, pLimitCheck };
-    })
-  );
-
-  for (const { participant, pLimitCheck } of results) {
+  for (const participant of memberParticipants) {
+    const pLimitCheck = await checkDailyBookingLimit(participant.email, requestDate, durationMinutes, undefined, resourceType, tx);
     if (!pLimitCheck.allowed) {
       const reason = pLimitCheck.reason || 'has exceeded their daily booking limit';
       throw new BookingValidationError(403, {
@@ -415,6 +411,13 @@ export async function acquireLocksAndCheckConflicts(
     participantEmails: input.participantEmails,
   });
 
+  const closureCheck = await checkClosureConflict(input.resourceId ?? null, input.requestDate, input.startTime, input.endTime, input.txClient);
+  if (closureCheck.hasConflict) {
+    throw new BookingValidationError(409, {
+      error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}. Please choose a different time.`
+    });
+  }
+
   if (input.resourceId) {
     await checkResourceOverlap(tx, {
       resourceId: input.resourceId,
@@ -422,13 +425,6 @@ export async function acquireLocksAndCheckConflicts(
       startTime: input.startTime,
       endTime: input.endTime,
     });
-
-    const closureCheck = await checkClosureConflict(input.resourceId, input.requestDate, input.startTime, input.endTime, input.txClient);
-    if (closureCheck.hasConflict) {
-      throw new BookingValidationError(409, {
-        error: `This time slot conflicts with a facility closure: ${closureCheck.closureTitle || 'Facility Closure'}. Please choose a different time.`
-      });
-    }
 
     const blockCheck = await checkAvailabilityBlockConflict(input.resourceId, input.requestDate, input.startTime, input.endTime, input.txClient);
     if (blockCheck.hasConflict) {

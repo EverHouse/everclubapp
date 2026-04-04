@@ -339,7 +339,7 @@ const POSCheckoutDrawer: React.FC<POSCheckoutDrawerProps> = ({
           description={buildDescription()}
           paymentMetadata={{
             source: 'pos',
-            items: cartItems.map(i => `${i.name} x${i.quantity}`).join(', '),
+            items: (() => { const raw = cartItems.map(i => `${i.name} x${i.quantity}`).join(', '); return raw.length <= 500 ? raw : raw.substring(0, 496) + '...'; })(),
             ...(useGuestCheckout ? { guestCheckout: 'true' } : {}),
             ...(getCustomerInfo()?.id ? { userId: getCustomerInfo()!.id! } : {}),
             ...(!useGuestCheckout && getCustomerInfo()?.email ? { ownerEmail: getCustomerInfo()!.email } : {}),

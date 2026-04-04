@@ -266,36 +266,23 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
             }, 'member_request', tx as unknown as Parameters<typeof createSessionWithUsageTracking>[2]);
 
             if (!sessionResult.success) {
-              logger.warn('[ConferenceRoom] Usage tracking returned failure, falling back to session-only', {
+              logger.error('[ConferenceRoom] Usage tracking failed, leaving as pending for staff review', {
                 extra: { bookingId: dbRow.id, error: sessionResult.error }
               });
-              const fallbackSession = await ensureSessionForBooking({
-                bookingId: dbRow.id as number,
-                resourceId: dbRow.resource_id as number,
-                sessionDate: request_date,
-                startTime: start_time,
-                endTime: confEndTime,
-                ownerEmail: requestEmail,
-                ownerName: user_name || undefined,
-                source: 'member_request',
-                createdBy: 'conference_room_auto_confirm'
-              }, createTxQueryClient(tx as unknown as { execute: (query: import('drizzle-orm').SQL) => Promise<{ rows: Record<string, unknown>[]; rowCount?: number | null }> }));
-              if (fallbackSession.error) {
-                logger.error('[ConferenceRoom] Fallback session creation failed', { extra: { bookingId: dbRow.id, error: fallbackSession.error } });
-              }
-            }
-
-            const sessionCheck = await tx.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${dbRow.id} LIMIT 1`);
-            confSessionId = sessionCheck.rows[0]?.session_id as number | null;
-
-            if (!confSessionId) {
-              logger.error('[ConferenceRoom] Session creation failed — no session_id after all attempts, leaving as pending', {
-                extra: { bookingId: dbRow.id }
-              });
-              await tx.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${dbRow.id}`);
+              await tx.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: usage tracking error. Please review and approve manually.', updated_at = NOW() WHERE id = ${dbRow.id}`);
             } else {
-              await tx.execute(sql`UPDATE booking_requests SET status = 'confirmed', updated_at = NOW() WHERE id = ${dbRow.id} AND status = 'pending'`);
-              finalStatus = 'confirmed';
+              const sessionCheck = await tx.execute(sql`SELECT session_id FROM booking_requests WHERE id = ${dbRow.id} LIMIT 1`);
+              confSessionId = sessionCheck.rows[0]?.session_id as number | null;
+
+              if (!confSessionId) {
+                logger.error('[ConferenceRoom] Session creation failed — no session_id after successful tracking, leaving as pending', {
+                  extra: { bookingId: dbRow.id }
+                });
+                await tx.execute(sql`UPDATE booking_requests SET staff_notes = 'Auto-confirm failed: session could not be created. Please review and approve manually.', updated_at = NOW() WHERE id = ${dbRow.id}`);
+              } else {
+                await tx.execute(sql`UPDATE booking_requests SET status = 'confirmed', updated_at = NOW() WHERE id = ${dbRow.id} AND status = 'pending'`);
+                finalStatus = 'confirmed';
+              }
             }
           } catch (confError) {
             logger.error('[ConferenceRoom] Conference room auto-confirm failed inside transaction, leaving as pending', {

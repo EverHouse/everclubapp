@@ -688,6 +688,26 @@ export async function initWebSocketServer(server: Server) {
   return wss;
 }
 
+const MAX_WS_BUFFER_SIZE = 50 * 1024;
+
+function safeSend(conn: ClientConnection, payload: string, label: string): boolean {
+  if (conn.ws.readyState !== WebSocket.OPEN) return false;
+  if (conn.ws.bufferedAmount > MAX_WS_BUFFER_SIZE) {
+    logger.warn(`[WebSocket] Client ${conn.userEmail} buffer exceeded ${MAX_WS_BUFFER_SIZE}B, terminating to prevent OOM`, {
+      extra: { bufferedAmount: conn.ws.bufferedAmount, label }
+    });
+    conn.ws.terminate();
+    return false;
+  }
+  try {
+    conn.ws.send(payload);
+    return true;
+  } catch (err: unknown) {
+    logger.warn(`[WebSocket] Error in local delivery (${label})`, { extra: { error: getErrorMessage(err) } });
+    return false;
+  }
+}
+
 function deliverToLocalConnections(target: BroadcastTarget, payload: string): number {
   let sent = 0;
 
@@ -695,14 +715,7 @@ function deliverToLocalConnections(target: BroadcastTarget, payload: string): nu
     case 'all':
       clients.forEach((connections) => {
         connections.forEach((conn) => {
-          if (conn.ws.readyState === WebSocket.OPEN) {
-            try {
-              conn.ws.send(payload);
-              sent++;
-            } catch (err: unknown) {
-              logger.warn('[WebSocket] Error in local delivery (all)', { extra: { error: getErrorMessage(err) } });
-            }
-          }
+          if (safeSend(conn, payload, 'all')) sent++;
         });
       });
       break;
@@ -710,14 +723,7 @@ function deliverToLocalConnections(target: BroadcastTarget, payload: string): nu
     case 'staff':
       clients.forEach((connections) => {
         connections.forEach((conn) => {
-          if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN) {
-            try {
-              conn.ws.send(payload);
-              sent++;
-            } catch (err: unknown) {
-              logger.warn('[WebSocket] Error in local delivery (staff)', { extra: { error: getErrorMessage(err) } });
-            }
-          }
+          if (conn.isStaff && safeSend(conn, payload, 'staff')) sent++;
         });
       });
       break;
@@ -725,14 +731,7 @@ function deliverToLocalConnections(target: BroadcastTarget, payload: string): nu
     case 'user': {
       const userConns = clients.get(target.email.toLowerCase()) || [];
       userConns.forEach((conn) => {
-        if (conn.ws.readyState === WebSocket.OPEN) {
-          try {
-            conn.ws.send(payload);
-            sent++;
-          } catch (err: unknown) {
-            logger.warn('[WebSocket] Error in local delivery (user)', { extra: { error: getErrorMessage(err) } });
-          }
-        }
+        if (safeSend(conn, payload, 'user')) sent++;
       });
       break;
     }
@@ -742,25 +741,17 @@ function deliverToLocalConnections(target: BroadcastTarget, payload: string): nu
       const sentSockets = new Set<WebSocket>();
       const memberConns = clients.get(emailLower) || [];
       memberConns.forEach((conn) => {
-        if (conn.ws.readyState === WebSocket.OPEN) {
-          try {
-            conn.ws.send(payload);
-            sentSockets.add(conn.ws);
-            sent++;
-          } catch (err: unknown) {
-            logger.warn('[WebSocket] Error in local delivery (user_and_staff:user)', { extra: { error: getErrorMessage(err) } });
-          }
+        if (safeSend(conn, payload, 'user_and_staff:user')) {
+          sentSockets.add(conn.ws);
+          sent++;
         }
       });
       clients.forEach((connections) => {
         connections.forEach((conn) => {
           if (conn.isStaff && conn.ws.readyState === WebSocket.OPEN && !sentSockets.has(conn.ws) && (!target.excludeUserFromStaff || conn.userEmail !== emailLower)) {
-            try {
-              conn.ws.send(payload);
+            if (safeSend(conn, payload, 'user_and_staff:staff')) {
               sentSockets.add(conn.ws);
               sent++;
-            } catch (err: unknown) {
-              logger.warn('[WebSocket] Error in local delivery (user_and_staff:staff)', { extra: { error: getErrorMessage(err) } });
             }
           }
         });

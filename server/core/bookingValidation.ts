@@ -122,7 +122,7 @@ async function getActiveClosuresForDate(bookingDate: string, txClient?: { select
 }
 
 export async function checkClosureConflict(
-  resourceId: number,
+  resourceId: number | null,
   bookingDate: string,
   startTime: string,
   endTime: string,
@@ -143,7 +143,8 @@ export async function checkClosureConflict(
       const closure = activeClosures[i];
       const affectedResourceIds = allAffectedIds[i];
 
-      if (!affectedResourceIds.map(Number).includes(resourceId)) continue;
+      if (resourceId !== null && !affectedResourceIds.map(Number).includes(resourceId)) continue;
+      if (resourceId === null && affectedResourceIds.length === 0) continue;
 
       if (!closure.startTime && !closure.endTime) {
         return { hasConflict: true, closureTitle: (closure.title as string) || 'Facility Closure' };
