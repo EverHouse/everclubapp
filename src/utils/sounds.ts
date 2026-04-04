@@ -196,6 +196,15 @@ export const sounds = {
     playTone(440, 0.25, now, 0.18, 'sawtooth');
     playTone(349.23, 0.25, now + 0.25, 0.18, 'sawtooth');
     playTone(293.66, 0.4, now + 0.5, 0.2, 'sawtooth');
+  },
+
+  cleanupAlert: () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    
+    const now = ctx.currentTime;
+    playTone(523.25, 0.3, now, 0.12, 'sine');
+    playTone(392, 0.4, now + 0.25, 0.1, 'sine');
   }
 };
 

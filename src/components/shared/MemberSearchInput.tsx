@@ -326,7 +326,8 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = React.memo(({
               type="button"
               role="option"
               aria-selected={index === highlightedIndex}
-              onPointerDown={(e) => { e.preventDefault(); handleSelect(member); }}
+              onClick={() => handleSelect(member)}
+              onMouseDown={(e) => e.preventDefault()}
               onMouseEnter={() => setHighlightedIndex(index)}
               className={`tactile-row w-full px-4 py-3 flex items-center gap-3 border-b border-primary/5 dark:border-white/5 last:border-0 transition-colors ${
                 index === highlightedIndex 

@@ -9,10 +9,8 @@ import AnnouncementAlert from '../../../components/AnnouncementAlert';
 import ErrorState from '../../../components/ErrorState';
 import OnboardingChecklist from '../../../components/OnboardingChecklist';
 import ModalShell from '../../../components/ModalShell';
-import HubSpotFormModal from '../../../components/HubSpotFormModal';
 import FirstLoginWelcomeModal from '../../../components/FirstLoginWelcomeModal';
 import NfcCheckinWelcomeModal from '../../../components/NfcCheckinWelcomeModal';
-import { GUEST_CHECKIN_FIELDS } from './dashboardTypes';
 import { useDashboardData } from './useDashboardData';
 import { useTierNames } from '../../../hooks/useTierNames';
 import { MembershipCard } from './MembershipCard';
@@ -37,7 +35,6 @@ const Dashboard: React.FC = () => {
     startNavigation, showToast,
 
     confirmModal, setConfirmModal,
-    showGuestCheckin, setShowGuestCheckin,
     isCardOpen, setIsCardOpen,
     bannerDismissed, setBannerDismissed,
     bannerExiting, setBannerExiting,
@@ -235,23 +232,6 @@ const Dashboard: React.FC = () => {
         </div>
       )}
     </ModalShell>
-
-    <HubSpotFormModal
-      isOpen={showGuestCheckin}
-      onClose={() => setShowGuestCheckin(false)}
-      formType="guest-checkin"
-      title="Guest Check-In"
-      subtitle="Register your guest for today's visit."
-      fields={GUEST_CHECKIN_FIELDS}
-      submitButtonText="Check In Guest"
-      additionalFields={{
-        member_name: (user?.name || '').includes('@') ? '' : (user?.name || ''),
-        member_email: user?.email || ''
-      }}
-      onSuccess={async () => {
-        queryClient.invalidateQueries({ queryKey: ['member', 'dashboard'] });
-      }}
-    />
 
     <FirstLoginWelcomeModal
       isOpen={showFirstLoginModal}

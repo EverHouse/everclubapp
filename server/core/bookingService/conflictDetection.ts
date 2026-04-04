@@ -23,7 +23,8 @@ interface ParticipantConflictRow extends BookingConflictRow {
   invite_status: string;
 }
 
-const OCCUPIED_STATUSES = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
+const OCCUPIED_STATUSES_LIST = [...ACTIVE_BOOKING_STATUSES, 'checked_in', 'attended', 'cancellation_pending'];
+const OCCUPIED_STATUSES_ARRAY = sql`ARRAY[${sql.join(OCCUPIED_STATUSES_LIST.map(s => sql`${s}`), sql`, `)}]::text[]`;
 
 function formatYMD(dateInput: string | Date): string {
   if (dateInput instanceof Date) {
@@ -159,7 +160,7 @@ export async function findConflictingBookings(
             OR LOWER(br.user_email) IN (SELECT LOWER(ule.primary_email) FROM user_linked_emails ule WHERE LOWER(ule.linked_email) = ${normalizedEmail})
           )
           AND br.request_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
-          AND br.status = ANY(${OCCUPIED_STATUSES})
+          AND br.status = ANY(${OCCUPIED_STATUSES_ARRAY})
           ${excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``}
       `),
 
@@ -191,7 +192,7 @@ export async function findConflictingBookings(
           )
           AND bs.session_date IN (${date}, (${date}::date - INTERVAL '1 day')::date, (${date}::date + INTERVAL '1 day')::date)
           AND bp.invite_status = 'accepted'
-          AND (br.id IS NULL OR br.status = ANY(${OCCUPIED_STATUSES}))
+          AND (br.id IS NULL OR br.status = ANY(${OCCUPIED_STATUSES_ARRAY}))
           ${excludeBookingId ? sql`AND (br.id IS NULL OR br.id != ${excludeBookingId})` : sql``}
       `),
     ]);

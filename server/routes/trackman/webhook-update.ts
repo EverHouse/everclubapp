@@ -27,6 +27,7 @@ import { getErrorMessage } from '../../utils/errorUtils';
 import { tryAutoApproveBooking, cancelBookingByTrackmanId, saveToUnmatchedBookings, createUnmatchedBookingRequest } from './webhook-matching';
 import { recalculateSessionFees } from '../../core/billing/unifiedFeeService';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
+import { scheduleCleanupAlert } from '../../core/bookingService/cleanupAlertScheduler';
 
 interface CancelledBookingRow {
   id: number;
@@ -515,6 +516,14 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
       autoApproveResult.bookingId,
       endParsed?.time
     );
+
+    if (endParsed?.time) {
+      scheduleCleanupAlert({
+        bookingId: autoApproveResult.bookingId,
+        requestDate: startParsed.date,
+        endTime: endParsed.time,
+      }).catch(err => logger.error('[Trackman Webhook] Cleanup alert scheduling failed (non-blocking)', { extra: { bookingId: autoApproveResult.bookingId, error: getErrorMessage(err) } }));
+    }
     
     if (autoApproveResult.sessionId && normalized.playerCount > 1) {
       try {
@@ -695,6 +704,14 @@ export async function handleBookingUpdate(payload: TrackmanWebhookPayload): Prom
         date: startParsed.date,
         action: 'booked',
       });
+
+      if (endParsed?.time) {
+        scheduleCleanupAlert({
+          bookingId: createResult.bookingId,
+          requestDate: startParsed.date,
+          endTime: endParsed.time,
+        }).catch(err => logger.error('[Trackman Webhook] Cleanup alert scheduling failed (non-blocking)', { extra: { bookingId: createResult.bookingId, error: getErrorMessage(err) } }));
+      }
       
       logger.info('[Trackman Webhook] Auto-created booking for known member (no pending request)', {
         extra: { bookingId: matchedBookingId, email: member.email, resourceId, memberName }

@@ -18,6 +18,7 @@ import { broadcastAvailabilityUpdate } from '../websocket';
 import { formatDateDisplayWithDay, formatTime12Hour } from '../../utils/dateUtils';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { refreshBookingPass } from '../../walletPass/bookingPassService';
+import { scheduleCleanupAlert } from '../bookingService/cleanupAlertScheduler';
 import type { StaffManualBookingInput } from '../../../shared/validators/manualBooking';
 
 const TERMINAL_STATUSES = ['cancelled', 'attended', 'completed', 'no_show', 'declined', 'expired'];
@@ -655,6 +656,12 @@ export async function createManualBooking(params: {
     staffEmail: params.staffEmail,
     isManualBooking: true
   }, { notifyMember: true, notifyStaff: true }).catch(err => logger.error('Booking event publish failed', { extra: { error: getErrorMessage(err) } }));
+
+  scheduleCleanupAlert({
+    bookingId: newBooking.id,
+    requestDate: params.bookingDate,
+    endTime,
+  }).catch(err => logger.error('[ManualBooking] Cleanup alert scheduling failed (non-blocking)', { extra: { bookingId: newBooking.id, error: getErrorMessage(err) } }));
 
   return {
     booking: {

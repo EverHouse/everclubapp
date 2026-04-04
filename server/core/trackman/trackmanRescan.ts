@@ -10,6 +10,7 @@ import { recalculateSessionFees } from '../billing/unifiedFeeService';
 import { voidBookingInvoice } from '../billing/bookingInvoiceService';
 import { useGuestPass } from '../billing/guestPassService';
 import { cancelPendingPaymentIntentsForBooking, refundSucceededPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
+import { cancelCleanupAlert } from '../bookingService/cleanupAlertScheduler';
 import { alertOnTrackmanImportIssues } from '../dataAlerts';
 import { logger } from '../logger';
 import { isSyntheticEmail, notifyMember } from '../notificationService';
@@ -199,6 +200,9 @@ export async function rescanUnmatchedBookings(performedBy: string = 'system'): P
                       const skippedIds = conflictIds.filter(id => !actuallyCancelledIds.includes(id));
                       if (skippedIds.length > 0) {
                         logger.warn(`[Trackman Rescan] Some overlapping bookings were not cancelled — status already changed`, { extra: { trackmanBookingId: booking.trackmanBookingId, skippedIds } });
+                      }
+                      for (const cid of actuallyCancelledIds) {
+                        cancelCleanupAlert(cid).catch(err => logger.warn('[Trackman Rescan] Failed to cancel cleanup alert for superseded booking', { extra: { bookingId: cid, error: getErrorMessage(err) } }));
                       }
                     }
                     await tx.execute(sql`INSERT INTO booking_requests (

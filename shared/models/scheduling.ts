@@ -114,6 +114,7 @@ export const bookingRequests = pgTable("booking_requests", {
   closureId: integer("closure_id"), // FK to facility_closures.id managed by db-init.ts (not schema) to avoid deployment migration conflicts
   cancellationPendingAt: timestamp("cancellation_pending_at"),
   billingSyncPending: boolean("billing_sync_pending").default(false),
+  cleanupNotifiedAt: timestamp("cleanup_notified_at"),
   version: integer("version").default(1).notNull(),
 }, (table) => [
   uniqueIndex("idx_booking_requests_trackman_booking_id").on(table.trackmanBookingId),

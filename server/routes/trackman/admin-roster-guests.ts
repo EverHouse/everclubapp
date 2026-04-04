@@ -374,13 +374,28 @@ router.put('/api/admin/booking/:bookingId/members/:slotId/link', isStaffOrAdmin,
       const userId = (memberInfo.rows[0] as DbRow).id;
       const displayName = `${(memberInfo.rows[0] as DbRow).first_name || ''} ${(memberInfo.rows[0] as DbRow).last_name || ''}`.trim() || memberEmail;
 
-      const targetSlot = await db.execute(sql`SELECT id, participant_type, user_id FROM booking_participants WHERE id = ${slotId} AND session_id = ${sessionId}`);
+      const targetSlot = await db.execute(sql`SELECT id, participant_type, user_id, display_name, slot_duration FROM booking_participants WHERE id = ${slotId} AND session_id = ${sessionId}`);
       if (targetSlot.rowCount && targetSlot.rowCount > 0) {
         const slot = (targetSlot.rows[0] as DbRow);
-        if (!slot.user_id && (slot.participant_type === 'owner' || slot.participant_type === 'member')) {
-          await db.execute(sql`UPDATE booking_participants SET user_id = ${userId}, display_name = ${displayName} WHERE id = ${slotId}`);
-          
-          await db.execute(sql`DELETE FROM booking_participants WHERE session_id = ${sessionId} AND user_id = ${userId} AND id != ${slotId}`);
+        const isPlaceholderSlot = slot.participant_type === 'guest' && isPlaceholderGuestName(slot.display_name as string);
+        if (!slot.user_id && (slot.participant_type === 'owner' || slot.participant_type === 'member' || isPlaceholderSlot)) {
+          if (isPlaceholderSlot) {
+            const preservedDuration = (slot.slot_duration as number) || slotDuration;
+            await db.execute(sql`BEGIN`);
+            try {
+              await db.execute(sql`DELETE FROM booking_participants WHERE id = ${slotId}`);
+              await db.execute(sql`DELETE FROM booking_participants WHERE session_id = ${sessionId} AND user_id = ${userId}`);
+              await db.execute(sql`INSERT INTO booking_participants (session_id, user_id, participant_type, display_name, payment_status, slot_duration)
+                 VALUES (${sessionId}, ${userId}, 'member', ${displayName}, 'pending', ${preservedDuration})`);
+              await db.execute(sql`COMMIT`);
+            } catch (txErr: unknown) {
+              await db.execute(sql`ROLLBACK`);
+              throw txErr;
+            }
+          } else {
+            await db.execute(sql`UPDATE booking_participants SET user_id = ${userId}, display_name = ${displayName} WHERE id = ${slotId}`);
+            await db.execute(sql`DELETE FROM booking_participants WHERE session_id = ${sessionId} AND user_id = ${userId} AND id != ${slotId}`);
+          }
 
           if (slot.participant_type === 'owner') {
             await db.execute(sql`UPDATE booking_requests SET user_id = ${userId}, user_email = ${memberEmail.toLowerCase()}, user_name = ${displayName}, updated_at = NOW() WHERE id = ${bookingId}`);

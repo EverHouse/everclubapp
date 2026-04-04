@@ -1,12 +1,5 @@
 import { formatDateShort } from '../../../utils/dateUtils';
 
-export const GUEST_CHECKIN_FIELDS = [
-  { name: 'guest_firstname', label: 'Guest First Name', type: 'text' as const, required: true, placeholder: 'John' },
-  { name: 'guest_lastname', label: 'Guest Last Name', type: 'text' as const, required: true, placeholder: 'Smith' },
-  { name: 'guest_email', label: 'Guest Email', type: 'email' as const, required: true, placeholder: 'john@example.com' },
-  { name: 'guest_phone', label: 'Guest Phone', type: 'tel' as const, required: false, placeholder: '(555) 123-4567' }
-];
-
 export interface DBBooking {
   id: number;
   resource_id: number;

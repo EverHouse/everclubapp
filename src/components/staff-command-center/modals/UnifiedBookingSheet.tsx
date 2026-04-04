@@ -7,6 +7,7 @@ import { AssignModeFooter } from './AssignModeFooter';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import { useUnifiedBookingLogic } from './useUnifiedBookingLogic';
 import { isPlaceholderEmail } from './bookingSheetTypes';
+import { isPlaceholderGuestName } from '../../../utils/rosterUtils';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
@@ -48,8 +49,12 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
 
   if (logic.isManageMode) {
     const validation = logic.rosterData?.validation;
-    const filledCount = validation ? validation.actualPlayerCount : 0;
     const totalCount = validation ? validation.expectedPlayerCount : (declaredPlayerCount || 1);
+    const placeholderCount = (logic.rosterData?.members || []).filter(m => {
+      if (!m.guestInfo) return false;
+      return isPlaceholderGuestName(m.guestInfo.guestName);
+    }).length;
+    const filledCount = Math.max(0, (validation ? validation.actualPlayerCount : 0) - placeholderCount);
 
     const rosterLocked = !!(logic.paymentSuccess || logic.rosterData?.financialSummary?.allPaid);
 
@@ -187,8 +192,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                   handleManageModeLinkMember={logic.handleManageModeLinkMember}
                   handleManageModeAddGuest={logic.handleManageModeAddGuest}
                   handleManageModeMemberMatchResolve={logic.handleManageModeMemberMatchResolve}
-                  handleManageModeQuickAddGuest={logic.handleManageModeQuickAddGuest}
-                  isQuickAddingGuest={logic.isQuickAddingGuest}
+
                   renderTierBadge={logic.renderTierBadge}
                   isReassigningOwner={logic.isReassigningOwner}
                   reassignSearchOpen={logic.reassignSearchOpen}

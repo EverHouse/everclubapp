@@ -7,6 +7,7 @@ import { recalculateSessionFees } from '../../core/bookingService/usageCalculato
 import { getTodayPacific } from '../../utils/dateUtils';
 import { updateCachedCheckResult } from '../../core/dataIntegrity';
 import { checkUsageLedgerGaps } from '../../core/integrity/bookingChecks';
+import { cancelCleanupAlert } from '../../core/bookingService/cleanupAlertScheduler';
 
 const router = Router();
 
@@ -524,6 +525,9 @@ router.post('/api/data-integrity/fix/bulk-cancel-stale-bookings', isAdmin, async
         await db.execute(sql`UPDATE booking_fee_snapshots SET status = 'cancelled', updated_at = NOW() WHERE booking_id = ANY(${cancelledIds}::int[]) AND status IN ('pending', 'requires_action')`);
       } catch (snapshotErr: unknown) {
         logger.warn('[DataIntegrity] Non-blocking: failed to cancel fee snapshots for bulk stale cancel', { extra: { error: getErrorMessage(snapshotErr) } });
+      }
+      for (const id of cancelledIds) {
+        cancelCleanupAlert(id).catch(err => logger.warn('[DataIntegrity] Failed to cancel cleanup alert for stale booking', { extra: { bookingId: id, error: getErrorMessage(err) } }));
       }
     }
 

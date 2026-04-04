@@ -27,6 +27,7 @@ import { AppError, assertBookingVersion } from '../errors';
 import { logPaymentAudit } from '../auditLog';
 import { voidBookingPass } from '../../walletPass/bookingPassService';
 import { BookingRow, BookingUpdateResult, CancelPushInfo, formatBookingRow, validateTrackmanId } from './approvalTypes';
+import { scheduleCleanupAlert, cancelCleanupAlert } from './cleanupAlertScheduler';
 
 interface ApproveBookingParams {
   bookingId: number;
@@ -593,6 +594,14 @@ export async function approveBooking(params: ApproveBookingParams) {
 
     notifyApprovalParticipants(bookingId, updated as unknown as BookingUpdateResult)
       .catch(err => logger.error('[Approval] Group notification failed', { extra: { error: getErrorMessage(err) } }));
+
+    cancelCleanupAlert(bookingId)
+      .then(() => scheduleCleanupAlert({
+        bookingId,
+        requestDate: updated.requestDate,
+        endTime: updated.endTime,
+      }))
+      .catch(err => logger.error('[Approval] Cleanup alert scheduling failed (non-blocking)', { extra: { error: getErrorMessage(err) } }));
   }
 
   const requestParticipantsForVisitors = (updated as Record<string, unknown>).requestParticipants as Array<{

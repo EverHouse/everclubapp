@@ -228,7 +228,7 @@ const ToastItem: React.FC<{
     >
       <div
         className={`relative overflow-hidden rounded-xl
-          ${isDark ? 'bg-white/[0.08] border border-white/[0.12]' : 'bg-white/80 border border-black/[0.06]'}
+          ${isDark ? 'bg-[#1e2319] border border-white/[0.12]' : 'bg-white border border-black/[0.06]'}
         `}
         style={{
           backdropFilter: 'blur(16px)',

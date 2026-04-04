@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState, useEffect } from 'react';
 import ScheduleCard from '../../../components/ScheduleCard';
 import { RosterManager } from '../../../components/booking';
 import { downloadICalFile } from '../../../utils/icalUtils';
@@ -7,6 +7,7 @@ import { getStatusBadge as getStatusBadgeColor, formatStatusLabel } from '../../
 import { getIconForType, type ScheduleItem, type DashboardBookingItem, type DBBookingRequest, type DBBooking, type DBRSVP, type DBWellnessEnrollment } from './dashboardTypes';
 import MotionButton from '../../../components/ui/MotionButton';
 import Icon from '../../../components/icons/Icon';
+import HeroScheduleCard, { findHeroItem } from './HeroScheduleCard';
 
 interface ScheduleSectionProps {
   isDark: boolean;
@@ -50,11 +51,9 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
         </button>
       </div>
       <div ref={scheduleRef} className="space-y-3">
-        {upcomingItemsFiltered.length > 0 ? upcomingItemsFiltered.slice(0, 6).map((item, idx) => (
-          <ScheduleItemRow
-            key={item.id}
-            item={item}
-            idx={idx}
+        {upcomingItemsFiltered.length > 0 ? (
+          <HeroScheduleList
+            items={upcomingItemsFiltered}
             isDark={isDark}
             isStaffOrAdminProfile={isStaffOrAdminProfile}
             walletPassAvailable={walletPassAvailable}
@@ -66,7 +65,7 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
             handleCancelWellness={handleCancelWellness}
             handleDownloadBookingWalletPass={handleDownloadBookingWalletPass}
           />
-        )) : (
+        ) : (
           <EmptySchedule isDark={isDark} startNavigation={startNavigation} navigate={navigate} />
         )}
       </div>
@@ -95,6 +94,74 @@ export const ScheduleSection: React.FC<ScheduleSectionProps> = ({
         </div>
       )}
     </div>
+  );
+};
+
+interface HeroScheduleListProps {
+  items: ScheduleItem[];
+  isDark: boolean;
+  isStaffOrAdminProfile: boolean;
+  walletPassAvailable: boolean;
+  walletPassDownloading: number | null;
+  refetchAllData: () => void;
+  handleCancelBooking: (id: number, type: 'booking' | 'booking_request') => void;
+  handleLeaveBooking: (id: number, name?: string | null) => void;
+  handleCancelRSVP: (eventId: number) => void;
+  handleCancelWellness: (classId: number) => void;
+  handleDownloadBookingWalletPass: (id: number) => void;
+}
+
+const HeroScheduleList: React.FC<HeroScheduleListProps> = ({
+  items, isDark, isStaffOrAdminProfile, walletPassAvailable,
+  walletPassDownloading, refetchAllData,
+  handleCancelBooking, handleLeaveBooking, handleCancelRSVP, handleCancelWellness,
+  handleDownloadBookingWalletPass,
+}) => {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick(t => t + 1), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const heroItem = useMemo(() => findHeroItem(items), [items, tick]);
+  const remainingItems = useMemo(() => {
+    if (!heroItem) return items.slice(0, 6);
+    return items.filter(i => i.id !== heroItem.id).slice(0, 5);
+  }, [items, heroItem]);
+
+  return (
+    <>
+      {heroItem && (
+        <HeroScheduleCard
+          item={heroItem}
+          isStaffOrAdminProfile={isStaffOrAdminProfile}
+          refetchAllData={refetchAllData}
+          walletPassAvailable={walletPassAvailable}
+          walletPassDownloading={walletPassDownloading}
+          handleDownloadBookingWalletPass={handleDownloadBookingWalletPass}
+          handleCancelBooking={handleCancelBooking}
+          handleLeaveBooking={handleLeaveBooking}
+          handleCancelRSVP={handleCancelRSVP}
+          handleCancelWellness={handleCancelWellness}
+        />
+      )}
+      {remainingItems.map((item, idx) => (
+        <ScheduleItemRow
+          key={item.id}
+          item={item}
+          idx={idx}
+          isDark={isDark}
+          isStaffOrAdminProfile={isStaffOrAdminProfile}
+          walletPassAvailable={walletPassAvailable}
+          walletPassDownloading={walletPassDownloading}
+          refetchAllData={refetchAllData}
+          handleCancelBooking={handleCancelBooking}
+          handleLeaveBooking={handleLeaveBooking}
+          handleCancelRSVP={handleCancelRSVP}
+          handleCancelWellness={handleCancelWellness}
+          handleDownloadBookingWalletPass={handleDownloadBookingWalletPass}
+        />
+      ))}
+    </>
   );
 };
 

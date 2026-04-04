@@ -30,6 +30,7 @@ import { AppError } from '../errors';
 import { logPaymentAudit } from '../auditLog';
 import { voidBookingPass, refreshBookingPass } from '../../walletPass/bookingPassService';
 import { BookingUpdateResult, CancelBookingData, CancelPushInfo } from './approvalTypes';
+import { scheduleCleanupAlert, cancelCleanupAlert } from './cleanupAlertScheduler';
 
 interface DevConfirmParams {
   bookingId: number;
@@ -411,6 +412,16 @@ export async function devConfirmBooking(params: DevConfirmParams) {
           .catch(err => logger.error('[Dev Confirm] Non-blocking visitor upsert failed', { extra: { email: rp.email, error: getErrorMessage(err) } }));
       }
     }
+  }
+
+  if (booking.request_date && booking.end_time) {
+    cancelCleanupAlert(bookingId)
+      .then(() => scheduleCleanupAlert({
+        bookingId,
+        requestDate: typeof booking.request_date === 'string' ? booking.request_date : String(booking.request_date),
+        endTime: typeof booking.end_time === 'string' ? booking.end_time : String(booking.end_time),
+      }))
+      .catch(err => logger.error('[Dev Confirm] Cleanup alert scheduling failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
   }
 
   return { success: true, bookingId, sessionId, totalFeeCents: resolvedTotalFeeCents, booking, dateStr, timeStr };

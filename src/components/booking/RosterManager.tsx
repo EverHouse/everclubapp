@@ -7,11 +7,13 @@ import { haptic } from '../../utils/haptics';
 import ModalShell from '../ModalShell';
 import Avatar from '../Avatar';
 import MemberPaymentModal from './MemberPaymentModal';
-import GuestPaymentChoiceModal from './GuestPaymentChoiceModal';
+import SlideUpDrawer from '../SlideUpDrawer';
+import Input from '../Input';
 import { usePricing } from '../../hooks/usePricing';
 import WalkingGolferSpinner from '../WalkingGolferSpinner';
 import { MemberSearchInput, type SelectedMember } from '../shared/MemberSearchInput';
 import Icon from '../icons/Icon';
+import { isPlaceholderGuestName } from '../../utils/rosterUtils';
 
 export interface RosterParticipant {
   id: number;
@@ -129,6 +131,8 @@ export interface RosterManagerProps {
   resourceType?: 'simulator' | 'conference_room';
 }
 
+const isPlaceholderName = isPlaceholderGuestName;
+
 const RosterManager: React.FC<RosterManagerProps> = ({
   bookingId,
   declaredPlayerCount,
@@ -154,12 +158,20 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const [addingMember, setAddingMember] = useState(false);
   const [apiDeclaredPlayerCount, setApiDeclaredPlayerCount] = useState<number>(declaredPlayerCount);
   const [apiRemainingSlots, setApiRemainingSlots] = useState<number>(Math.max(0, declaredPlayerCount - 1));
-  const [apiCurrentParticipantCount, setApiCurrentParticipantCount] = useState<number>(1); // Owner counts as 1
+  const [apiCurrentParticipantCount, setApiCurrentParticipantCount] = useState<number>(1);
 
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictDetails, setConflictDetails] = useState<BookingConflictDetails | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showGuestPaymentChoiceModal, setShowGuestPaymentChoiceModal] = useState(false);
+
+  const [showGuestInfoDrawer, setShowGuestInfoDrawer] = useState(false);
+  const [replacingPlaceholderId, setReplacingPlaceholderId] = useState<number | null>(null);
+  const [guestFirstName, setGuestFirstName] = useState('');
+  const [guestLastName, setGuestLastName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestEmailError, setGuestEmailError] = useState<string | undefined>(undefined);
+  const [guestPassLoading, setGuestPassLoading] = useState(false);
+  const [guestPassError, setGuestPassError] = useState<string | null>(null);
 
   const canManage = isOwner || isStaff;
 
@@ -239,7 +251,13 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           paymentStatus: null,
           createdAt: new Date().toISOString(),
         };
-        setParticipants(prev => [...prev, newParticipant]);
+        setParticipants(prev => {
+          const withoutPlaceholder = prev.filter(p => !(p.participantType === 'guest' && isPlaceholderName(p.displayName)));
+          if (withoutPlaceholder.length < prev.length) {
+            return [...withoutPlaceholder, newParticipant];
+          }
+          return [...prev, newParticipant];
+        });
         setApiRemainingSlots(prev => Math.max(0, prev - 1));
         setApiCurrentParticipantCount(prev => prev + 1);
         fetchAllBookingData();
@@ -356,11 +374,18 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     participants.find(p => p.participantType === 'owner'),
     [participants]
   );
-  
-  const otherParticipants = useMemo(() => 
-    participants.filter(p => p.participantType !== 'owner'),
+
+  const realParticipants = useMemo(() =>
+    participants.filter(p => p.participantType !== 'owner' && !isPlaceholderName(p.displayName)),
     [participants]
   );
+
+  const placeholderParticipants = useMemo(() =>
+    participants.filter(p => p.participantType === 'guest' && isPlaceholderName(p.displayName)),
+    [participants]
+  );
+
+  const openSlotCount = remainingSlots + placeholderParticipants.length;
 
   const pendingGuestFees = useMemo(() => {
     const pendingGuests = participants.filter(
@@ -385,9 +410,9 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const hasPayableParticipantFees = useMemo(() => {
     if (!feePreview || isPaid) return false;
     const hasPendingGuests = pendingGuestFees.count > 0;
-    const ownerParticipant = participants.find(p => p.participantType === 'owner');
-    const ownerHasUnpaidFee = ownerParticipant &&
-      (ownerParticipant.paymentStatus === 'pending' || ownerParticipant.paymentStatus === null) &&
+    const ownerP = participants.find(p => p.participantType === 'owner');
+    const ownerHasUnpaidFee = ownerP &&
+      (ownerP.paymentStatus === 'pending' || ownerP.paymentStatus === null) &&
       (feePreview?.ownerFees?.estimatedOverageFee ?? 0) > 0;
     return hasPendingGuests || !!ownerHasUnpaidFee;
   }, [feePreview, isPaid, pendingGuestFees, participants]);
@@ -395,8 +420,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
   const showPayableUnpaidFees = isOwner && hasPayableParticipantFees;
   const showEmptySlotEstimate = isOwner && !isPaid && hasEstimatedFees && !hasPayableParticipantFees;
   const showFeesPaid = isOwner && isPaid && hasEstimatedFees;
-
-  const hasUnpaidFees = showPayableUnpaidFees;
 
   const hideConferenceRoomFeeCard = resourceType === 'conference_room' && !hasEstimatedFees && !hasPayableParticipantFees && !isPaid;
 
@@ -408,6 +431,86 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     onUpdate?.();
   }, [showToast, fetchAllBookingData, onUpdate]);
 
+  const validateGuestEmail = (value: string): string | undefined => {
+    if (!value.trim()) return 'Email is required for guest tracking';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) return 'Please enter a valid email address';
+    return undefined;
+  };
+
+  const handleGuestEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setGuestEmail(value);
+    if (guestEmailError) {
+      setGuestEmailError(validateGuestEmail(value));
+    }
+  };
+
+  const guestInfoValid = guestFirstName.trim() && guestLastName.trim() && guestEmail.trim() && !validateGuestEmail(guestEmail);
+
+  const openGuestInfoDrawer = (placeholderId?: number) => {
+    setReplacingPlaceholderId(placeholderId ?? null);
+    setGuestFirstName('');
+    setGuestLastName('');
+    setGuestEmail('');
+    setGuestEmailError(undefined);
+    setGuestPassError(null);
+    setShowGuestInfoDrawer(true);
+  };
+
+  const handleUseGuestPass = async () => {
+    const emailError = validateGuestEmail(guestEmail);
+    if (emailError) {
+      setGuestEmailError(emailError);
+      return;
+    }
+
+    const fullName = `${guestFirstName.trim()} ${guestLastName.trim()}`;
+    setGuestPassLoading(true);
+    setGuestPassError(null);
+
+    try {
+      const { ok, error: apiError, errorData } = await apiRequest(
+        `/api/bookings/${bookingId}/participants`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'guest',
+            guest: { name: fullName, email: guestEmail.trim() },
+            useGuestPass: true
+          })
+        }
+      );
+
+      if (ok) {
+        haptic.success();
+        showToast(`${fullName} added with guest pass`, 'success');
+        setShowGuestInfoDrawer(false);
+        fetchAllBookingData();
+        onUpdate?.();
+      } else if (errorData?.code === 'ROSTER_LOCKED') {
+        setGuestPassError('This booking has been paid — the roster is locked.');
+      } else {
+        setGuestPassError(apiError || "Couldn't add your guest. Please try again.");
+      }
+    } catch (err: unknown) {
+      const msg = ((err instanceof Error ? err.message : String(err)) || '').toLowerCase();
+      if (!msg.includes('abort') && !msg.includes('timeout')) {
+        setGuestPassError("Something went wrong adding your guest. Please try again.");
+      }
+    } finally {
+      setGuestPassLoading(false);
+    }
+  };
+
+  const openSlotAddMember = (placeholderId?: number) => {
+    if (placeholderId) {
+      setReplacingPlaceholderId(placeholderId);
+    }
+    setShowAddMemberModal(true);
+  };
+
   if (loading) {
     return (
       <div className={`glass-card rounded-xl p-6 ${isDark ? 'border-white/10' : 'border-black/5'}`}>
@@ -418,10 +521,59 @@ const RosterManager: React.FC<RosterManagerProps> = ({
     );
   }
 
+  const renderOpenSlot = (idx: number, placeholderId?: number) => (
+    <div
+      key={placeholderId ? `placeholder-${placeholderId}` : `open-${idx}`}
+      className={`flex flex-col gap-2.5 py-3 border-t border-dashed ${
+        isDark ? 'border-white/10' : 'border-black/10'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          isDark ? 'bg-white/10' : 'bg-black/5'
+        }`}>
+          <Icon name="person_outline" className={`text-xl ${isDark ? 'text-white/30' : 'text-[#293515]/30'}`} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
+            Guest (info pending)
+          </p>
+          <p className={`text-xs ${isDark ? 'text-amber-400/70' : 'text-amber-600/70'}`}>
+            ${guestFeeDollars.toFixed(0)} guest fee applies
+          </p>
+        </div>
+      </div>
+      {canManage && !rosterLocked && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => openSlotAddMember(placeholderId)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[#293515] text-white font-semibold text-xs transition-interactive duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
+          >
+            <Icon name="person_add" className="text-base" />
+            Add Member
+          </button>
+          {guestPassesRemaining > 0 && (
+            <button
+              onClick={() => openGuestInfoDrawer(placeholderId)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg font-semibold text-xs transition-interactive duration-fast active:scale-[0.98] tactile-btn ${
+                isDark
+                  ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              }`}
+            >
+              <Icon name="confirmation_number" className="text-base" />
+              Use Guest Pass
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       {!hideConferenceRoomFeeCard && (
-      <div className={`glass-card rounded-xl overflow-hidden ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+      <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10 bg-[#1e2319]' : 'border-black/5 bg-white'}`} style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
         <div className={`px-5 py-4 border-b ${isDark ? 'border-white/10' : 'border-black/5'}`}>
           <div className="flex items-center justify-between">
             <h3 className={`text-2xl ${isDark ? 'text-white' : 'text-[#293515]'} leading-tight`} style={{ fontFamily: 'var(--font-headline)' }}>
@@ -435,9 +587,9 @@ const RosterManager: React.FC<RosterManagerProps> = ({
           </div>
         </div>
 
-        <div ref={rosterListRef} className="p-5 space-y-3">
+        <div ref={rosterListRef} className="px-5 py-4 space-y-3">
           {resourceType !== 'conference_room' && ownerParticipant && (
-            <div className={`flex items-center gap-3 px-6 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}>
+            <div className="flex items-center gap-3 py-2">
               <Avatar name={ownerParticipant.displayName} size="md" />
               <div className="flex-1 min-w-0">
                 <p className={`font-semibold truncate ${isDark ? 'text-white' : 'text-[#293515]'}`}>
@@ -448,10 +600,10 @@ const RosterManager: React.FC<RosterManagerProps> = ({
             </div>
           )}
 
-          {resourceType !== 'conference_room' && otherParticipants.map((participant, idx) => (
+          {resourceType !== 'conference_room' && realParticipants.map((participant, idx) => (
             <div 
               key={`${participant.id}-${idx}`}
-              className={`flex items-center gap-3 px-6 py-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/[0.02]'}`}
+              className="flex items-center gap-3 py-2"
             >
               <Avatar name={participant.displayName} size="md" />
               <div className="flex-1 min-w-0">
@@ -481,44 +633,19 @@ const RosterManager: React.FC<RosterManagerProps> = ({
             </div>
           ))}
 
-          {resourceType !== 'conference_room' && remainingSlots > 0 && canManage && !rosterLocked && (
-            <div className={`flex flex-col gap-2 p-3 rounded-xl border-2 border-dashed ${
-              isDark ? 'border-white/20' : 'border-black/10'
-            }`}>
-              <p className={`text-sm font-medium text-center ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                {remainingSlots} slot{remainingSlots > 1 ? 's' : ''} available
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowAddMemberModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] bg-[#293515] text-white font-semibold text-sm transition-interactive duration-fast hover:bg-[#3a4a20] active:scale-[0.98] tactile-btn"
-                >
-                  <Icon name="person_add" className="text-lg" />
-                  Add Member
-                </button>
-                <button
-                  onClick={() => setShowGuestPaymentChoiceModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-[4px] font-semibold text-sm transition-interactive duration-fast active:scale-[0.98] bg-[#CCB8E4] text-[#293515] hover:bg-[#baa6d6] tactile-btn"
-                >
-                  <Icon name="group_add" className="text-lg" />
-                  Add Guest
-                </button>
-              </div>
-              <p className={`text-xs text-center ${guestPassesRemaining > 0 ? (isDark ? 'text-white/40' : 'text-[#293515]/40') : (isDark ? 'text-amber-400/70' : 'text-amber-600')}`}>
-                {guestPassesRemaining > 0
-                  ? `${guestPassesRemaining} guest pass${guestPassesRemaining > 1 ? 'es' : ''} remaining this year`
-                  : `No passes left — $${guestFeeDollars} guest fee applies`
-                }
-              </p>
-            </div>
+          {resourceType !== 'conference_room' && openSlotCount > 0 && canManage && (
+            <>
+              {placeholderParticipants.map((p, idx) => renderOpenSlot(idx, p.id))}
+              {Array.from({ length: remainingSlots }, (_, idx) => renderOpenSlot(placeholderParticipants.length + idx))}
+            </>
           )}
 
-          {resourceType !== 'conference_room' && remainingSlots > 0 && !canManage && (
+          {resourceType !== 'conference_room' && openSlotCount > 0 && !canManage && (
             <div className={`p-3 rounded-xl border-2 border-dashed text-center ${
               isDark ? 'border-white/20' : 'border-black/10'
             }`}>
               <p className={`text-sm ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
-                {remainingSlots} slot{remainingSlots > 1 ? 's' : ''} available
+                {openSlotCount} slot{openSlotCount > 1 ? 's' : ''} available
               </p>
             </div>
           )}
@@ -534,6 +661,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               {feePreview.timeAllocation.allocations.map((alloc, idx) => {
                 const isGuestWithPass = alloc.type === 'guest' && alloc.guestPassUsed;
                 const isGuestWithFee = alloc.type === 'guest' && !alloc.guestPassUsed && (alloc.feeCents ?? 0) > 0;
+                const isPlaceholder = isPlaceholderName(alloc.displayName);
 
                 return (
                   <div key={idx} className="flex items-center justify-between">
@@ -541,7 +669,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                       {isGuestWithPass && (
                         <Icon name="confirmation_number" className={`text-sm ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                       )}
-                      {alloc.displayName}
+                      {isPlaceholder ? 'Guest (info pending)' : alloc.displayName}
                       {isGuestWithPass && (
                         <span className={`text-xs ${isDark ? 'text-emerald-400/70' : 'text-emerald-600/70'}`}>
                           (pass)
@@ -560,7 +688,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 );
               })}
               
-              {/* Open Slots - show unfilled slots so math balances */}
               {(() => {
                 const declaredCount = feePreview.timeAllocation.declaredPlayerCount || apiDeclaredPlayerCount;
                 const filledCount = feePreview.timeAllocation.allocations.length;
@@ -570,7 +697,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
                 return Array.from({ length: unfilledCount }, (_, idx) => (
                   <div key={`open-${idx}`} className="flex items-center justify-between">
                     <span className={`text-sm italic ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
-                      Open Slot {filledCount + idx + 1}
+                      Guest (info pending)
                     </span>
                     <span className={`text-sm font-medium ${isDark ? 'text-white/40' : 'text-[#293515]/40'}`}>
                       {minutesPerSlot} min
@@ -709,7 +836,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({
 
       <ModalShell
         isOpen={showAddMemberModal}
-        onClose={() => setShowAddMemberModal(false)}
+        onClose={() => { setShowAddMemberModal(false); setReplacingPlaceholderId(null); }}
         title="Add Member"
         size="md"
       >
@@ -806,28 +933,86 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         />
       )}
 
-      {showGuestPaymentChoiceModal && booking && (
-        <GuestPaymentChoiceModal
-          bookingId={bookingId}
-          guestPassesRemaining={guestPassesRemaining}
-          onSuccess={(name: string) => {
-            haptic.success();
-            showToast(`${name} added as guest`, 'success');
-            setShowGuestPaymentChoiceModal(false);
-            onUpdate?.();
-            setTimeout(() => {
-              fetchAllBookingData();
-            }, 1500);
-          }}
-          onError={(error: string) => {
-            showToast(error, 'error');
-            fetchAllBookingData();
-          }}
-          onClose={() => {
-            setShowGuestPaymentChoiceModal(false);
-          }}
-        />
-      )}
+      <SlideUpDrawer
+        isOpen={showGuestInfoDrawer}
+        onClose={() => { setShowGuestInfoDrawer(false); setReplacingPlaceholderId(null); }}
+        title="Guest Details"
+        maxHeight="medium"
+      >
+        <div className="p-4 space-y-4">
+          {guestPassError && (
+            <div className={`p-3 rounded-xl flex items-start gap-2.5 ${
+              isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'
+            }`}>
+              <Icon name="info" className={`text-base mt-0.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              <p className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{guestPassError}</p>
+            </div>
+          )}
+
+          <div className={`p-3 rounded-xl ${isDark ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200/60'}`}>
+            <div className="flex items-center gap-2">
+              <Icon name="confirmation_number" className={`text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <p className={`text-sm font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                Using Guest Pass ({guestPassesRemaining} remaining)
+              </p>
+            </div>
+          </div>
+
+          <Input
+            label="First Name"
+            placeholder="Enter first name"
+            value={guestFirstName}
+            onChange={(e) => setGuestFirstName(e.target.value)}
+            icon="person"
+          />
+
+          <Input
+            label="Last Name"
+            placeholder="Enter last name"
+            value={guestLastName}
+            onChange={(e) => setGuestLastName(e.target.value)}
+            icon="person"
+          />
+
+          <Input
+            label="Guest Email"
+            placeholder="Enter guest's email"
+            type="email"
+            value={guestEmail}
+            onChange={handleGuestEmailChange}
+            onBlur={() => {
+              if (guestEmail.trim()) {
+                setGuestEmailError(validateGuestEmail(guestEmail));
+              }
+            }}
+            icon="mail"
+            error={guestEmailError}
+            required
+          />
+
+          <button
+            onClick={handleUseGuestPass}
+            disabled={!guestInfoValid || guestPassLoading}
+            className={`relative w-full py-3 px-4 rounded-xl font-semibold text-sm transition-colors duration-fast flex items-center justify-center gap-2 ${
+              guestInfoValid && !guestPassLoading
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98]'
+                : isDark
+                  ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                  : 'bg-black/5 text-black/30 cursor-not-allowed'
+            }`}
+          >
+            <span className={`flex items-center gap-2 transition-opacity ${guestPassLoading ? 'opacity-0' : 'opacity-100'}`}>
+              <Icon name="confirmation_number" className="text-lg" />
+              Use Guest Pass
+            </span>
+            {guestPassLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </button>
+        </div>
+      </SlideUpDrawer>
     </>
   );
 };

@@ -19,6 +19,7 @@ import { markPaymentRefunded } from '../billing/PaymentStatusService';
 import { AppError } from '../errors';
 import { voidBookingPass } from '../../walletPass/bookingPassService';
 import { cancelPendingPaymentIntentsForBooking } from '../billing/paymentIntentCleanup';
+import { cancelCleanupAlert } from '../bookingService/cleanupAlertScheduler';
 
 interface BookingParticipantRow {
   id: number;
@@ -508,7 +509,9 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
       await tx.execute(sql`DELETE FROM booking_fee_snapshots WHERE booking_id = ${bookingId}`);
       await tx.execute(sql`DELETE FROM booking_requests WHERE id = ${bookingId}`);
     });
-    
+
+    cancelCleanupAlert(bookingId).catch(err => logger.warn('[DELETE /api/bookings] Failed to cancel cleanup alert (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
+
     logger.info('[DELETE /api/bookings] Hard delete complete', {
       extra: {
         bookingId,
@@ -556,6 +559,7 @@ export async function deleteBooking(bookingId: number, archivedBy: string, hardD
       })
       .where(eq(bookingRequests.id, bookingId));
 
+    cancelCleanupAlert(bookingId).catch(err => logger.warn('[DELETE /api/bookings] Failed to cancel cleanup alert (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
     voidBookingPass(bookingId).catch(err => logger.error('[DELETE /api/bookings] Failed to void booking wallet pass:', { extra: { error: getErrorMessage(err) } }));
 
     logger.info('[DELETE /api/bookings] Soft delete complete', {
@@ -794,7 +798,9 @@ export async function memberCancelBooking(bookingId: number, userEmail: string, 
       trackmanExternalId: null
     })
     .where(eq(bookingRequests.id, bookingId));
-  
+
+  cancelCleanupAlert(bookingId).catch(err => logger.warn('[memberCancelBooking] Failed to cancel cleanup alert (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
+
   logger.info('[PUT /api/bookings/member-cancel] Cancellation cascade complete', {
     extra: {
       bookingId,

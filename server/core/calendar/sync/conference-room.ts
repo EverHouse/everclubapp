@@ -10,6 +10,7 @@ import { getConferenceRoomId } from '../../affectedAreas';
 import { ensureSessionForBooking } from '../../bookingService/sessionManager';
 import { getErrorMessage } from '../../../utils/errorUtils';
 import { broadcastAvailabilityUpdate } from '../../websocket';
+import { scheduleCleanupAlert, cancelCleanupAlert } from '../../bookingService/cleanupAlertScheduler';
 
 import { calendar_v3 } from 'googleapis';
 import { logger } from '../../logger';
@@ -429,6 +430,7 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
                 date: bookingDate,
                 action: 'cancelled'
               });
+              cancelCleanupAlert(booking.id).catch(err => logger.warn('[Conference Room Sync] Cleanup alert cancel failed', { extra: { bookingId: booking.id, error: getErrorMessage(err) } }));
 
               cancelled++;
               logger.info(`[Conference Room Sync] Deleted booking ${booking.id} (calendar event ${event.id} was removed)`);
@@ -549,6 +551,9 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
               });
 
               logger.info(`[Conference Room Sync] Updated booking ${existingBooking.id} time: ${existingDate} ${existingStartTime}-${existingEndTime} → ${eventDate} ${startTime}-${endTime}`);
+              cancelCleanupAlert(existingBooking.id)
+                .then(() => scheduleCleanupAlert({ bookingId: existingBooking.id, requestDate: eventDate, endTime }))
+                .catch(err => logger.warn('[Conference Room Sync] Cleanup alert reschedule failed', { extra: { bookingId: existingBooking.id, error: getErrorMessage(err) } }));
               updated++;
             } catch (updateErr: unknown) {
               const errMsg = getErrorMessage(updateErr);
@@ -645,6 +650,10 @@ export async function syncConferenceRoomCalendarToBookings(options?: { monthsBac
           created++;
 
           if (newBooking) {
+            if (eventStatus === 'approved') {
+              scheduleCleanupAlert({ bookingId: newBooking.id, requestDate: eventDate, endTime })
+                .catch(err => logger.warn('[Conference Room Sync] Cleanup alert scheduling failed', { extra: { bookingId: newBooking.id, error: getErrorMessage(err) } }));
+            }
             try {
               const sessionResult = await ensureSessionForBooking({
                 bookingId: newBooking.id,

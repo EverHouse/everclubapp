@@ -22,6 +22,7 @@ import { failedSideEffects } from '../../../shared/schema';
 import { ensureDateString, ensureTimeString } from '../../utils/dateTimeUtils';
 import type { CancelResult, SideEffectsManifest, BookingRecord, FeeSnapshotRow, BalancePaymentRow } from './bookingStateTypes';
 import { executeSideEffects, persistFailedSideEffects } from './bookingSideEffects';
+import { cancelCleanupAlert } from './cleanupAlertScheduler';
 
 export class BookingStateService {
   static async cancelBooking(params: {
@@ -344,6 +345,8 @@ export class BookingStateService {
           version: sql`COALESCE(${bookingRequests.version}, 1) + 1`,
         })
         .where(eq(bookingRequests.id, bookingId));
+
+      cancelCleanupAlert(bookingId).catch(err => logger.error('[BookingStateService] Failed to cancel cleanup alert (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
 
       if (memberCancelled) {
         const staffMessage = `${booking.userName || booking.userEmail} has cancelled their ${statusLabel} for ${friendlyDateTime}.`;
@@ -923,6 +926,8 @@ export class BookingStateService {
         logger.warn('[BookingStateService] cleanupDeclinedBooking: Trackman slot cleanup failed', { extra: { bookingId, error: getErrorMessage(err) } });
       }
     }
+
+    cancelCleanupAlert(bookingId).catch(err => logger.warn('[BookingStateService] cleanupDeclinedBooking: cleanup alert cancel failed (non-blocking)', { extra: { bookingId, error: getErrorMessage(err) } }));
 
     if (errors.length > 0) {
       await persistFailedSideEffects(bookingId, {

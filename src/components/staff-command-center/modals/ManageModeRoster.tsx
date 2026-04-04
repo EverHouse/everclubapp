@@ -3,6 +3,7 @@ import { MemberSearchInput } from '../../shared/MemberSearchInput';
 import type { BookingMember, ManageModeRosterData, MemberMatchWarning } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
+import { isPlaceholderGuestName } from '../../../utils/rosterUtils';
 
 interface ManageModeRosterProps {
   rosterData: ManageModeRosterData | null;
@@ -26,8 +27,6 @@ interface ManageModeRosterProps {
   handleManageModeLinkMember: (slotId: number, memberEmail: string) => Promise<void>;
   handleManageModeAddGuest: (slotNumber: number, forceAddAsGuest?: boolean) => Promise<void>;
   handleManageModeMemberMatchResolve: (action: 'member' | 'guest') => Promise<void>;
-  handleManageModeQuickAddGuest: (slotNumber: number) => Promise<void>;
-  isQuickAddingGuest: boolean;
   renderTierBadge: (tier: string | null | undefined, membershipStatus?: string | null) => React.ReactNode;
   isReassigningOwner: boolean;
   reassignSearchOpen: boolean;
@@ -59,8 +58,6 @@ export function ManageModeRoster({
   handleManageModeLinkMember,
   handleManageModeAddGuest,
   handleManageModeMemberMatchResolve,
-  handleManageModeQuickAddGuest,
-  isQuickAddingGuest,
   renderTierBadge,
   isReassigningOwner,
   reassignSearchOpen,
@@ -70,11 +67,16 @@ export function ManageModeRoster({
   bookingId,
   rosterLocked,
 }: ManageModeRosterProps) {
-  const filledMembers = (rosterData?.members?.filter(m => (m.userEmail || m.guestInfo) && m.slotNumber <= editingPlayerCount) || []);
+  const isPlaceholderGuest = (member: BookingMember): boolean => {
+    if (!member.guestInfo) return false;
+    return isPlaceholderGuestName(member.guestInfo.guestName);
+  };
+
+  const filledMembers = (rosterData?.members?.filter(m => (m.userEmail || m.guestInfo) && m.slotNumber <= editingPlayerCount && !isPlaceholderGuest(m)) || []);
   const emptySlotNumbers: number[] = [];
   if (rosterData?.members) {
     for (const m of rosterData.members) {
-      if (!m.userEmail && !m.guestInfo && m.slotNumber <= editingPlayerCount) {
+      if (m.slotNumber <= editingPlayerCount && ((!m.userEmail && !m.guestInfo) || isPlaceholderGuest(m))) {
         emptySlotNumbers.push(m.slotNumber);
       }
     }
@@ -393,28 +395,13 @@ export function ManageModeRoster({
                 setManageModeSearchSlot(null);
                 setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
               }}
-              className="tactile-btn py-1 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center gap-1"
+              className="tactile-btn py-1 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center gap-1"
             >
-              <Icon name="person_add" className="text-xs" />
-              New Guest
+              <Icon name="card_membership" className="text-xs" />
+              Use Guest Pass
             </button>
           </div>
         </div>
-        <button
-          onClick={() => handleManageModeQuickAddGuest(slotNumber)}
-          style={{ marginTop: '8px' }}
-          disabled={isQuickAddingGuest}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl font-semibold text-sm transition-interactive duration-fast active:scale-[0.98] border border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 tactile-btn"
-        >
-          {isQuickAddingGuest ? (
-            <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <>
-              <Icon name="person_add" className="text-lg" />
-              Quick Add Guest (+${guestFeeDollars})
-            </>
-          )}
-        </button>
       </div>
     );
   };

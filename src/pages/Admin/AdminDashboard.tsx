@@ -19,6 +19,7 @@ import { TabTransition } from '../../components/motion';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import PullToRefresh from '../../components/PullToRefresh';
 import CheckInConfirmationModal from '../../components/staff-command-center/modals/CheckInConfirmationModal';
+import CleanupAlertModal from '../../components/staff-command-center/modals/CleanupAlertModal';
 import { useToast } from '../../components/Toast';
 import { haptic } from '../../utils/haptics';
 
@@ -72,6 +73,15 @@ const AdminDashboard: React.FC = () => {
     setCheckinConfirmation(prev => ({ ...prev, isOpen: false }));
   }, []);
 
+  const [cleanupAlert, setCleanupAlert] = useState<{
+    isOpen: boolean;
+    data: { bookingId: number; resourceName: string; resourceType: string; memberName: string; endTime: string; hasNextBooking: boolean; nextBookingMember: string | null; nextBookingStartTime: string | null } | null;
+  }>({ isOpen: false, data: null });
+
+  const handleCleanupAlertClose = useCallback(() => {
+    setCleanupAlert(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
   const { showToast: dashboardShowToast } = useToast();
 
   useEffect(() => {
@@ -118,6 +128,29 @@ const AdminDashboard: React.FC = () => {
       window.removeEventListener('walkin-checkin', handleWalkinCheckin as EventListener);
     };
   }, [adminQueryClient]);
+
+  useEffect(() => {
+    const handleCleanupAlert = (event: CustomEvent) => {
+      const detail = event.detail;
+      if (detail) {
+        setCleanupAlert({
+          isOpen: true,
+          data: {
+            bookingId: detail.bookingId || 0,
+            resourceName: detail.resourceName || 'Unknown',
+            resourceType: detail.resourceType || 'simulator',
+            memberName: detail.memberName || 'Member',
+            endTime: detail.endTime || '',
+            hasNextBooking: detail.hasNextBooking || false,
+            nextBookingMember: detail.nextBookingMember || null,
+            nextBookingStartTime: detail.nextBookingStartTime || null,
+          },
+        });
+      }
+    };
+    window.addEventListener('booking-cleanup-alert', handleCleanupAlert as EventListener);
+    return () => window.removeEventListener('booking-cleanup-alert', handleCleanupAlert as EventListener);
+  }, []);
 
   useEffect(() => {
     const handleWellhubFailed = (event: CustomEvent) => {
@@ -347,6 +380,12 @@ const AdminDashboard: React.FC = () => {
         bookingDetails={checkinConfirmation.bookingDetails}
         isWellhub={checkinConfirmation.isWellhub}
         wellhubStatus={checkinConfirmation.wellhubStatus}
+      />
+
+      <CleanupAlertModal
+        isOpen={cleanupAlert.isOpen}
+        onClose={handleCleanupAlertClose}
+        data={cleanupAlert.data}
       />
     </div>
   );

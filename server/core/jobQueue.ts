@@ -4,7 +4,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { sql } from 'drizzle-orm';
 import { schedulerTracker } from './schedulerTracker';
 import type { PoolClient } from 'pg';
-import { broadcastBillingUpdate, broadcastDayPassUpdate, sendNotificationToUser } from './websocket';
+import { broadcastBillingUpdate, broadcastDayPassUpdate, sendNotificationToUser, broadcastToStaff } from './websocket';
 import { notifyPaymentSuccess, notifyPaymentFailed, notifyStaffPaymentFailed, notifyMember, notifyAllStaff, isNotifiableEmail } from './notificationService';
 import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../emails/paymentEmails';
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../emails/membershipEmails';
@@ -58,6 +58,7 @@ export type JobType =
   | 'stripe_cancel_payment_intent'
   | 'wellhub_report_event'
   | 'tier_change_reconciliation'
+  | 'booking_cleanup_alert'
   | 'generic_async_task';
 
 interface QueueJobOptions {
@@ -466,6 +467,82 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
           });
         }
         logger.info(`[JobQueue] Tier reconciliation completed for ${email}`);
+        break;
+      }
+      case 'booking_cleanup_alert': {
+        const cleanupBookingId = payload.bookingId as number;
+        const cleanupResult = await db.execute(sql`
+          SELECT br.id, br.status, br.cleanup_notified_at, br.request_date, br.start_time, br.end_time,
+                 br.user_email, br.user_name, br.resource_id,
+                 COALESCE(r.name, 'Unknown') as resource_name,
+                 COALESCE(r.type, 'simulator') as resource_type
+          FROM booking_requests br
+          LEFT JOIN resources r ON r.id = br.resource_id
+          WHERE br.id = ${cleanupBookingId}
+        `);
+        if (cleanupResult.rows.length === 0) {
+          logger.info(`[JobQueue] Cleanup alert skipped — booking ${cleanupBookingId} not found`);
+          break;
+        }
+        const cleanupBooking = cleanupResult.rows[0] as {
+          id: number; status: string; cleanup_notified_at: Date | null;
+          request_date: string; start_time: string; end_time: string;
+          user_email: string; user_name: string | null; resource_id: number;
+          resource_name: string; resource_type: string;
+        };
+        if (!['approved', 'confirmed', 'attended', 'checked_in'].includes(cleanupBooking.status)) {
+          logger.info(`[JobQueue] Cleanup alert skipped — booking ${cleanupBookingId} status is ${cleanupBooking.status}`);
+          break;
+        }
+        if (cleanupBooking.cleanup_notified_at) {
+          logger.info(`[JobQueue] Cleanup alert skipped — booking ${cleanupBookingId} already notified`);
+          break;
+        }
+        const endTimeParts = cleanupBooking.end_time.split(':').map(Number);
+        const adjacencyLimitMinutes = Math.min((endTimeParts[0] || 0) * 60 + (endTimeParts[1] || 0) + 5, 23 * 60 + 59);
+        const adjacencyLimitHours = Math.floor(adjacencyLimitMinutes / 60);
+        const adjacencyLimitMins = adjacencyLimitMinutes % 60;
+        const adjacencyLimitTime = `${String(adjacencyLimitHours).padStart(2, '0')}:${String(adjacencyLimitMins).padStart(2, '0')}`;
+
+        const nextBookingResult = await db.execute(sql`
+          SELECT br.id, br.user_name, br.user_email, br.start_time
+          FROM booking_requests br
+          WHERE br.resource_id = ${cleanupBooking.resource_id}
+            AND br.request_date = ${cleanupBooking.request_date}
+            AND br.start_time >= ${cleanupBooking.end_time}
+            AND br.start_time <= ${adjacencyLimitTime}
+            AND br.id != ${cleanupBookingId}
+            AND br.status IN ('approved', 'confirmed', 'attended', 'checked_in')
+          ORDER BY br.start_time ASC
+          LIMIT 1
+        `);
+        const hasNextBooking = nextBookingResult.rows.length > 0;
+        const nextBookingInfo = hasNextBooking ? (nextBookingResult.rows[0] as { user_name: string | null; user_email: string; start_time: string }) : null;
+
+        const cleanupTitle = 'Session Ending Soon';
+        const cleanupMessage = `${cleanupBooking.resource_name} — ${cleanupBooking.user_name || cleanupBooking.user_email} — ends in 10 minutes${hasNextBooking ? ` (next: ${nextBookingInfo?.user_name || nextBookingInfo?.user_email} at ${nextBookingInfo?.start_time?.substring(0, 5)})` : ''}`;
+
+        await notifyAllStaff(cleanupTitle, cleanupMessage, 'booking_reminder', {
+          relatedId: cleanupBookingId,
+          relatedType: 'booking',
+          url: '/admin/bookings',
+        });
+
+        broadcastToStaff({
+          type: 'booking_cleanup_alert',
+          bookingId: cleanupBookingId,
+          resourceName: cleanupBooking.resource_name,
+          resourceType: cleanupBooking.resource_type,
+          memberName: cleanupBooking.user_name || cleanupBooking.user_email,
+          endTime: cleanupBooking.end_time,
+          hasNextBooking,
+          nextBookingMember: nextBookingInfo ? (nextBookingInfo.user_name || nextBookingInfo.user_email) : null,
+          nextBookingStartTime: nextBookingInfo?.start_time || null,
+        });
+
+        await db.execute(sql`UPDATE booking_requests SET cleanup_notified_at = NOW() WHERE id = ${cleanupBookingId} AND cleanup_notified_at IS NULL`);
+
+        logger.info(`[JobQueue] Cleanup alert sent for booking ${cleanupBookingId} (${cleanupBooking.resource_name})`);
         break;
       }
       case 'generic_async_task':

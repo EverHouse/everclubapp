@@ -16,6 +16,7 @@ import { createPrepaymentIntent } from '../../core/billing/prepaymentService';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { transferRequestParticipantsToSession } from '../../core/trackmanImport';
 import { voidBookingPass, refreshBookingPass } from '../../walletPass/bookingPassService';
+import { scheduleCleanupAlert, cancelCleanupAlert } from '../../core/bookingService/cleanupAlertScheduler';
 
 export async function updateBaySlotCache(
   trackmanBookingId: string,
@@ -88,6 +89,9 @@ export async function createBookingForMember(
             voidBookingPass(id).catch(err =>
               logger.warn('[Trackman Webhook] Void pass failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: id, error: getErrorMessage(err) } })
             );
+            cancelCleanupAlert(id).catch(err =>
+              logger.warn('[Trackman Webhook] Cancel cleanup alert failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: id, error: getErrorMessage(err) } })
+            );
           }
         }
       };
@@ -155,6 +159,10 @@ export async function createBookingForMember(
         refreshBookingPass(bookingId).catch(err =>
           logger.warn('[Trackman Webhook] Wallet pass refresh failed after duration/bay change', { extra: { bookingId, error: getErrorMessage(err) } })
         );
+
+        cancelCleanupAlert(bookingId)
+          .then(() => scheduleCleanupAlert({ bookingId, requestDate: slotDate, endTime }))
+          .catch(err => logger.error('[Trackman Webhook] Cleanup alert reschedule failed after time change', { extra: { bookingId, error: getErrorMessage(err) } }));
         
         return { success: true, bookingId, updated: true };
       }
@@ -541,6 +549,9 @@ export async function createBookingForMember(
           for (const id of conflictIds) {
             voidBookingPass(id).catch(err =>
               logger.warn('[Trackman Webhook] Void pass failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: id, error: getErrorMessage(err) } })
+            );
+            cancelCleanupAlert(id).catch(err =>
+              logger.warn('[Trackman Webhook] Cancel cleanup alert failed for conflict-cancelled booking (non-fatal)', { extra: { bookingId: id, error: getErrorMessage(err) } })
             );
           }
         }

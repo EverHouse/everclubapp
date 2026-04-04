@@ -24,12 +24,14 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
     const { data, isLoading, isError } = useFeeEstimate(bookingId, { enabled: !skipEstimate });
 
     if (skipEstimate) return <>{fallback ?? null}</>;
-    if (isLoading || isError) return <>{fallback ?? null}</>;
 
     const serverFee = data?.totalFee ?? 0;
     const displayAmount = data ? serverFee : dbOwed;
 
-    if (displayAmount <= 0) return <>{fallback ?? null}</>;
+    if (!isLoading && !isError && displayAmount <= 0) return <>{fallback ?? null}</>;
+
+    const showAmount = (isLoading || isError) ? dbOwed : displayAmount;
+    if (showAmount <= 0) return <>{fallback ?? null}</>;
 
     return (
         <button
@@ -37,7 +39,7 @@ function BookingFeeButton({ bookingId, dbOwed, hasUnpaidFees, setBookingSheet, f
             className="flex-1 py-2.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl text-sm font-medium flex items-center justify-center gap-2 hover:bg-amber-200 dark:hover:bg-amber-500/30 hover:shadow-md active:scale-95 transition-interactive duration-fast"
         >
             <Icon name="payments" className="text-lg" />
-            ${Math.round(displayAmount)} Due
+            ${Math.round(showAmount)} Due
         </button>
     );
 }

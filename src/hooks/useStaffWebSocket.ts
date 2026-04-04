@@ -384,6 +384,10 @@ export function useStaffWebSocket(options: UseStaffWebSocketOptions = {}) {
           if (message.type === 'tour_update') {
             window.dispatchEvent(new CustomEvent('tour-update', { detail: message }));
           }
+
+          if (message.type === 'booking_cleanup_alert') {
+            window.dispatchEvent(new CustomEvent('booking-cleanup-alert', { detail: message }));
+          }
         } catch (e: unknown) {
           console.error('[StaffWebSocket] Error parsing message:', e);
         }

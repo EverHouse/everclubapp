@@ -33,7 +33,6 @@ export function useDashboardData() {
   const isDark = effectiveTheme === 'dark';
 
   const [confirmModal, setConfirmModal] = useState<ConfirmModalState | null>(null);
-  const [showGuestCheckin, setShowGuestCheckin] = useState(false);
   const [isCardOpen, setIsCardOpen] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [bannerExiting, setBannerExiting] = useState(false);
@@ -636,7 +635,6 @@ export function useDashboardData() {
     isAdminViewingAs,
 
     confirmModal, setConfirmModal,
-    showGuestCheckin, setShowGuestCheckin,
     isCardOpen, setIsCardOpen,
     bannerDismissed, setBannerDismissed,
     bannerExiting, setBannerExiting,

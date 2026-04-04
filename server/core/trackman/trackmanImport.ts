@@ -16,6 +16,7 @@ import { logSystemAction } from '../auditLog';
 import { logger } from '../logger';
 import { isSyntheticEmail, notifyMember } from '../notificationService';
 import { refreshBookingPass, voidBookingPass } from '../../walletPass/bookingPassService';
+import { cancelCleanupAlert } from '../bookingService/cleanupAlertScheduler';
 
 import type { TrackmanRow, PaidCheckRow } from './constants';
 import { isPlaceholderEmail, normalizeStatus, isFutureBooking, isTimeWithinTolerance } from './constants';
@@ -241,6 +242,7 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
             }
 
             voidBookingPass(booking.id).catch(err => logger.error('[Trackman Import] Failed to void booking wallet pass', { extra: { bookingId: booking.id, error: getErrorMessage(err) } }));
+            cancelCleanupAlert(booking.id).catch(err => logger.warn('[Trackman Import] Failed to cancel cleanup alert', { extra: { bookingId: booking.id, error: getErrorMessage(err) } }));
 
             await db.update(bookingRequests)
               .set({ 
