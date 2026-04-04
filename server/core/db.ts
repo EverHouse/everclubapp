@@ -79,14 +79,17 @@ function appendSearchPath(connString: string | undefined): string | undefined {
 
 const mainConnString = appendSearchPath(usingPooler ? poolerUrl : directUrl);
 
-const defaultPoolMax = isProduction ? 20 : 10;
+const defaultPoolMax = isProduction ? 20 : 15;
 const poolMax = parseInt(process.env.DB_POOL_MAX || String(defaultPoolMax), 10);
 
-const defaultIdleTimeout = isProduction ? 20000 : 30000;
+const defaultIdleTimeout = 20000;
 const idleTimeoutMs = parseInt(process.env.DB_POOL_IDLE_TIMEOUT_MS || String(defaultIdleTimeout), 10);
 
-const defaultConnTimeout = isProduction ? 10000 : 30000;
+const defaultConnTimeout = 10000;
 const connectionTimeoutMs = parseInt(process.env.DB_POOL_CONN_TIMEOUT_MS || String(defaultConnTimeout), 10);
+
+const defaultStatementTimeout = 30000;
+const statementTimeoutMs = parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || String(defaultStatementTimeout), 10);
 
 const basePool = new Pool({
   connectionString: mainConnString,
@@ -97,20 +100,23 @@ const basePool = new Pool({
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
   allowExitOnIdle: !isProduction,
-  statement_timeout: 60000,
+  statement_timeout: statementTimeoutMs,
 });
 
-logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=${connectionTimeoutMs}ms, idle=${idleTimeoutMs}ms, env=${isProduction ? 'production' : 'development'}`);
+logger.info(`[Database] Pool configured: max=${poolMax}, connectionTimeout=${connectionTimeoutMs}ms, idle=${idleTimeoutMs}ms, statementTimeout=${statementTimeoutMs}ms, env=${isProduction ? 'production' : 'development'}`);
 
 let lastPoolWarnTime = 0;
+const POOL_PRESSURE_THRESHOLD = 0.7;
 basePool.on('connect', () => {
   const { totalCount, idleCount, waitingCount } = basePool;
   const activeCount = totalCount - idleCount;
   const now = Date.now();
-  if ((waitingCount > 3 || activeCount >= poolMax) && now - lastPoolWarnTime > 10_000) {
+  if ((waitingCount > 0 || activeCount >= Math.floor(poolMax * POOL_PRESSURE_THRESHOLD)) && now - lastPoolWarnTime > 5_000) {
     lastPoolWarnTime = now;
-    logger.warn('[Database] Pool near exhaustion', {
-      extra: { total: totalCount, idle: idleCount, active: activeCount, waiting: waitingCount, max: poolMax },
+    const level = (waitingCount > 3 || activeCount >= poolMax) ? 'error' : 'warn';
+    const label = level === 'error' ? '[Database] Pool exhaustion' : '[Database] Pool under pressure';
+    logger[level](label, {
+      extra: { total: totalCount, idle: idleCount, active: activeCount, waiting: waitingCount, max: poolMax, utilization: `${((activeCount / poolMax) * 100).toFixed(0)}%` },
     });
   }
 });
@@ -137,6 +143,52 @@ function extractQueryText(firstArg: unknown): string {
   return '';
 }
 
+const CONNECTION_HOLD_WARN_MS = 10_000;
+const CONNECTION_HOLD_ERROR_MS = 25_000;
+
+interface CheckoutInfo {
+  checkedOutAt: number;
+  stack: string;
+  warnedAt: number;
+  erroredAt: number;
+}
+
+const activeCheckouts = new Map<PoolClient, CheckoutInfo>();
+const wrappedClients = new WeakSet<PoolClient>();
+
+function trackCheckout(client: PoolClient): void {
+  const stack = new Error().stack?.split('\n').slice(2, 6).join('\n') || 'unknown';
+  activeCheckouts.set(client, { checkedOutAt: Date.now(), stack, warnedAt: 0, erroredAt: 0 });
+
+  if (!wrappedClients.has(client)) {
+    wrappedClients.add(client);
+    const originalRelease = client.release.bind(client);
+    client.release = function trackedRelease(err?: boolean | Error) {
+      activeCheckouts.delete(client);
+      return originalRelease(err);
+    } as typeof client.release;
+  }
+}
+
+const holdTimeWatchdogTimer = setInterval(() => {
+  const now = Date.now();
+  activeCheckouts.forEach((info) => {
+    const holdMs = now - info.checkedOutAt;
+    if (holdMs >= CONNECTION_HOLD_ERROR_MS && now - info.erroredAt > 30_000) {
+      info.erroredAt = now;
+      logger.error('[Database] Connection held too long — possible leak', {
+        extra: { holdMs, stack: info.stack, activeCheckouts: activeCheckouts.size },
+      });
+    } else if (holdMs >= CONNECTION_HOLD_WARN_MS && info.warnedAt === 0) {
+      info.warnedAt = now;
+      logger.warn('[Database] Long-held connection detected', {
+        extra: { holdMs, stack: info.stack, activeCheckouts: activeCheckouts.size },
+      });
+    }
+  });
+}, 5_000);
+holdTimeWatchdogTimer.unref();
+
 function createInstrumentedPool(targetPool: Pool): Pool {
   const originalConnect = targetPool.connect.bind(targetPool);
   const wrappedConnect: typeof targetPool.connect = function connect(
@@ -144,16 +196,22 @@ function createInstrumentedPool(targetPool: Pool): Pool {
   ) {
     if (callback) {
       return originalConnect((err: Error | undefined, client: PoolClient | undefined, done: (release?: any) => void) => {
-        if (!err && client && isPerformanceEnabled()) {
-          instrumentClient(client);
+        if (!err && client) {
+          trackCheckout(client);
+          if (isPerformanceEnabled()) instrumentClient(client);
+          const trackedDone = (release?: any) => {
+            activeCheckouts.delete(client);
+            done(release);
+          };
+          callback(err, client, trackedDone);
+          return;
         }
         callback(err, client, done);
       });
     }
     return (originalConnect() as Promise<PoolClient>).then((client: PoolClient) => {
-      if (isPerformanceEnabled()) {
-        instrumentClient(client);
-      }
+      trackCheckout(client);
+      if (isPerformanceEnabled()) instrumentClient(client);
       return client;
     });
   } as typeof targetPool.connect;
@@ -402,26 +460,29 @@ export async function queryWithRetryDirect<T extends QueryResultRow = Record<str
 }
 
 export function getPoolStatus() {
+  const active = pool.totalCount - pool.idleCount;
   return {
     total: pool.totalCount,
     idle: pool.idleCount,
     waiting: pool.waitingCount,
-    active: pool.totalCount - pool.idleCount,
+    active,
     max: poolMax,
+    checkedOut: activeCheckouts.size,
+    utilization: poolMax > 0 ? `${((active / poolMax) * 100).toFixed(0)}%` : '0%',
   };
 }
 
-const POOL_MONITOR_INTERVAL_MS = isProduction ? 60_000 : 300_000;
+const POOL_MONITOR_INTERVAL_MS = 60_000;
 const poolMonitorTimer = setInterval(() => {
   const { totalCount, idleCount, waitingCount } = basePool;
   const active = totalCount - idleCount;
   const utilization = poolMax > 0 ? ((active / poolMax) * 100).toFixed(1) : '0';
   logger.info('[Database] Pool utilization', {
-    extra: { total: totalCount, idle: idleCount, active, waiting: waitingCount, max: poolMax, utilization: `${utilization}%` },
+    extra: { total: totalCount, idle: idleCount, active, waiting: waitingCount, max: poolMax, utilization: `${utilization}%`, checkedOut: activeCheckouts.size },
   });
   if (waitingCount > 0) {
     logger.warn('[Database] Clients waiting for connections', {
-      extra: { waiting: waitingCount, active, max: poolMax },
+      extra: { waiting: waitingCount, active, max: poolMax, checkedOut: activeCheckouts.size },
     });
   }
 }, POOL_MONITOR_INTERVAL_MS);
@@ -432,5 +493,45 @@ export function safeRelease(client: PoolClient): void {
     client.release();
   } catch {
     // Already released or pool destroyed — safe to ignore
+  }
+}
+
+const DEFAULT_WITH_CONNECTION_TIMEOUT_MS = 15_000;
+
+export async function withConnection<T>(
+  fn: (client: PoolClient) => Promise<T>,
+  options?: { timeoutMs?: number; targetPool?: Pool }
+): Promise<T> {
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_WITH_CONNECTION_TIMEOUT_MS;
+  const targetPool = options?.targetPool ?? pool;
+  const client = await targetPool.connect();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let released = false;
+
+  const release = () => {
+    if (!released) {
+      released = true;
+      if (timer) clearTimeout(timer);
+      safeRelease(client);
+    }
+  };
+
+  try {
+    const resultPromise = fn(client);
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        release();
+        reject(new Error(`[Database] withConnection timed out after ${timeoutMs}ms — connection forcibly released`));
+      }, timeoutMs);
+      timer.unref();
+    });
+
+    return await Promise.race([resultPromise, timeoutPromise]);
+  } catch (error) {
+    release();
+    throw error;
+  } finally {
+    release();
   }
 }
