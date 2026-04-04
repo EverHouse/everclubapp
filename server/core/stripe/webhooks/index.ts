@@ -338,7 +338,48 @@ export async function processStripeWebhook(
       );
     }
     logger.error(`[Stripe Webhook] Handler failed for ${event.type} (${event.id})${isCommitted ? ' (post-commit deferred actions)' : ', rolled back'}:`, { extra: { error: getErrorMessage(handlerError) } });
-    if (!isCommitted) throw handlerError;
+
+    if (!isCommitted) {
+      const errorMsg = getErrorMessage(handlerError);
+      const isOutOfOrder = errorMsg.includes('Event out of order');
+      const isTransient = errorMsg.includes('ECONNREFUSED') ||
+        errorMsg.includes('ETIMEDOUT') ||
+        errorMsg.includes('connection') ||
+        errorMsg.includes('timeout') ||
+        errorMsg.includes('pool') ||
+        errorMsg.includes('ENOTFOUND') ||
+        isOutOfOrder;
+
+      if (isTransient) {
+        throw handlerError;
+      }
+
+      try {
+        const markClient = await pool.connect();
+        try {
+          await markClient.query(
+            `INSERT INTO webhook_processed_events (event_id, event_type, resource_id, processed_at)
+             VALUES ($1, $2, $3, NOW())
+             ON CONFLICT (event_id) DO NOTHING`,
+            [event.id, event.type, resourceId]
+          );
+          await markClient.query(
+            `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (event_id) DO UPDATE SET
+               reason = webhook_dead_letter_queue.reason || E'\n' || EXCLUDED.reason,
+               event_payload = EXCLUDED.event_payload`,
+            [event.id, event.type, resourceId || null, `fatal_handler_error: ${errorMsg}`, payloadString]
+          );
+          logger.warn(`[Stripe Webhook] Fatal business logic error for ${event.id} (${event.type}) — marked as processed and written to DLQ to prevent infinite retries`);
+        } finally {
+          safeRelease(markClient);
+        }
+      } catch (markErr) {
+        logger.error(`[Stripe Webhook] Failed to mark fatal event ${event.id} as processed — will retry on next Stripe delivery`, { extra: { error: getErrorMessage(markErr) } });
+        throw handlerError;
+      }
+    }
   } finally {
     if (!clientReleased) safeRelease(client);
   }

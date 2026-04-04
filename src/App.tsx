@@ -25,6 +25,7 @@ import WalkingGolferLoader from './components/WalkingGolferLoader';
 import { useNotificationSounds } from './hooks/useNotificationSounds';
 import { useNotificationStore } from './stores/notificationStore';
 import { useKeyboardDetection } from './hooks/useKeyboardDetection';
+import { useVisibilityQuerySync } from './hooks/useVisibilityQuerySync';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useSupabaseRealtime } from './hooks/useSupabaseRealtime';
 import UpdateNotification from './components/UpdateNotification';
@@ -615,6 +616,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   
   useDebugLayout();
   useKeyboardDetection();
+  useVisibilityQuerySync();
 
   // Route classification (used by layout)
   const isMemberRoute = ['/dashboard', '/book', '/events', '/wellness', '/profile', '/updates', '/history'].some(path => location.pathname.startsWith(path));

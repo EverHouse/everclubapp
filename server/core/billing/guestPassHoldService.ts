@@ -98,7 +98,7 @@ export async function createGuestPassHold(
     `);
 
     await executor.execute(sql`
-      SELECT id FROM guest_passes WHERE LOWER(member_email) = ${emailLower} ORDER BY id ASC FOR UPDATE
+      SELECT id FROM guest_passes WHERE LOWER(member_email) = ${emailLower} ORDER BY id ASC FOR UPDATE NOWAIT
     `);
     
     const available = await getAvailableGuestPasses(emailLower, undefined, executor);
