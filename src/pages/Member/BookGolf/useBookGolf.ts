@@ -56,10 +56,10 @@ export function useBookGolf() {
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [resourcesRef] = useAutoAnimate();
-  const [errorRef] = useAutoAnimate();
+  const errorRef = useRef<HTMLDivElement>(null);
   const [playerSlotRef] = useAutoAnimate();
-  const [feeRef] = useAutoAnimate();
-  const [timeSlotsAnimRef] = useAutoAnimate();
+  const feeRef = useRef<HTMLDivElement>(null);
+  const timeSlotsAnimRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
   const [showViewAsConfirm, setShowViewAsConfirm] = useState(false);
   const [expandedHour, setExpandedHour] = useState<string | null>(null);

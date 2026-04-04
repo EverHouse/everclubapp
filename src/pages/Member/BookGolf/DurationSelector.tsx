@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { haptic } from '../../../utils/haptics';
 
 interface DurationSelectorProps {
@@ -24,10 +25,13 @@ const getSimulatorDurations = (players: number): number[] => {
   }
 };
 
+const springTransition = { type: 'spring' as const, stiffness: 500, damping: 30, mass: 0.8 };
+
 const DurationSelector: React.FC<DurationSelectorProps> = ({
   activeTab, playerCount, duration, setDuration, setExpandedHour, setHasUserSelectedDuration,
   isDark, usedMinutesForDay, overageRatePerBlockDollars, tierPermissions,
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   const baseDurations = activeTab === 'simulator'
     ? getSimulatorDurations(playerCount)
     : [30, 60, 90, 120, 150, 180, 210, 240];
@@ -55,38 +59,57 @@ const DurationSelector: React.FC<DurationSelectorProps> = ({
         const overageBlocks = Math.ceil(overageMinutes / 30);
         const overageFee = overageBlocks * overageRatePerBlockDollars;
         const hasOverage = overageMinutes > 0;
+        const isSelected = duration === mins;
 
         return (
           <button
             key={mins}
             onClick={() => { haptic.selection(); setDuration(mins); setExpandedHour(null); setHasUserSelectedDuration(true); }}
-            aria-pressed={duration === mins}
-            className={`relative p-3 rounded-[4px] border transition-interactive duration-fast ease-spring-smooth active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
-              duration === mins
+            aria-pressed={isSelected}
+            className={`relative p-3 rounded-[4px] border transition-colors duration-150 active:scale-95 focus:ring-2 focus:ring-accent focus:outline-none ${
+              isSelected
                 ? (isDark ? 'bg-white text-primary border-white' : 'bg-primary text-white border-primary')
                 : isLowTime
                   ? (isDark ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
                   : (isDark ? 'bg-transparent border-white/20 text-white/80 hover:bg-white/5' : 'bg-white border-black/10 text-primary/80 hover:bg-black/5')
             }`}
           >
-            <div className="text-lg font-bold">{mins}m</div>
-            {activeTab === 'simulator' && (
-              <div className={`text-[10px] ${duration === mins ? 'opacity-80' : 'opacity-60'}`}>
-                {perPersonMins} min each
-              </div>
+            {isSelected && (
+              <motion.div
+                layoutId={`duration-selected-${activeTab}`}
+                className={`absolute inset-0 rounded-[4px] ${isDark ? 'bg-white' : 'bg-primary'}`}
+                transition={prefersReducedMotion ? { duration: 0 } : springTransition}
+                style={{ zIndex: 0 }}
+              />
             )}
-            {isLowTime && duration !== mins && (
-              <div className="text-[9px] mt-1 opacity-80">
-                Rec: {recommendedMins}m+
-              </div>
-            )}
-            {hasOverage && duration !== mins && (
-              <div className={`absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                isDark ? 'bg-amber-500 text-black' : 'bg-amber-500 text-white'
-              }`}>
-                ${overageFee}
-              </div>
-            )}
+            <div className="relative z-10">
+              <div className="text-lg font-bold">{mins}m</div>
+              {activeTab === 'simulator' && (
+                <div className={`text-[10px] ${isSelected ? 'opacity-80' : 'opacity-60'}`}>
+                  {perPersonMins} min each
+                </div>
+              )}
+              {isLowTime && !isSelected && (
+                <div className="text-[9px] mt-1 opacity-80">
+                  Rec: {recommendedMins}m+
+                </div>
+              )}
+            </div>
+            <AnimatePresence>
+              {hasOverage && !isSelected && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={prefersReducedMotion ? { duration: 0 } : springTransition}
+                  className={`absolute -top-2 -right-2 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                    isDark ? 'bg-amber-500 text-black' : 'bg-amber-500 text-white'
+                  }`}
+                >
+                  ${overageFee}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </button>
         );
       })}

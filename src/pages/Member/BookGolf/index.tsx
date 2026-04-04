@@ -1,10 +1,10 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion, LayoutGroup } from 'framer-motion';
 import { SegmentedButton } from '../../../components/ui/SegmentedButton';
 import SwipeablePage from '../../../components/SwipeablePage';
 import { haptic } from '../../../utils/haptics';
 import PlayerSlotEditor from '../../../components/shared/PlayerSlotEditor';
 import { AnimatedPage } from '../../../components/motion';
-import { TabTransition } from '../../../components/motion/TabTransition';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import DatePickerStrip from './DatePickerStrip';
 import ResourceCard from './ResourceCard';
@@ -16,7 +16,17 @@ import BookingModals from './BookingModals';
 import BookingFooter from './BookingFooter';
 import Icon from '../../../components/icons/Icon';
 
+const sectionSpring = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const instantTransition = { duration: 0 };
+
 const BookGolf: React.FC = () => {
+  const prefersReducedMotion = useReducedMotion();
+  const sectionReveal = {
+    initial: { opacity: 0, y: prefersReducedMotion ? 0 : 12 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: prefersReducedMotion ? 0 : -8 },
+    transition: prefersReducedMotion ? instantTransition : sectionSpring,
+  };
   const state = useBookGolf();
 
   const {
@@ -100,26 +110,37 @@ const BookGolf: React.FC = () => {
             </a>
           </section>
         ) : (
-          <TabTransition activeKey={activeTab}>
+          <LayoutGroup>
           <div className="relative z-10 space-y-6">
-            {activeTab === 'simulator' && (
-              <div ref={playerSlotRef}>
-                <PlayerSlotEditor
-                  playerCount={playerCount}
-                  onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}
-                  slots={playerSlots}
-                  onSlotsChange={setPlayerSlots}
-                  guestPassesRemaining={guestPassInfo?.passes_remaining}
-                  isDark={isDark}
-                  privacyMode={true}
-                  maxPlayers={4}
-                  showPlayerCountSelector={true}
-                  ownerMemberId={effectiveUser?.id}
-                />
-              </div>
-            )}
+            <AnimatePresence>
+              {activeTab === 'simulator' && (
+                <motion.div
+                  key="player-slot-editor"
+                  layout={prefersReducedMotion ? false : "position"}
+                  ref={playerSlotRef}
+                  initial={{ height: 0 }}
+                  animate={{ height: 'auto' }}
+                  exit={{ height: 0 }}
+                  transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  className="overflow-hidden"
+                >
+                  <PlayerSlotEditor
+                    playerCount={playerCount}
+                    onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}
+                    slots={playerSlots}
+                    onSlotsChange={setPlayerSlots}
+                    guestPassesRemaining={guestPassInfo?.passes_remaining}
+                    isDark={isDark}
+                    privacyMode={true}
+                    maxPlayers={4}
+                    showPlayerCountSelector={true}
+                    ownerMemberId={effectiveUser?.id}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <section>
+            <motion.section layout={prefersReducedMotion ? false : "position"}>
               <div className="flex items-center justify-between mb-1">
                 <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>Date & Duration</span>
               </div>
@@ -130,7 +151,7 @@ const BookGolf: React.FC = () => {
                   onSelectDate={(d) => { setSelectedDateObj(d); setExpandedHour(null); }}
                   isDark={isDark}
                 />
-                <div className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
+                <motion.div layout={prefersReducedMotion ? false : "position"} className={`grid ${activeTab === 'simulator' ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
                   <DurationSelector
                     activeTab={activeTab}
                     playerCount={playerCount}
@@ -143,33 +164,56 @@ const BookGolf: React.FC = () => {
                     overageRatePerBlockDollars={overageRatePerBlockDollars}
                     tierPermissions={tierPermissions}
                   />
-                </div>
+                </motion.div>
               </div>
-            </section>
+            </motion.section>
 
-            <div className={`border-t my-2 ${isDark ? 'border-white/10' : 'border-black/5'}`} />
+            <motion.div layout={prefersReducedMotion ? false : "position"} className={`border-t my-2 ${isDark ? 'border-white/10' : 'border-black/5'}`} />
 
-            <div ref={errorRef}>
-              {error && (
-                <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
-                  <Icon name="error" />
-                  {error}
-                </div>
+            <motion.div layout={prefersReducedMotion ? false : "position"} ref={errorRef}>
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    key="error-msg"
+                    initial={{ height: 0 }}
+                    animate={{ height: 'auto' }}
+                    exit={{ height: 0 }}
+                    transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
+                      <Icon name="error" />
+                      {error}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            <AnimatePresence>
+              {activeTab === 'simulator' && (
+                <motion.div
+                  key="existing-bookings"
+                  layout={prefersReducedMotion ? false : "position"}
+                  initial={{ height: 0 }}
+                  animate={{ height: 'auto' }}
+                  exit={{ height: 0 }}
+                  transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  className="overflow-hidden"
+                >
+                  <ExistingBookings
+                    bookings={memberBayBookingsForDay}
+                    isDark={isDark}
+                    walletPassAvailable={walletPassAvailable}
+                    walletPassDownloading={walletPassDownloading}
+                    setWalletPassDownloading={setWalletPassDownloading}
+                    setCancelTargetBooking={setCancelTargetBooking}
+                    setShowCancelConfirm={setShowCancelConfirm}
+                    showToast={showToast}
+                  />
+                </motion.div>
               )}
-            </div>
-
-            {activeTab === 'simulator' && (
-              <ExistingBookings
-                bookings={memberBayBookingsForDay}
-                isDark={isDark}
-                walletPassAvailable={walletPassAvailable}
-                walletPassDownloading={walletPassDownloading}
-                setWalletPassDownloading={setWalletPassDownloading}
-                setCancelTargetBooking={setCancelTargetBooking}
-                setShowCancelConfirm={setShowCancelConfirm}
-                showToast={showToast}
-              />
-            )}
+            </AnimatePresence>
 
             <BookingModals
               isDark={isDark}
@@ -193,17 +237,30 @@ const BookGolf: React.FC = () => {
               playerSlots={playerSlots}
             />
 
-            {activeTab === 'conference' && memberBayBookingsForDay.length > 0 && (
-              <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
-                <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
-                  <Icon name="info" className="text-lg" />
-                  Time slots during your {memberBayBookingsForDay.length > 1 ? 'bay bookings' : 'bay booking'} ({memberBayBookingsForDay.map(b => `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`).join(', ')}) are unavailable
-                </p>
-              </div>
-            )}
+            <AnimatePresence>
+              {activeTab === 'conference' && memberBayBookingsForDay.length > 0 && (
+                <motion.div
+                  key="conference-conflict-notice"
+                  layout={prefersReducedMotion ? false : "position"}
+                  initial={{ height: 0 }}
+                  animate={{ height: 'auto' }}
+                  exit={{ height: 0 }}
+                  transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  className="overflow-hidden"
+                >
+                  <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+                    <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
+                      <Icon name="info" className="text-lg" />
+                      Time slots during your {memberBayBookingsForDay.length > 1 ? 'bay bookings' : 'bay booking'} ({memberBayBookingsForDay.map(b => `${formatTime12Hour(b.start_time)} - ${formatTime12Hour(b.end_time)}`).join(', ')}) are unavailable
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {(activeTab !== 'simulator' || !isAtDailyLimit) && (
               <>
+              <motion.div layout={prefersReducedMotion ? false : "position"}>
               <TimeSlotsSection
                 slotsByHour={slotsByHour}
                 selectedSlot={selectedSlot}
@@ -220,60 +277,75 @@ const BookGolf: React.FC = () => {
                 timeSlotsRef={timeSlotsRef}
                 timeSlotsAnimRef={timeSlotsAnimRef}
               />
+              </motion.div>
 
-              {selectedSlot && (
-                <section ref={baySelectionRef} className="animate-pop-in">
-                  <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
-                    {activeTab === 'simulator' ? 'Facility' : 'Select Room'}
-                  </h3>
-                  <div ref={resourcesRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {getAvailableResourcesForSlot(selectedSlot).map((resource) => (
-                      <div key={resource.id}>
-                        <ResourceCard
-                          resource={resource}
-                          selected={selectedResource?.id === resource.id}
-                          onClick={() => { haptic.medium(); setSelectedResource(resource); }}
-                          isDark={isDark}
-                        />
-                      </div>
-                    ))}
-                    {resources
-                      .filter(r => selectedSlot.requestedResourceDbIds.includes(r.dbId) && !selectedSlot.availableResourceDbIds.includes(r.dbId))
-                      .map((resource) => (
-                        <div key={`requested-${resource.id}`}>
-                          <ResourceCard resource={resource} selected={false} onClick={() => {}} isDark={isDark} requested />
+              <AnimatePresence mode="wait">
+                {selectedSlot && (
+                  <motion.section
+                    key="bay-selection"
+                    ref={baySelectionRef}
+                    layout={prefersReducedMotion ? false : "position"}
+                    {...sectionReveal}
+                  >
+                    <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
+                      {activeTab === 'simulator' ? 'Facility' : 'Select Room'}
+                    </h3>
+                    <div ref={resourcesRef} className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {getAvailableResourcesForSlot(selectedSlot).map((resource) => (
+                        <div key={resource.id}>
+                          <ResourceCard
+                            resource={resource}
+                            selected={selectedResource?.id === resource.id}
+                            onClick={() => { haptic.medium(); setSelectedResource(resource); }}
+                            isDark={isDark}
+                          />
                         </div>
                       ))}
-                  </div>
-                </section>
-              )}
-
-              {selectedResource && (
-                <section className={`animate-content-enter ${activeTab === 'conference' ? (conferencePaymentRequired && conferenceOverageFee > 0 ? 'pb-96' : 'pb-56') : 'pb-32'}`}>
-                  <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
-                    Notes for Staff <span className="font-normal opacity-60">(optional)</span>
-                  </h3>
-                  <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-white/20 bg-black/20' : 'border-black/10 bg-white'}`}>
-                    <textarea
-                      value={memberNotes}
-                      onChange={(e) => setMemberNotes(e.target.value.slice(0, 280))}
-                      placeholder="Any special requests or information for staff..."
-                      maxLength={280}
-                      rows={3}
-                      className={`w-full p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset ${
-                        isDark ? 'bg-transparent text-white placeholder:text-white/40' : 'bg-transparent text-primary placeholder:text-primary/40'
-                      }`}
-                    />
-                    <div className={`px-4 py-2 text-xs text-right border-t ${isDark ? 'border-white/10 text-white/50' : 'border-black/5 text-primary/50'}`}>
-                      {memberNotes.length}/280
+                      {resources
+                        .filter(r => selectedSlot.requestedResourceDbIds.includes(r.dbId) && !selectedSlot.availableResourceDbIds.includes(r.dbId))
+                        .map((resource) => (
+                          <div key={`requested-${resource.id}`}>
+                            <ResourceCard resource={resource} selected={false} onClick={() => {}} isDark={isDark} requested />
+                          </div>
+                        ))}
                     </div>
-                  </div>
-                </section>
-              )}
+                  </motion.section>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {selectedResource && (
+                  <motion.section
+                    key="notes-section"
+                    layout={prefersReducedMotion ? false : "position"}
+                    {...sectionReveal}
+                    className={activeTab === 'conference' ? (conferencePaymentRequired && conferenceOverageFee > 0 ? 'pb-96' : 'pb-56') : 'pb-32'}
+                  >
+                    <h3 className={`text-[11px] font-bold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/80' : 'text-primary/80'}`} style={{ fontFamily: 'var(--font-label)' }}>
+                      Notes for Staff <span className="font-normal opacity-60">(optional)</span>
+                    </h3>
+                    <div className={`rounded-xl border overflow-hidden ${isDark ? 'border-white/20 bg-black/20' : 'border-black/10 bg-white'}`}>
+                      <textarea
+                        value={memberNotes}
+                        onChange={(e) => setMemberNotes(e.target.value.slice(0, 280))}
+                        placeholder="Any special requests or information for staff..."
+                        maxLength={280}
+                        rows={3}
+                        className={`w-full p-4 resize-none focus:outline-none focus:ring-2 focus:ring-accent focus:ring-inset ${
+                          isDark ? 'bg-transparent text-white placeholder:text-white/40' : 'bg-transparent text-primary placeholder:text-primary/40'
+                        }`}
+                      />
+                      <div className={`px-4 py-2 text-xs text-right border-t ${isDark ? 'border-white/10 text-white/50' : 'border-black/5 text-primary/50'}`}>
+                        {memberNotes.length}/280
+                      </div>
+                    </div>
+                  </motion.section>
+                )}
+              </AnimatePresence>
               </>
             )}
           </div>
-          </TabTransition>
+          </LayoutGroup>
         )}
         </>
       )}
