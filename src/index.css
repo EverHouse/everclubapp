@@ -3287,34 +3287,21 @@ body[data-ptr-active="true"]:has(.ptr-refresh-overlay) header[role="banner"] {
   object-fit: contain;
 }
 
-.ptr-refresh-text-wrapper {
-  position: relative;
-  min-height: 1.5em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .ptr-refresh-text {
   font-family: 'Newsreader', serif;
   font-style: italic;
   font-size: 1.1rem;
   font-weight: 400;
   color: rgba(255,255,255,0.85);
-  transition: opacity 0.35s ease;
 }
 
-.ptr-done-text {
-  position: absolute;
-  opacity: 0;
+.ptr-refresh-text--animate {
+  animation: ptrTextCrossfade 0.35s ease both;
 }
 
-.ptr-refresh-text.ptr-text-fade-out {
-  opacity: 0;
-}
-
-.ptr-done-text.ptr-text-fade-in {
-  opacity: 1;
+@keyframes ptrTextCrossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Confetti Celebration */

@@ -496,14 +496,12 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             width={48}
             height={48}
           />
-          <div className="ptr-refresh-text-wrapper">
-            <span className={`ptr-refresh-text ${refreshPhase === 'done' ? 'ptr-text-fade-out' : ''}`}>
-              {refreshMessage}
-            </span>
-            <span className={`ptr-refresh-text ptr-done-text ${refreshPhase === 'done' ? 'ptr-text-fade-in' : ''}`}>
-              Done ✓
-            </span>
-          </div>
+          <span
+            key={refreshPhase === 'done' ? 'done' : 'loading'}
+            className="ptr-refresh-text ptr-refresh-text--animate"
+          >
+            {refreshPhase === 'done' ? 'Done ✓' : refreshMessage}
+          </span>
         </div>,
         document.body
       )}
