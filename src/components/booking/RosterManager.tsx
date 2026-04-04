@@ -528,11 +528,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-          isDark ? 'bg-white/10' : 'bg-black/5'
-        }`}>
-          <Icon name="person_outline" className={`text-xl ${isDark ? 'text-white/30' : 'text-[#293515]/30'}`} />
-        </div>
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium ${isDark ? 'text-white/50' : 'text-[#293515]/50'}`}>
             Guest (info pending)
