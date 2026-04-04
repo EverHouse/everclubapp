@@ -6,6 +6,7 @@ import { getSessionUser } from '../../types/session';
 import { validateBody } from '../../middleware/validate';
 import { staffManualBookingSchema } from '../../../shared/validators/manualBooking';
 import { createStaffManualBooking, ManualBookingValidationError, fireManualBookingPostCommitEffects } from '../../core/resource/staffActions';
+import { isConstraintError } from '../../core/db';
 
 const router = Router();
 
@@ -56,7 +57,6 @@ router.post('/api/staff/manual-booking', isStaffOrAdmin, validateBody(staffManua
       }
     );
   } catch (error: unknown) {
-    const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique' || constraint.type === 'exclusion') {
       return res.status(409).json({ error: 'This time slot was just booked by someone else. Please refresh and pick a different time.' });

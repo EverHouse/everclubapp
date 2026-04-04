@@ -142,16 +142,17 @@ export async function getMemberTierByEmail(email: string, options?: { allowInact
   }
 }
 
-export async function getDailyBookedMinutes(email: string, date: string, resourceType?: string): Promise<number> {
+export async function getDailyBookedMinutes(email: string, date: string, resourceType?: string, tx?: { execute: typeof db.execute }): Promise<number> {
   try {
     const normalizedDate = normalizeToISODate(date);
+    const dbClient = tx || db;
     
     const resourceFilter = resourceType ? sql`AND EXISTS (
           SELECT 1 FROM resources r 
           WHERE r.id = br.resource_id AND r.type = ${resourceType}
         )` : sql``;
     
-    const result = await db.execute(sql`
+    const result = await dbClient.execute(sql`
       SELECT COALESCE(SUM(br.duration_minutes), 0) as total_minutes
       FROM booking_requests br
       WHERE (LOWER(br.user_email) = LOWER(${email})
@@ -168,14 +169,15 @@ export async function getDailyBookedMinutes(email: string, date: string, resourc
   }
 }
 
-export async function getDailyParticipantMinutes(email: string, date: string, excludeBookingId?: number, resourceType?: string): Promise<number> {
+export async function getDailyParticipantMinutes(email: string, date: string, excludeBookingId?: number, resourceType?: string, tx?: { execute: typeof db.execute }): Promise<number> {
   try {
     const normalizedDate = normalizeToISODate(date);
+    const dbClient = tx || db;
 
     const excludeClause = excludeBookingId ? sql`AND br.id != ${excludeBookingId}` : sql``;
     const resourceTypeClause = resourceType ? sql`AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = ${resourceType})` : sql``;
 
-    const participantsResult = await db.execute(sql`SELECT COALESCE(SUM(
+    const participantsResult = await dbClient.execute(sql`SELECT COALESCE(SUM(
          br.duration_minutes::float / GREATEST(
            COALESCE(
              NULLIF(br.declared_player_count, 0),
@@ -208,14 +210,16 @@ export async function getTotalDailyUsageMinutes(
   email: string, 
   date: string, 
   excludeBookingId?: number,
-  resourceType?: string
+  resourceType?: string,
+  tx?: { execute: typeof db.execute }
 ): Promise<{ ownerMinutes: number; participantMinutes: number; totalMinutes: number }> {
   try {
+    const dbClient = tx || db;
     const ownerExcludeClause = excludeBookingId ? sql`AND id != ${excludeBookingId}` : sql``;
     const ownerResourceTypeClause = resourceType ? sql`AND EXISTS (SELECT 1 FROM resources r WHERE r.id = br.resource_id AND r.type = ${resourceType})` : sql``;
 
     const [ownerResult, participantMinutes] = await Promise.all([
-      db.execute(sql`SELECT COALESCE(SUM(
+      dbClient.execute(sql`SELECT COALESCE(SUM(
            duration_minutes::float / GREATEST(
              COALESCE(
                NULLIF(declared_player_count, 0),
@@ -234,7 +238,7 @@ export async function getTotalDailyUsageMinutes(
            AND status IN ('pending', 'approved')
            ${ownerExcludeClause}
            ${ownerResourceTypeClause}`),
-      getDailyParticipantMinutes(email, date, excludeBookingId, resourceType)
+      getDailyParticipantMinutes(email, date, excludeBookingId, resourceType, tx)
     ]);
 
     const ownerMinutes = parseFloat((ownerResult.rows[0] as unknown as TotalMinutesRow).total_minutes) || 0;
@@ -255,7 +259,8 @@ export async function checkDailyBookingLimit(
   date: string, 
   requestedMinutes: number,
   _providedTier?: string,
-  resourceType?: string
+  resourceType?: string,
+  tx?: { execute: typeof db.execute }
 ): Promise<{ allowed: boolean; reason?: string; remainingMinutes?: number; overageMinutes?: number; includedMinutes?: number }> {
   const tier = await getMemberTierByEmail(email);
   
@@ -297,7 +302,7 @@ export async function checkDailyBookingLimit(
     return { allowed: true, remainingMinutes: 999, overageMinutes: 0, includedMinutes: requestedMinutes };
   }
   
-  const alreadyBooked = await getDailyBookedMinutes(email, date, resourceType);
+  const alreadyBooked = await getDailyBookedMinutes(email, date, resourceType, tx);
   const remainingMinutes = Math.max(0, dailyLimit - alreadyBooked);
   
   const includedMinutes = Math.min(requestedMinutes, remainingMinutes);

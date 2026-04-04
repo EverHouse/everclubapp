@@ -272,14 +272,15 @@ export async function checkParticipantDailyLimits(
   participants: SanitizedParticipant[],
   requestDate: string,
   durationMinutes: number,
-  resourceType: string
+  resourceType: string,
+  tx?: { execute: typeof db.execute }
 ): Promise<void> {
   const memberParticipants = participants.filter(p => p.type === 'member' && p.email && !p.isGuestPassParticipant);
   if (memberParticipants.length === 0) return;
 
   const results = await Promise.all(
     memberParticipants.map(async (participant) => {
-      const pLimitCheck = await checkDailyBookingLimit(participant.email, requestDate, durationMinutes, undefined, resourceType);
+      const pLimitCheck = await checkDailyBookingLimit(participant.email, requestDate, durationMinutes, undefined, resourceType, tx);
       return { participant, pLimitCheck };
     })
   );

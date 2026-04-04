@@ -4,6 +4,7 @@ import { logAndRespond, logger } from '../../core/logger';
 import { logFromRequest } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
 import { getErrorStatusCode, getErrorMessage } from '../../utils/errorUtils';
+import { isConstraintError } from '../../core/db';
 import {
   validateTrackmanId,
   approveBooking,
@@ -134,7 +135,6 @@ router.put('/api/booking-requests/:id', isStaffOrAdmin, async (req, res) => {
         message: getErrorMessage(error)
       });
     }
-    const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique') {
       return res.status(409).json({ error: 'This booking may have already been processed. Please refresh and try again.' });

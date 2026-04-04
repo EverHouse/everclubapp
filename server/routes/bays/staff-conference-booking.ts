@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { pool, safeRelease } from '../../core/db';
+import { pool, safeRelease, isConstraintError } from '../../core/db';
 import { db } from '../../db';
 import { sql } from 'drizzle-orm';
 import { isStaffOrAdmin } from '../../core/middleware';
@@ -382,7 +382,6 @@ router.post('/api/staff/conference-room/booking', isStaffOrAdmin, async (req: Re
       safeRelease(client);
     }
   } catch (error: unknown) {
-    const { isConstraintError } = await import('../../core/db');
     const constraint = isConstraintError(error);
     if (constraint.type === 'unique' || constraint.type === 'exclusion') {
       return res.status(409).json({ error: 'This time slot was just booked by someone else. Please refresh and pick a different time.' });

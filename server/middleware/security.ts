@@ -4,6 +4,22 @@ import { logger } from '../core/logger';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+const defaultEverclubSubdomains = ['everclub.app', 'www.everclub.app', 'api.everclub.app', 'admin.everclub.app'];
+const envSubdomains = (process.env.ALLOWED_EVERCLUB_SUBDOMAINS || '')
+  .split(',')
+  .map(s => {
+    const trimmed = s.trim().toLowerCase();
+    if (!trimmed) return '';
+    try {
+      const urlString = trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+      return new URL(urlString).hostname;
+    } catch {
+      return trimmed;
+    }
+  })
+  .filter(Boolean);
+const allowedEverclubSubdomains = new Set([...defaultEverclubSubdomains, ...envSubdomains]);
+
 const cachedAllowedHostnames: string[] = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(o => {
@@ -34,7 +50,7 @@ function isAllowedOrigin(origin: string): boolean {
     }
 
     if (cachedAllowedHostnames.includes(hostname)) return true;
-    if (hostname === 'everclub.app' || hostname.endsWith('.everclub.app')) return true;
+    if (allowedEverclubSubdomains.has(hostname)) return true;
     return false;
   } catch {
     return false;
