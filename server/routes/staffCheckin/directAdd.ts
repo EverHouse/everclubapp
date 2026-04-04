@@ -13,7 +13,6 @@ import { broadcastBookingRosterUpdate } from '../../core/websocket';
 import { ensureSessionForBooking, createOrFindGuest } from '../../core/bookingService/sessionManager';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { numericIdParam } from '../../middleware/paramSchemas';
-import { toIntArrayLiteral } from '../../utils/sqlArrayLiteral';
 import { syncBookingInvoice } from '../../core/billing/bookingInvoiceService';
 import { processWalkInCheckin } from '../../core/walkInCheckinService';
 import type {
@@ -136,17 +135,32 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
           });
         }
 
-        const matchingGuest = await db.execute(sql`SELECT bp.id, bp.display_name
+        const emailMatchGuest = await db.execute(sql`SELECT bp.id, bp.display_name
            FROM booking_participants bp
            LEFT JOIN guests g ON bp.guest_id = g.id
            WHERE bp.session_id = ${sessionId} 
              AND bp.participant_type = 'guest'
-             AND (LOWER(bp.display_name) = LOWER(${matchedMember.display_name}) OR LOWER(g.email) = LOWER(${matchedMember.email}))`);
-        
-        if (matchingGuest.rows.length > 0) {
-          const guestIds = (matchingGuest.rows as unknown as { id: number }[]).map(r => r.id);
-          await db.execute(sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(guestIds)}::int[])`);
-          logger.info('[Staff Add Guest->Member] Removed duplicate guest entries for matched member', { extra: { guestIdsLength: guestIds.length, memberEmail: matchedMember.email, sessionId } });
+             AND LOWER(g.email) = LOWER(${matchedMember.email})
+           LIMIT 1`);
+
+        if (emailMatchGuest.rows.length > 0) {
+          const guestId = (emailMatchGuest.rows[0] as unknown as { id: number }).id;
+          await db.execute(sql`DELETE FROM booking_participants WHERE id = ${guestId}`);
+          logger.info('[Staff Add Guest->Member] Removed duplicate guest entry by email match', { extra: { guestId, memberEmail: matchedMember.email, sessionId } });
+        } else {
+          const nameMatchGuest = await db.execute(sql`SELECT bp.id, bp.display_name
+             FROM booking_participants bp
+             WHERE bp.session_id = ${sessionId} 
+               AND bp.participant_type = 'guest'
+               AND LOWER(bp.display_name) = LOWER(${matchedMember.display_name})
+             ORDER BY bp.id DESC
+             LIMIT 1`);
+
+          if (nameMatchGuest.rows.length > 0) {
+            const guestId = (nameMatchGuest.rows[0] as unknown as { id: number }).id;
+            await db.execute(sql`DELETE FROM booking_participants WHERE id = ${guestId}`);
+            logger.info('[Staff Add Guest->Member] Removed duplicate guest entry by name match', { extra: { guestId, memberName: matchedMember.display_name, sessionId } });
+          }
         }
 
         await db.execute(sql`
@@ -369,19 +383,34 @@ router.post('/api/bookings/:id/staff-direct-add', isStaffOrAdmin, async (req: Re
         tierOverrideApplied = true;
       }
 
-      const matchingGuest = await db.execute(sql`SELECT bp.id, bp.display_name
+      const memberDisplayName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email;
+
+      const emailMatchGuest2 = await db.execute(sql`SELECT bp.id, bp.display_name
          FROM booking_participants bp
          LEFT JOIN guests g ON bp.guest_id = g.id
          WHERE bp.session_id = ${sessionId} 
            AND bp.participant_type = 'guest'
-           AND (LOWER(bp.display_name) = LOWER(${`${member.first_name || ''} ${member.last_name || ''}`.trim() || ''}) OR LOWER(g.email) = LOWER(${member.email}))`);
-      
-      const memberDisplayName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email;
+           AND LOWER(g.email) = LOWER(${member.email})
+         LIMIT 1`);
 
-      if (matchingGuest.rowCount && matchingGuest.rowCount > 0) {
-        const guestIds = (matchingGuest.rows as unknown as MatchingGuestRow[]).map(r => r.id);
-        await db.execute(sql`DELETE FROM booking_participants WHERE id = ANY(${toIntArrayLiteral(guestIds)}::int[])`);
-        logger.info('[Staff Add Member] Removed duplicate guest entries for member in session', { extra: { guestIdsLength: guestIds.length, memberEmail: member.email, sessionId } });
+      if (emailMatchGuest2.rows.length > 0) {
+        const guestId = (emailMatchGuest2.rows[0] as unknown as MatchingGuestRow).id;
+        await db.execute(sql`DELETE FROM booking_participants WHERE id = ${guestId}`);
+        logger.info('[Staff Add Member] Removed duplicate guest entry by email match', { extra: { guestId, memberEmail: member.email, sessionId } });
+      } else {
+        const nameMatchGuest2 = await db.execute(sql`SELECT bp.id, bp.display_name
+           FROM booking_participants bp
+           WHERE bp.session_id = ${sessionId} 
+             AND bp.participant_type = 'guest'
+             AND LOWER(bp.display_name) = LOWER(${memberDisplayName})
+           ORDER BY bp.id DESC
+           LIMIT 1`);
+
+        if (nameMatchGuest2.rows.length > 0) {
+          const guestId = (nameMatchGuest2.rows[0] as unknown as MatchingGuestRow).id;
+          await db.execute(sql`DELETE FROM booking_participants WHERE id = ${guestId}`);
+          logger.info('[Staff Add Member] Removed duplicate guest entry by name match', { extra: { guestId, memberName: memberDisplayName, sessionId } });
+        }
       }
       
       await db.execute(sql`
