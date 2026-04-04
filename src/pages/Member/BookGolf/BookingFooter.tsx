@@ -4,8 +4,9 @@ import MotionButton from '../../../components/ui/MotionButton';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import FeeBreakdownCard from '../../../components/shared/FeeBreakdownCard';
 import Icon from '../../../components/icons/Icon';
+import { springPresets } from '../../../utils/motion';
 
-const feeSpring = { type: 'spring' as const, stiffness: 400, damping: 28, mass: 0.8 };
+const feeSpring = springPresets.pill;
 const instantTransition = { duration: 0 };
 
 interface BookingFooterProps {

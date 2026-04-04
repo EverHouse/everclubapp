@@ -8,6 +8,7 @@ import ModalShell from '../../../components/ModalShell';
 import MetricsGrid from '../../../components/MetricsGrid';
 import type { GuestPasses, DashboardWellnessClass, DashboardEvent } from './dashboardTypes';
 import Icon from '../../../components/icons/Icon';
+import { springPresets } from '../../../utils/motion';
 import QRCode from 'qrcode';
 
 interface UserLike {
@@ -41,7 +42,7 @@ interface MembershipCardProps {
 }
 
 const TILT_MAX_DEG = 8;
-const SPRING_CONFIG = { stiffness: 300, damping: 25, mass: 0.5 };
+const SPRING_CONFIG = springPresets.tilt;
 const REST_X = 0.85;
 const REST_Y = 0.15;
 

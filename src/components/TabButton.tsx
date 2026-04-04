@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { haptic } from '../utils/haptics';
-import { useReducedMotion } from '../utils/motion';
+import { useReducedMotion, springPresets } from '../utils/motion';
 
 interface TabButtonProps {
   label: string;
@@ -22,7 +22,7 @@ const TabButton: React.FC<TabButtonProps> = ({ label, active, onClick, isDark = 
 
   const pillTransition = reducedMotion
     ? { duration: 0 }
-    : { type: 'spring' as const, stiffness: 400, damping: 28, mass: 0.8 };
+    : springPresets.pill;
 
   return (
     <button 

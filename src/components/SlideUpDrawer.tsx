@@ -4,7 +4,7 @@ import { motion, useMotionValue, useTransform, animate, type PanInfo } from 'fra
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useSafariThemeColor } from '../hooks/useSafariThemeColor';
-import { useReducedMotion } from '../utils/motion';
+import { useReducedMotion, springPresets } from '../utils/motion';
 import Icon from './icons/Icon';
 
 const BASE_DRAWER_Z_INDEX = 10000;
@@ -84,7 +84,7 @@ export function SlideUpDrawer({
     if (reducedMotion) {
       y.jump(0);
     } else {
-      animate(y, 0, { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 });
+      animate(y, 0, springPresets.sheet);
     }
 
     if (isModal) {
@@ -128,7 +128,7 @@ export function SlideUpDrawer({
       y.jump(height + 40);
       onCloseRef.current();
     } else {
-      animate(y, height + 40, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+      animate(y, height + 40, springPresets.sheetClose)
         .then(() => onCloseRef.current());
     }
   }, [dismissible, isClosing, y, reducedMotion]);
@@ -184,12 +184,12 @@ export function SlideUpDrawer({
   const handleDragEnd = useCallback((_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (!allowDragRef.current) {
       allowDragRef.current = true;
-      animate(y, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(y, 0, springPresets.snap);
       return;
     }
 
     if (!dismissible) {
-      animate(y, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(y, 0, springPresets.snap);
       return;
     }
 
@@ -204,14 +204,14 @@ export function SlideUpDrawer({
         y.jump(height + 40);
         onCloseRef.current();
       } else {
-        animate(y, height + 40, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+        animate(y, height + 40, springPresets.sheetClose)
           .then(() => onCloseRef.current());
       }
     } else {
       if (reducedMotion) {
         y.jump(0);
       } else {
-        animate(y, 0, { type: 'spring', stiffness: 500, damping: 30, mass: 0.5 });
+        animate(y, 0, springPresets.stiff);
       }
     }
   }, [dismissible, y, reducedMotion]);

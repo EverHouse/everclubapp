@@ -14,22 +14,23 @@ import { fetchWithCredentials, putWithCredentials, postWithCredentials } from '.
 import { TrackmanTabSkeleton } from '../../../components/skeletons';
 import TrackmanWebhookEventsSection from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
 import Icon from '../../../components/icons/Icon';
+import { springPresets } from '../../../utils/motion';
 
 const cardVariants = {
   initial: { opacity: 0, y: 20, scale: 0.97 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring' as const, stiffness: 400, damping: 30 } },
-  linking: { opacity: 0.7, scale: 0.98, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
-  exit: { opacity: 0, scale: 0.92, y: -16, transition: { type: 'spring' as const, stiffness: 300, damping: 28, duration: 0.35 } },
+  animate: { opacity: 1, y: 0, scale: 1, transition: springPresets.quick },
+  linking: { opacity: 0.7, scale: 0.98, transition: springPresets.ease },
+  exit: { opacity: 0, scale: 0.92, y: -16, transition: { ...springPresets.easeOut, duration: 0.35 } },
 };
 
 const rowVariants = {
   initial: { opacity: 0, x: -12 },
-  animate: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 30 } },
-  linking: { opacity: 0.6, x: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
-  exit: { opacity: 0, x: 20, transition: { type: 'spring' as const, stiffness: 300, damping: 28, duration: 0.3 } },
+  animate: { opacity: 1, x: 0, transition: springPresets.quick },
+  linking: { opacity: 0.6, x: 0, transition: springPresets.ease },
+  exit: { opacity: 0, x: 20, transition: { ...springPresets.easeOut, duration: 0.3 } },
 };
 
-const buttonTapSpring = { scale: 0.94, transition: { type: 'spring' as const, stiffness: 500, damping: 20 } };
+const buttonTapSpring = { scale: 0.94, transition: springPresets.buttonTapStiff };
 
 interface OptimisticAction {
   type: 'linking' | 'unlinking';
@@ -709,7 +710,7 @@ const TrackmanTab: React.FC = () => {
                             <motion.span
                               key={`mobile-status-${booking.id}-${booking.status}`}
                               initial={{ scale: 0.85, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1, transition: { type: 'spring' as const, stiffness: 500, damping: 25 } }}
+                              animate={{ scale: 1, opacity: 1, transition: springPresets.statusBadge }}
                               className={`text-xs px-2 py-1 rounded-full font-medium ${
                                 booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
                                 booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
@@ -800,7 +801,7 @@ const TrackmanTab: React.FC = () => {
                                 <motion.span
                                   key={`status-${booking.id}-${booking.status}`}
                                   initial={{ scale: 0.85, opacity: 0 }}
-                                  animate={{ scale: 1, opacity: 1, transition: { type: 'spring' as const, stiffness: 500, damping: 25 } }}
+                                  animate={{ scale: 1, opacity: 1, transition: springPresets.statusBadge }}
                                   className={`inline-block text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
                                     booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
                                     booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
@@ -914,7 +915,7 @@ const TrackmanTab: React.FC = () => {
                         <motion.span
                           key={`${booking.id}-${assignedCount}-${expectedCount}`}
                           initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 500, damping: 25 } }}
+                          animate={{ scale: 1, opacity: 1, transition: springPresets.statusBadge }}
                           className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                             isComplete 
                               ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' 

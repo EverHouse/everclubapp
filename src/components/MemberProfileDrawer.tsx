@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, useMotionValue, useTransform, animate, LayoutGroup } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../contexts/ThemeContext';
-import { useReducedMotion } from '../utils/motion';
+import { useReducedMotion, springPresets } from '../utils/motion';
 import { useBottomNav } from '../stores/bottomNavStore';
 import TierBadge from './TierBadge';
 import { formatPhoneNumber } from '../utils/formatting';
@@ -290,7 +290,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       x.jump(dismissWidth);
       onClose();
     } else {
-      animate(x, dismissWidth, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+      animate(x, dismissWidth, springPresets.sheetClose)
         .then(() => onClose());
     }
   }, [hasUnsavedContent, onClose, x, reducedMotion]);
@@ -300,7 +300,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     if (shouldDismiss) {
       if (hasUnsavedContent) {
         if (!window.confirm('You have unsaved changes. Discard and close?')) {
-          if (reducedMotion) { x.jump(0); } else { animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 }); }
+          if (reducedMotion) { x.jump(0); } else { animate(x, 0, springPresets.snap); }
           return;
         }
       }
@@ -315,11 +315,11 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         x.jump(dismissWidth);
         onClose();
       } else {
-        animate(x, dismissWidth, { type: 'spring', stiffness: 300, damping: 30, mass: 0.8 })
+        animate(x, dismissWidth, springPresets.sheetClose)
           .then(() => onClose());
       }
     } else {
-      if (reducedMotion) { x.jump(0); } else { animate(x, 0, { type: 'spring', stiffness: 500, damping: 30, mass: 0.5 }); }
+      if (reducedMotion) { x.jump(0); } else { animate(x, 0, springPresets.stiff); }
     }
   }, [x, hasUnsavedContent, onClose, reducedMotion]);
 
@@ -330,7 +330,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       if (reducedMotion) {
         x.jump(0);
       } else {
-        animate(x, 0, { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 });
+        animate(x, 0, springPresets.sheet);
       }
     }
   }, [isOpen, x, reducedMotion]);
@@ -1513,7 +1513,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
                     <motion.div
                       layoutId="profileTabPill"
                       className={`absolute inset-0 rounded-full ${isDark ? 'bg-white/15' : 'bg-gray-100'}`}
-                      transition={reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 28, mass: 0.8 }}
+                      transition={reducedMotion ? { duration: 0 } : springPresets.pill}
                       style={{ zIndex: 0 }}
                     />
                   )}

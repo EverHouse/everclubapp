@@ -1,12 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import Icon from '../../icons/Icon';
+import { springPresets } from '../../../utils/motion';
 
 const buttonTap = { scale: 0.97 };
-const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
+const buttonSpring = springPresets.buttonPress;
 
 const feeVariants = {
   initial: { opacity: 0, height: 0, marginBottom: 0 },
-  animate: { opacity: 1, height: 'auto', marginBottom: 12, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
+  animate: { opacity: 1, height: 'auto', marginBottom: 12, transition: springPresets.ease },
   exit: { opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } },
 };
 

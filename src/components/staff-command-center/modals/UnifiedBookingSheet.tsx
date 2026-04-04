@@ -13,14 +13,15 @@ import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
+import { springPresets } from '../../../utils/motion';
 
 const sectionVariants = {
   initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
+  animate: { opacity: 1, y: 0, transition: springPresets.ease },
 };
 
 const buttonTap = { scale: 0.97 };
-const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
+const buttonSpring = springPresets.buttonPress;
 
 export type { BookingType, SheetMode, UnifiedBookingSheetProps } from './bookingSheetTypes';
 
@@ -160,7 +161,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                       key={`${filledCount}-${totalCount}`}
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: 'spring' as const, stiffness: 400, damping: 20 }}
+                      transition={springPresets.popIn}
                       className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                         filledCount === totalCount 
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
@@ -359,7 +360,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
           <motion.div
             key="remember-email"
             initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto', transition: { type: 'spring' as const, stiffness: 300, damping: 25 } }}
+            animate={{ opacity: 1, height: 'auto', transition: springPresets.ease }}
             exit={{ opacity: 0, height: 0, transition: { duration: 0.15 } }}
             className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30 overflow-hidden">
             <label className="flex items-start gap-3 cursor-pointer">

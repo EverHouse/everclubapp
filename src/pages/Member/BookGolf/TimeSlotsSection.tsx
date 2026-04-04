@@ -4,6 +4,7 @@ import { haptic } from '../../../utils/haptics';
 import { EmptySlots } from '../../../components/EmptyState';
 import type { TimeSlot } from './bookGolfTypes';
 import Icon from '../../../components/icons/Icon';
+import { springPresets } from '../../../utils/motion';
 
 interface HourGroup {
   hourLabel: string;
@@ -29,8 +30,8 @@ interface TimeSlotsSectionProps {
   timeSlotsAnimRef: React.RefObject<HTMLDivElement | null>;
 }
 
-const expandSpring = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
-const slotStagger = { type: 'spring' as const, stiffness: 500, damping: 35, mass: 0.5 };
+const expandSpring = springPresets.sheet;
+const slotStagger = springPresets.stiffQuick;
 
 const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
   slotsByHour, selectedSlot, setSelectedSlot, setSelectedResource,

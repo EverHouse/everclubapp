@@ -15,8 +15,9 @@ import ExistingBookings from './ExistingBookings';
 import BookingModals from './BookingModals';
 import BookingFooter from './BookingFooter';
 import Icon from '../../../components/icons/Icon';
+import { springPresets } from '../../../utils/motion';
 
-const sectionSpring = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 0.8 };
+const sectionSpring = springPresets.sheet;
 const instantTransition = { duration: 0 };
 
 const BookGolf: React.FC = () => {
@@ -121,7 +122,7 @@ const BookGolf: React.FC = () => {
                   initial={{ height: 0 }}
                   animate={{ height: 'auto' }}
                   exit={{ height: 0 }}
-                  transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
                   className="overflow-hidden"
                 >
                   <PlayerSlotEditor
@@ -178,7 +179,7 @@ const BookGolf: React.FC = () => {
                     initial={{ height: 0 }}
                     animate={{ height: 'auto' }}
                     exit={{ height: 0 }}
-                    transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30 }}
+                    transition={prefersReducedMotion ? instantTransition : springPresets.quick}
                     className="overflow-hidden"
                   >
                     <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
@@ -198,7 +199,7 @@ const BookGolf: React.FC = () => {
                   initial={{ height: 0 }}
                   animate={{ height: 'auto' }}
                   exit={{ height: 0 }}
-                  transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
                   className="overflow-hidden"
                 >
                   <ExistingBookings
@@ -245,7 +246,7 @@ const BookGolf: React.FC = () => {
                   initial={{ height: 0 }}
                   animate={{ height: 'auto' }}
                   exit={{ height: 0 }}
-                  transition={prefersReducedMotion ? instantTransition : { type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
                   className="overflow-hidden"
                 >
                   <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>

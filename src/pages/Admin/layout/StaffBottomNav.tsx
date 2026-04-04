@@ -4,7 +4,7 @@ import { motion, LayoutGroup } from 'framer-motion';
 import { SafeAreaBottomOverlay } from '../../../components/layout/SafeAreaBottomOverlay';
 import { TabType, NAV_ITEMS, tabToPath } from './types';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
-import { useReducedMotion } from '../../../utils/motion';
+import { useReducedMotion, springPresets } from '../../../utils/motion';
 import Icon from '../../../components/icons/Icon';
 
 interface StaffBottomNavProps {
@@ -47,7 +47,7 @@ export const StaffBottomNav: React.FC<StaffBottomNavProps> = ({
 
   const pillTransition = reducedMotion
     ? { duration: 0 }
-    : { type: 'spring' as const, stiffness: 400, damping: 28, mass: 0.8 };
+    : springPresets.pill;
   
   const navContent = (
     <nav 

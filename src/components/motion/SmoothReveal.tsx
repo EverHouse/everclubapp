@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { springPresets } from '../../utils/motion';
 
 interface SmoothRevealProps {
   isLoaded: boolean;
@@ -8,12 +9,7 @@ interface SmoothRevealProps {
   delay?: number;
 }
 
-const springTransition = {
-  type: 'spring' as const,
-  stiffness: 160,
-  damping: 20,
-  mass: 0.8,
-};
+const springTransition = springPresets.smooth;
 
 export const SmoothReveal: React.FC<SmoothRevealProps> = ({ 
   isLoaded, 

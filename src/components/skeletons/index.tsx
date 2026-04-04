@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Skeleton from './SkeletonPrimitive';
+import { springPresets } from '../../utils/motion';
 export { Skeleton };
 
 interface SkeletonCardProps {
@@ -16,19 +17,9 @@ interface SkeletonCrossfadeProps {
   delay?: number;
 }
 
-const skeletonExitSpring = {
-  type: 'spring' as const,
-  stiffness: 200,
-  damping: 24,
-  mass: 0.6,
-};
+const skeletonExitSpring = springPresets.skeletonExit;
 
-const contentEnterSpring = {
-  type: 'spring' as const,
-  stiffness: 160,
-  damping: 20,
-  mass: 0.8,
-};
+const contentEnterSpring = springPresets.smooth;
 
 export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({ 
   loading, 

@@ -8,11 +8,88 @@ export const springPresets = {
     damping: 14,
     mass: 1,
   },
+  smooth: {
+    type: 'spring' as const,
+    stiffness: 160,
+    damping: 20,
+    mass: 0.8,
+  },
+  skeletonExit: {
+    type: 'spring' as const,
+    stiffness: 200,
+    damping: 24,
+    mass: 0.6,
+  },
   snappy: {
     type: 'spring' as const,
     stiffness: 300,
     damping: 20,
     mass: 0.8,
+  },
+  ease: {
+    type: 'spring' as const,
+    stiffness: 300,
+    damping: 25,
+  },
+  easeOut: {
+    type: 'spring' as const,
+    stiffness: 300,
+    damping: 28,
+  },
+  sheetClose: {
+    type: 'spring' as const,
+    stiffness: 300,
+    damping: 30,
+    mass: 0.8,
+  },
+  tilt: {
+    type: 'spring' as const,
+    stiffness: 300,
+    damping: 25,
+    mass: 0.5,
+  },
+  listItem: {
+    type: 'spring' as const,
+    stiffness: 350,
+    damping: 25,
+  },
+  popIn: {
+    type: 'spring' as const,
+    stiffness: 400,
+    damping: 20,
+  },
+  buttonPress: {
+    type: 'spring' as const,
+    stiffness: 400,
+    damping: 25,
+  },
+  pill: {
+    type: 'spring' as const,
+    stiffness: 400,
+    damping: 28,
+    mass: 0.8,
+  },
+  quick: {
+    type: 'spring' as const,
+    stiffness: 400,
+    damping: 30,
+  },
+  sheet: {
+    type: 'spring' as const,
+    stiffness: 400,
+    damping: 30,
+    mass: 0.8,
+  },
+  bounce: {
+    type: 'spring' as const,
+    stiffness: 400,
+    damping: 10,
+    mass: 0.8,
+  },
+  snap: {
+    type: 'spring' as const,
+    stiffness: 500,
+    damping: 30,
   },
   stiff: {
     type: 'spring' as const,
@@ -20,11 +97,27 @@ export const springPresets = {
     damping: 30,
     mass: 0.5,
   },
-  bounce: {
+  stiffSheet: {
     type: 'spring' as const,
-    stiffness: 400,
-    damping: 10,
+    stiffness: 500,
+    damping: 30,
     mass: 0.8,
+  },
+  stiffQuick: {
+    type: 'spring' as const,
+    stiffness: 500,
+    damping: 35,
+    mass: 0.5,
+  },
+  buttonTapStiff: {
+    type: 'spring' as const,
+    stiffness: 500,
+    damping: 20,
+  },
+  statusBadge: {
+    type: 'spring' as const,
+    stiffness: 500,
+    damping: 25,
   },
 } satisfies Record<string, Transition>;
 

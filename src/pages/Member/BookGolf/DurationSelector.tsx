@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { haptic } from '../../../utils/haptics';
+import { springPresets } from '../../../utils/motion';
 
 interface DurationSelectorProps {
   activeTab: 'simulator' | 'conference';
@@ -25,7 +26,7 @@ const getSimulatorDurations = (players: number): number[] => {
   }
 };
 
-const springTransition = { type: 'spring' as const, stiffness: 500, damping: 30, mass: 0.8 };
+const springTransition = springPresets.stiffSheet;
 
 const DurationSelector: React.FC<DurationSelectorProps> = ({
   activeTab, playerCount, duration, setDuration, setExpandedHour, setHasUserSelectedDuration,

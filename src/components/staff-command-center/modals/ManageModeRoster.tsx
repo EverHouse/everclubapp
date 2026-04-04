@@ -5,15 +5,16 @@ import type { BookingMember, ManageModeRosterData, MemberMatchWarning } from './
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
 import { isPlaceholderGuestName } from '../../../utils/rosterUtils';
+import { springPresets } from '../../../utils/motion';
 
 const rosterItemVariants = {
   initial: { opacity: 0, x: -12 },
-  animate: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 25 } },
+  animate: { opacity: 1, x: 0, transition: springPresets.listItem },
   exit: { opacity: 0, x: 12, transition: { duration: 0.15 } },
 };
 
 const buttonTap = { scale: 0.97 };
-const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
+const buttonSpring = springPresets.buttonPress;
 
 interface ManageModeRosterProps {
   rosterData: ManageModeRosterData | null;

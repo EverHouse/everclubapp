@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { springPresets } from '../../../utils/motion';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { getPacificHour, CLUB_TIMEZONE } from '../../../utils/dateUtils';
 import { DashboardSkeleton, SkeletonCrossfade, DashboardCardSkeleton, BookingCardSkeleton } from '../../../components/skeletons';
@@ -19,19 +20,9 @@ import { ScheduleSection } from './ScheduleSection';
 import { PasskeyNudge, BannerAlert, MembershipStatusAlert } from './DashboardAlerts';
 import Icon from '../../../components/icons/Icon';
 
-const skeletonExitTransition = {
-  type: 'spring' as const,
-  stiffness: 200,
-  damping: 24,
-  mass: 0.6,
-};
+const skeletonExitTransition = springPresets.skeletonExit;
 
-const contentSpring = {
-  type: 'spring' as const,
-  stiffness: 160,
-  damping: 20,
-  mass: 0.8,
-};
+const contentSpring = springPresets.smooth;
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 8, scale: 0.95 },

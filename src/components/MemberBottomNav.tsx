@@ -4,7 +4,7 @@ import { motion, LayoutGroup } from 'framer-motion';
 import { SafeAreaBottomOverlay } from './layout/SafeAreaBottomOverlay';
 import { prefetchRoute, prefetchAdjacentRoutes } from '../lib/prefetch-actions';
 import { haptic } from '../utils/haptics';
-import { useReducedMotion } from '../utils/motion';
+import { useReducedMotion, springPresets } from '../utils/motion';
 import Icon from './icons/Icon';
 
 interface MemberNavItem {
@@ -52,7 +52,7 @@ const MemberBottomNav: React.FC<MemberBottomNavProps> = ({ currentPath, isDarkTh
 
   const pillTransition = reducedMotion
     ? { duration: 0 }
-    : { type: 'spring' as const, stiffness: 400, damping: 28, mass: 0.8 };
+    : springPresets.pill;
   
   const navContent = (
       <nav 

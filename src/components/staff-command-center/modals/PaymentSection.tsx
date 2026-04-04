@@ -8,15 +8,16 @@ import { BookingStatusDropdown } from '../../BookingStatusDropdown';
 import { postWithCredentials, patchWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
+import { springPresets } from '../../../utils/motion';
 
 const footerButtonVariants = {
   initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 25 } },
+  animate: { opacity: 1, y: 0, transition: springPresets.listItem },
   exit: { opacity: 0, y: -6, transition: { duration: 0.12 } },
 };
 
 const buttonTap = { scale: 0.97 };
-const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
+const buttonSpring = springPresets.buttonPress;
 
 interface PaymentSummaryBodyProps {
   rosterData: ManageModeRosterData | null;

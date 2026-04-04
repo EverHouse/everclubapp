@@ -4,15 +4,16 @@ import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInpu
 import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
+import { springPresets } from '../../../utils/motion';
 
 const slotVariants = {
   initial: { opacity: 0, scale: 0.95, y: 8 },
-  animate: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 25 } },
+  animate: { opacity: 1, scale: 1, y: 0, transition: springPresets.listItem },
   exit: { opacity: 0, scale: 0.95, y: -4, transition: { duration: 0.15 } },
 };
 
 const buttonTap = { scale: 0.97 };
-const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
+const buttonSpring = springPresets.buttonPress;
 
 interface DayPassInfo {
   id: string;
