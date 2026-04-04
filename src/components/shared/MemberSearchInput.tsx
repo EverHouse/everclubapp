@@ -338,7 +338,7 @@ export const MemberSearchInput: React.FC<MemberSearchInputProps> = React.memo(({
               <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
                 isVisitor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10 dark:bg-white/10'
               }`}>
-                <Icon name={isVisitor ? 'person_outline' : 'person'} className={`text-base ${ isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white' }`} />
+                <Icon name={isVisitor ? 'person_off' : 'person'} className={`text-base ${ isVisitor ? 'text-amber-600 dark:text-amber-400' : 'text-primary dark:text-white' }`} />
               </div>
               <div className="text-left flex-1 min-w-0">
                 <p className="font-medium text-primary dark:text-white truncate">

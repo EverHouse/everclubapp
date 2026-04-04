@@ -280,13 +280,16 @@ const ToursTab: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           {showNeedsReview && (
-            <button
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => { e.stopPropagation(); refetchNeedsReview(); }}
-              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); refetchNeedsReview(); } }}
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 transition-colors cursor-pointer"
               aria-label="Refresh"
             >
               <Icon name="refresh" className="text-base" />
-            </button>
+            </span>
           )}
           <Icon name="expand_more" className={`text-amber-600 dark:text-amber-400 transition-transform ${showNeedsReview ? 'rotate-180' : ''}`} />
         </div>

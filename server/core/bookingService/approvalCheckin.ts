@@ -535,7 +535,7 @@ export async function checkinBooking(params: CheckinBookingParams) {
       }
     }
 
-    if (skipPaymentCheck) {
+    if (skipPaymentCheck || confirmPayment) {
       await tx.execute(sql`SET LOCAL app.bypass_status_check = 'true'`);
     }
 

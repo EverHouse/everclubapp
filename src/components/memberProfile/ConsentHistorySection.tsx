@@ -76,7 +76,7 @@ const ConsentHistorySection: React.FC<ConsentHistorySectionProps> = ({ email, is
           }`}
         >
           <div className="flex items-center gap-2">
-            <Icon name="verified_user" className={`text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+            <Icon name="verified" className={`text-lg ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
             <h4 className={`text-sm font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Consent History
             </h4>
