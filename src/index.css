@@ -323,7 +323,7 @@ html {
   --liquid-glass-inner-shadow-dark: inset 0 1px 2px rgba(255, 255, 255, 0.15), inset 0 -1px 2px rgba(0, 0, 0, 0.2);
   --liquid-glass-outer-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
   --liquid-glass-outer-shadow-dark: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --liquid-transition: background-color 0.3s var(--m3-standard), color 0.3s var(--m3-standard), border-color 0.3s var(--m3-standard), transform 0.3s var(--m3-standard), opacity 0.3s var(--m3-standard);
+  --liquid-transition: background-color 0.3s var(--m3-standard), color 0.3s var(--m3-standard), border-color 0.3s var(--m3-standard), box-shadow 0.3s var(--m3-standard);
   --liquid-radius: 12px;
 }
 
@@ -1009,7 +1009,6 @@ html.dark .glass-panel {
 }
 
 .glass-card:active {
-  transform: scale(0.98);
   background: rgba(255, 255, 255, 0.55);
 }
 
@@ -1040,7 +1039,6 @@ html.dark .glass-card:active {
 
 .glass-button:active {
   background: rgba(255, 255, 255, 0.6);
-  transform: scale(0.98);
 }
 
 html.dark .glass-button {
@@ -1674,7 +1672,8 @@ html.dark .border-accessible {
     rgba(255, 255, 255, 0.08) 75%,
     transparent 100%
   );
-  transform: translateX(-100%) rotate(25deg);
+  background-size: 300% 100%;
+  background-position: -100% 0;
 }
 
 .group:hover .holographic-shimmer {
@@ -1683,10 +1682,10 @@ html.dark .border-accessible {
 
 @keyframes holographic-shimmer {
   0% {
-    transform: translateX(-100%) rotate(25deg);
+    background-position: -100% 0;
   }
   100% {
-    transform: translateX(200%) rotate(25deg);
+    background-position: 200% 0;
   }
 }
 
@@ -1960,11 +1959,11 @@ html.dark .border-accessible {
 @keyframes pageEnter {
   0% {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(4px) translateZ(0);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
 }
 
@@ -1979,11 +1978,11 @@ html.dark .border-accessible {
 @keyframes pageExit {
   0% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(-3px);
+    transform: translateY(-3px) translateZ(0);
   }
 }
 

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   springPresets,
@@ -25,9 +25,12 @@ const MotionButton: React.FC<MotionButtonProps> = ({
   onClick,
   disabled,
   children,
+  onHoverStart: onHoverStartProp,
+  onHoverEnd: onHoverEndProp,
   ...rest
 }) => {
   const shouldReduceMotion = useReducedMotion();
+  const ref = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -37,6 +40,22 @@ const MotionButton: React.FC<MotionButtonProps> = ({
       onClick?.(e);
     },
     [disabled, hapticType, onClick],
+  );
+
+  const onHoverStart = useCallback(
+    (...args: Parameters<NonNullable<React.ComponentProps<typeof motion.button>['onHoverStart']>>) => {
+      if (ref.current) ref.current.style.willChange = 'transform, opacity';
+      onHoverStartProp?.(...args);
+    },
+    [onHoverStartProp],
+  );
+
+  const onHoverEnd = useCallback(
+    (...args: Parameters<NonNullable<React.ComponentProps<typeof motion.button>['onHoverEnd']>>) => {
+      if (ref.current) ref.current.style.willChange = 'auto';
+      onHoverEndProp?.(...args);
+    },
+    [onHoverEndProp],
   );
 
   const whileTap = disabled
@@ -58,10 +77,13 @@ const MotionButton: React.FC<MotionButtonProps> = ({
 
   return (
     <motion.button
+      ref={ref}
       whileTap={whileTap}
       whileHover={whileHover}
       onClick={handleClick}
       disabled={disabled}
+      onHoverStart={onHoverStart}
+      onHoverEnd={onHoverEnd}
       {...rest}
     >
       {children}

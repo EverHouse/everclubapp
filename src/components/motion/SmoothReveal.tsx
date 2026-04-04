@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { springPresets } from '../../utils/motion';
 
@@ -18,6 +18,15 @@ export const SmoothReveal: React.FC<SmoothRevealProps> = ({
   delay = 0 
 }) => {
   const prefersReduced = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleAnimationStart = useCallback(() => {
+    if (ref.current) ref.current.style.willChange = 'transform, opacity';
+  }, []);
+
+  const handleAnimationComplete = useCallback(() => {
+    if (ref.current) ref.current.style.willChange = 'auto';
+  }, []);
 
   if (prefersReduced) {
     return (
@@ -28,9 +37,10 @@ export const SmoothReveal: React.FC<SmoothRevealProps> = ({
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {isLoaded && (
         <motion.div
+          ref={ref}
           className={className}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -39,6 +49,8 @@ export const SmoothReveal: React.FC<SmoothRevealProps> = ({
             ...springTransition,
             delay: delay / 1000,
           }}
+          onAnimationStart={handleAnimationStart}
+          onAnimationComplete={handleAnimationComplete}
         >
           {children}
         </motion.div>

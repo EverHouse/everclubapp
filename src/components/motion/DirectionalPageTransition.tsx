@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useCallback, useRef, useEffect } from 'react';
 
 export interface TransitionCustom {
   direction: number;
@@ -22,11 +22,22 @@ interface DirectionalPageTransitionProps {
 
 const DirectionalPageTransition: React.FC<DirectionalPageTransitionProps> = ({ children }) => {
   const isExiting = useContext(PageExitContext);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.style.willChange = 'transform, opacity';
+  }, [isExiting]);
+
+  const handleAnimationEnd = useCallback(() => {
+    if (ref.current) ref.current.style.willChange = 'auto';
+  }, []);
 
   return (
     <div
+      ref={ref}
       className={isExiting ? 'page-fade-out' : 'page-fade-in'}
       style={{ minHeight: '100%' }}
+      onAnimationEnd={handleAnimationEnd}
     >
       {children}
     </div>

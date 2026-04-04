@@ -113,7 +113,7 @@ const BookGolf: React.FC = () => {
         ) : (
           <LayoutGroup>
           <div className="relative z-10 space-y-6">
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {activeTab === 'simulator' && (
                 <motion.div
                   key="player-slot-editor"
@@ -172,7 +172,7 @@ const BookGolf: React.FC = () => {
             <motion.div layout={prefersReducedMotion ? false : "position"} className={`border-t my-2 ${isDark ? 'border-white/10' : 'border-black/5'}`} />
 
             <motion.div layout={prefersReducedMotion ? false : "position"} ref={errorRef}>
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {error && (
                   <motion.div
                     key="error-msg"
@@ -191,7 +191,7 @@ const BookGolf: React.FC = () => {
               </AnimatePresence>
             </motion.div>
 
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {activeTab === 'simulator' && (
                 <motion.div
                   key="existing-bookings"
@@ -238,7 +238,7 @@ const BookGolf: React.FC = () => {
               playerSlots={playerSlots}
             />
 
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {activeTab === 'conference' && memberBayBookingsForDay.length > 0 && (
                 <motion.div
                   key="conference-conflict-notice"
@@ -314,7 +314,7 @@ const BookGolf: React.FC = () => {
                 )}
               </AnimatePresence>
 
-              <AnimatePresence>
+              <AnimatePresence mode="popLayout">
                 {selectedResource && (
                   <motion.section
                     key="notes-section"

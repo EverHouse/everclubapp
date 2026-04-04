@@ -257,13 +257,15 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             onTouchStart={handleTouchStart}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
-            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group animate-content-enter-delay-2 ${prefersReducedMotion ? '' : 'active:scale-[0.98]'} ${isExpired ? 'grayscale-[30%]' : ''}`}
+            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group animate-content-enter-delay-2 ${isExpired ? 'grayscale-[30%]' : ''}`}
+            whileTap={prefersReducedMotion ? undefined : { scale: 0.98, transition: SPRING_CONFIG }}
             style={{
               rotateX: prefersReducedMotion ? 0 : rotateX,
               rotateY: prefersReducedMotion ? 0 : rotateY,
               transformStyle: 'preserve-3d',
+              willChange: prefersReducedMotion ? 'auto' : 'transform',
             }}
-            whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
+            whileHover={prefersReducedMotion ? undefined : { scale: 1.015, transition: SPRING_CONFIG }}
           >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
