@@ -3,7 +3,7 @@ import { isStaffOrAdmin } from '../../core/middleware';
 import { logAndRespond, logger } from '../../core/logger';
 import { logFromRequest } from '../../core/auditLog';
 import { getSessionUser } from '../../types/session';
-import { getErrorStatusCode, getErrorMessage } from '../../utils/errorUtils';
+import { getErrorStatusCode, getErrorMessage, getErrorCode, parseConstraintError } from '../../utils/errorUtils';
 import { isConstraintError } from '../../core/db';
 import {
   validateTrackmanId,
@@ -195,6 +195,18 @@ router.put('/api/bookings/:id/checkin', isStaffOrAdmin, async (req, res) => {
     const statusCode = getErrorStatusCode(error);
     if (statusCode) {
       return res.status(statusCode).json({ error: getErrorMessage(error) });
+    }
+    const errorCode = getErrorCode(error);
+    if (errorCode === '40P01' || errorCode === '40001') {
+      return res.status(409).json({ error: 'A concurrent update was detected. Please refresh and try again.' });
+    }
+    const constraint = isConstraintError(error);
+    if (constraint.type === 'unique') {
+      return res.status(409).json({ error: 'This booking may have already been checked in. Please refresh and try again.' });
+    }
+    const parsed = parseConstraintError(error);
+    if (parsed.isConstraintError) {
+      return res.status(409).json({ error: parsed.message || 'Booking status could not be updated. Please refresh and try again.' });
     }
     logAndRespond(req, res, 500, 'Failed to update booking status', error);
   }
