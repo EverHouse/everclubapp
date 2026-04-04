@@ -106,12 +106,16 @@ export async function sanitizeAndResolveParticipants(
   }
 
   let sanitizedParticipants: SanitizedParticipant[] = rawParticipants
-    .map(p => ({
-      email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
-      type: (p.type === 'member' ? 'member' : 'guest') as 'member' | 'guest',
-      userId: typeof p.userId === 'string' ? p.userId : undefined,
-      name: typeof p.name === 'string' ? p.name.trim() : undefined,
-    }))
+    .map(p => {
+      const originalType = p.type === 'member' ? 'member' : 'guest';
+      return {
+        email: typeof p.email === 'string' ? p.email.toLowerCase().trim() : '',
+        type: originalType as 'member' | 'guest',
+        userId: typeof p.userId === 'string' ? p.userId : undefined,
+        name: typeof p.name === 'string' ? p.name.trim() : undefined,
+        isGuestPassParticipant: originalType === 'guest',
+      };
+    })
     .filter(p => p.email || p.userId);
 
   if (sanitizedParticipants.length > maxGuests) {
@@ -270,7 +274,7 @@ export async function checkParticipantDailyLimits(
   durationMinutes: number,
   resourceType: string
 ): Promise<void> {
-  const memberParticipants = participants.filter(p => p.type === 'member' && p.email);
+  const memberParticipants = participants.filter(p => p.type === 'member' && p.email && !p.isGuestPassParticipant);
   if (memberParticipants.length === 0) return;
 
   const results = await Promise.all(
@@ -282,8 +286,9 @@ export async function checkParticipantDailyLimits(
 
   for (const { participant, pLimitCheck } of results) {
     if (!pLimitCheck.allowed) {
+      const reason = pLimitCheck.reason || 'has exceeded their daily booking limit';
       throw new BookingValidationError(403, {
-        error: `Participant ${participant.name || participant.email} has exceeded their daily booking limit.`,
+        error: `Participant ${participant.name || participant.email}: ${reason}`,
         remainingMinutes: pLimitCheck.remainingMinutes
       });
     }

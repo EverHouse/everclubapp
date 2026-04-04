@@ -74,6 +74,7 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
   it('should reject participant who exceeded daily booking limit', async () => {
     mockCheckDailyBookingLimit.mockResolvedValue({
       allowed: false,
+      reason: 'has exceeded their daily booking limit',
       remainingMinutes: 0,
     });
 
@@ -88,7 +89,7 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
   it('should check each member participant independently', async () => {
     mockCheckDailyBookingLimit
       .mockResolvedValueOnce({ allowed: true, remainingMinutes: 120 })
-      .mockResolvedValueOnce({ allowed: false, remainingMinutes: 0 });
+      .mockResolvedValueOnce({ allowed: false, reason: 'has exceeded their daily booking limit', remainingMinutes: 0 });
 
     await expect(checkParticipantDailyLimits(
       [
@@ -148,6 +149,7 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
   it('should enforce daily limit for conference room bookings', async () => {
     mockCheckDailyBookingLimit.mockResolvedValue({
       allowed: false,
+      reason: 'has exceeded their daily booking limit',
       remainingMinutes: 0,
     });
 
@@ -172,5 +174,67 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
     )).resolves.not.toThrow();
 
     expect(mockCheckDailyBookingLimit).not.toHaveBeenCalled();
+  });
+
+  it('should skip daily limit check for guest pass participants even if reclassified as member', async () => {
+    await expect(checkParticipantDailyLimits(
+      [{ type: 'member', email: 'guest-member@example.com', name: 'Matt Mazer', isGuestPassParticipant: true }],
+      '2025-01-15',
+      60,
+      'simulator'
+    )).resolves.not.toThrow();
+
+    expect(mockCheckDailyBookingLimit).not.toHaveBeenCalled();
+  });
+
+  it('should still check limits for true member participants alongside guest pass participants', async () => {
+    mockCheckDailyBookingLimit.mockResolvedValue({
+      allowed: true,
+      remainingMinutes: 120,
+    });
+
+    await expect(checkParticipantDailyLimits(
+      [
+        { type: 'member', email: 'real-member@example.com', name: 'Real Member' },
+        { type: 'member', email: 'guest-member@example.com', name: 'Guest Member', isGuestPassParticipant: true },
+      ],
+      '2025-01-15',
+      60,
+      'simulator'
+    )).resolves.not.toThrow();
+
+    expect(mockCheckDailyBookingLimit).toHaveBeenCalledTimes(1);
+    expect(mockCheckDailyBookingLimit).toHaveBeenCalledWith(
+      'real-member@example.com', '2025-01-15', 60, undefined, 'simulator'
+    );
+  });
+
+  it('should display actual reason from checkDailyBookingLimit in error message', async () => {
+    mockCheckDailyBookingLimit.mockResolvedValue({
+      allowed: false,
+      reason: 'Your membership tier does not include simulator booking',
+      remainingMinutes: 0,
+    });
+
+    await expect(checkParticipantDailyLimits(
+      [{ type: 'member', email: 'restricted@example.com', name: 'Restricted User' }],
+      '2025-01-15',
+      60,
+      'simulator'
+    )).rejects.toThrow('Participant Restricted User: Your membership tier does not include simulator booking');
+  });
+
+  it('should use fallback reason when checkDailyBookingLimit returns no reason', async () => {
+    mockCheckDailyBookingLimit.mockResolvedValue({
+      allowed: false,
+      remainingMinutes: 0,
+    });
+
+    await expect(checkParticipantDailyLimits(
+      [{ type: 'member', email: 'nolimit@example.com', name: 'No Reason' }],
+      '2025-01-15',
+      60,
+      'simulator'
+    )).rejects.toThrow('Participant No Reason: has exceeded their daily booking limit');
   });
 });

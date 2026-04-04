@@ -10,4 +10,5 @@ export interface SanitizedParticipant {
   type: 'member' | 'guest';
   userId?: string;
   name?: string;
+  isGuestPassParticipant?: boolean;
 }
