@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo, type MouseEvent, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import Icon from './icons/Icon';
+import { springPresets, useReducedMotion, noMotion } from '../utils/motion';
 
 type StatusValue = 'attended' | 'no_show' | 'approved';
 
@@ -35,6 +37,7 @@ export function BookingStatusDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const options = useMemo(() => showRevert && (currentStatus === 'attended' || currentStatus === 'no_show')
     ? [...BASE_OPTIONS, REVERT_OPTION]
@@ -282,36 +285,54 @@ export function BookingStatusDropdown({
   return (
     <div ref={buttonRef} className={`relative w-full ${className}`}>
       {renderButton()}
-      {isOpen && !disabled && !loading && createPortal(
-        <>
-          <div
-            className="fixed inset-0"
-            style={{ zIndex: 10000 }}
-            onClick={handleBackdropClick}
-            aria-hidden="true"
-          />
-          <div ref={menuRef} id={listboxId} role="listbox" aria-label="Booking status" style={menuStyle} className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth} animate-pop-in`}>
-            {options.map((option, index) => (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                id={`${listboxId}-option-${index}`}
-                aria-selected={currentStatus === option.value}
-                onClick={(e) => handleItemClick(e, option.value)}
-                className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === option.value ? 'font-bold' : ''} ${activeIndex === index ? 'bg-primary/10 dark:bg-white/10' : ''} ${option.value === 'approved' && index > 0 ? 'border-t border-primary/10 dark:border-white/10' : ''}`}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {isOpen && !disabled && !loading && (
+            <>
+              <div
+                className="fixed inset-0"
+                style={{ zIndex: 10000 }}
+                onClick={handleBackdropClick}
+                aria-hidden="true"
+              />
+              <motion.div
+                ref={menuRef}
+                id={listboxId}
+                role="listbox"
+                aria-label="Booking status"
+                style={{
+                  ...menuStyle,
+                  transformOrigin: menuDirection === 'up' ? 'bottom center' : 'top center',
+                }}
+                className={`bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 ${minWidth}`}
+                initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+                animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+                exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+                transition={prefersReducedMotion ? noMotion : springPresets.popIn}
               >
-                <span className={`inline-flex items-center justify-center ${iconSize} rounded-full ${getOptionColor(option.value)}`}>
-                  <Icon name={getOptionIcon(option.value)} className={`${iconTextSize}`} />
-                </span>
-                {option.label}
-                {currentStatus === option.value && (
-                  <Icon name="check" className={`text-sm ml-auto ${getCheckColor(option.value)}`} />
-                )}
-              </button>
-            ))}
-          </div>
-        </>,
+                {options.map((option, index) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    id={`${listboxId}-option-${index}`}
+                    aria-selected={currentStatus === option.value}
+                    onClick={(e) => handleItemClick(e, option.value)}
+                    className={`w-full px-3 py-2 text-left ${itemTextSize} flex items-center gap-2 hover:bg-primary/5 dark:hover:bg-white/5 transition-colors ${currentStatus === option.value ? 'font-bold' : ''} ${activeIndex === index ? 'bg-primary/10 dark:bg-white/10' : ''} ${option.value === 'approved' && index > 0 ? 'border-t border-primary/10 dark:border-white/10' : ''}`}
+                  >
+                    <span className={`inline-flex items-center justify-center ${iconSize} rounded-full ${getOptionColor(option.value)}`}>
+                      <Icon name={getOptionIcon(option.value)} className={`${iconTextSize}`} />
+                    </span>
+                    {option.label}
+                    {currentStatus === option.value && (
+                      <Icon name="check" className={`text-sm ml-auto ${getCheckColor(option.value)}`} />
+                    )}
+                  </button>
+                ))}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
         document.body
       )}
     </div>
