@@ -32,7 +32,7 @@ import WaiverModal from './components/WaiverModal';
 import { fetchWithCredentials } from './hooks/queries/useFetch';
 import PullToRefresh from './components/PullToRefresh';
 
-const MINIMUM_LOADER_DISPLAY_MS = 500;
+const MINIMUM_LOADER_DISPLAY_MS = 2000;
 
 const isInitialLandingLoad = () => {
   if (typeof window === 'undefined') return false;
