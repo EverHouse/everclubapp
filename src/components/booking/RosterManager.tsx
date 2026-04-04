@@ -5,7 +5,6 @@ import { apiRequest } from '../../lib/apiRequest';
 import { useToast } from '../Toast';
 import { haptic } from '../../utils/haptics';
 import ModalShell from '../ModalShell';
-import Avatar from '../Avatar';
 import MemberPaymentModal from './MemberPaymentModal';
 import SlideUpDrawer from '../SlideUpDrawer';
 import Input from '../Input';
@@ -590,7 +589,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
         <div ref={rosterListRef} className="px-5 py-4 space-y-3">
           {resourceType !== 'conference_room' && ownerParticipant && (
             <div className="flex items-center gap-3 py-2">
-              <Avatar name={ownerParticipant.displayName} size="md" />
               <div className="flex-1 min-w-0">
                 <p className={`font-semibold truncate ${isDark ? 'text-white' : 'text-[#293515]'}`}>
                   {ownerParticipant.displayName}
@@ -605,7 +603,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({
               key={`${participant.id}-${idx}`}
               className="flex items-center gap-3 py-2"
             >
-              <Avatar name={participant.displayName} size="md" />
               <div className="flex-1 min-w-0">
                 <p className={`font-semibold truncate ${isDark ? 'text-white' : 'text-[#293515]'}`}>
                   {participant.displayName}
