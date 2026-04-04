@@ -87,7 +87,7 @@ export async function recordEmailConsentChange(params: {
     action: params.granted ? 'granted' : 'revoked',
     method: params.method,
     source: params.source,
-    ipAddress: params.req ? getClientIpFromRequest(params.req) : undefined,
+    ipAddress: params.req ? (getClientIpFromRequest(params.req) ?? undefined) : undefined,
     details: params.details,
   });
 }
