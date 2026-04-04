@@ -666,6 +666,7 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
       });
       
       return res.json({
+        success: true,
         message: `Preview: Found ${ghostBookings.length} Trackman ghost bookings without billing sessions`,
         totalFound: ghostBookings.length,
         ghostBookings: ghostBookings.slice(0, 100),
@@ -872,8 +873,13 @@ router.post('/api/data-tools/fix-trackman-ghost-bookings', isAdmin, async (req: 
       staffEmail
     });
     
+    const noGhostsMessage = ghostBookings.length === 0
+      ? 'No Trackman ghost bookings found — the nightly integrity check auto-resolves these'
+      : `Fixed ${fixed.length} of ${ghostBookings.length} Trackman ghost bookings`;
+
     res.json({
-      message: `Fixed ${fixed.length} of ${ghostBookings.length} Trackman ghost bookings`,
+      success: true,
+      message: noGhostsMessage,
       totalFound: ghostBookings.length,
       fixedCount: fixed.length,
       fixed: fixed.slice(0, 100),
