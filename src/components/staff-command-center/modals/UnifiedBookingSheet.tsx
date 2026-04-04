@@ -210,7 +210,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 </div>
               )}
 
-              {!logic.isConferenceRoom && logic.rosterData?.tierLimits?.guest_passes_per_year != null && logic.rosterData.tierLimits.guest_passes_per_year > 0 && (
+              {!logic.isConferenceRoom && logic.rosterData?.tierLimits?.guest_passes_per_year != null && (
                 <div className="flex items-center gap-2 text-xs">
                   <Icon name="redeem" className="text-emerald-500 text-sm" />
                   <span className="text-primary/70 dark:text-white/70">

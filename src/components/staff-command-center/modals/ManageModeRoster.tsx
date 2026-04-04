@@ -418,12 +418,17 @@ export function ManageModeRoster({
             <motion.button
               whileTap={prefersReducedMotion ? undefined : buttonTap}
               transition={prefersReducedMotion ? noMotion : buttonSpring}
+              disabled={(rosterData?.ownerGuestPassesRemaining ?? 0) <= 0}
               onClick={() => {
                 setManageModeGuestForm(slotNumber);
                 setManageModeSearchSlot(null);
                 setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
               }}
-              className="tactile-btn py-1 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center gap-1"
+              className={`tactile-btn py-1 px-2 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1 ${
+                (rosterData?.ownerGuestPassesRemaining ?? 0) <= 0
+                  ? 'border-gray-300 dark:border-white/15 text-gray-400 dark:text-white/30 cursor-not-allowed opacity-50'
+                  : 'border-green-500 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-500/10'
+              }`}
             >
               <Icon name="card_membership" className="text-xs" />
               Use Guest Pass
