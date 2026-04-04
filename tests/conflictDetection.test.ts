@@ -15,12 +15,18 @@ vi.mock('../server/db', () => ({
   db: { execute: mockExecute },
 }));
 
-vi.mock('drizzle-orm', () => ({
-  sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
-    sqlCalls.push({ strings: Array.from(strings), values });
-    return {};
-  }),
-}));
+vi.mock('drizzle-orm', () => {
+  const sqlFn = Object.assign(
+    vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
+      sqlCalls.push({ strings: Array.from(strings), values });
+      return {};
+    }),
+    {
+      join: vi.fn((fragments: unknown[], separator: unknown) => ({})),
+    }
+  );
+  return { sql: sqlFn };
+});
 
 vi.mock('../server/utils/sqlArrayLiteral', () => ({
   toIntArrayLiteral: vi.fn((arr: number[]) => `{${arr.join(',')}}`),

@@ -67,7 +67,7 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
     )).resolves.not.toThrow();
 
     expect(mockCheckDailyBookingLimit).toHaveBeenCalledWith(
-      'participant@example.com', '2025-01-15', 60, undefined, 'simulator'
+      'participant@example.com', '2025-01-15', 60, undefined, 'simulator', undefined
     );
   });
 
@@ -161,7 +161,7 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
     )).rejects.toThrow('exceeded their daily booking limit');
 
     expect(mockCheckDailyBookingLimit).toHaveBeenCalledWith(
-      'member@example.com', '2025-01-15', 60, undefined, 'conference_room'
+      'member@example.com', '2025-01-15', 60, undefined, 'conference_room', undefined
     );
   });
 
@@ -205,7 +205,7 @@ describe('checkParticipantDailyLimits — participant-level daily hour limit enf
 
     expect(mockCheckDailyBookingLimit).toHaveBeenCalledTimes(1);
     expect(mockCheckDailyBookingLimit).toHaveBeenCalledWith(
-      'real-member@example.com', '2025-01-15', 60, undefined, 'simulator'
+      'real-member@example.com', '2025-01-15', 60, undefined, 'simulator', undefined
     );
   });
 
