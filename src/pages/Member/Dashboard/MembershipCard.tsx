@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, useMotionValue, useTransform, useSpring, frame } from 'framer-motion';
 import { getTierColor, isLightTierBackground } from '../../../utils/tierUtils';
 import { formatMemberSince } from '../../../utils/dateUtils';
 import { apiRequestBlob } from '../../../lib/apiRequest';
@@ -39,6 +40,163 @@ interface MembershipCardProps {
   showToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
 }
 
+const TILT_MAX_DEG = 8;
+const SPRING_CONFIG = { stiffness: 300, damping: 25, mass: 0.5 };
+const REST_X = 0.85;
+const REST_Y = 0.15;
+
+function useCard3DTilt() {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const gyroListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+
+  const mouseX = useMotionValue(REST_X);
+  const mouseY = useMotionValue(REST_Y);
+
+  const rotateX = useSpring(useTransform(mouseY, [0, 1], [TILT_MAX_DEG, -TILT_MAX_DEG]), SPRING_CONFIG);
+  const rotateY = useSpring(useTransform(mouseX, [0, 1], [-TILT_MAX_DEG, TILT_MAX_DEG]), SPRING_CONFIG);
+
+  const sheenX = useTransform(mouseX, [0, 1], [0, 100]);
+  const sheenY = useTransform(mouseY, [0, 1], [0, 100]);
+  const sheenBackground = useTransform(
+    [sheenX, sheenY],
+    ([x, y]: number[]) =>
+      `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 40%, transparent 70%)`
+  );
+
+  const edgeGlowX = useSpring(useTransform(mouseX, [0, 1], [6, -6]), SPRING_CONFIG);
+  const edgeGlowY = useSpring(useTransform(mouseY, [0, 1], [6, -6]), SPRING_CONFIG);
+  const edgeGlow = useTransform(
+    [edgeGlowX, edgeGlowY],
+    ([gx, gy]: number[]) =>
+      `${gx}px ${gy}px 16px 2px rgba(255,255,255,0.15), ${gx * 0.5}px ${gy * 0.5}px 6px 1px rgba(255,255,255,0.1)`
+  );
+
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const startGyroListener = useCallback(() => {
+    if (gyroListenerRef.current) return;
+
+    let baseBeta: number | null = null;
+    let baseGamma: number | null = null;
+    let smoothNx = REST_X;
+    let smoothNy = REST_Y;
+    const GYRO_RANGE = 20;
+    const SMOOTHING = 0.15;
+    const DEAD_ZONE = 1.5;
+
+    const handler = (e: DeviceOrientationEvent) => {
+      const beta = e.beta ?? 0;
+      const gamma = e.gamma ?? 0;
+
+      if (baseBeta === null || baseGamma === null) {
+        baseBeta = beta;
+        baseGamma = gamma;
+        return;
+      }
+
+      let deltaB = beta - baseBeta;
+      let deltaG = gamma - baseGamma;
+
+      if (Math.abs(deltaB) < DEAD_ZONE) deltaB = 0;
+      if (Math.abs(deltaG) < DEAD_ZONE) deltaG = 0;
+
+      const rawNx = Math.max(0, Math.min(1, 0.5 + deltaG / (GYRO_RANGE * 2)));
+      const rawNy = Math.max(0, Math.min(1, 0.5 + deltaB / (GYRO_RANGE * 2)));
+
+      smoothNx += (rawNx - smoothNx) * SMOOTHING;
+      smoothNy += (rawNy - smoothNy) * SMOOTHING;
+
+      frame.update(() => {
+        mouseX.set(smoothNx);
+        mouseY.set(smoothNy);
+      });
+    };
+    gyroListenerRef.current = handler;
+    window.addEventListener('deviceorientation', handler);
+  }, [mouseX, mouseY]);
+
+  const requestGyroPermission = useCallback(() => {
+    if (prefersReducedMotion || gyroListenerRef.current) return;
+
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
+
+    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission === 'function') {
+      DOE.requestPermission().then((state: string) => {
+        if (state === 'granted') startGyroListener();
+      }).catch(() => {});
+    } else {
+      startGyroListener();
+    }
+  }, [prefersReducedMotion, startGyroListener]);
+
+  useEffect(() => {
+    return () => {
+      if (gyroListenerRef.current) {
+        window.removeEventListener('deviceorientation', gyroListenerRef.current);
+        gyroListenerRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (prefersReducedMotion) return;
+      const el = cardRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const ny = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      frame.update(() => {
+        mouseX.set(nx);
+        mouseY.set(ny);
+      });
+    },
+    [prefersReducedMotion, mouseX, mouseY]
+  );
+
+  const handlePointerLeave = useCallback(() => {
+    frame.update(() => {
+      mouseX.set(REST_X);
+      mouseY.set(REST_Y);
+    });
+  }, [mouseX, mouseY]);
+
+  const handleTouchStart = useCallback(() => {
+    requestGyroPermission();
+  }, [requestGyroPermission]);
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
+
+    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission !== 'function') {
+      startGyroListener();
+    }
+  }, [prefersReducedMotion, startGyroListener]);
+
+  return {
+    cardRef,
+    rotateX: prefersReducedMotion ? undefined : rotateX,
+    rotateY: prefersReducedMotion ? undefined : rotateY,
+    sheenBackground: prefersReducedMotion ? undefined : sheenBackground,
+    edgeGlow: prefersReducedMotion ? undefined : edgeGlow,
+    handlePointerMove,
+    handlePointerLeave,
+    handleTouchStart,
+    prefersReducedMotion,
+  };
+}
+
 export const MembershipCard: React.FC<MembershipCardProps> = ({
   user, isDark, isStaffOrAdminProfile, statsData, guestPasses, tierPermissions,
   simMinutesToday, confMinutesToday, nextWellnessClass, nextEvent,
@@ -53,15 +211,32 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const cardTextColor = isExpired ? '#F9FAFB' : tierColors.text;
   const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
+  const {
+    cardRef, rotateX, rotateY, sheenBackground, edgeGlow,
+    handlePointerMove, handlePointerLeave, handleTouchStart, prefersReducedMotion,
+  } = useCard3DTilt();
+
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
-        <div 
-          onClick={() => setIsCardOpen(true)} 
+        <motion.div
+          ref={cardRef}
+          onClick={() => setIsCardOpen(true)}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
-          className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer transition-transform duration-emphasis ease-out group animate-content-enter-delay-2 active:scale-[0.98] hover:scale-[1.015] hover:shadow-2xl ${isExpired ? 'grayscale-[30%]' : ''}`}
+          onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
+          onTouchStart={handleTouchStart}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+          className={`relative h-56 lg:h-full lg:min-h-56 w-full rounded-xl overflow-hidden cursor-pointer group animate-content-enter-delay-2 ${prefersReducedMotion ? '' : 'active:scale-[0.98]'} ${isExpired ? 'grayscale-[30%]' : ''}`}
+          style={{
+            perspective: 800,
+            rotateX: prefersReducedMotion ? 0 : rotateX,
+            rotateY: prefersReducedMotion ? 0 : rotateY,
+            transformStyle: 'preserve-3d',
+            boxShadow: prefersReducedMotion ? undefined : edgeGlow,
+          }}
+          whileHover={prefersReducedMotion ? undefined : { scale: 1.015 }}
         >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
@@ -70,6 +245,12 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           <div className="absolute inset-0 overflow-hidden rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-normal pointer-events-none">
             <div className="holographic-shimmer absolute -inset-full"></div>
           </div>
+          {!prefersReducedMotion && (
+            <motion.div
+              className="absolute inset-0 rounded-xl pointer-events-none z-[5]"
+              style={{ background: sheenBackground }}
+            />
+          )}
           <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
             <div className="flex justify-between items-start">
               <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" width={100} height={40} />
@@ -109,7 +290,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               <span className="font-bold text-sm text-white/90">{isExpired ? 'Renew Membership' : 'View Membership Details'}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="h-full animate-content-enter-delay-1">
           <MetricsGrid
