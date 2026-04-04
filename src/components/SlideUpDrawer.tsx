@@ -63,7 +63,12 @@ export function SlideUpDrawer({
 
   const y = useMotionValue(0);
   const dragProgress = useTransform(y, [0, 260], [0, 1]);
-  const backdropOpacity = useTransform(y, [0, 400], [1, 0.2]);
+  const backdropDragOpacity = useTransform(y, [0, 400], [1, 0.2]);
+  const closingOpacity = useMotionValue(1);
+  const backdropOpacity = useTransform(
+    [backdropDragOpacity, closingOpacity] as const,
+    ([drag, close]: number[]) => Math.max(0, drag * close)
+  );
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -75,10 +80,12 @@ export function SlideUpDrawer({
   useEffect(() => {
     if (!isOpen) {
       y.jump(0);
+      closingOpacity.jump(1);
       setIsClosing(false);
       return;
     }
 
+    closingOpacity.jump(1);
     const startY = window.innerHeight;
     y.jump(startY);
     if (reducedMotion) {
@@ -125,13 +132,15 @@ export function SlideUpDrawer({
 
     const height = drawerRef.current?.getBoundingClientRect().height || 600;
     if (reducedMotion) {
+      closingOpacity.jump(0);
       y.jump(height + 40);
       onCloseRef.current();
     } else {
+      animate(closingOpacity, 0, { duration: 0.18, ease: 'easeOut' });
       animate(y, height + 40, springPresets.sheetClose)
         .then(() => onCloseRef.current());
     }
-  }, [dismissible, isClosing, y, reducedMotion]);
+  }, [dismissible, isClosing, y, closingOpacity, reducedMotion]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && dismissible) {
@@ -201,9 +210,11 @@ export function SlideUpDrawer({
     if (shouldDismiss) {
       setIsClosing(true);
       if (reducedMotion) {
+        closingOpacity.jump(0);
         y.jump(height + 40);
         onCloseRef.current();
       } else {
+        animate(closingOpacity, 0, { duration: 0.18, ease: 'easeOut' });
         animate(y, height + 40, springPresets.sheetClose)
           .then(() => onCloseRef.current());
       }
@@ -214,7 +225,7 @@ export function SlideUpDrawer({
         animate(y, 0, springPresets.stiff);
       }
     }
-  }, [dismissible, y, reducedMotion]);
+  }, [dismissible, y, closingOpacity, reducedMotion]);
 
   if (!isOpen) return null;
 

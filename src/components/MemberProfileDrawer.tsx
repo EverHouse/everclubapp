@@ -108,7 +108,12 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
   const isDark = effectiveTheme === 'dark';
   const reducedMotion = useReducedMotion();
   const x = useMotionValue(0);
-  const backdropDragOpacity = useTransform(x, [0, 400], [1, 0.2]);
+  const backdropDragBase = useTransform(x, [0, 400], [1, 0.2]);
+  const closingOpacity = useMotionValue(1);
+  const backdropDragOpacity = useTransform(
+    [backdropDragBase, closingOpacity] as const,
+    ([drag, close]: number[]) => Math.max(0, drag * close)
+  );
   
   useEffect(() => {
     setDrawerOpen(isOpen);
@@ -287,13 +292,15 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
     setNewCommBody('');
     const dismissWidth = window.innerWidth;
     if (reducedMotion) {
+      closingOpacity.jump(0);
       x.jump(dismissWidth);
       onClose();
     } else {
+      animate(closingOpacity, 0, { duration: 0.18, ease: 'easeOut' });
       animate(x, dismissWidth, springPresets.sheetClose)
         .then(() => onClose());
     }
-  }, [hasUnsavedContent, onClose, x, reducedMotion]);
+  }, [hasUnsavedContent, onClose, x, closingOpacity, reducedMotion]);
 
   const handleProfileDragEnd = useCallback((_: unknown, info: { velocity: { x: number }; offset: { x: number } }) => {
     const shouldDismiss = info.velocity.x > 400 || info.offset.x > 200;
@@ -312,19 +319,22 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
       setNewCommSubject('');
       setNewCommBody('');
       if (reducedMotion) {
+        closingOpacity.jump(0);
         x.jump(dismissWidth);
         onClose();
       } else {
+        animate(closingOpacity, 0, { duration: 0.18, ease: 'easeOut' });
         animate(x, dismissWidth, springPresets.sheetClose)
           .then(() => onClose());
       }
     } else {
       if (reducedMotion) { x.jump(0); } else { animate(x, 0, springPresets.stiff); }
     }
-  }, [x, hasUnsavedContent, onClose, reducedMotion]);
+  }, [x, closingOpacity, hasUnsavedContent, onClose, reducedMotion]);
 
   useEffect(() => {
     if (isOpen) {
+      closingOpacity.jump(1);
       const startX = window.innerWidth;
       x.jump(startX);
       if (reducedMotion) {
@@ -333,7 +343,7 @@ const MemberProfileDrawer: React.FC<MemberProfileDrawerProps> = ({ isOpen, membe
         animate(x, 0, springPresets.sheet);
       }
     }
-  }, [isOpen, x, reducedMotion]);
+  }, [isOpen, x, closingOpacity, reducedMotion]);
 
   useScrollLock(isOpen, handleDrawerClose);
 
