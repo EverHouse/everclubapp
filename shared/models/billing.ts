@@ -96,6 +96,7 @@ export const bookingFeeSnapshots = pgTable(
   (table) => [
     index("idx_fee_snapshots_booking").on(table.bookingId),
     index("idx_fee_snapshots_intent").on(table.stripePaymentIntentId),
+    index("idx_fee_snapshots_session_id").on(table.sessionId).where(sql`${table.sessionId} IS NOT NULL`),
     uniqueIndex("idx_booking_fee_snapshots_session_completed")
       .on(table.sessionId)
       .where(sql`status = 'completed'`),
@@ -274,6 +275,7 @@ export const failedSideEffects = pgTable("failed_side_effects", {
 }, (table) => [
   index("idx_failed_side_effects_booking_id").on(table.bookingId),
   index("idx_failed_side_effects_resolved").on(table.resolved),
+  index("idx_failed_side_effects_retry_queue").on(table.resolved, table.retryCount, table.createdAt).where(sql`resolved = false`),
 ]);
 
 export type FailedSideEffect = typeof failedSideEffects.$inferSelect;
