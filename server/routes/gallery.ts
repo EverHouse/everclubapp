@@ -14,11 +14,20 @@ router.get('/api/gallery', async (req, res) => {
   try {
     const { include_inactive } = req.query;
     
+    const galleryColumns = {
+      id: galleryImages.id,
+      imageUrl: galleryImages.imageUrl,
+      category: galleryImages.category,
+      title: galleryImages.title,
+      sortOrder: galleryImages.sortOrder,
+      isActive: galleryImages.isActive,
+    };
+
     let images;
     if (include_inactive === 'true') {
-      images = await db.select().from(galleryImages).orderBy(asc(galleryImages.sortOrder)).limit(500);
+      images = await db.select(galleryColumns).from(galleryImages).orderBy(asc(galleryImages.sortOrder)).limit(500);
     } else {
-      images = await db.select().from(galleryImages).where(eq(galleryImages.isActive, true)).orderBy(asc(galleryImages.sortOrder)).limit(500);
+      images = await db.select(galleryColumns).from(galleryImages).where(eq(galleryImages.isActive, true)).orderBy(asc(galleryImages.sortOrder)).limit(500);
     }
     
     const formatted = images.map(img => ({

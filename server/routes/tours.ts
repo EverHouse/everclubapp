@@ -233,7 +233,7 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
     const tourId = parseInt(idParse.data, 10);
     if (isNaN(tourId)) return res.status(400).json({ error: 'Invalid tour ID' });
     
-    const [existingTour] = await db.select().from(tours).where(eq(tours.id, tourId));
+    const [existingTour] = await db.select({ status: tours.status }).from(tours).where(eq(tours.id, tourId));
     const previousStatus = existingTour?.status || 'unknown';
     
     const updateData: Record<string, unknown> = {
@@ -422,11 +422,11 @@ router.get('/api/tours/needs-review', isStaffOrAdmin, async (req, res) => {
       hubspotMeetingsCache = { data: meetings, timestamp: Date.now() };
     }
     
-    const existingToursByHubspotId = await db.select().from(tours)
+    const existingToursByHubspotId = await db.select({ hubspotMeetingId: tours.hubspotMeetingId }).from(tours)
       .where(sql`${tours.hubspotMeetingId} IS NOT NULL`);
     const linkedHubspotIds = new Set(existingToursByHubspotId.map(t => t.hubspotMeetingId));
     
-    const dismissedMeetings = await db.select().from(dismissedHubspotMeetings);
+    const dismissedMeetings = await db.select({ hubspotMeetingId: dismissedHubspotMeetings.hubspotMeetingId }).from(dismissedHubspotMeetings);
     const dismissedIds = new Set(dismissedMeetings.map(d => d.hubspotMeetingId));
     
     const unmatchedMeetings: Array<HubSpotMeetingDetails & { potentialMatches: Array<{ id: number; guestName: string | null; guestEmail: string | null; tourDate: string; startTime: string; status: string | null }>; wouldBackfill: boolean }> = [];
@@ -438,7 +438,14 @@ router.get('/api/tours/needs-review', isStaffOrAdmin, async (req, res) => {
       let potentialMatches: Array<{ id: number; guestName: string | null; guestEmail: string | null; tourDate: string; startTime: string; status: string | null }> = [];
       if (meeting.guestEmail) {
         const meetingTimeMinutes = parseTimeToMinutes(meeting.startTime);
-        const candidateTours = await db.select().from(tours).where(
+        const candidateTours = await db.select({
+          id: tours.id,
+          guestName: tours.guestName,
+          guestEmail: tours.guestEmail,
+          tourDate: tours.tourDate,
+          startTime: tours.startTime,
+          status: tours.status,
+        }).from(tours).where(
           and(
             ilike(tours.guestEmail, meeting.guestEmail),
             eq(tours.tourDate, meeting.tourDate),
@@ -450,14 +457,7 @@ router.get('/api/tours/needs-review', isStaffOrAdmin, async (req, res) => {
           if (t.startTime === '00:00:00') return true;
           const tourTimeMinutes = parseTimeToMinutes(t.startTime);
           return Math.abs(meetingTimeMinutes - tourTimeMinutes) <= 15;
-        }).map(t => ({
-          id: t.id,
-          guestName: t.guestName,
-          guestEmail: t.guestEmail,
-          tourDate: t.tourDate,
-          startTime: t.startTime,
-          status: t.status,
-        }));
+        });
       }
       
       unmatchedMeetings.push({
@@ -482,7 +482,7 @@ router.post('/api/tours/link-hubspot', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'hubspotMeetingId and tourId are required' });
     }
     
-    const existingLink = await db.select().from(tours)
+    const existingLink = await db.select({ id: tours.id }).from(tours)
       .where(eq(tours.hubspotMeetingId, hubspotMeetingId));
     if (existingLink.length > 0) {
       return res.status(400).json({ error: 'This HubSpot meeting is already linked to a tour' });
@@ -529,7 +529,7 @@ router.post('/api/tours/create-from-hubspot', isStaffOrAdmin, async (req, res) =
       return res.status(400).json({ error: 'hubspotMeetingId is required' });
     }
     
-    const existingLink = await db.select().from(tours)
+    const existingLink = await db.select({ id: tours.id }).from(tours)
       .where(eq(tours.hubspotMeetingId, hubspotMeetingId));
     if (existingLink.length > 0) {
       return res.status(400).json({ error: 'This HubSpot meeting is already linked to a tour' });
@@ -570,7 +570,7 @@ router.post('/api/tours/dismiss-hubspot', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'hubspotMeetingId is required' });
     }
     
-    const existing = await db.select().from(dismissedHubspotMeetings)
+    const existing = await db.select({ id: dismissedHubspotMeetings.id }).from(dismissedHubspotMeetings)
       .where(eq(dismissedHubspotMeetings.hubspotMeetingId, hubspotMeetingId));
     if (existing.length > 0) {
       return res.status(400).json({ error: 'This HubSpot meeting is already dismissed' });
@@ -718,7 +718,11 @@ async function fetchHubSpotTourMeetings(): Promise<HubSpotMeetingDetails[]> {
 export async function sendTodayTourReminders(): Promise<number> {
   try {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-    const todayTours = await db.select().from(tours)
+    const todayTours = await db.select({
+      startTime: tours.startTime,
+      guestName: tours.guestName,
+      title: tours.title,
+    }).from(tours)
       .where(and(
         eq(tours.tourDate, today),
         eq(tours.status, 'scheduled')
@@ -847,7 +851,14 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
       const cancelledOutcomes = ['canceled', 'cancelled', 'no show', 'no_show', 'noshow', 'rescheduled'];
       const isCancelled = cancelledOutcomes.includes(outcome);
       
-      const existing = await db.select().from(tours).where(eq(tours.hubspotMeetingId, hubspotMeetingId as string));
+      const existing = await db.select({
+        id: tours.id,
+        status: tours.status,
+        guestName: tours.guestName,
+        guestEmail: tours.guestEmail,
+        guestPhone: tours.guestPhone,
+        hubspotMeetingId: tours.hubspotMeetingId,
+      }).from(tours).where(eq(tours.hubspotMeetingId, hubspotMeetingId as string));
       
       if (existing.length > 0) {
         if (isCancelled && existing[0].status !== 'cancelled') {
@@ -879,7 +890,15 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
         if (guestEmail) {
           const eventTimeMinutes = parseTimeToMinutes(startTime);
           // Check for any existing tour with same email/date/time (including those from Google Calendar)
-          const existingTours = await db.select().from(tours).where(
+          const existingTours = await db.select({
+            id: tours.id,
+            startTime: tours.startTime,
+            status: tours.status,
+            guestName: tours.guestName,
+            guestEmail: tours.guestEmail,
+            guestPhone: tours.guestPhone,
+            hubspotMeetingId: tours.hubspotMeetingId,
+          }).from(tours).where(
             and(
               ilike(tours.guestEmail, guestEmail),
               eq(tours.tourDate, tourDate),
@@ -945,7 +964,12 @@ export async function syncToursFromHubSpot(): Promise<{ synced: number; created:
     logger.info('[HubSpot Tour Sync] Completed: meetings processed, created, updated, cancelled', { extra: { allMeetingsLength: allMeetings.length, created, updated, cancelled } });
     
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-    const scheduledToursWithHubSpotId = await db.select().from(tours)
+    const scheduledToursWithHubSpotId = await db.select({
+      id: tours.id,
+      hubspotMeetingId: tours.hubspotMeetingId,
+      guestName: tours.guestName,
+      title: tours.title,
+    }).from(tours)
       .where(and(
         sql`${tours.hubspotMeetingId} IS NOT NULL`,
         eq(tours.status, 'scheduled'),
@@ -998,7 +1022,7 @@ router.get('/api/tours/availability', async (req, res) => {
       return res.status(500).json({ error: 'Unable to fetch availability' });
     }
 
-    const existingTours = await db.select().from(tours)
+    const existingTours = await db.select({ startTime: tours.startTime }).from(tours)
       .where(and(
         eq(tours.tourDate, date),
         or(eq(tours.status, 'scheduled'), eq(tours.status, 'pending'))
@@ -1062,7 +1086,7 @@ router.post('/api/tours/schedule', checkoutRateLimiter, async (req, res) => {
       return res.status(500).json({ error: 'Unable to verify availability' });
     }
 
-    const existingTours = await db.select().from(tours)
+    const existingTours = await db.select({ startTime: tours.startTime }).from(tours)
       .where(and(
         eq(tours.tourDate, date),
         or(eq(tours.status, 'scheduled'), eq(tours.status, 'pending'))

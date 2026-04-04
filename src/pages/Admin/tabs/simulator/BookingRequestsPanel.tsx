@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { QueryClient } from '@tanstack/react-query';
 import { formatTime12Hour, getRelativeDateLabel, formatDuration, formatRelativeTime, getTodayPacific } from '../../../../utils/dateUtils';
 import { getStatusBadge, formatStatusLabel } from '../../../../utils/statusColors';
 import TierBadge from '../../../../components/TierBadge';
@@ -70,8 +71,8 @@ export interface BookingRequestsPanelProps {
     tierMinutes?: Record<string, number>;
     startDate: string;
     endDate: string;
-    queryClient: { setQueryData: (key: unknown, updater: unknown) => void; invalidateQueries: (opts: { queryKey: unknown }) => void };
-    simulatorKeys: { allRequests: () => string[]; approvedBookings: (start: string, end: string) => string[] };
+    queryClient: QueryClient;
+    simulatorKeys: { allRequests: () => readonly string[]; approvedBookings: (start: string, end: string) => readonly string[] };
     activeView: 'requests' | 'calendar';
     queueMaxHeight: number | null;
     setActionInProgress: React.Dispatch<React.SetStateAction<Record<string, string>>>;

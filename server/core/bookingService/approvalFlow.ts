@@ -123,26 +123,29 @@ export async function approveBooking(params: ApproveBookingParams) {
       throw new AppError(409, 'Time slot conflicts with existing booking');
     }
 
-    const closureCheck = await checkClosureConflict(assignedBayId, req_data.requestDate, req_data.startTime, req_data.endTime);
+    const [closureCheck, blockCheck] = await Promise.all([
+      checkClosureConflict(assignedBayId, req_data.requestDate, req_data.startTime, req_data.endTime),
+      checkAvailabilityBlockConflict(assignedBayId, req_data.requestDate, req_data.startTime, req_data.endTime),
+    ]);
     if (closureCheck.hasConflict) {
       throw new AppError(409, 'Cannot approve booking during closure', {
         message: `This time slot conflicts with "${closureCheck.closureTitle}". Please decline this request or wait until the closure ends.`
       });
     }
-
-    const blockCheck = await checkAvailabilityBlockConflict(assignedBayId, req_data.requestDate, req_data.startTime, req_data.endTime);
     if (blockCheck.hasConflict) {
       throw new AppError(409, 'Cannot approve booking during event block', {
         message: `This time slot is blocked: ${blockCheck.blockType || 'Event block'}. Please decline this request or reschedule.`
       });
     }
 
-    const bayResult = await tx.select({ name: resources.name, type: resources.type }).from(resources).where(eq(resources.id, assignedBayId));
+    const [bayResult, calendarName] = await Promise.all([
+      tx.select({ name: resources.name, type: resources.type }).from(resources).where(eq(resources.id, assignedBayId)),
+      getCalendarNameForBayAsync(assignedBayId),
+    ]);
     const bayName = bayResult[0]?.name || 'Simulator';
     const isConferenceRoom = bayResult[0]?.type === 'conference_room';
 
     const calendarEventId: string | null = req_data.calendarEventId || null;
-    const calendarName = await getCalendarNameForBayAsync(assignedBayId);
 
     const finalStatus = 'approved';
 

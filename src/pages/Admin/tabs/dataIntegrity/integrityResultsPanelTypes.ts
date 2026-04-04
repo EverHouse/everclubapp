@@ -1,0 +1,107 @@
+import { UseMutationResult } from '@tanstack/react-query';
+import type { IntegrityCheckResult, IntegrityIssue, ActiveIssue } from './dataIntegrityTypes';
+
+interface HubspotSyncMember { email: string; firstName?: string; lastName?: string; tier?: string; status?: string; }
+interface SubscriptionUpdate { email: string; oldStatus?: string; newStatus?: string; reason?: string; }
+interface OrphanedStripeRecord { email: string; stripeCustomerId?: string; reason?: string; }
+interface StripeHubspotMember { email: string; name?: string; stripeCustomerId?: string; hubspotId?: string; }
+interface PaymentUpdate { email: string; oldStatus?: string; newStatus?: string; }
+interface VisitMismatch { email: string; name?: string; currentCount?: number; actualCount?: number; }
+interface OrphanedParticipantDetail { email: string; bookingId?: number; action?: string; displayName?: string; userId?: string | number; }
+
+export interface IntegrityResultsPanelProps {
+  results: IntegrityCheckResult[];
+  expandedChecks: Set<string>;
+  toggleCheck: (checkName: string) => void;
+  syncingIssues: Set<string>;
+  handleSyncPush: (issue: IntegrityIssue) => void;
+  handleSyncPull: (issue: IntegrityIssue) => void;
+  cancellingBookings: Set<number>;
+  handleCancelBooking: (bookingId: number) => void;
+  loadingMemberEmail: string | null;
+  handleViewProfile: (email: string) => void;
+  setBookingSheet: (sheet: {
+    isOpen: boolean;
+    bookingId: number | null;
+    sessionId?: number | string | null;
+    bayName?: string;
+    bookingDate?: string;
+    timeSlot?: string;
+    memberName?: string;
+    memberEmail?: string;
+    trackmanBookingId?: string;
+    importedName?: string;
+    notes?: string;
+    originalEmail?: string;
+    isUnmatched?: boolean;
+  }) => void;
+  fixIssueMutation: UseMutationResult<{ success: boolean; message: string }, unknown, { endpoint: string; body: Record<string, unknown> }, unknown>;
+  fixingIssues: Set<string>;
+  isRefreshing: boolean;
+  openIgnoreModal: (issue: IntegrityIssue, checkName: string) => void;
+  openBulkIgnoreModal: (checkName: string, issues: IntegrityIssue[]) => void;
+  getIssueTracking: (issue: IntegrityIssue) => ActiveIssue | undefined;
+  isSyncingToHubspot: boolean;
+  hubspotSyncResult: { success: boolean; message: string; members?: HubspotSyncMember[]; dryRun?: boolean } | null;
+  handleSyncMembersToHubspot: (dryRun: boolean) => void;
+  isRunningSubscriptionSync: boolean;
+  subscriptionStatusResult: { success: boolean; message: string; totalChecked?: number; mismatchCount?: number; updated?: SubscriptionUpdate[]; dryRun?: boolean } | null;
+  handleSyncSubscriptionStatus: (dryRun: boolean) => void;
+  isRunningOrphanedStripeCleanup: boolean;
+  orphanedStripeResult: { success: boolean; message: string; totalChecked?: number; orphanedCount?: number; cleared?: OrphanedStripeRecord[]; dryRun?: boolean } | null;
+  handleClearOrphanedStripeIds: (dryRun: boolean) => void;
+  isRunningStripeCustomerCleanup: boolean;
+  stripeCleanupResult: { success: boolean; message: string; dryRun?: boolean; totalCustomers?: number; emptyCount?: number; customers?: Array<{ id: string; email: string | null; name: string | null; created: string }>; deleted?: Array<{ id: string; email: string | null }>; deletedCount?: number } | null;
+  handleCleanupStripeCustomers: (dryRun: boolean) => void;
+  stripeCleanupProgress: {
+    phase: string;
+    totalCustomers: number;
+    checked: number;
+    emptyFound: number;
+    skippedActiveCount: number;
+    deleted: number;
+    errors: number;
+  } | null;
+  isRunningGhostBookingFix: boolean;
+  ghostBookingResult: { success: boolean; message: string; ghostBookings?: number; fixed?: number; dryRun?: boolean; errors?: Array<{ bookingId: number; error: string }> } | null;
+  handleFixGhostBookings: (dryRun: boolean) => void;
+  isCleaningMindbodyIds: boolean;
+  mindbodyCleanupResult: { success: boolean; message: string; toClean?: number; dryRun?: boolean } | null;
+  handleCleanupMindbodyIds: (dryRun: boolean) => void;
+  isRunningStripeHubspotLink: boolean;
+  stripeHubspotLinkResult: { success: boolean; message: string; stripeOnlyMembers?: StripeHubspotMember[]; hubspotOnlyMembers?: StripeHubspotMember[]; linkedCount?: number; dryRun?: boolean } | null;
+  handleLinkStripeHubspot: (dryRun: boolean) => void;
+  isRunningPaymentStatusSync: boolean;
+  paymentStatusResult: { success: boolean; message: string; totalChecked?: number; updatedCount?: number; updates?: PaymentUpdate[]; dryRun?: boolean } | null;
+  handleSyncPaymentStatus: (dryRun: boolean) => void;
+  isRunningVisitCountSync: boolean;
+  visitCountResult: { success: boolean; message: string; mismatchCount?: number; updatedCount?: number; sampleMismatches?: VisitMismatch[]; dryRun?: boolean } | null;
+  handleSyncVisitCounts: (dryRun: boolean) => void;
+  handleArchiveStaleVisitors: (dryRun: boolean) => void;
+  isRunningVisitorArchive: boolean;
+  visitorArchiveResult: {
+    success: boolean;
+    message: string;
+    dryRun?: boolean;
+    totalScanned?: number;
+    eligibleCount?: number;
+    keptCount?: number;
+    deletedCount?: number;
+    sampleDeleted?: Array<{ name: string; email: string }>;
+  } | null;
+  visitorArchiveProgress: {
+    phase: string;
+    totalVisitors: number;
+    checked: number;
+    eligibleCount: number;
+    keptCount: number;
+    deleted: number;
+    errors: number;
+  } | null;
+  isRunningOrphanedParticipantFix: boolean;
+  orphanedParticipantResult: { success: boolean; message: string; relinked?: number; converted?: number; total?: number; dryRun?: boolean; relinkedDetails?: OrphanedParticipantDetail[]; convertedDetails?: OrphanedParticipantDetail[] } | null;
+  handleFixOrphanedParticipants: (dryRun: boolean) => void;
+  isRunningReviewItemsApproval: boolean;
+  reviewItemsResult: { success: boolean; message: string; wellnessCount?: number; eventCount?: number; total?: number; dryRun?: boolean } | null;
+  handleApproveAllReviewItems: (dryRun: boolean) => void;
+}

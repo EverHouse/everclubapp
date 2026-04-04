@@ -4,7 +4,7 @@ import { springPresets, useReducedMotion } from '../utils/motion';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from './icons/Icon';
 
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface ToastAction {
   label: string;
