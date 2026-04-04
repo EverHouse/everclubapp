@@ -487,7 +487,7 @@ const KioskCheckin: React.FC = () => {
     setPasscodeChecking(false);
     passcodeSubmittingRef.current = false;
     if (passcodeSubmitTimerRef.current) { clearTimeout(passcodeSubmitTimerRef.current); passcodeSubmitTimerRef.current = null; }
-    setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
+    setTimeout(() => passcodeInputRefs.current[0]?.focus(), 300);
   }, []);
 
   const handlePasscodeClose = useCallback(() => {
@@ -533,13 +533,13 @@ const KioskCheckin: React.FC = () => {
         setPasscodeError(true);
         setPasscodeErrorMessage(data.error || 'Incorrect passcode. Try again.');
         setPasscodeDigits(['', '', '', '']);
-        setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
+        setTimeout(() => passcodeInputRefs.current[0]?.focus(), 300);
       }
     } catch {
       setPasscodeError(true);
       setPasscodeErrorMessage('Connection error. Please try again.');
       setPasscodeDigits(['', '', '', '']);
-      setTimeout(() => passcodeInputRefs.current[0]?.focus(), 100);
+      setTimeout(() => passcodeInputRefs.current[0]?.focus(), 300);
     } finally {
       setPasscodeChecking(false);
       passcodeSubmittingRef.current = false;
@@ -658,6 +658,18 @@ const KioskCheckin: React.FC = () => {
         <div className="w-full max-w-lg flex flex-col items-center">
           {state === 'scanning' && (
             <div className="animate-in fade-in duration-300 w-full flex flex-col items-center">
+              <p
+                className="text-sm tracking-[0.2em] uppercase mb-1"
+                style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-headline)' }}
+              >
+                Welcome to
+              </p>
+              <img
+                src="/images/everclub-logo-light.webp"
+                alt="Ever Club"
+                className="h-12 md:h-14 object-contain mb-4"
+                style={{ filter: 'brightness(1.1)' }}
+              />
               <p
                 className="text-xs font-semibold tracking-[0.3em] uppercase mb-3"
                 style={{ color: OLIVE_ACCENT }}
