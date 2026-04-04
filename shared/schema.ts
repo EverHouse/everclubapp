@@ -7,3 +7,4 @@ export * from "./models/scheduling";
 export * from "./models/system";
 export * from "./models/hubspot-billing";
 export * from "./models/billing";
+export * from "./models/waiver";

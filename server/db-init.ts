@@ -2828,6 +2828,104 @@ export async function ensureConsentEventsTable(): Promise<void> {
   }
 }
 
+export async function ensureWaiverAuditTables(): Promise<void> {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS waiver_documents (
+        id SERIAL PRIMARY KEY,
+        version VARCHAR(20) NOT NULL,
+        document_hash VARCHAR(64) NOT NULL,
+        document_content TEXT NOT NULL,
+        created_by VARCHAR,
+        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS waiver_documents_version_idx ON waiver_documents (version)`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS waiver_documents_version_hash_unique_idx ON waiver_documents (version, document_hash)`);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS waiver_signatures (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR NOT NULL,
+        waiver_version VARCHAR(20) NOT NULL,
+        document_hash VARCHAR(64) NOT NULL,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        source VARCHAR(20) NOT NULL DEFAULT 'signing',
+        signed_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS waiver_signatures_user_id_idx ON waiver_signatures (user_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS waiver_signatures_signed_at_idx ON waiver_signatures (signed_at)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS waiver_signatures_version_idx ON waiver_signatures (waiver_version)`);
+
+    logger.info('[DB Init] Ensured waiver_documents and waiver_signatures tables exist');
+  } catch (err: unknown) {
+    logger.error('[DB Init] Failed to create waiver audit tables:', { extra: { error: getErrorMessage(err) } });
+  }
+}
+
+export async function backfillWaiverSignatures(): Promise<void> {
+  try {
+    const { getWaiverDocumentText, computeDocumentHash } = await import('./utils/waiverContent');
+
+    const usersToBackfill = await db.execute(sql`
+      SELECT u.id, u.waiver_version, u.waiver_signed_at, u.created_at
+      FROM users u
+      WHERE u.waiver_signed_at IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM waiver_signatures ws WHERE ws.user_id = u.id
+        )
+    `);
+
+    const rows = usersToBackfill.rows as Array<{
+      id: string;
+      waiver_version: string | null;
+      waiver_signed_at: string | null;
+      created_at: string | null;
+    }>;
+
+    if (rows.length === 0) return;
+
+    const hashCache: Record<string, string> = {};
+    const getHashForVersion = (version: string): string => {
+      if (!hashCache[version]) {
+        const text = getWaiverDocumentText(version);
+        hashCache[version] = computeDocumentHash(text);
+      }
+      return hashCache[version];
+    };
+
+    let totalInserted = 0;
+    for (const row of rows) {
+      const version = row.waiver_version || '1.0';
+      const documentHash = getHashForVersion(version);
+      const signedAt = row.waiver_signed_at || row.created_at || new Date().toISOString();
+      await db.execute(sql`
+        INSERT INTO waiver_signatures (user_id, waiver_version, document_hash, ip_address, user_agent, source, signed_at)
+        VALUES (${row.id}, ${version}, ${documentHash}, NULL, NULL, 'backfill', ${signedAt})
+      `);
+      totalInserted++;
+    }
+
+    for (const version of Object.keys(hashCache)) {
+      const hash = hashCache[version];
+      const text = getWaiverDocumentText(version);
+      await db.execute(sql`
+        INSERT INTO waiver_documents (version, document_hash, document_content, created_by, created_at)
+        VALUES (${version}, ${hash}, ${text}, 'backfill', NOW())
+        ON CONFLICT (version, document_hash) DO NOTHING
+      `);
+    }
+
+    if (totalInserted > 0) {
+      logger.info(`[DB Init] Backfilled ${totalInserted} waiver signature records with computed document hashes`);
+    }
+  } catch (err: unknown) {
+    logger.error('[DB Init] Failed to backfill waiver signatures:', { extra: { error: getErrorMessage(err) } });
+  }
+}
+
 export async function clearStaleVisitorTypes(): Promise<void> {
   try {
     const result = await db.execute(sql`

@@ -6,6 +6,149 @@ import { copyToClipboard } from '../../lib/copyToClipboard';
 import Icon from '../icons/Icon';
 import ConsentHistorySection from './ConsentHistorySection';
 
+interface WaiverSignatureRecord {
+  id: number;
+  waiverVersion: string;
+  documentHash: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  source: string;
+  signedAt: string;
+}
+
+const WaiverHistorySection: React.FC<{
+  member: MemberProfile;
+  isDark: boolean;
+  isAdmin: boolean;
+  visitorMode: boolean;
+}> = ({ member, isDark, isAdmin, visitorMode }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [signatures, setSignatures] = useState<WaiverSignatureRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    if (loaded || loading || !member?.id) return;
+    setLoading(true);
+    try {
+      const { ok, data } = await apiRequest<{ signatures: WaiverSignatureRecord[] }>(
+        `/api/waivers/signatures/${encodeURIComponent(member.id)}`
+      );
+      if (ok && data?.signatures) {
+        setSignatures(data.signatures);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+      setLoaded(true);
+    }
+  }, [member?.id, loaded, loading]);
+
+  const handleToggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !loaded) loadHistory();
+  };
+
+  return (
+    <div
+      className="animate-slide-up-stagger"
+      style={{ '--stagger-index': 2.5 } as React.CSSProperties}
+    >
+      <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+        <div className="flex items-center justify-between">
+          <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <Icon name="description" className="text-[18px]" />
+            Waiver
+          </h4>
+          <div className="flex items-center gap-2">
+            {member?.waiverSignedAt ? (
+              <div className="flex items-center gap-1.5">
+                <Icon name="check_circle" className="text-[14px] text-green-500" />
+                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Signed {formatDatePacific(member.waiverSignedAt)}
+                  {member.waiverVersion ? ` (v${member.waiverVersion})` : ''}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <Icon name="warning" className="text-[14px] text-amber-500" />
+                <span className={`text-xs font-medium text-amber-500`}>Not signed</span>
+              </div>
+            )}
+            {!visitorMode && (
+              <button
+                onClick={handleToggle}
+                className={`text-xs flex items-center gap-0.5 px-1.5 py-0.5 rounded transition-colors tactile-btn ${
+                  isDark ? 'text-gray-500 hover:text-gray-300 hover:bg-white/10' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <Icon name={expanded ? 'expand_less' : 'expand_more'} className="text-base" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {expanded && !visitorMode && (
+          <div className="mt-3 space-y-2">
+            {loading && (
+              <div className="flex items-center justify-center py-3">
+                <Icon name="progress_activity" className="text-xl text-gray-400 animate-spin" />
+              </div>
+            )}
+            {loaded && signatures.length === 0 && (
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>No signing records found.</p>
+            )}
+            {signatures.map((sig) => (
+              <div
+                key={sig.id}
+                className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-100'}`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className={`text-xs font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    v{sig.waiverVersion}
+                  </span>
+                  <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {formatDatePacific(sig.signedAt)}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1.5">
+                    <Icon name="language" className={`text-[12px] mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+                    <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {sig.ipAddress || 'No IP recorded'}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <Icon name="computer" className={`text-[12px] mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+                    <span className={`text-[10px] break-all ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {sig.userAgent || 'No device info recorded'}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <Icon name="fingerprint" className={`text-[12px] mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+                    <span className={`text-[10px] font-mono break-all ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>
+                      {sig.documentHash}
+                    </span>
+                  </div>
+                  {sig.source === 'backfill' && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+                        Backfilled from legacy data
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const CopyButton: React.FC<{ value: string; isDark: boolean }> = ({ value, isDark }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = async (e: React.MouseEvent) => {
@@ -559,33 +702,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         </div>
       )}
 
-      <div 
-        className="animate-slide-up-stagger"
-        style={{ '--stagger-index': 2.5 } as React.CSSProperties}
-      >
-        <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-          <div className="flex items-center justify-between">
-            <h4 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              <Icon name="description" className="text-[18px]" />
-              Waiver
-            </h4>
-            {member?.waiverSignedAt ? (
-              <div className="flex items-center gap-1.5">
-                <Icon name="check_circle" className="text-[14px] text-green-500" />
-                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Signed {formatDatePacific(member.waiverSignedAt)}
-                  {member.waiverVersion ? ` (v${member.waiverVersion})` : ''}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                <Icon name="warning" className="text-[14px] text-amber-500" />
-                <span className={`text-xs font-medium text-amber-500`}>Not signed</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <WaiverHistorySection member={member} isDark={isDark} isAdmin={isAdmin} visitorMode={visitorMode} />
 
       <div 
         className="animate-slide-up-stagger"

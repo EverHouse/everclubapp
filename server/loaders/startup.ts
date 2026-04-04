@@ -1,4 +1,4 @@
-import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, seedTierFeatures, fixFunctionSearchPaths, validateTierHierarchy, setupInstantDataTriggers, clearStaleVisitorTypes, deleteOrphanHubSpotVisitors, ensureConsentEventsTable } from '../db-init';
+import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, seedTierFeatures, fixFunctionSearchPaths, validateTierHierarchy, setupInstantDataTriggers, clearStaleVisitorTypes, deleteOrphanHubSpotVisitors, ensureConsentEventsTable, ensureWaiverAuditTables, backfillWaiverSignatures } from '../db-init';
 import { seedTrainingSections } from '../routes/training';
 import { getStripeSync } from '../core/stripe';
 import { getStripeEnvironmentInfo, getStripeClient } from '../core/stripe/client';
@@ -217,6 +217,14 @@ export async function runStartupTasks(): Promise<void> {
         await deleteOrphanHubSpotVisitors();
       } catch (err: unknown) {
         logger.warn(`[Startup] Visitor cleanup failed (non-critical): ${getErrorMessage(err)}`);
+      }
+    },
+    async () => {
+      try {
+        await ensureWaiverAuditTables();
+        await backfillWaiverSignatures();
+      } catch (err: unknown) {
+        logger.warn(`[Startup] Waiver audit tables setup failed (non-critical): ${getErrorMessage(err)}`);
       }
     },
     async () => {

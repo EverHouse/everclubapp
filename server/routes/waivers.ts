@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc } from 'drizzle-orm';
 import { db } from '../db';
-import { users, systemSettings } from '../../shared/schema';
+import { users, systemSettings, waiverSignatures, waiverDocuments } from '../../shared/schema';
 import { isAuthenticated, isStaffOrAdmin } from '../core/middleware';
 import { sensitiveActionRateLimiter } from '../middleware/rateLimiting';
 import { getSessionUser } from '../types/session';
@@ -11,12 +11,17 @@ import { safeSendEmail } from '../utils/resend';
 import { getErrorMessage } from '../utils/errorUtils';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validate';
+import { getWaiverDocumentText, computeDocumentHash } from '../utils/waiverContent';
 
 const waiverVersionSchema = z.object({
   version: z.string().regex(/^\d+\.\d+$/, 'Invalid version format. Use format like "1.0", "2.0"'),
 });
 
 const router = Router();
+
+function getClientIp(req: import('express').Request): string | null {
+  return req.ip || null;
+}
 
 router.get('/api/waivers/status', isAuthenticated, async (req, res) => {
   try {
@@ -94,13 +99,67 @@ router.post('/api/waivers/sign', isAuthenticated, async (req, res) => {
     
     const currentVersion = currentVersionResult[0]?.value || '2.0';
 
-    await db.update(users)
-      .set({
+    const ipAddress = getClientIp(req);
+    const userAgent = req.get('user-agent') || null;
+    const signedAt = new Date();
+
+    const userResult = await db.select({ id: users.id })
+      .from(users)
+      .where(sql`LOWER(${users.email}) = ${sessionUser.email.toLowerCase()}`)
+      .limit(1);
+
+    const user = userResult[0];
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const storedDoc = await db.select({
+      documentHash: waiverDocuments.documentHash,
+    })
+      .from(waiverDocuments)
+      .where(eq(waiverDocuments.version, currentVersion))
+      .orderBy(desc(waiverDocuments.createdAt))
+      .limit(1);
+
+    let documentHash: string;
+    let needsDocInsert = false;
+    let documentText: string;
+
+    if (storedDoc.length > 0) {
+      documentHash = storedDoc[0].documentHash;
+      documentText = '';
+    } else {
+      documentText = getWaiverDocumentText(currentVersion);
+      documentHash = computeDocumentHash(documentText);
+      needsDocInsert = true;
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.update(users)
+        .set({
+          waiverVersion: currentVersion,
+          waiverSignedAt: signedAt,
+          updatedAt: signedAt,
+        })
+        .where(sql`LOWER(${users.email}) = ${sessionUser.email.toLowerCase()}`);
+
+      await tx.insert(waiverSignatures).values({
+        userId: user.id,
         waiverVersion: currentVersion,
-        waiverSignedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(sql`LOWER(${users.email}) = ${sessionUser.email.toLowerCase()}`);
+        documentHash,
+        ipAddress,
+        userAgent,
+        signedAt,
+      });
+
+      if (needsDocInsert) {
+        await tx.execute(sql`
+          INSERT INTO waiver_documents (version, document_hash, document_content, created_by, created_at)
+          VALUES (${currentVersion}, ${documentHash}, ${documentText}, 'system', NOW())
+          ON CONFLICT (version, document_hash) DO NOTHING
+        `);
+      }
+    });
 
     db.execute(sql`UPDATE users SET onboarding_completed_at = NOW(), updated_at = NOW() 
       WHERE LOWER(email) = ${sessionUser.email.toLowerCase()} 
@@ -111,7 +170,7 @@ router.post('/api/waivers/sign', isAuthenticated, async (req, res) => {
     res.json({
       success: true,
       version: currentVersion,
-      signedAt: new Date(),
+      signedAt,
     });
   } catch (error: unknown) {
     logger.error('Error signing waiver', { extra: { error: getErrorMessage(error) } });
@@ -145,23 +204,54 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, validateBody(waiverVe
 
     const { version } = req.body;
 
-    await db.insert(systemSettings)
-      .values({
-        key: 'current_waiver_version',
-        value: version,
-        category: 'waivers',
-        updatedBy: sessionUser?.email || 'system',
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: systemSettings.key,
-        set: {
-          value: version,
-          updatedAt: new Date(),
-        },
-      });
+    const previousVersionResult = await db.select({ value: systemSettings.value })
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'current_waiver_version'))
+      .limit(1);
+    const previousVersion = previousVersionResult[0]?.value || null;
 
-    // Include trialing and past_due as active - they still have membership access
+    const newDocumentText = getWaiverDocumentText(version);
+    const newDocumentHash = computeDocumentHash(newDocumentText);
+
+    let previousDocumentHash: string | null = null;
+    if (previousVersion) {
+      const existingPrevDoc = await db.select({ documentHash: waiverDocuments.documentHash })
+        .from(waiverDocuments)
+        .where(eq(waiverDocuments.version, previousVersion))
+        .orderBy(desc(waiverDocuments.createdAt))
+        .limit(1);
+      if (existingPrevDoc.length > 0) {
+        previousDocumentHash = existingPrevDoc[0].documentHash;
+      } else {
+        const prevDocText = getWaiverDocumentText(previousVersion);
+        previousDocumentHash = computeDocumentHash(prevDocText);
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.insert(systemSettings)
+        .values({
+          key: 'current_waiver_version',
+          value: version,
+          category: 'waivers',
+          updatedBy: sessionUser?.email || 'system',
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: systemSettings.key,
+          set: {
+            value: version,
+            updatedAt: new Date(),
+          },
+        });
+
+      await tx.execute(sql`
+        INSERT INTO waiver_documents (version, document_hash, document_content, created_by, created_at)
+        VALUES (${version}, ${newDocumentHash}, ${newDocumentText}, ${sessionUser?.email || 'system'}, NOW())
+        ON CONFLICT (version, document_hash) DO NOTHING
+      `);
+    });
+
     const affectedUsersResult = await db.execute(sql`
       SELECT COUNT(*) as count FROM users 
       WHERE (membership_status IN ('active', 'trialing', 'past_due') OR stripe_subscription_id IS NOT NULL)
@@ -172,7 +262,14 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, validateBody(waiverVe
     
     const affectedCount = Number((affectedUsersResult as { rows?: Array<{ count?: number }> }).rows?.[0]?.count || 0);
 
-    logFromRequest(req, 'update_waiver_version', 'waiver', undefined, undefined, { version, affectedMembers: affectedCount });
+    logFromRequest(req, 'update_waiver_version', 'waiver', undefined, undefined, {
+      version,
+      previousVersion,
+      previousDocumentHash,
+      newDocumentHash,
+      affectedMembers: affectedCount,
+    });
+
     res.json({
       success: true,
       version,
@@ -182,6 +279,30 @@ router.post('/api/waivers/update-version', isStaffOrAdmin, validateBody(waiverVe
   } catch (error: unknown) {
     logger.error('Error updating waiver version', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to update agreement version' });
+  }
+});
+
+router.get('/api/waivers/signatures/:userId', isStaffOrAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const signatures = await db.select({
+      id: waiverSignatures.id,
+      waiverVersion: waiverSignatures.waiverVersion,
+      documentHash: waiverSignatures.documentHash,
+      ipAddress: waiverSignatures.ipAddress,
+      userAgent: waiverSignatures.userAgent,
+      source: waiverSignatures.source,
+      signedAt: waiverSignatures.signedAt,
+    })
+      .from(waiverSignatures)
+      .where(eq(waiverSignatures.userId, userId))
+      .orderBy(desc(waiverSignatures.signedAt));
+
+    res.json({ signatures });
+  } catch (error: unknown) {
+    logger.error('Error fetching waiver signatures', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to fetch signature history' });
   }
 });
 
