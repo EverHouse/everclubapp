@@ -161,7 +161,7 @@ router.get('/api/member/dashboard/booking-requests', isAuthenticated, async (req
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
-    .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
+    .leftJoin(users, eq(bookingRequests.userId, users.id))
     .where(and(...conditions))
     .orderBy(desc(bookingRequests.createdAt))
     .limit(200);
@@ -678,7 +678,7 @@ router.get('/api/member/dashboard-data', isAuthenticated, async (req, res) => {
         })
         .from(bookingRequests)
         .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
-        .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
+        .leftJoin(users, eq(bookingRequests.userId, users.id))
         .where(and(...conditions))
         .orderBy(desc(bookingRequests.createdAt))
         .limit(200);

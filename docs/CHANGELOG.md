@@ -2,6 +2,18 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.35] - 2026-04-04
+
+### Performance Optimization & Animation Fixes
+- **Improved: Booking list queries optimized from ~285ms to <50ms.** Replaced slow LOWER(email) text-comparison JOINs with direct foreign-key integer JOINs across `booking-list.ts`, `booking-queries.ts`, and `dashboard.ts`. Also removed an unnecessary users JOIN from the booking count query.
+- **Improved: Rate limiter switched from DB-per-request to in-memory caching.** The `PgRateLimitStore` now uses a local `Map` for the hot path instead of hitting PostgreSQL on every request, eliminating ~300ms overhead on every API call during startup contention. DB cleanup still runs periodically in the background.
+- **Fixed: Removed dead CSS keyframe rules** (`popOut`, `fadeOut`) and their utility classes (`animate-pop-out`, `animate-fade-out`) from `src/index.css` that were left behind after the Framer Motion migration.
+- **Fixed: Duplicate `listboxId` in `BookingStatusDropdown`.** Each dropdown instance now gets a unique ID via React `useId()` instead of a hardcoded string.
+- **Fixed: Modal focus timer cleanup.** `ModalShell` now properly calls `clearTimeout` on the focus restoration timer when the component unmounts, preventing potential memory leaks.
+- **Dropped duplicate `walk_in_visits` index.** Removed `idx_walk_in_visits_member_email_lower` which was identical to `idx_walk_in_visits_lower_email`, reducing write overhead on check-ins.
+
+Files changed: `server/routes/bays/booking-list.ts`, `server/routes/bays/booking-queries.ts`, `server/routes/members/dashboard.ts`, `server/middleware/pgRateLimitStore.ts`, `src/index.css`, `src/components/BookingStatusDropdown.tsx`, `src/components/ModalShell.tsx`
+
 ## [8.98.34] - 2026-04-04
 
 ### Framer Motion Foundation & Micro-Haptics (Task #424)

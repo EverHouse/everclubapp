@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.35",
+    date: "2026-04-04",
+    title: "Performance Optimization & Animation Fixes",
+    changes: [
+      "Improved: Booking list pages now load significantly faster — optimized database queries that were taking 285ms down to under 50ms.",
+      "Improved: Rate limiting no longer adds latency to every request — switched from database-per-request to in-memory caching.",
+      "Fixed: Cleaned up dead CSS animation code and resolved duplicate animation IDs in booking status dropdowns.",
+      "Fixed: Modal focus timer cleanup to prevent potential memory leaks.",
+    ]
+  },
+  {
     version: "8.98.34",
     date: "2026-04-04",
     title: "Smoother Button Animations",

@@ -56,7 +56,7 @@ router.get('/api/booking-requests/:id', isAuthenticated, async (req, res) => {
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
-    .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
+    .leftJoin(users, eq(bookingRequests.userId, users.id))
     .where(eq(bookingRequests.id, bookingId))
     .limit(1);
     

@@ -55,12 +55,20 @@ function ensureTable(): Promise<void> {
   return tablePromise;
 }
 
+interface MemEntry {
+  hits: number;
+  windowStart: number;
+}
+
+const MAX_MEM_ENTRIES = 10_000;
+
 export class PgRateLimitStore implements Store {
   private windowMs: number = 60_000;
   prefix: string;
   localKeys = false;
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
   private cleanupRunning = false;
+  private mem = new Map<string, MemEntry>();
 
   constructor(prefix: string) {
     this.prefix = prefix;
@@ -92,82 +100,82 @@ export class PgRateLimitStore implements Store {
   }
 
   async increment(key: string): Promise<IncrementResponse> {
-    await ensureTable();
     const prefixed = this.prefixedKey(key);
-    const windowStart = new Date(Date.now() - this.windowMs);
+    const now = Date.now();
+    const windowCutoff = now - this.windowMs;
 
-    try {
-      const result = await pool.query(
-        `INSERT INTO rate_limit_hits (key, hits, window_start)
-         VALUES ($1, 1, NOW())
-         ON CONFLICT (key) DO UPDATE
-         SET hits = CASE WHEN rate_limit_hits.window_start < $2 THEN 1 ELSE rate_limit_hits.hits + 1 END,
-             window_start = CASE WHEN rate_limit_hits.window_start < $2 THEN NOW() ELSE rate_limit_hits.window_start END
-         RETURNING hits, window_start`,
-        [prefixed, windowStart]
-      );
+    const existing = this.mem.get(prefixed);
+    let hits: number;
+    let windowStart: number;
 
-      const row = result.rows[0] as { hits: number; window_start: Date };
-      return {
-        totalHits: row.hits,
-        resetTime: new Date((row.window_start as Date).getTime() + this.windowMs),
-      };
-    } catch (err) {
-      logger.warn('[PgRateLimitStore] increment failed, allowing request through (fail-open)', { extra: { error: getErrorMessage(err) } });
-      return { totalHits: 0, resetTime: new Date(Date.now() + this.windowMs) };
+    if (existing && existing.windowStart >= windowCutoff) {
+      existing.hits += 1;
+      hits = existing.hits;
+      windowStart = existing.windowStart;
+    } else {
+      hits = 1;
+      windowStart = now;
+      this.mem.set(prefixed, { hits: 1, windowStart: now });
+      if (this.mem.size > MAX_MEM_ENTRIES) {
+        const iter = this.mem.keys();
+        const oldest = iter.next().value;
+        if (oldest) this.mem.delete(oldest);
+      }
     }
+
+    return {
+      totalHits: hits,
+      resetTime: new Date(windowStart + this.windowMs),
+    };
   }
 
   async decrement(key: string): Promise<void> {
     const prefixed = this.prefixedKey(key);
-    try {
-      await pool.query(
-        `UPDATE rate_limit_hits SET hits = GREATEST(hits - 1, 0) WHERE key = $1`,
-        [prefixed]
-      );
-    } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] decrement failed', { extra: { error: getErrorMessage(err) } });
+    const existing = this.mem.get(prefixed);
+    if (existing && existing.hits > 0) {
+      existing.hits -= 1;
     }
   }
 
   async resetKey(key: string): Promise<void> {
     const prefixed = this.prefixedKey(key);
-    try {
-      await pool.query(`DELETE FROM rate_limit_hits WHERE key = $1`, [prefixed]);
-    } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] resetKey failed', { extra: { error: getErrorMessage(err) } });
-    }
+    this.mem.delete(prefixed);
   }
 
   async resetAll(): Promise<void> {
-    try {
-      await pool.query(`DELETE FROM rate_limit_hits WHERE key LIKE $1`, [`${this.prefix}:%`]);
-    } catch (err: unknown) {
-      logger.warn('[PgRateLimitStore] resetAll failed', { extra: { error: getErrorMessage(err) } });
+    const prefix = `${this.prefix}:`;
+    for (const k of this.mem.keys()) {
+      if (k.startsWith(prefix)) {
+        this.mem.delete(k);
+      }
     }
   }
 
   private async cleanup(): Promise<void> {
     if (this.cleanupRunning) return;
     this.cleanupRunning = true;
-    const cutoff = new Date(Date.now() - this.windowMs * 2);
     try {
+      const cutoff = Date.now() - this.windowMs * 2;
+      for (const [k, v] of this.mem) {
+        if (v.windowStart < cutoff) {
+          this.mem.delete(k);
+        }
+      }
+
       const p = pool as unknown as Pool;
       const activeCount = p.totalCount - p.idleCount;
       const poolMax = (pool as unknown as { options?: { max?: number } }).options?.max || 25;
       if (p.waitingCount > 0 || activeCount >= poolMax * 0.8) {
-        logger.debug('[PgRateLimitStore] Skipping cleanup — pool under pressure', {
-          extra: { waitingCount: p.waitingCount, idle: p.idleCount, active: activeCount, max: poolMax }
-        });
         return;
       }
+      const dbCutoff = new Date(Date.now() - this.windowMs * 2);
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
         await client.query(`SET LOCAL statement_timeout = '5000'`);
         await client.query(
           `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2`,
-          [`${this.prefix}:%`, cutoff]
+          [`${this.prefix}:%`, dbCutoff]
         );
         await client.query('COMMIT');
       } catch (txErr) {

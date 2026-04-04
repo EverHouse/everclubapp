@@ -135,7 +135,7 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
     })
     .from(bookingRequests)
     .leftJoin(resources, eq(bookingRequests.resourceId, resources.id))
-    .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
+    .leftJoin(users, eq(bookingRequests.userId, users.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(bookingRequests.createdAt));
     
@@ -152,7 +152,6 @@ router.get('/api/booking-requests', isAuthenticated, validateQuery(bookingReques
         count: sql<number>`count(*)::int`
       })
       .from(bookingRequests)
-      .leftJoin(users, sql`LOWER(${bookingRequests.userEmail}) = LOWER(${users.email})`)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
       totalCount = countResult[0]?.count || 0;
     }
