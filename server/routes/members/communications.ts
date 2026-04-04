@@ -13,6 +13,7 @@ import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { numericIdParam, requiredStringParam } from '../../middleware/paramSchemas';
+import { recordEmailConsentChange, getClientIpFromRequest, resolveUserIdByEmail } from '../../core/consentService';
 
 const router = Router();
 
@@ -155,6 +156,20 @@ router.patch('/api/members/me/preferences', isAuthenticated, validateQuery(optio
         emailOptIn: emailOptIn !== undefined ? emailOptIn : undefined,
         smsOptIn: smsOptIn !== undefined ? smsOptIn : undefined
       }).catch(err => logger.error('[Members] Failed to sync preferences to HubSpot:', { extra: { error: getErrorMessage(err) } }));
+    }
+
+    if (emailOptIn !== undefined) {
+      const isAdminAction = targetEmail !== sessionUser.email;
+      const userId = await resolveUserIdByEmail(targetEmail);
+      recordEmailConsentChange({
+        userId: userId ?? undefined,
+        email: targetEmail,
+        granted: emailOptIn,
+        method: isAdminAction ? 'admin_action' : 'profile_toggle',
+        source: isAdminAction ? 'staff_member_edit' : 'member_profile_settings',
+        req,
+        details: isAdminAction ? { changedBy: sessionUser.email } : undefined,
+      }).catch(() => {});
     }
     
     res.json({ 

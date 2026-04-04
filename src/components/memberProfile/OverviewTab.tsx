@@ -4,6 +4,7 @@ import { formatDatePacific } from './memberProfileTypes';
 import { apiRequest } from '../../lib/apiRequest';
 import { copyToClipboard } from '../../lib/copyToClipboard';
 import Icon from '../icons/Icon';
+import ConsentHistorySection from './ConsentHistorySection';
 
 const CopyButton: React.FC<{ value: string; isDark: boolean }> = ({ value, isDark }) => {
   const [copied, setCopied] = useState(false);
@@ -775,6 +776,10 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </div>
         </div>
+      )}
+
+      {!visitorMode && member?.email && (
+        <ConsentHistorySection email={member.email} isDark={isDark} />
       )}
     </div>
   );

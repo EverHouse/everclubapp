@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { Webhook } from 'svix';
+import { recordEmailConsentChange, resolveUserIdByEmail } from '../core/consentService';
 
 const router = Router();
 
@@ -130,6 +131,7 @@ async function handleEmailComplained(event: ResendEmailEvent) {
         UPDATE users 
         SET 
           email_delivery_status = 'complained',
+          email_opt_in = false,
           email_marketing_opt_in = false,
           notes = COALESCE(notes, '') || E'\n[' || TO_CHAR(NOW(), 'YYYY-MM-DD') || '] Marked email as spam - unsubscribed from marketing'
         WHERE LOWER(email) = ${recipientEmail}
@@ -138,6 +140,16 @@ async function handleEmailComplained(event: ResendEmailEvent) {
       logger.info('Unsubscribed user after complaint', {
         extra: { email: recipientEmail }
       });
+
+      const userId = await resolveUserIdByEmail(recipientEmail);
+      recordEmailConsentChange({
+        userId: userId ?? undefined,
+        email: recipientEmail,
+        granted: false,
+        method: 'spam_complaint',
+        source: 'resend_webhook',
+        details: { emailId: email_id, subject },
+      }).catch(() => {});
     } catch (err: unknown) {
       logger.error('Failed to update user complaint status', { extra: { error: getErrorMessage(err) } });
     }

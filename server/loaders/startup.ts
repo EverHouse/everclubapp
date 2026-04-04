@@ -1,4 +1,4 @@
-import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, seedTierFeatures, fixFunctionSearchPaths, validateTierHierarchy, setupInstantDataTriggers, clearStaleVisitorTypes, deleteOrphanHubSpotVisitors } from '../db-init';
+import { ensureDatabaseConstraints, seedDefaultNoticeTypes, createStripeTransactionCache, createSyncExclusionsTable, setupEmailNormalization, normalizeExistingEmails, seedTierFeatures, fixFunctionSearchPaths, validateTierHierarchy, setupInstantDataTriggers, clearStaleVisitorTypes, deleteOrphanHubSpotVisitors, ensureConsentEventsTable } from '../db-init';
 import { seedTrainingSections } from '../routes/training';
 import { getStripeSync } from '../core/stripe';
 import { getStripeEnvironmentInfo, getStripeClient } from '../core/stripe/client';
@@ -224,6 +224,24 @@ export async function runStartupTasks(): Promise<void> {
         await fixFunctionSearchPaths();
       } catch (err: unknown) {
         logger.warn(`[Startup] Function search_path fix failed (non-critical): ${getErrorMessage(err)}`);
+      }
+    },
+    async () => {
+      try {
+        await ensureConsentEventsTable();
+        const { backfillConsentBaseline } = await import('../core/consentService');
+        await backfillConsentBaseline();
+      } catch (err: unknown) {
+        logger.warn(`[Startup] Consent events table/backfill failed (non-critical): ${getErrorMessage(err)}`);
+      }
+    },
+    async () => {
+      try {
+        const { refreshClubAddress } = await import('../emails/emailLayout');
+        await refreshClubAddress();
+        logger.info('[Startup] Club address loaded from system settings for email footers');
+      } catch (err: unknown) {
+        logger.warn(`[Startup] Club address refresh failed (using defaults): ${getErrorMessage(err)}`);
       }
     },
     async () => {

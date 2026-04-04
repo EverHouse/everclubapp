@@ -2783,6 +2783,51 @@ export async function deleteOrphanHubSpotVisitors(): Promise<void> {
   }
 }
 
+export async function ensureConsentEventsTable(): Promise<void> {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS consent_events (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255),
+        email VARCHAR(255) NOT NULL,
+        consent_type VARCHAR(50) NOT NULL,
+        action VARCHAR(20) NOT NULL,
+        method VARCHAR(50) NOT NULL,
+        source VARCHAR(255),
+        ip_address VARCHAR(45),
+        details JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS consent_events_user_id_idx ON consent_events(user_id);
+      CREATE INDEX IF NOT EXISTS consent_events_email_idx ON consent_events(email);
+      CREATE INDEX IF NOT EXISTS consent_events_consent_type_idx ON consent_events(consent_type);
+      CREATE INDEX IF NOT EXISTS consent_events_created_at_idx ON consent_events(created_at);
+    `);
+
+    await db.execute(sql`
+      CREATE OR REPLACE FUNCTION prevent_consent_events_mutation()
+      RETURNS TRIGGER
+      LANGUAGE plpgsql
+      SET search_path = ''
+      AS $$
+      BEGIN
+        RAISE EXCEPTION 'consent_events is append-only: UPDATE and DELETE are prohibited';
+      END;
+      $$;
+
+      DROP TRIGGER IF EXISTS guard_consent_events_immutable ON consent_events;
+      CREATE TRIGGER guard_consent_events_immutable
+      BEFORE UPDATE OR DELETE ON consent_events
+      FOR EACH ROW
+      EXECUTE FUNCTION prevent_consent_events_mutation();
+    `);
+
+    logger.info('[DB Init] consent_events table ensured (append-only enforced)');
+  } catch (err: unknown) {
+    logger.warn(`[DB Init] Failed to ensure consent_events table: ${getErrorMessage(err)}`);
+  }
+}
+
 export async function clearStaleVisitorTypes(): Promise<void> {
   try {
     const result = await db.execute(sql`

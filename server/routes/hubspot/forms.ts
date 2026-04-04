@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import { notifyAllStaff } from '../../core/notificationService';
 import { getSessionUser } from '../../types/session';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { recordEmailConsentChange, getClientIpFromRequest, resolveUserIdByEmail } from '../../core/consentService';
 
 const router = Router();
 
@@ -237,6 +238,25 @@ router.post('/api/hubspot/forms/:formType', async (req, res) => {
         ).catch(err => logger.error('Staff inquiry notification failed:', { extra: { error: getErrorMessage(err) } }));
       }
 
+      const submissionConsentField = fields.find((f: { name: string; value: string }) => f.name === 'marketing_consent');
+      if (submissionConsentField && submissionEmail) {
+        const consentGranted = submissionConsentField.value === 'Yes';
+        const formTypeSourceMap: Record<string, string> = {
+          'membership': 'membership_application_form',
+          'private-hire': 'private_hire_inquiry_form',
+          'contact': 'contact_form',
+          'event-inquiry': 'event_inquiry_form',
+        };
+        const userId = await resolveUserIdByEmail(submissionEmail);
+        recordEmailConsentChange({
+          userId: userId ?? undefined,
+          email: submissionEmail,
+          granted: consentGranted,
+          method: 'form_submission',
+          source: formTypeSourceMap[formType] || formType,
+          req,
+        }).catch(() => {});
+      }
     } catch (dbError: unknown) {
       logger.error('Failed to save form submission locally', { extra: { error: getErrorMessage(dbError) } });
     }

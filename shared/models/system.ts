@@ -258,3 +258,24 @@ export const wellhubStatusEvents = pgTable("wellhub_status_events", {
 
 export type WellhubStatusEvent = typeof wellhubStatusEvents.$inferSelect;
 export type InsertWellhubStatusEvent = typeof wellhubStatusEvents.$inferInsert;
+
+export const consentEvents = pgTable("consent_events", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id"),
+  email: varchar("email").notNull(),
+  consentType: varchar("consent_type", { length: 50 }).notNull(),
+  action: varchar("action", { length: 20 }).notNull(),
+  method: varchar("method", { length: 50 }).notNull(),
+  source: varchar("source", { length: 255 }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("consent_events_user_id_idx").on(table.userId),
+  emailIdx: index("consent_events_email_idx").on(table.email),
+  consentTypeIdx: index("consent_events_consent_type_idx").on(table.consentType),
+  createdAtIdx: index("consent_events_created_at_idx").on(table.createdAt),
+}));
+
+export type ConsentEvent = typeof consentEvents.$inferSelect;
+export type InsertConsentEvent = typeof consentEvents.$inferInsert;

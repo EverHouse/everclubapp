@@ -240,12 +240,14 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
             lastManualFixAt: users.lastManualFixAt,
             lastModifiedAt: users.lastModifiedAt,
             updatedAt: users.updatedAt,
+            emailOptIn: users.emailOptIn,
           })
             .from(users)
             .where(eq(users.email, email))
             .limit(1), email);
           const oldStatus = existingUser[0]?.membershipStatus || null;
           const oldNotesHash = existingUser[0]?.lastHubspotNotesHash || null;
+          const oldEmailOptIn = existingUser[0]?.emailOptIn ?? null;
           
           if (existingUser[0]?.archivedAt) {
             skippedArchived++;
@@ -400,7 +402,20 @@ export async function syncAllMembersFromHubSpot(): Promise<{ synced: number; err
               logger.error(`[MemberSync] Failed to notify status change for ${email}:`, { extra: { error: getErrorMessage(err) } });
             });
           }
-          
+
+          if (emailOptIn !== null && oldEmailOptIn !== null && emailOptIn !== oldEmailOptIn) {
+            const { recordEmailConsentChange, resolveUserIdByEmail } = await import('./consentService');
+            const userId = await resolveUserIdByEmail(email);
+            recordEmailConsentChange({
+              userId: userId ?? undefined,
+              email,
+              granted: emailOptIn,
+              method: 'hubspot_sync',
+              source: 'hubspot_full_sync',
+              details: { hubspotContactId: contact.id, previousValue: oldEmailOptIn },
+            }).catch(() => {});
+          }
+
           try {
             const duplicateCheck = await db.execute(sql`SELECT id, email, first_name, last_name, membership_status, tier
                FROM users 

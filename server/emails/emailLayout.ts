@@ -1,3 +1,5 @@
+import { getSettingValue } from '../core/settingsHelper';
+
 export const CLUB_COLORS = {
   deepGreen: '#293515',
   lavender: '#CCB8E4',
@@ -9,7 +11,28 @@ export const CLUB_COLORS = {
   warningYellow: '#ca8a04',
 };
 
-export function emailLayout(content: string): string {
+const DEFAULT_ADDRESS_LINE1 = '15771 Red Hill Ave, Ste 500';
+const DEFAULT_CITY_STATE_ZIP = 'Tustin, CA 92780';
+
+let cachedAddressLine1: string = DEFAULT_ADDRESS_LINE1;
+let cachedCityStateZip: string = DEFAULT_CITY_STATE_ZIP;
+let addressCacheReady = false;
+
+export async function refreshClubAddress(): Promise<void> {
+  cachedAddressLine1 = await getSettingValue('club.address_line1', DEFAULT_ADDRESS_LINE1) || DEFAULT_ADDRESS_LINE1;
+  cachedCityStateZip = await getSettingValue('club.city_state_zip', DEFAULT_CITY_STATE_ZIP) || DEFAULT_CITY_STATE_ZIP;
+  addressCacheReady = true;
+}
+
+export interface EmailLayoutOptions {
+  addressLine1?: string;
+  cityStateZip?: string;
+}
+
+export function emailLayout(content: string, options?: EmailLayoutOptions): string {
+  const address1 = options?.addressLine1 || (addressCacheReady ? cachedAddressLine1 : DEFAULT_ADDRESS_LINE1);
+  const csz = options?.cityStateZip || (addressCacheReady ? cachedCityStateZip : DEFAULT_CITY_STATE_ZIP);
+
   return `
 <!DOCTYPE html>
 <html>
@@ -39,6 +62,9 @@ export function emailLayout(content: string): string {
                   <td style="text-align: center; padding-top: 24px; border-top: 1px solid ${CLUB_COLORS.borderLight};">
                     <p style="margin: 0 0 8px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted};">
                       Questions? Reply to this email or contact us at the club.
+                    </p>
+                    <p style="margin: 0 0 8px 0; font-size: 11px; color: ${CLUB_COLORS.textMuted};">
+                      Ever Club &bull; ${address1} &bull; ${csz}
                     </p>
                     <a href="https://everclub.app" style="font-size: 12px; color: ${CLUB_COLORS.deepGreen}; text-decoration: none;">
                       everclub.app

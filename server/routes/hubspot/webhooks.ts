@@ -9,6 +9,7 @@ import { invalidateCache } from '../../core/queryCache';
 import { broadcastDirectoryUpdate } from '../../core/websocket';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { formatDateFromDb } from '../../utils/dateUtils';
+import { recordEmailConsentChange, resolveUserIdByEmail } from '../../core/consentService';
 import {
   validateHubSpotWebhookSignature,
   retryableHubSpotRequest,
@@ -304,6 +305,18 @@ router.post('/api/hubspot/webhooks', async (req, res) => {
                       if (boolVal !== null) {
                         await db.execute(sql`UPDATE users SET ${sql.raw(dbCol)} = ${boolVal}, updated_at = NOW() WHERE LOWER(email) = ${email}`);
                         updated = true;
+
+                        if (propertyName === 'eh_email_updates_opt_in') {
+                          const userId = await resolveUserIdByEmail(email);
+                          recordEmailConsentChange({
+                            userId: userId ?? undefined,
+                            email,
+                            granted: boolVal,
+                            method: 'hubspot_sync',
+                            source: 'hubspot_webhook_property_change',
+                            details: { hubspotObjectId: objectId, propertyName },
+                          }).catch(() => {});
+                        }
                       }
                     }
 
