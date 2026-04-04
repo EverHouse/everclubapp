@@ -859,7 +859,7 @@ const ChangelogTab: React.FC = () => {
                         <ul className="space-y-2">
                             {entry.changes.map((change, i) => (
                                 <li key={i} className="flex items-start gap-2 text-sm text-primary/80 dark:text-white/80">
-                                    <Icon name="check_circle" className="text-sm text-primary/70 dark:text-white/70 mt-0.5" />
+                                    <Icon name="check_circle" className="flex-shrink-0 text-base text-primary/70 dark:text-white/70 mt-0.5" />
                                     {change}
                                 </li>
                             ))}

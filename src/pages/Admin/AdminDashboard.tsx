@@ -793,7 +793,7 @@ const StaffTrainingGuide: React.FC = () => {
                             <div className="cls-safe-inner px-5 pb-5 space-y-4 print:pt-2">
                                 {section.steps.map((step, index) => (
                                     <div key={`display-step-${index}-${step.title}`} className="flex gap-4">
-                                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-sm font-bold text-primary dark:text-white print:bg-gray-100 print:text-gray-700">
+                                        <div className="flex-shrink-0 min-w-[1.75rem] w-7 h-7 rounded-full bg-primary/10 dark:bg-white/10 flex items-center justify-center text-xs font-bold text-primary dark:text-white print:bg-gray-100 print:text-gray-700 overflow-hidden">
                                             {index + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">

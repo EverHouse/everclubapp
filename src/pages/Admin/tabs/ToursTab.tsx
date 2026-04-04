@@ -300,8 +300,8 @@ const ToursTab: React.FC = () => {
               Loading HubSpot meetings...
             </div>
           ) : unmatchedMeetings.length === 0 ? (
-            <div className="p-4 text-center text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-700/30">
-              <Icon name="check_circle" className="text-2xl block mb-1" />
+            <div className="p-4 flex flex-col items-center text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-700/30">
+              <Icon name="check_circle" className="text-2xl mb-1" />
               All HubSpot meetings are linked
             </div>
           ) : (
@@ -439,7 +439,7 @@ const ToursTab: React.FC = () => {
       )}
 
       {toursData.todayTours.length === 0 && (
-        <div className="text-center py-8 bg-white/40 dark:bg-white/5 rounded-xl animate-content-enter-delay-2">
+        <div className="flex flex-col items-center py-8 bg-white/40 dark:bg-white/5 rounded-xl animate-content-enter-delay-2">
           <Icon name="event_available" className="text-4xl text-primary/30 dark:text-white/70 mb-2" />
           <p className="text-primary/80 dark:text-white/80 text-sm">No tours scheduled for today</p>
         </div>
