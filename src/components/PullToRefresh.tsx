@@ -143,8 +143,10 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     setRefreshPhase('loading');
     setIsRefreshing(true);
     
+    const minDisplay = new Promise(resolve => setTimeout(resolve, 1200));
+    
     try {
-      await onRefresh?.();
+      await Promise.all([onRefresh?.(), minDisplay]);
     } catch (err) {
       console.error('[PullToRefresh] Refresh failed:', err);
     }
@@ -369,8 +371,10 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         setRefreshPhase('loading');
         setIsRefreshing(true);
 
+        const minDisplay = new Promise(resolve => setTimeout(resolve, 1200));
+
         try {
-          await onRefreshRef.current?.();
+          await Promise.all([onRefreshRef.current?.(), minDisplay]);
         } catch (err) {
           console.error('[PullToRefresh] Refresh failed:', err);
         }
