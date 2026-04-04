@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { triggerHaptic } from '../utils/haptics';
+import MotionButton from './ui/MotionButton';
 import WalkingGolferSpinner from './WalkingGolferSpinner';
 import SlideUpDrawer from './SlideUpDrawer';
 import { postWithCredentials } from '../hooks/queries/useFetch';
@@ -58,11 +59,10 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setLoading(true);
     setError('');
-    triggerHaptic('medium');
 
     try {
       const allFormData = { ...formData, ...additionalFields };
@@ -97,7 +97,6 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
   };
 
   const handleClose = () => {
-    triggerHaptic('light');
     setFormData({});
     setSuccess(false);
     setError('');
@@ -108,23 +107,25 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
     if (success) {
       return (
         <div className="p-4">
-          <button
+          <MotionButton
+            hapticType="light"
             onClick={handleClose}
-            className="w-full py-4 min-h-[44px] bg-primary dark:bg-accent text-white dark:text-brand-green rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform duration-[400ms] ease-in-out"
+            className="w-full py-4 min-h-[44px] bg-primary dark:bg-accent text-white dark:text-brand-green rounded-[4px] font-semibold"
           >
             Close
-          </button>
+          </MotionButton>
         </div>
       );
     }
     
     return (
       <div className="p-4">
-        <button
+        <MotionButton
           type="button"
+          hapticType="medium"
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full py-4 min-h-[44px] bg-primary dark:bg-accent text-white dark:text-brand-green rounded-[4px] font-semibold hover:scale-[1.02] active:scale-[0.98] transition-transform duration-[400ms] ease-in-out disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-4 min-h-[44px] bg-primary dark:bg-accent text-white dark:text-brand-green rounded-[4px] font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (
             <>
@@ -134,7 +135,7 @@ const HubSpotFormModal: React.FC<HubSpotFormModalProps> = ({
           ) : (
             submitButtonText
           )}
-        </button>
+        </MotionButton>
       </div>
     );
   };

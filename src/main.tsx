@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { ReducedMotion } from './utils/motion';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
@@ -106,7 +107,9 @@ const removeSplash = () => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <ReducedMotion>
+        <App />
+      </ReducedMotion>
     </ErrorBoundary>
   </React.StrictMode>
 );

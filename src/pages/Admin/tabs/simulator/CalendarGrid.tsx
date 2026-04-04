@@ -5,6 +5,7 @@ import type { BookingRequest, Resource, CalendarClosure, AvailabilityBlock } fro
 import { formatDateShortAdmin, getClosureForSlot, getBlockForSlot } from './simulatorUtils';
 import { prefetchBookingDetail } from '../../../../lib/prefetch-actions';
 import { postWithCredentials } from '../../../../hooks/queries/useFetch';
+import MotionButton from '../../../../components/ui/MotionButton';
 import Icon from '../../../../components/icons/Icon';
 
 export interface CalendarGridProps {
@@ -362,18 +363,19 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                                             }}
                                             className={`w-full max-w-full box-border px-4 py-3 rounded-lg text-base font-medium focus:outline-none focus:ring-2 cursor-pointer appearance-none [&::-webkit-date-and-time-value]:text-left ${isDark ? 'border border-white/20 bg-white/10 text-white focus:ring-lavender' : 'border border-gray-300 bg-gray-50 text-gray-900 focus:ring-primary'}`}
                                         />
-                                        <button
+                                        <MotionButton
                                             type="button"
+                                            hapticType="light"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setCalendarDate(getTodayPacific());
                                                 setShowDatePicker(false);
                                             }}
-                                            className={`w-full py-3 px-4 rounded-lg text-base font-semibold hover:opacity-90 active:scale-95 transition-gpu duration-fast flex items-center justify-center gap-2 shadow-lg ${isDark ? 'bg-[#CCB8E4] text-[#1a1d15]' : 'bg-primary text-white'}`}
+                                            className={`w-full py-3 px-4 rounded-lg text-base font-semibold flex items-center justify-center gap-2 shadow-lg ${isDark ? 'bg-[#CCB8E4] text-[#1a1d15]' : 'bg-primary text-white'}`}
                                         >
                                             <Icon name="today" className="text-lg" />
                                             Today
-                                        </button>
+                                        </MotionButton>
                                         <button
                                             type="button"
                                             onClick={(e) => {

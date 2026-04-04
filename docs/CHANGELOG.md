@@ -2,6 +2,20 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.34] - 2026-04-04
+
+### Framer Motion Foundation & Micro-Haptics (Task #424)
+- **New: Installed `framer-motion` as a production dependency.** Establishes spring-physics animation foundation for the app.
+- **New: `src/utils/motion.ts` — shared motion config module.** Contains reusable spring transition presets (`gentle`, `snappy`, `stiff`, `bounce`), tap/hover animation defaults, reduced-motion fallbacks, and a `ReducedMotion` wrapper component using `MotionConfig` with `reducedMotion: 'user'`.
+- **New: `src/components/ui/MotionButton.tsx` — reusable motion.button wrapper.** Integrates `whileTap` spring scale (0.95) and `whileHover` scale (1.02) with the existing `haptics.ts` vibration system. Supports configurable `hapticType`, `tapScale`, `hoverScale`, `enableHover`, and disabled state. Respects `prefers-reduced-motion` via `useReducedMotion` hook.
+- **New: Global `ReducedMotion` provider wired at app root (`src/main.tsx`).** All Framer Motion components under the app tree now globally respect the user's system `prefers-reduced-motion` setting.
+- **Migrated primary CTA buttons to `MotionButton`:** BookingFooter (Request Booking / Book Conference Room), Login (Sign In / Send Verification Code), BookTour (Confirm Tour), HubSpotFormModal (Submit / Close), BugReportModal (Submit Report / Done), Membership (Apply Now / tier CTAs), Dashboard ScheduleSection (Book a Session), CalendarGrid (Today button).
+- **Fixed: Removed duplicate haptic triggers** in handlers where `MotionButton` now handles the initial tap haptic (success/error outcome haptics remain in async handlers).
+- **Exports added to `src/components/motion/index.ts`:** `springPresets`, `tapAnimation`, `hoverAnimation`, `useReducedMotion`, `ReducedMotion`, `MotionButton`.
+- **No regressions:** Existing CSS motion components (`SmoothReveal`, `ListItemMotion`, `TabTransition`, `DirectionalPageTransition`) and auto-animate usage are untouched.
+
+Files changed: `package.json`, `src/utils/motion.ts` (new), `src/components/ui/MotionButton.tsx` (new), `src/main.tsx`, `src/components/motion/index.ts`, `src/pages/Member/BookGolf/BookingFooter.tsx`, `src/pages/Public/Login.tsx`, `src/pages/Public/BookTour.tsx`, `src/components/HubSpotFormModal.tsx`, `src/components/BugReportModal.tsx`, `src/pages/Public/Membership.tsx`, `src/pages/Member/Dashboard/ScheduleSection.tsx`, `src/pages/Admin/tabs/simulator/CalendarGrid.tsx`
+
 ## [8.98.33] - 2026-04-04
 
 ### Approved Bookings API Performance (Task #408)

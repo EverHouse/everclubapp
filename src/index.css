@@ -1626,6 +1626,8 @@ html.dark .border-accessible {
 
 .cls-safe-collapse > .cls-safe-inner {
   overflow: hidden;
+  padding: 40px;
+  margin: -40px;
 }
 
 .cls-safe-collapse.cls-safe-visible {

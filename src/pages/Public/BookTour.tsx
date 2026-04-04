@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { triggerHaptic } from '../../utils/haptics';
+import MotionButton from '../../components/ui/MotionButton';
 import { formatPhoneNumber } from '../../utils/phoneFormat';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SEO from '../../components/SEO';
@@ -133,7 +134,6 @@ const BookTour: React.FC = () => {
     if (!selectedDate || !selectedTime) return;
     setBooking(true);
     setError('');
-    triggerHaptic('medium');
     try {
       const data = await postWithCredentials<{ tour: BookingResult }>('/api/tours/schedule', {
         firstName: formData.firstName,
@@ -467,11 +467,12 @@ const BookTour: React.FC = () => {
                     >
                       Back
                     </button>
-                    <button
+                    <MotionButton
                       type="button"
+                      hapticType="medium"
                       onClick={handleBook}
                       disabled={!selectedDate || !selectedTime || booking}
-                      className="tactile-btn flex-[2] py-4 rounded-[4px] bg-primary text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-2"
+                      className="flex-[2] py-4 rounded-[4px] bg-primary text-white font-bold text-sm disabled:opacity-40 flex items-center justify-center gap-2"
                     >
                       {booking ? (
                         <>
@@ -484,7 +485,7 @@ const BookTour: React.FC = () => {
                           <Icon name="check" className="text-lg" />
                         </>
                       )}
-                    </button>
+                    </MotionButton>
                   </div>
                 </div>
               )}

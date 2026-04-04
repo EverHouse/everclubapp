@@ -4,6 +4,7 @@ import { Footer } from '../../components/Footer';
 import { useAuthData } from '../../contexts/DataContext';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
+import MotionButton from '../../components/ui/MotionButton';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
@@ -526,23 +527,25 @@ const Login: React.FC = () => {
                   )}
                   
                   {showPasswordField && hasPassword ? (
-                    <button
+                    <MotionButton
                       type="submit"
+                      hapticType="medium"
                       disabled={loading || !password}
-                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <Icon name="login" />}
                       {loading ? 'Signing in...' : 'Sign In'}
-                    </button>
+                    </MotionButton>
                   ) : (
-                    <button
+                    <MotionButton
                       type="submit"
+                      hapticType="medium"
                       disabled={loading || !email.includes('@')}
-                      className="tactile-btn flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-interactive duration-fast active:scale-[0.98] disabled:opacity-50"
+                      className="flex w-full justify-center items-center gap-3 rounded-[4px] bg-primary px-3 py-4 text-sm font-bold leading-6 text-white shadow-lg dark:shadow-black/20 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
                     >
                       {loading ? <Spinner /> : <Icon name="dialpad" />}
                       {loading ? 'Sending...' : 'Send Verification Code'}
-                    </button>
+                    </MotionButton>
                   )}
                 </form>
 

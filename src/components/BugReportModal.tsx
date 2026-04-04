@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { triggerHaptic } from '../utils/haptics';
+import MotionButton from './ui/MotionButton';
 import WalkingGolferSpinner from './WalkingGolferSpinner';
 import { useTheme } from '../contexts/ThemeContext';
 import ModalShell from './ModalShell';
@@ -65,7 +66,6 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
 
     setLoading(true);
     setError('');
-    triggerHaptic('medium');
 
     try {
       let screenshotUrl = null;
@@ -133,12 +133,13 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
             <p className={`${isDark ? 'text-white/80' : 'text-primary/70'}`}>
               Thank you for helping us improve. Our team will review your report.
             </p>
-            <button
+            <MotionButton
+              hapticType="light"
               onClick={handleClose}
-              className={`mt-6 px-6 py-3 min-h-[44px] rounded-xl font-bold text-sm tactile-btn ${isDark ? 'bg-white text-black' : 'bg-primary text-white'}`}
+              className={`mt-6 px-6 py-3 min-h-[44px] rounded-xl font-bold text-sm ${isDark ? 'bg-white text-black' : 'bg-primary text-white'}`}
             >
               Done
-            </button>
+            </MotionButton>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -211,13 +212,14 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
               />
             </div>
 
-            <button
+            <MotionButton
               type="submit"
+              hapticType="medium"
               disabled={loading || !description.trim()}
-              className={`w-full py-4 min-h-[44px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-opacity duration-fast disabled:opacity-50 disabled:cursor-not-allowed tactile-btn ${
+              className={`w-full py-4 min-h-[44px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                 isDark 
-                  ? 'bg-accent text-primary hover:opacity-90' 
-                  : 'bg-primary text-white hover:bg-primary/90'
+                  ? 'bg-accent text-primary' 
+                  : 'bg-primary text-white'
               }`}
             >
               {loading ? (
@@ -228,7 +230,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
                   Submit Report
                 </>
               )}
-            </button>
+            </MotionButton>
           </form>
         )}
       </div>

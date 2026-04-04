@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.34",
+    date: "2026-04-04",
+    title: "Smoother Button Animations",
+    changes: [
+      "New: Buttons across the app now have smoother, spring-physics tap animations — booking confirmations, login, membership, and form submit buttons all feel more tactile and responsive.",
+      "New: Button animations automatically disable when your device has reduced-motion accessibility settings enabled.",
+    ]
+  },
+  {
     version: "8.98.33",
     date: "2026-04-04",
     title: "Approved Bookings Speed Boost",

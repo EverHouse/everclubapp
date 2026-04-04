@@ -1,5 +1,5 @@
 import React from 'react';
-import { haptic } from '../../../utils/haptics';
+import MotionButton from '../../../components/ui/MotionButton';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
 import FeeBreakdownCard from '../../../components/shared/FeeBreakdownCard';
 import Icon from '../../../components/icons/Icon';
@@ -73,10 +73,11 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
               />
             )}
           </div>
-          <button
-            onClick={() => { haptic.heavy(); handleConfirm(); }}
+          <MotionButton
+            hapticType="heavy"
+            onClick={handleConfirm}
             disabled={isBooking}
-            className="w-full py-4 rounded-xl font-bold text-lg shadow-glow transition-interactive duration-fast flex items-center justify-center gap-2 bg-accent text-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 focus:ring-2 focus:ring-white focus:outline-none"
+            className="w-full py-4 rounded-xl font-bold text-lg shadow-glow flex items-center justify-center gap-2 bg-accent text-primary disabled:opacity-50 focus:ring-2 focus:ring-white focus:outline-none"
           >
             {isBooking ? (
               <><WalkingGolferSpinner size="sm" /><span>Booking...</span></>
@@ -87,7 +88,7 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
             ) : (
               <><span>Request Booking</span><Icon name="arrow_forward" className="text-xl" /></>
             )}
-          </button>
+          </MotionButton>
         </div>
       )}
 

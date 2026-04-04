@@ -5,6 +5,7 @@ import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import { AnimatedPage } from '../../components/motion';
+import MotionButton from '../../components/ui/MotionButton';
 import SEO from '../../components/SEO';
 import { usePricing } from '../../hooks/usePricing';
 import { usePublicMembershipTiers } from '../../hooks/queries';
@@ -169,12 +170,13 @@ const MembershipOverview: React.FC = () => {
                   ))}
                 </ul>
                 <div className="mt-auto relative z-10">
-                  <button 
+                  <MotionButton
+                    hapticType="medium"
                     onClick={handleClick}
-                    className="w-full py-4 px-6 rounded-[4px] bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white/80 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
+                    className="w-full py-4 px-6 rounded-[4px] bg-white/95 backdrop-blur text-primary font-bold text-sm tracking-widest uppercase hover:bg-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.2)]"
                   >
                     {btnText}
-                  </button>
+                  </MotionButton>
                 </div>
               </div>
             );
@@ -252,12 +254,13 @@ const MembershipOverview: React.FC = () => {
         </div>
         
         <div className="mt-8 text-center">
-          <button 
+          <MotionButton
+            hapticType="medium"
             onClick={() => navigate('/membership/apply')}
-            className="tactile-btn px-8 py-4 rounded-[4px] bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)]"
+            className="px-8 py-4 rounded-[4px] bg-primary text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 shadow-[0_4px_16px_rgba(41,53,21,0.3)]"
           >
             Apply Now — Limited Membership
-          </button>
+          </MotionButton>
           <p className="text-xs text-primary/40 dark:text-white/40 mt-3 font-light">
             We cap membership to ensure availability. Once a tier fills, the waitlist opens.
           </p>
@@ -333,9 +336,9 @@ const MembershipCard: React.FC<{ title: string; price: string; suffix?: string; 
       ))}
     </ul>
     <div className="mt-auto">
-      <button onClick={onClick} className="w-full py-4 px-6 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 transition-interactive duration-normal active:scale-[0.98] shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20">
+      <MotionButton hapticType="medium" onClick={onClick} className="w-full py-4 px-6 rounded-[4px] bg-primary dark:bg-white/15 text-white font-bold text-sm tracking-widest uppercase hover:bg-primary/90 dark:hover:bg-white/25 shadow-[0_4px_16px_rgba(41,53,21,0.3)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3)] border border-transparent dark:border-white/20">
         {btnText}
-      </button>
+      </MotionButton>
     </div>
   </div>
 );

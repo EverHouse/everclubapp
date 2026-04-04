@@ -5,6 +5,7 @@ import { downloadICalFile } from '../../../utils/icalUtils';
 import { createPacificDate } from '../../../utils/dateUtils';
 import { getStatusBadge as getStatusBadgeColor, formatStatusLabel } from '../../../utils/statusColors';
 import { getIconForType, type ScheduleItem, type DashboardBookingItem, type DBBookingRequest, type DBBooking, type DBRSVP, type DBWellnessEnrollment } from './dashboardTypes';
+import MotionButton from '../../../components/ui/MotionButton';
 import Icon from '../../../components/icons/Icon';
 
 interface ScheduleSectionProps {
@@ -329,12 +330,13 @@ const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, 
       <p className={`text-xs max-w-[260px] mb-3 ${isDark ? 'text-white/50' : 'text-primary/50'}`}>
         Ready to play? Book a golf simulator session.
       </p>
-      <button
+      <MotionButton
+        hapticType="light"
         onClick={() => { startNavigation(); navigate('/book'); }}
-        className={`px-5 py-2 rounded-xl text-sm font-semibold transition-transform duration-fast hover:scale-[1.02] active:scale-[0.98] ${isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'}`}
+        className={`px-5 py-2 rounded-xl text-sm font-semibold ${isDark ? 'bg-accent text-brand-green' : 'bg-brand-green text-white'}`}
       >
         Book a Session
-      </button>
+      </MotionButton>
     </div>
 
     <div className={`flex items-center gap-3 py-4 px-5 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/[0.03]'}`}>
