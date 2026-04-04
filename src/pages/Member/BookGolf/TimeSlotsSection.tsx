@@ -114,9 +114,10 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                       id={`hour-content-${hourGroup.hour24}`}
                       role="region"
                       aria-labelledby={`hour-trigger-${hourGroup.hour24}`}
-                      initial={{ height: 0 }}
-                      animate={{ height: 'auto' }}
-                      exit={{ height: 0 }}
+                      initial={{ opacity: 0, scaleY: 0 }}
+                      animate={{ opacity: 1, scaleY: 1 }}
+                      exit={{ opacity: 0, scaleY: 0 }}
+                      style={{ transformOrigin: 'top center' }}
                       transition={prefersReducedMotion ? noMotion : expandSpring}
                       onAnimationComplete={() => {
                         if (scrollingElement) {

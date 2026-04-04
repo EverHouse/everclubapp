@@ -42,9 +42,9 @@ const BookingFooter: React.FC<BookingFooterProps> = ({
 }) => {
   const prefersReducedMotion = useReducedMotion();
   const feeReveal = {
-    initial: { height: 0, y: prefersReducedMotion ? 0 : 16, scale: prefersReducedMotion ? 1 : 0.97 },
-    animate: { height: 'auto', y: 0, scale: 1 },
-    exit: { height: 0, y: prefersReducedMotion ? 0 : -8, scale: prefersReducedMotion ? 1 : 0.97 },
+    initial: { opacity: 0, y: prefersReducedMotion ? 0 : 16, scale: prefersReducedMotion ? 1 : 0.97 },
+    animate: { opacity: 1, y: 0, scale: 1 },
+    exit: { opacity: 0, y: prefersReducedMotion ? 0 : -8, scale: prefersReducedMotion ? 1 : 0.97 },
     transition: prefersReducedMotion ? instantTransition : feeSpring,
   };
 

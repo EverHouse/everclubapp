@@ -64,34 +64,24 @@
   0% {
     opacity: 1;
     transform: scale(1);
-    max-height: 200px;
-    margin-bottom: 1rem;
-    padding-top: 0.75rem;
-    padding-bottom: 0.75rem;
-  }
-  60% {
-    opacity: 0;
-    transform: scale(0.95);
   }
   100% {
     opacity: 0;
     transform: scale(0.95);
-    max-height: 0;
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
   }
 }
 
 .animate-card-fade-out {
-  animation: cardFadeOut 0.3s var(--m3-standard-accel) forwards;
+  animation: cardFadeOut 0.2s var(--m3-standard-accel) forwards;
   overflow: hidden;
+  contain: layout style;
+  will-change: transform, opacity;
 }
 
 .animate-card-remove {
   animation: cardSlideOut 0.35s var(--m3-standard-accel) forwards;
   transform-origin: top center;
-  contain: layout style;
+  contain: layout style paint;
   will-change: transform, opacity;
 }
 
@@ -619,9 +609,9 @@ input, select, textarea {
   }
 }
 
-/* ===== MOBILE PERFORMANCE OPTIMIZATIONS FOR GLASS EFFECTS ===== */
-/* Reduce blur on mobile devices to improve GPU performance */
-@media (max-width: 768px) {
+/* ===== MOBILE/TABLET PERFORMANCE OPTIMIZATIONS FOR GLASS EFFECTS ===== */
+/* Reduce blur on mobile and tablet devices to improve GPU performance */
+@media (max-width: 1024px) {
   :root {
     --liquid-glass-blur: 10px;
   }
@@ -725,6 +715,8 @@ img, video, svg {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  contain: paint;
+  will-change: backdrop-filter;
 }
 
 /* Semantic Typography Scale */
@@ -1070,6 +1062,8 @@ html.dark .glass-button:active {
     var(--liquid-glass-inner-shadow),
     0 25px 50px rgba(0, 0, 0, 0.2), 0 10px 20px rgba(0, 0, 0, 0.1);
   transition: var(--liquid-transition);
+  contain: paint;
+  will-change: backdrop-filter;
 }
 
 html.dark .glass-modal {
@@ -1563,7 +1557,7 @@ html.dark .border-accessible {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 60%;
   height: 100%;
   background: linear-gradient(
@@ -1572,10 +1566,11 @@ html.dark .border-accessible {
     rgba(255, 255, 255, 0.25) 50%,
     transparent 100%
   );
-  transform: skewX(-20deg);
+  transform: translateX(-100%) skewX(-20deg);
   transition: none;
   pointer-events: none;
   z-index: 1;
+  will-change: transform;
 }
 
 .glass-interactive:active {
@@ -1583,8 +1578,8 @@ html.dark .border-accessible {
 }
 
 .glass-interactive:active::after {
-  left: 150%;
-  transition: left 0.5s ease-out;
+  transform: translateX(250%) skewX(-20deg);
+  transition: transform 0.5s ease-out;
 }
 
 /* Dark mode shimmer - slightly more visible */
@@ -1619,7 +1614,7 @@ html.dark .border-accessible {
   transition: grid-template-rows 0.35s var(--m3-emphasized-decel), opacity 0.3s var(--m3-emphasized-decel);
   opacity: 0;
   pointer-events: none;
-  contain: layout style;
+  contain: layout style paint;
 }
 
 .cls-safe-collapse > .cls-safe-inner {
@@ -2404,9 +2399,15 @@ html.dark .border-accessible {
 .animate-pop-in,
 .animate-slide-up-stagger,
 .animate-page-enter,
-.page-fade-in {
+.page-fade-in,
+.animate-card-fade-out,
+.animate-slide-up-drawer,
+.animate-modal-slide-up,
+.animate-dialog-scale-in,
+.animate-drawer-content-enter {
   contain: layout style;
 }
+
 
 .glass-modal-backdrop,
 .glass-overlay {
@@ -2968,6 +2969,7 @@ html.dark .border-accessible {
   transition: grid-template-rows var(--duration-normal) var(--spring-smooth),
               opacity var(--duration-normal) var(--spring-smooth);
   opacity: 0;
+  contain: layout style paint;
 }
 
 .accordion-content > * {
@@ -2980,6 +2982,7 @@ html.dark .border-accessible {
   grid-template-rows: 1fr;
   opacity: 1;
 }
+
 
 .accordion-content[data-open="true"] > .accordion-inner > *,
 .accordion-content.is-open > .accordion-inner > *,

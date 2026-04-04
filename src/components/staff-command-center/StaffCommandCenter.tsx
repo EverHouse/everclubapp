@@ -812,11 +812,10 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
             style={{ 
               zIndex: 'var(--z-fab)',
               bottom: isMobile 
-                ? (isAtBottom 
-                    ? 'calc(24px + env(safe-area-inset-bottom, 0px))' 
-                    : 'calc(140px + env(safe-area-inset-bottom, 0px))')
+                ? 'calc(140px + env(safe-area-inset-bottom, 0px))'
                 : '24px',
-              transition: 'bottom 0.3s ease-out'
+              transform: isMobile && isAtBottom ? 'translateY(116px)' : 'translateY(0)',
+              transition: 'transform 0.3s ease-out'
             }}
           >
             {fabOpen && (

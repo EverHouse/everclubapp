@@ -29,7 +29,7 @@ function SegmentedButtonInner<T extends string>({
   const sizeStyles = size === 'sm' ? 'min-h-[40px] text-sm px-3' : 'min-h-[48px] text-base px-4';
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+  const [indicator, setIndicator] = useState<{ left: number; width: number; baseWidth: number } | null>(null);
 
   const updateIndicator = useCallback(() => {
     const container = containerRef.current;
@@ -37,9 +37,12 @@ function SegmentedButtonInner<T extends string>({
     if (container && btn) {
       const containerRect = container.getBoundingClientRect();
       const btnRect = btn.getBoundingClientRect();
+      const firstBtn = container.querySelector('[role="radio"]');
+      const baseWidth = firstBtn ? firstBtn.getBoundingClientRect().width : btnRect.width;
       setIndicator({
         left: btnRect.left - containerRect.left,
         width: btnRect.width,
+        baseWidth: baseWidth || btnRect.width,
       });
     }
   }, [value]);
@@ -101,9 +104,10 @@ function SegmentedButtonInner<T extends string>({
         <div
           className="absolute top-0 bottom-0 rounded-xl bg-primary/10 dark:bg-white/15 pointer-events-none"
           style={{
-            left: indicator.left,
-            width: indicator.width,
-            transition: 'left 250ms var(--m3-standard), width 250ms var(--m3-standard)',
+            width: indicator.baseWidth,
+            transform: `translateX(${indicator.left}px) scaleX(${indicator.width / indicator.baseWidth})`,
+            transformOrigin: 'left center',
+            transition: 'transform 250ms var(--m3-standard)',
           }}
         />
       )}

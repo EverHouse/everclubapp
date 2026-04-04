@@ -66,7 +66,10 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
   if (!bannerAnnouncement || bannerDismissed || isBannerInitiallyDismissed) return null;
 
   return (
-    <PopInSection className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${bannerExiting ? 'animate-card-fade-out overflow-hidden' : ''} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
+    <PopInSection
+      className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${bannerExiting ? 'animate-card-fade-out overflow-hidden' : ''} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}
+      onAnimationEnd={bannerExiting ? () => { setBannerDismissed(true); if (bannerExitTimer.current) { clearTimeout(bannerExitTimer.current); bannerExitTimer.current = null; } } : undefined}
+    >
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <Icon name="campaign" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-lavender' : 'text-primary'}`} />
         <div className="min-w-0 flex-1">

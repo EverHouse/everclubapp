@@ -665,10 +665,11 @@ const TrackmanTab: React.FC = () => {
                         <AnimatePresence mode="wait">
                           {isLinking && (
                             <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg"
+                              initial={{ opacity: 0, scaleY: 0 }}
+                              animate={{ opacity: 1, scaleY: 1 }}
+                              exit={{ opacity: 0, scaleY: 0 }}
+                              style={{ transformOrigin: 'top center' }}
+                              className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg overflow-hidden"
                             >
                               <Icon name="progress_activity" className="text-green-600 dark:text-green-400 text-sm animate-spin" />
                               <span className="text-xs font-medium text-green-700 dark:text-green-300">

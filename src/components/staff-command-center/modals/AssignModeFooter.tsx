@@ -6,9 +6,9 @@ const buttonTap = { scale: 0.97 };
 const buttonSpring = springPresets.buttonPress;
 
 const feeVariants = {
-  initial: { opacity: 0, height: 0, marginBottom: 0 },
-  animate: { opacity: 1, height: 'auto', marginBottom: 12, transition: springPresets.ease },
-  exit: { opacity: 0, height: 0, marginBottom: 0, transition: { duration: 0.2 } },
+  initial: { opacity: 0, scaleY: 0 },
+  animate: { opacity: 1, scaleY: 1, transition: springPresets.ease },
+  exit: { opacity: 0, scaleY: 0, transition: { duration: 0.2 } },
 };
 
 interface AssignModeFooterProps {
@@ -43,6 +43,7 @@ export function AssignModeFooter({
             animate="animate"
             exit="exit"
             {...(prefersReducedMotion ? { transition: noMotion } : {})}
+            style={{ transformOrigin: 'top center' }}
             className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 overflow-hidden"
           >
             <div className="flex items-center justify-between">
@@ -69,9 +70,10 @@ export function AssignModeFooter({
         {isCalculatingFees && (
           <motion.div
             key="calculating"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, scaleY: 0 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            exit={{ opacity: 0, scaleY: 0 }}
+            style={{ transformOrigin: 'top center' }}
             className="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-white/5 flex items-center justify-center gap-2 text-sm text-primary/50 dark:text-white/50 overflow-hidden"
           >
             <Icon name="progress_activity" className="animate-spin text-sm" />

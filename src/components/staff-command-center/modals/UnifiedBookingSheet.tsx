@@ -360,9 +360,10 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         {logic.shouldShowRememberEmail() && (
           <motion.div
             key="remember-email"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto', transition: prefersReducedMotion ? noMotion : springPresets.ease }}
-            exit={{ opacity: 0, height: 0, transition: prefersReducedMotion ? noMotion : { duration: 0.15 } }}
+            initial={{ opacity: 0, scaleY: 0 }}
+            animate={{ opacity: 1, scaleY: 1, transition: prefersReducedMotion ? noMotion : springPresets.ease }}
+            exit={{ opacity: 0, scaleY: 0, transition: prefersReducedMotion ? noMotion : { duration: 0.15 } }}
+            style={{ transformOrigin: 'top center' }}
             className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30 overflow-hidden">
             <label className="flex items-start gap-3 cursor-pointer">
               <input

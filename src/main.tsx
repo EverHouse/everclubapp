@@ -124,6 +124,20 @@ requestAnimationFrame(() => {
 
 initWebVitals();
 
+document.addEventListener('transitionstart', function(e) {
+  const el = e.target as HTMLElement;
+  if (el && (el.classList.contains('cls-safe-collapse') || el.classList.contains('accordion-content'))) {
+    el.style.willChange = 'grid-template-rows, opacity';
+  }
+}, true);
+
+document.addEventListener('transitionend', function(e) {
+  const el = e.target as HTMLElement;
+  if (el && (el.classList.contains('cls-safe-collapse') || el.classList.contains('accordion-content'))) {
+    el.style.willChange = 'auto';
+  }
+}, true);
+
 window.addEventListener('pageshow', function(event) {
   if (event.persisted) {
     const staleKeys = ['sync_events', 'sync_cafe_menu'];

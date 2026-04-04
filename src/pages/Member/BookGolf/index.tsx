@@ -119,10 +119,11 @@ const BookGolf: React.FC = () => {
                   key="player-slot-editor"
                   layout={prefersReducedMotion ? false : "position"}
                   ref={playerSlotRef}
-                  initial={{ height: 0, overflow: 'hidden' as const }}
-                  animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
-                  exit={{ height: 0, overflow: 'hidden' as const }}
+                  initial={{ opacity: 0, scaleY: 0 }}
+                  animate={{ opacity: 1, scaleY: 1 }}
+                  exit={{ opacity: 0, scaleY: 0 }}
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
+                  style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                 >
                   <PlayerSlotEditor
                     playerCount={playerCount}
@@ -175,10 +176,11 @@ const BookGolf: React.FC = () => {
                 {error && (
                   <motion.div
                     key="error-msg"
-                    initial={{ height: 0, overflow: 'hidden' as const }}
-                    animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
-                    exit={{ height: 0, overflow: 'hidden' as const }}
+                    initial={{ opacity: 0, scaleY: 0 }}
+                    animate={{ opacity: 1, scaleY: 1 }}
+                    exit={{ opacity: 0, scaleY: 0 }}
                     transition={prefersReducedMotion ? instantTransition : springPresets.quick}
+                    style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                   >
                     <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
                       <Icon name="error" />
@@ -194,10 +196,11 @@ const BookGolf: React.FC = () => {
                 <motion.div
                   key="existing-bookings"
                   layout={prefersReducedMotion ? false : "position"}
-                  initial={{ height: 0, overflow: 'hidden' as const }}
-                  animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
-                  exit={{ height: 0, overflow: 'hidden' as const }}
+                  initial={{ opacity: 0, scaleY: 0 }}
+                  animate={{ opacity: 1, scaleY: 1 }}
+                  exit={{ opacity: 0, scaleY: 0 }}
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
+                  style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                 >
                   <ExistingBookings
                     bookings={memberBayBookingsForDay}
@@ -240,10 +243,11 @@ const BookGolf: React.FC = () => {
                 <motion.div
                   key="conference-conflict-notice"
                   layout={prefersReducedMotion ? false : "position"}
-                  initial={{ height: 0, overflow: 'hidden' as const }}
-                  animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
-                  exit={{ height: 0, overflow: 'hidden' as const }}
+                  initial={{ opacity: 0, scaleY: 0 }}
+                  animate={{ opacity: 1, scaleY: 1 }}
+                  exit={{ opacity: 0, scaleY: 0 }}
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
+                  style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                 >
                   <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
                     <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>

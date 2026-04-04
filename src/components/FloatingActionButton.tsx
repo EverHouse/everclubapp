@@ -117,7 +117,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
       style={{ 
         zIndex: 'var(--z-fab)',
         '--fab-mobile-bottom': mobileBottom,
-        transition: 'width 0.35s var(--m3-standard), border-radius 0.35s var(--m3-standard), padding 0.35s var(--m3-standard), gap 0.35s var(--m3-standard), transform 0.1s var(--m3-standard), box-shadow 0.2s var(--m3-standard), opacity 0.1s var(--m3-standard)',
+        transition: 'border-radius 0.35s var(--m3-standard), transform 0.1s var(--m3-standard), box-shadow 0.2s var(--m3-standard), opacity 0.1s var(--m3-standard)',
         ...(isExiting ? { transform: 'scale(0.8)', opacity: 0 } : {}),
       } as React.CSSProperties}
       aria-label={isExpanded && text ? text : label || 'Add new item'}
@@ -130,7 +130,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             display: 'grid',
             gridTemplateColumns: isExpanded ? '1fr' : '0fr',
             opacity: isExpanded ? 1 : 0,
-            transition: 'grid-template-columns 0.35s var(--m3-standard), opacity 0.25s var(--m3-standard)',
+            transition: 'opacity 0.25s var(--m3-standard)',
           }}
         >
           <span className="overflow-hidden">{text}</span>

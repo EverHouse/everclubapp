@@ -135,6 +135,7 @@ interface PopInSectionProps {
   className?: string;
   delay?: number;
   viewport?: boolean;
+  onAnimationEnd?: React.AnimationEventHandler<HTMLDivElement>;
 }
 
 export const PopInSection: React.FC<PopInSectionProps> = ({
@@ -142,6 +143,7 @@ export const PopInSection: React.FC<PopInSectionProps> = ({
   className,
   delay = 0,
   viewport = false,
+  onAnimationEnd,
 }) => {
   const prefersReduced = useReducedMotion();
 
@@ -155,6 +157,7 @@ export const PopInSection: React.FC<PopInSectionProps> = ({
         : { animate: 'show' }
       )}
       transition={prefersReduced ? { duration: 0 } : { ...springPresets.popIn, delay: delay * 0.08 }}
+      onAnimationEnd={onAnimationEnd}
     >
       {children}
     </motion.div>
@@ -212,21 +215,19 @@ export const AccordionContent: React.FC<AccordionContentProps> = ({
   const prefersReduced = useReducedMotion();
 
   return (
-    <AnimatePresence initial={false} mode="wait">
-      {isOpen && (
-        <motion.div
-          key="accordion-content"
-          initial={prefersReduced ? { opacity: 1 } : { height: 0, opacity: 0 }}
-          animate={prefersReduced ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-          exit={prefersReduced ? { opacity: 0 } : { height: 0, opacity: 0 }}
-          transition={prefersReduced ? { duration: 0 } : springPresets.sheet}
-          className={className}
-          style={{ overflow: 'hidden' }}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      className={`accordion-content ${isOpen ? 'is-open' : ''} ${className}`}
+      aria-hidden={!isOpen}
+      inert={!isOpen ? true : undefined}
+    >
+      <div className="accordion-inner" style={{ overflow: 'hidden' }}>
+        {prefersReduced ? (
+          <div style={{ opacity: isOpen ? 1 : 0 }}>{children}</div>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
   );
 };
 
