@@ -160,10 +160,6 @@ function trackCheckout(client: PoolClient): void {
   const stack = new Error().stack?.split('\n').slice(2, 6).join('\n') || 'unknown';
   activeCheckouts.set(client, { checkedOutAt: Date.now(), stack, warnedAt: 0, erroredAt: 0 });
 
-  if (trackedClients.has(client)) {
-    return;
-  }
-
   const originalRelease = client.release.bind(client);
   const wrappedRelease: PoolClient['release'] = function trackedRelease(err?: boolean | Error) {
     activeCheckouts.delete(client);
