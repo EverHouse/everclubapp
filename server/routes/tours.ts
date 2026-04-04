@@ -125,24 +125,39 @@ function pacificToUtcMs(naiveDateStr: string): number {
 
 const router = Router();
 
+const tourListColumns = {
+  id: tours.id,
+  title: tours.title,
+  guestName: tours.guestName,
+  guestEmail: tours.guestEmail,
+  guestPhone: tours.guestPhone,
+  tourDate: tours.tourDate,
+  startTime: tours.startTime,
+  endTime: tours.endTime,
+  notes: tours.notes,
+  status: tours.status,
+  checkedInAt: tours.checkedInAt,
+  checkedInBy: tours.checkedInBy,
+};
+
 router.get('/api/tours', isStaffOrAdmin, async (req, res) => {
   try {
     const { date, upcoming } = req.query;
     
     let query;
     if (date) {
-      query = db.select().from(tours)
+      query = db.select(tourListColumns).from(tours)
         .where(eq(tours.tourDate, date as string))
         .orderBy(asc(tours.startTime));
     } else if (upcoming === 'true') {
-      query = db.select().from(tours)
+      query = db.select(tourListColumns).from(tours)
         .where(and(
           gte(tours.tourDate, getTodayPacific()),
           sql`${tours.status} != 'cancelled'`
         ))
         .orderBy(asc(tours.tourDate), asc(tours.startTime));
     } else {
-      query = db.select().from(tours)
+      query = db.select(tourListColumns).from(tours)
         .orderBy(desc(tours.tourDate), asc(tours.startTime));
     }
     
@@ -157,7 +172,7 @@ router.get('/api/tours', isStaffOrAdmin, async (req, res) => {
 router.get('/api/tours/today', isStaffOrAdmin, async (req, res) => {
   try {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
-    const result = await db.select().from(tours)
+    const result = await db.select(tourListColumns).from(tours)
       .where(and(
         eq(tours.tourDate, today),
         sql`${tours.status} != 'cancelled'`
