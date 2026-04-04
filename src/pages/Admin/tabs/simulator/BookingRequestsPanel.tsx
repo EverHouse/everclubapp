@@ -498,7 +498,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                         await updateBookingStatusOptimistic(booking, status);
                                                                     }}
                                                                     showRevert={true}
-                                                                    size="sm"
+                                                                    size="md"
                                                                     menuDirection="down"
                                                                 />
                                                             ) : isToday && booking.status === 'no_show' ? (
@@ -508,7 +508,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                         await updateBookingStatusOptimistic(booking, status);
                                                                     }}
                                                                     showRevert={true}
-                                                                    size="sm"
+                                                                    size="md"
                                                                     menuDirection="down"
                                                                 />
                                                             ) : isToday && (booking.fee_snapshot_paid || (!booking.has_unpaid_fees && (booking.total_owed || 0) <= 0)) ? (
@@ -517,7 +517,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                     onStatusChange={async (status) => {
                                                                         await updateBookingStatusOptimistic(booking, status);
                                                                     }}
-                                                                    size="sm"
+                                                                    size="md"
                                                                     menuDirection="down"
                                                                 />
                                                             ) : isToday ? (
@@ -532,7 +532,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                             onStatusChange={async (status) => {
                                                                                 await updateBookingStatusOptimistic(booking, status);
                                                                             }}
-                                                                            size="sm"
+                                                                            size="md"
                                                                             menuDirection="down"
                                                                         />
                                                                     }

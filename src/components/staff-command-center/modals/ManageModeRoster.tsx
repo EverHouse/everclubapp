@@ -1,9 +1,19 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MemberSearchInput } from '../../shared/MemberSearchInput';
 import type { BookingMember, ManageModeRosterData, MemberMatchWarning } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
 import { isPlaceholderGuestName } from '../../../utils/rosterUtils';
+
+const rosterItemVariants = {
+  initial: { opacity: 0, x: -12 },
+  animate: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 25 } },
+  exit: { opacity: 0, x: 12, transition: { duration: 0.15 } },
+};
+
+const buttonTap = { scale: 0.97 };
+const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
 
 interface ManageModeRosterProps {
   rosterData: ManageModeRosterData | null;
@@ -90,8 +100,13 @@ export function ManageModeRoster({
     const isStaff = member.isStaff || isStaffTier(member.tier);
 
     return (
-      <div 
+      <motion.div 
         key={member.id ?? `slot-${member.slotNumber}`}
+        variants={rosterItemVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        layout
         className={`relative p-3 rounded-xl border transition-colors duration-fast ${
           isOwner 
             ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
@@ -201,7 +216,7 @@ export function ManageModeRoster({
             )}
           </div>
         )}
-      </div>
+      </motion.div>
     );
   };
 
@@ -288,23 +303,29 @@ export function ManageModeRoster({
                 {memberMatchWarning.memberMatch.name} ({memberMatchWarning.memberMatch.tier}) — {memberMatchWarning.memberMatch.note}
               </p>
               <div className="flex gap-2">
-                <button
+                <motion.button
+                  whileTap={buttonTap}
+                  transition={buttonSpring}
                   onClick={() => handleManageModeMemberMatchResolve('member')}
                   className="tactile-btn flex-1 py-1.5 px-2 rounded-lg bg-blue-600 text-white text-xs font-medium hover:bg-blue-700 transition-colors"
                 >
                   Add as Member
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={buttonTap}
+                  transition={buttonSpring}
                   onClick={() => handleManageModeMemberMatchResolve('guest')}
                   className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
                 >
                   Add as Guest Anyway
-                </button>
+                </motion.button>
               </div>
             </div>
           )}
 
-          <button
+          <motion.button
+            whileTap={buttonTap}
+            transition={buttonSpring}
             onClick={() => handleManageModeAddGuest(slotNumber)}
             disabled={!manageModeGuestData.firstName || !manageModeGuestData.lastName || !manageModeGuestData.email || isAddingManageGuest}
             className="tactile-btn w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
@@ -320,7 +341,7 @@ export function ManageModeRoster({
                 Add Guest
               </>
             )}
-          </button>
+          </motion.button>
         </div>
       );
     }
@@ -379,7 +400,9 @@ export function ManageModeRoster({
             </div>
           </div>
           <div className="flex gap-1.5">
-            <button
+            <motion.button
+              whileTap={buttonTap}
+              transition={buttonSpring}
               onClick={() => {
                 setManageModeSearchSlot(slotNumber);
                 setManageModeGuestForm(null);
@@ -388,8 +411,10 @@ export function ManageModeRoster({
             >
               <Icon name="search" className="text-xs" />
               Search
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileTap={buttonTap}
+              transition={buttonSpring}
               onClick={() => {
                 setManageModeGuestForm(slotNumber);
                 setManageModeSearchSlot(null);
@@ -399,7 +424,7 @@ export function ManageModeRoster({
             >
               <Icon name="card_membership" className="text-xs" />
               Use Guest Pass
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -410,7 +435,9 @@ export function ManageModeRoster({
     if (filledMembers.length > 0) {
       return (
         <div className="space-y-2">
-          {filledMembers.filter(m => m.isPrimary).map((member, idx) => renderManageModeSlot(member, idx))}
+          <AnimatePresence>
+            {filledMembers.filter(m => m.isPrimary).map((member, idx) => renderManageModeSlot(member, idx))}
+          </AnimatePresence>
         </div>
       );
     }
@@ -419,7 +446,9 @@ export function ManageModeRoster({
 
   return (
     <div className="space-y-2">
-      {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
+      <AnimatePresence>
+        {filledMembers.map((member, idx) => renderManageModeSlot(member, idx))}
+      </AnimatePresence>
       {emptySlotNumbers.map(slotNum => renderManageModeEmptySlot(slotNum))}
     </div>
   );

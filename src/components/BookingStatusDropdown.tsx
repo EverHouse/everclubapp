@@ -123,7 +123,7 @@ export function BookingStatusDropdown({
     if (loading) {
       const loadingClass = isSm
         ? 'text-xs px-2 py-1 rounded-lg flex items-center gap-1'
-        : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors';
+        : 'tactile-btn w-full py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors';
 
       const loadingColorClass = currentStatus === 'check_in'
         ? (isSm ? 'bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-accent opacity-50' : 'bg-green-600 text-white opacity-75')
@@ -144,7 +144,7 @@ export function BookingStatusDropdown({
     if (currentStatus === 'cancellation_pending') {
       const btnClass = isSm
         ? 'text-xs px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-lg font-medium flex items-center gap-1'
-        : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-orange-100 dark:bg-orange-900/30 border border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300';
+        : 'tactile-btn w-full py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors bg-orange-100 dark:bg-orange-900/30 border border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300';
       return (
         <button type="button" disabled className={btnClass} {...ariaProps}>
           <Icon name="event_busy" className={`${isSm ? 'text-sm' : 'text-sm'}`} />
@@ -156,7 +156,7 @@ export function BookingStatusDropdown({
     if (currentStatus === 'checked_in') {
       const btnClass = isSm
         ? 'text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-emerald-300 dark:hover:ring-emerald-600 transition-colors cursor-pointer'
-        : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
+        : 'tactile-btn w-full py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
 
       return (
         <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
@@ -170,7 +170,7 @@ export function BookingStatusDropdown({
     if (currentStatus === 'check_in') {
       const btnClass = isSm
         ? 'tactile-btn text-xs px-2 py-1 bg-glass-surface-primary dark:bg-glass-surface-primary-dark text-glass-surface-primary-text dark:text-accent rounded-lg hover:bg-glass-surface-primary/80 dark:hover:bg-glass-surface-primary-dark/80 transition-colors disabled:opacity-50 flex items-center gap-1'
-        : `tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
+        : `tactile-btn w-full py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
             disabled
               ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               : 'bg-green-600 hover:bg-green-700 text-white'
@@ -188,7 +188,7 @@ export function BookingStatusDropdown({
     if (currentStatus === 'attended') {
       const btnClass = isSm
         ? 'text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-emerald-300 dark:hover:ring-emerald-600 transition-colors cursor-pointer'
-        : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
+        : 'tactile-btn w-full py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 hover:ring-2 hover:ring-green-300 dark:hover:ring-green-600 cursor-pointer';
 
       return (
         <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>
@@ -201,7 +201,7 @@ export function BookingStatusDropdown({
 
     const btnClass = isSm
       ? 'text-xs px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg font-medium flex items-center gap-1 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 transition-colors cursor-pointer'
-      : 'tactile-btn w-full py-2 px-3 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 cursor-pointer';
+      : 'tactile-btn w-full py-2.5 px-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 hover:ring-2 hover:ring-red-300 dark:hover:ring-red-600 cursor-pointer';
 
     return (
       <button type="button" onClick={handleButtonClick} onKeyDown={handleKeyDown} disabled={disabled} className={btnClass} {...ariaProps}>

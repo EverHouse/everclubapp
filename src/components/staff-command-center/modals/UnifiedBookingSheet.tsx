@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'framer-motion';
 import { SlideUpDrawer } from '../../SlideUpDrawer';
 import { SheetHeader } from './SheetHeader';
 import { PaymentSummaryBody, PaymentActionFooter, InlinePaymentBody } from './PaymentSection';
@@ -12,6 +13,14 @@ import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import type { UnifiedBookingSheetProps } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
+
+const sectionVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
+};
+
+const buttonTap = { scale: 0.97 };
+const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
 
 export type { BookingType, SheetMode, UnifiedBookingSheetProps } from './bookingSheetTypes';
 
@@ -94,20 +103,39 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
         stickyFooter={manageModeFooter}
       >
         <div className="p-4 space-y-4">
+          <AnimatePresence mode="wait">
           {logic.isLoadingRoster ? (
-            <div className="flex items-center justify-center py-12">
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center justify-center py-12"
+            >
               <WalkingGolferSpinner size="sm" variant="auto" />
-            </div>
+            </motion.div>
           ) : logic.rosterError ? (
-            <div className="flex flex-col items-center text-center py-8">
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center text-center py-8"
+            >
               <Icon name="error" className="text-4xl text-red-500 mb-2" />
               <p className="text-red-600 dark:text-red-400">{logic.rosterError}</p>
-              <button type="button" onClick={logic.fetchRosterData} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">
+              <motion.button
+                whileTap={buttonTap}
+                transition={buttonSpring}
+                type="button"
+                onClick={() => logic.fetchRosterData()}
+                className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm"
+              >
                 Retry
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
           ) : (
-            <>
+            <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <SheetHeader
                 isManageMode={true}
                 isConferenceRoom={logic.isConferenceRoom}
@@ -128,13 +156,19 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <h4 className="font-medium text-primary dark:text-white">Player Slots</h4>
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                      filledCount === totalCount 
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                        : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                    }`}>
+                    <motion.span
+                      key={`${filledCount}-${totalCount}`}
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring' as const, stiffness: 400, damping: 20 }}
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                        filledCount === totalCount 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                      }`}
+                    >
                       {filledCount}/{totalCount} Assigned
-                    </span>
+                    </motion.span>
                   </div>
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-primary/60 dark:text-white/60">Players:</label>
@@ -231,11 +265,12 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 handleInlineStripeSuccess={logic.handleInlineStripeSuccess}
                 handleChargeCardOnFile={logic.handleInlineChargeSavedCard}
                 handleWaiveFees={logic.handleInlineWaiveAll}
-                onRefresh={logic.fetchRosterData}
+                onRefresh={() => logic.fetchRosterData({ silent: true })}
               />
 
-            </>
+            </motion.div>
           )}
+          </AnimatePresence>
         </div>
       </SlideUpDrawer>
     );
@@ -319,8 +354,14 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
           toggleDayPassForSlot={logic.toggleDayPassForSlot}
         />
 
+        <AnimatePresence>
         {logic.shouldShowRememberEmail() && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30">
+          <motion.div
+            key="remember-email"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto', transition: { type: 'spring' as const, stiffness: 300, damping: 25 } }}
+            exit={{ opacity: 0, height: 0, transition: { duration: 0.15 } }}
+            className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-500/30 overflow-hidden">
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
@@ -335,12 +376,20 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                 </p>
               </div>
             </label>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {logic.handleDeleteBooking && (
-          <div className="pt-2 border-t border-primary/10 dark:border-white/10">
-            <button
+          <motion.div
+            variants={sectionVariants}
+            initial="initial"
+            animate="animate"
+            className="pt-2 border-t border-primary/10 dark:border-white/10"
+          >
+            <motion.button
+              whileTap={logic.deleting ? undefined : buttonTap}
+              transition={buttonSpring}
               onClick={logic.handleDeleteBooking}
               disabled={logic.deleting}
               className="tactile-btn w-full py-2.5 px-4 rounded-lg border border-red-400 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
@@ -356,8 +405,8 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
                   Delete Booking
                 </>
               )}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         )}
       </div>
     </SlideUpDrawer>

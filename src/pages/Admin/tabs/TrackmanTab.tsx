@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import EmptyState from '../../../components/EmptyState';
 import { usePageReady } from '../../../stores/pageReadyStore';
 import { useAuthData } from '../../../contexts/DataContext';
@@ -13,6 +14,22 @@ import { fetchWithCredentials, putWithCredentials, postWithCredentials } from '.
 import { TrackmanTabSkeleton } from '../../../components/skeletons';
 import TrackmanWebhookEventsSection from '../../../components/staff-command-center/sections/TrackmanWebhookEventsSection';
 import Icon from '../../../components/icons/Icon';
+
+const cardVariants = {
+  initial: { opacity: 0, y: 20, scale: 0.97 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring' as const, stiffness: 400, damping: 30 } },
+  linking: { opacity: 0.7, scale: 0.98, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
+  exit: { opacity: 0, scale: 0.92, y: -16, transition: { type: 'spring' as const, stiffness: 300, damping: 28, duration: 0.35 } },
+};
+
+const rowVariants = {
+  initial: { opacity: 0, x: -12 },
+  animate: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 400, damping: 30 } },
+  linking: { opacity: 0.6, x: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 25 } },
+  exit: { opacity: 0, x: 20, transition: { type: 'spring' as const, stiffness: 300, damping: 28, duration: 0.3 } },
+};
+
+const buttonTapSpring = { scale: 0.94, transition: { type: 'spring' as const, stiffness: 500, damping: 20 } };
 
 interface OptimisticAction {
   type: 'linking' | 'unlinking';
@@ -443,6 +460,7 @@ const TrackmanTab: React.FC = () => {
   }
 
   return (
+    <LayoutGroup>
     <div className="px-6 pb-4 space-y-6 animate-page-enter">
       <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter">
         <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -613,88 +631,109 @@ const TrackmanTab: React.FC = () => {
           <div className="space-y-2">
             {/* Mobile card view */}
             <div className="md:hidden space-y-3 max-h-[500px] overflow-y-auto">
-              {unmatchedBookings
-                .filter((booking: TrackmanBooking) => {
-                  if (!unmatchedSearchQuery.trim()) return true;
-                  const query = unmatchedSearchQuery.toLowerCase();
-                  const name = (booking.userName || booking.user_name || '').toLowerCase();
-                  const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
-                  return name.includes(query) || email.includes(query);
-                })
-                .map((booking: TrackmanBooking, idx: number) => {
-                  const isLinking = optimisticActions.get(booking.id)?.type === 'linking';
-                  const linkingEmail = optimisticActions.get(booking.id)?.targetEmail;
-                  
-                  return (
-                    <div 
-                      key={booking.id} 
-                      className={`rounded-xl p-4 border transition-colors duration-normal ${
-                        isLinking 
-                          ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30 opacity-75' 
-                          : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'
-                      } ${idx < 10 ? `animate-list-item-delay-${idx}` : 'animate-list-item'}`}
-                    >
-                      {isLinking && (
-                        <div className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg">
-                          <Icon name="progress_activity" className="text-green-600 dark:text-green-400 text-sm animate-spin" />
-                          <span className="text-xs font-medium text-green-700 dark:text-green-300">
-                            Linking to {linkingEmail}...
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <p className="font-bold text-primary dark:text-white">
-                            {booking.userName || booking.user_name || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
-                            {booking.originalEmail || booking.original_email || 'No email'}
-                          </p>
-                        </div>
-                        <span className="text-xs font-bold text-primary dark:text-white bg-primary/10 dark:bg-white/10 px-2 py-1 rounded-lg">
-                          Bay {booking.bayNumber || booking.bay_number}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                        <div>
-                          <span className="text-xs text-primary/50 dark:text-white/50">Date</span>
-                          <p className="text-primary dark:text-white font-medium text-sm">
-                            {formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-xs text-primary/50 dark:text-white/50">Time</span>
-                          <p className="text-primary dark:text-white font-medium text-sm">
-                            {formatTime12Hour(booking.startTime || booking.start_time || '')} - {formatTime12Hour(booking.endTime || booking.end_time || '')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
-                          {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
-                        </span>
-                        {booking.status && (
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
-                            booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
-                            booking.status === 'expired' ? 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-500/10' :
-                            booking.status === 'approved' ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10' :
-                            'text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/5'
-                          }`}>
-                            {booking.status.replace(/_/g, ' ')}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
-                        disabled={isLinking}
-                        className="tactile-btn w-full py-2 bg-accent text-primary rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              <AnimatePresence mode="popLayout">
+                {unmatchedBookings
+                  .filter((booking: TrackmanBooking) => {
+                    if (!unmatchedSearchQuery.trim()) return true;
+                    const query = unmatchedSearchQuery.toLowerCase();
+                    const name = (booking.userName || booking.user_name || '').toLowerCase();
+                    const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
+                    return name.includes(query) || email.includes(query);
+                  })
+                  .map((booking: TrackmanBooking) => {
+                    const isLinking = optimisticActions.get(booking.id)?.type === 'linking';
+                    const linkingEmail = optimisticActions.get(booking.id)?.targetEmail;
+                    
+                    return (
+                      <motion.div
+                        key={booking.id}
+                        layoutId={`unmatched-card-${booking.id}`}
+                        variants={cardVariants}
+                        initial="initial"
+                        animate={isLinking ? 'linking' : 'animate'}
+                        exit="exit"
+                        layout
+                        className={`rounded-xl p-4 border transition-colors duration-normal ${
+                          isLinking 
+                            ? 'bg-green-50 dark:bg-green-500/10 border-green-200 dark:border-green-500/30' 
+                            : 'bg-white/50 dark:bg-white/5 border-primary/10 dark:border-white/10'
+                        }`}
                       >
-                        {isLinking ? 'Linking...' : 'Resolve'}
-                      </button>
-                    </div>
-                  );
-                })}
+                        <AnimatePresence>
+                          {isLinking && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="flex items-center gap-2 mb-3 p-2 bg-green-100 dark:bg-green-500/20 rounded-lg"
+                            >
+                              <Icon name="progress_activity" className="text-green-600 dark:text-green-400 text-sm animate-spin" />
+                              <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                                Linking to {linkingEmail}...
+                              </span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="font-bold text-primary dark:text-white">
+                              {booking.userName || booking.user_name || 'Unknown'}
+                            </p>
+                            <p className="text-xs text-primary/60 dark:text-white/60 mt-0.5">
+                              {booking.originalEmail || booking.original_email || 'No email'}
+                            </p>
+                          </div>
+                          <span className="text-xs font-bold text-primary dark:text-white bg-primary/10 dark:bg-white/10 px-2 py-1 rounded-lg">
+                            Bay {booking.bayNumber || booking.bay_number}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                          <div>
+                            <span className="text-xs text-primary/50 dark:text-white/50">Date</span>
+                            <p className="text-primary dark:text-white font-medium text-sm">
+                              {formatDateDisplayWithDay(booking.bookingDate || booking.booking_date)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-primary/50 dark:text-white/50">Time</span>
+                            <p className="text-primary dark:text-white font-medium text-sm">
+                              {formatTime12Hour(booking.startTime || booking.start_time || '')} - {formatTime12Hour(booking.endTime || booking.end_time || '')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          <span className="text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-1 rounded-full">
+                            {booking.matchAttemptReason || booking.match_attempt_reason || 'No match'}
+                          </span>
+                          {booking.status && (
+                            <motion.span
+                              key={`mobile-status-${booking.id}-${booking.status}`}
+                              initial={{ scale: 0.85, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1, transition: { type: 'spring' as const, stiffness: 500, damping: 25 } }}
+                              className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
+                                booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
+                                booking.status === 'expired' ? 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-500/10' :
+                                booking.status === 'approved' ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10' :
+                                'text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/5'
+                              }`}
+                            >
+                              {booking.status.replace(/_/g, ' ')}
+                            </motion.span>
+                          )}
+                        </div>
+                        <motion.button
+                          whileTap={buttonTapSpring}
+                          onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
+                          disabled={isLinking}
+                          className="tactile-btn w-full py-2 bg-accent text-primary rounded-lg text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isLinking ? 'Linking...' : 'Resolve'}
+                        </motion.button>
+                      </motion.div>
+                    );
+                  })}
+              </AnimatePresence>
             </div>
 
             {/* Desktop table view */}
@@ -712,68 +751,82 @@ const TrackmanTab: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-primary/5 dark:divide-white/5">
-                  {unmatchedBookings
-                    .filter((booking: TrackmanBooking) => {
-                      if (!unmatchedSearchQuery.trim()) return true;
-                      const query = unmatchedSearchQuery.toLowerCase();
-                      const name = (booking.userName || booking.user_name || '').toLowerCase();
-                      const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
-                      return name.includes(query) || email.includes(query);
-                    })
-                    .map((booking: TrackmanBooking, _idx: number) => {
-                      const isLinking = optimisticActions.get(booking.id)?.type === 'linking';
-                      const _linkingEmail = optimisticActions.get(booking.id)?.targetEmail;
-                      
-                      return (
-                        <tr 
-                          key={booking.id} 
-                          className={`tactile-row transition-colors ${
-                            isLinking 
-                              ? 'bg-green-50 dark:bg-green-500/10' 
-                              : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
-                          }`}
-                        >
-                          <td className="py-2 px-3 hidden lg:table-cell">
-                            <span className="text-xs font-mono text-primary/70 dark:text-white/70">
-                              {booking.trackmanBookingId || booking.trackman_booking_id || '—'}
-                            </span>
-                          </td>
-                          <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
-                            <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.bookingDate || booking.booking_date || '')}</div>
-                            <div className="text-xs text-primary/60 dark:text-white/60">{formatTime12Hour(booking.startTime || booking.start_time || '')} - {formatTime12Hour(booking.endTime || booking.end_time || '')}</div>
-                          </td>
-                          <td className="py-2 px-3 text-primary dark:text-white">
-                            <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
-                          </td>
-                          <td className="py-2 px-3 text-primary/80 dark:text-white/80">
-                            <div className="truncate max-w-[180px]">{booking.originalEmail || booking.original_email || 'No email'}</div>
-                          </td>
-                          <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.bayNumber || booking.bay_number}</td>
-                          <td className="py-2 px-3">
-                            {booking.status && (
-                              <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
-                                booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
-                                booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
-                                booking.status === 'expired' ? 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-500/10' :
-                                booking.status === 'approved' ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10' :
-                                'text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/5'
-                              }`}>
-                                {booking.status.replace(/_/g, ' ')}
+                  <AnimatePresence mode="popLayout">
+                    {unmatchedBookings
+                      .filter((booking: TrackmanBooking) => {
+                        if (!unmatchedSearchQuery.trim()) return true;
+                        const query = unmatchedSearchQuery.toLowerCase();
+                        const name = (booking.userName || booking.user_name || '').toLowerCase();
+                        const email = (booking.originalEmail || booking.original_email || '').toLowerCase();
+                        return name.includes(query) || email.includes(query);
+                      })
+                      .map((booking: TrackmanBooking) => {
+                        const isLinking = optimisticActions.get(booking.id)?.type === 'linking';
+                        const _linkingEmail = optimisticActions.get(booking.id)?.targetEmail;
+                        
+                        return (
+                          <motion.tr
+                            key={booking.id}
+                            layoutId={`unmatched-row-${booking.id}`}
+                            variants={rowVariants}
+                            initial="initial"
+                            animate={isLinking ? 'linking' : 'animate'}
+                            exit="exit"
+                            layout
+                            className={`tactile-row transition-colors ${
+                              isLinking 
+                                ? 'bg-green-50 dark:bg-green-500/10' 
+                                : 'bg-white/50 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            <td className="py-2 px-3 hidden lg:table-cell">
+                              <span className="text-xs font-mono text-primary/70 dark:text-white/70">
+                                {booking.trackmanBookingId || booking.trackman_booking_id || '—'}
                               </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-right">
-                            <button
-                              onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
-                              disabled={isLinking}
-                              className="tactile-btn px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {isLinking ? 'Linking...' : 'Resolve'}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+                            <td className="py-2 px-3 text-primary dark:text-white whitespace-nowrap">
+                              <div className="text-sm font-medium">{formatDateDisplayWithDay(booking.bookingDate || booking.booking_date || '')}</div>
+                              <div className="text-xs text-primary/60 dark:text-white/60">{formatTime12Hour(booking.startTime || booking.start_time || '')} - {formatTime12Hour(booking.endTime || booking.end_time || '')}</div>
+                            </td>
+                            <td className="py-2 px-3 text-primary dark:text-white">
+                              <div className="font-medium truncate max-w-[150px]">{booking.userName || booking.user_name || 'Unknown'}</div>
+                            </td>
+                            <td className="py-2 px-3 text-primary/80 dark:text-white/80">
+                              <div className="truncate max-w-[180px]">{booking.originalEmail || booking.original_email || 'No email'}</div>
+                            </td>
+                            <td className="py-2 px-3 text-primary dark:text-white font-medium">{booking.bayNumber || booking.bay_number}</td>
+                            <td className="py-2 px-3">
+                              {booking.status && (
+                                <motion.span
+                                  key={`status-${booking.id}-${booking.status}`}
+                                  initial={{ scale: 0.85, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1, transition: { type: 'spring' as const, stiffness: 500, damping: 25 } }}
+                                  className={`inline-block text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                                    booking.status === 'attended' ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10' :
+                                    booking.status === 'no_show' ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10' :
+                                    booking.status === 'expired' ? 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-500/10' :
+                                    booking.status === 'approved' ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-500/10' :
+                                    'text-primary/70 dark:text-white/70 bg-primary/5 dark:bg-white/5'
+                                  }`}
+                                >
+                                  {booking.status.replace(/_/g, ' ')}
+                                </motion.span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-right">
+                              <motion.button
+                                whileTap={buttonTapSpring}
+                                onClick={() => setAssignPlayersModal({ booking, isOpen: true })}
+                                disabled={isLinking}
+                                className="tactile-btn px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isLinking ? 'Linking...' : 'Resolve'}
+                              </motion.button>
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
+                  </AnimatePresence>
                 </tbody>
               </table>
             </div>
@@ -836,54 +889,71 @@ const TrackmanTab: React.FC = () => {
           </div>
           
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
-            {needsPlayersBookings.map((booking: TrackmanBooking) => {
-              const expectedCount = booking.slotInfo?.totalSlots || booking.slotInfo?.expectedPlayerCount || booking.trackmanPlayerCount || booking.playerCount || booking.player_count || 1;
-              const assignedCount = booking.slotInfo?.filledSlots || booking.assignedCount || booking.assigned_count || 0;
-              const isComplete = assignedCount >= expectedCount;
-              
-              return (
-                <div key={booking.id} className="flex items-center justify-between p-3 bg-white/50 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-bold text-primary dark:text-white text-sm truncate">
-                        {booking.userName || booking.user_name || 'Unknown'}
-                      </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        isComplete 
-                          ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' 
-                          : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'
-                      }`}>
-                        {assignedCount}/{expectedCount} Assigned
-                      </span>
-                    </div>
-                    <p className="text-xs text-primary/80 dark:text-white/80 truncate">
-                      {booking.userEmail || booking.user_email || 'No email'}
-                    </p>
-                    <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
-                      {formatDateDisplayWithDay(booking.requestDate || booking.request_date)} • Bay {booking.resourceId || booking.resource_id}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setBookingSheet({ 
-                      bookingId: booking.id,
-                      bookingContext: {
-                        ownerName: booking.userName || booking.user_name || 'Unknown',
-                        resourceId: booking.resourceId || booking.resource_id,
-                        requestDate: booking.requestDate || booking.request_date,
-                        startTime: booking.startTime || booking.start_time || '',
-                        endTime: booking.endTime || booking.end_time || '',
-                        durationMinutes: booking.durationMinutes || booking.duration_minutes || 60,
-                        notes: booking.notes || ''
-                      }
-                    })}
-                    className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity shrink-0 flex items-center gap-1"
+            <AnimatePresence mode="popLayout">
+              {needsPlayersBookings.map((booking: TrackmanBooking) => {
+                const expectedCount = booking.slotInfo?.totalSlots || booking.slotInfo?.expectedPlayerCount || booking.trackmanPlayerCount || booking.playerCount || booking.player_count || 1;
+                const assignedCount = booking.slotInfo?.filledSlots || booking.assignedCount || booking.assigned_count || 0;
+                const isComplete = assignedCount >= expectedCount;
+                
+                return (
+                  <motion.div
+                    key={booking.id}
+                    layoutId={`needs-players-${booking.id}`}
+                    variants={cardVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    layout
+                    className="flex items-center justify-between p-3 bg-white/50 dark:bg-white/5 rounded-xl border border-primary/10 dark:border-white/10"
                   >
-                    <Icon name="group" className="text-sm" />
-                    Manage
-                  </button>
-                </div>
-              );
-            })}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-bold text-primary dark:text-white text-sm truncate">
+                          {booking.userName || booking.user_name || 'Unknown'}
+                        </p>
+                        <motion.span
+                          key={`${booking.id}-${assignedCount}-${expectedCount}`}
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 500, damping: 25 } }}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            isComplete 
+                              ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' 
+                              : 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300'
+                          }`}
+                        >
+                          {assignedCount}/{expectedCount} Assigned
+                        </motion.span>
+                      </div>
+                      <p className="text-xs text-primary/80 dark:text-white/80 truncate">
+                        {booking.userEmail || booking.user_email || 'No email'}
+                      </p>
+                      <p className="text-xs text-primary/80 dark:text-white/80 mt-1">
+                        {formatDateDisplayWithDay(booking.requestDate || booking.request_date)} • Bay {booking.resourceId || booking.resource_id}
+                      </p>
+                    </div>
+                    <motion.button
+                      whileTap={buttonTapSpring}
+                      onClick={() => setBookingSheet({ 
+                        bookingId: booking.id,
+                        bookingContext: {
+                          ownerName: booking.userName || booking.user_name || 'Unknown',
+                          resourceId: booking.resourceId || booking.resource_id,
+                          requestDate: booking.requestDate || booking.request_date,
+                          startTime: booking.startTime || booking.start_time || '',
+                          endTime: booking.endTime || booking.end_time || '',
+                          durationMinutes: booking.durationMinutes || booking.duration_minutes || 60,
+                          notes: booking.notes || ''
+                        }
+                      })}
+                      className="px-3 py-1.5 bg-accent text-primary rounded-lg text-xs font-bold hover:opacity-90 transition-opacity shrink-0 flex items-center gap-1"
+                    >
+                      <Icon name="group" className="text-sm" />
+                      Manage
+                    </motion.button>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
           
           {needsPlayersTotalPages > 1 && (
@@ -1173,13 +1243,14 @@ const TrackmanTab: React.FC = () => {
             >
               Cancel
             </button>
-            <button
+            <motion.button
+              whileTap={buttonTapSpring}
               onClick={handleResolveFuzzyMatch}
               disabled={!fuzzyMatchModal?.selectedEmail || resolveMutation.isPending}
               className="px-6 py-2.5 rounded-full bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-fast"
             >
               {resolveMutation.isPending ? 'Resolving...' : 'Resolve with Selected Member'}
-            </button>
+            </motion.button>
           </div>
         </div>
       </ModalShell>
@@ -1234,6 +1305,7 @@ const TrackmanTab: React.FC = () => {
         />
       )}
     </div>
+    </LayoutGroup>
   );
 };
 

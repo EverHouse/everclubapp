@@ -1,8 +1,18 @@
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MemberSearchInput, SelectedMember } from '../../shared/MemberSearchInput';
 import type { SlotState, SlotsArray, VisitorSearchResult } from './bookingSheetTypes';
 import Icon from '../../icons/Icon';
 import { isStaffTier } from '../../../utils/tierUtils';
+
+const slotVariants = {
+  initial: { opacity: 0, scale: 0.95, y: 8 },
+  animate: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, stiffness: 350, damping: 25 } },
+  exit: { opacity: 0, scale: 0.95, y: -4, transition: { duration: 0.15 } },
+};
+
+const buttonTap = { scale: 0.97 };
+const buttonSpring = { type: 'spring' as const, stiffness: 400, damping: 25 };
 
 interface DayPassInfo {
   id: string;
@@ -87,13 +97,20 @@ export function AssignModeSlots({
   toggleDayPassForSlot,
   sessionDurationMinutes,
 }: AssignModeSlotsProps) {
-  const renderSlot = (slotIndex: number, isOwnerSlot: boolean) => {
+  const renderSlotInner = (slotIndex: number, isOwnerSlot: boolean) => {
     const slot = slots[slotIndex];
     const isActive = activeSlotIndex === slotIndex;
     
     if (slot.type !== 'empty') {
       return (
-        <div className={`p-3 rounded-xl border ${isOwnerSlot ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'}`}>
+        <motion.div
+          key={`filled-${slotIndex}`}
+          variants={slotVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          layout
+          className={`p-3 rounded-xl border ${isOwnerSlot ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -187,14 +204,20 @@ export function AssignModeSlots({
               </div>
             );
           })()}
-        </div>
+        </motion.div>
       );
     }
 
     if (isActive) {
       if (showAddVisitor) {
         return (
-          <div className="p-3 rounded-xl border border-green-200 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10 space-y-3">
+          <motion.div
+            key={`visitor-${slotIndex}`}
+            variants={slotVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="p-3 rounded-xl border border-green-200 dark:border-green-700 bg-green-50/50 dark:bg-green-900/10 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-medium text-sm text-primary dark:text-white">Create New Visitor</h4>
               <button
@@ -277,7 +300,9 @@ export function AssignModeSlots({
               </div>
             )}
 
-            <button
+            <motion.button
+              whileTap={buttonTap}
+              transition={buttonSpring}
               onClick={handleCreateVisitorAndAssign}
               disabled={!visitorData.email || !visitorData.firstName || !visitorData.lastName || isCreatingVisitor}
               className="tactile-btn w-full py-2 px-3 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1"
@@ -293,13 +318,19 @@ export function AssignModeSlots({
                   Create & Add
                 </>
               )}
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         );
       }
 
       return (
-        <div className="p-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 space-y-2">
+        <motion.div
+          key={`active-${slotIndex}`}
+          variants={slotVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="p-3 rounded-xl border border-primary/20 dark:border-white/20 bg-white/50 dark:bg-white/5 space-y-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-primary/60 dark:text-white/60">
               {isOwnerSlot ? 'Select Owner (Required)' : `Player ${slotIndex + 1}`}
@@ -322,28 +353,38 @@ export function AssignModeSlots({
           
           <div className="flex gap-2 pt-1">
             {!isOwnerSlot && (
-              <button
+              <motion.button
+                whileTap={buttonTap}
+                transition={buttonSpring}
                 onClick={() => handleAddGuestPlaceholder(slotIndex)}
                 className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-amber-500 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-1"
               >
                 <Icon name="person_add" className="text-sm" />
                 Add Guest
-              </button>
+              </motion.button>
             )}
-            <button
+            <motion.button
+              whileTap={buttonTap}
+              transition={buttonSpring}
               onClick={() => setShowAddVisitor(true)}
               className="tactile-btn flex-1 py-1.5 px-2 rounded-lg border border-green-500 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-500/10 transition-colors flex items-center justify-center gap-1"
             >
               <Icon name="person_add" className="text-sm" />
               New Visitor
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       );
     }
 
     return (
-      <button
+      <motion.button
+        key={`empty-${slotIndex}`}
+        variants={slotVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        whileTap={buttonTap}
         onClick={() => setActiveSlotIndex(slotIndex)}
         className={`tactile-btn w-full p-3 rounded-xl border-2 border-dashed transition-colors text-left ${
           isOwnerSlot 
@@ -366,9 +407,15 @@ export function AssignModeSlots({
             </p>
           </div>
         </div>
-      </button>
+      </motion.button>
     );
   };
+
+  const renderSlot = (slotIndex: number, isOwnerSlot: boolean) => (
+    <AnimatePresence mode="wait">
+      {renderSlotInner(slotIndex, isOwnerSlot)}
+    </AnimatePresence>
+  );
 
   if (isConferenceRoom) {
     return (
@@ -415,7 +462,9 @@ export function AssignModeSlots({
       </div>
 
       {!isLessonOrStaffBlock && slots.slice(1).some(s => s.type === 'empty') && (
-        <button
+        <motion.button
+          whileTap={buttonTap}
+          transition={buttonSpring}
           onClick={() => {
             const emptyIndex = slots.findIndex((s, i) => i > 0 && s.type === 'empty');
             if (emptyIndex > 0) handleAddGuestPlaceholder(emptyIndex);
@@ -424,7 +473,7 @@ export function AssignModeSlots({
         >
           <Icon name="person_add" className="text-sm" />
           {`Quick Add Guest (+$${guestFeeDollars})`}
-        </button>
+        </motion.button>
       )}
     </div>
   );

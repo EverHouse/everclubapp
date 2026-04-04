@@ -161,10 +161,12 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     return originalEmail.toLowerCase() !== selectedEmail;
   };
 
-  const fetchRosterData = useCallback(async () => {
+  const fetchRosterData = useCallback(async (options?: { silent?: boolean }) => {
     if (!bookingId) return;
     const fetchId = ++rosterFetchIdRef.current;
-    setIsLoadingRoster(true);
+    if (!options?.silent) {
+      setIsLoadingRoster(true);
+    }
     setRosterError(null);
     try {
       const controller = new AbortController();
@@ -320,7 +322,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     setPaymentSuccess(true);
     setShowInlinePayment(false);
     setInlinePaymentAction(null);
-    await fetchRosterData();
+    await fetchRosterData({ silent: true });
   }, [stopPaymentPolling, fetchRosterData]);
 
   const startPaymentPolling = useCallback(() => {
@@ -334,7 +336,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
         stopPaymentPolling();
         if (!mountedRef.current) return;
         setProcessingPayment(false);
-        await fetchRosterData();
+        await fetchRosterData({ silent: true });
         return;
       }
       try {
@@ -385,7 +387,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       if (wsRefreshTimerRef.current) clearTimeout(wsRefreshTimerRef.current);
       wsRefreshTimerRef.current = setTimeout(() => {
         wsRefreshTimerRef.current = null;
-        fetchRosterData();
+        fetchRosterData({ silent: true });
       }, 300);
     };
 
@@ -844,7 +846,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       await patchWithCredentials(`/api/admin/booking/${bookingId}/player-count`, { playerCount: newCount });
       setEditingPlayerCount(newCount);
       showToast(`Player count updated to ${newCount}`, 'success');
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to update player count', 'error');
     } finally {
@@ -858,7 +860,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     try {
       await putWithCredentials(`/api/admin/booking/${bookingId}/members/${slotId}/link`, { memberEmail });
       showToast('Member linked successfully', 'success');
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to link member', 'error');
     } finally {
@@ -873,7 +875,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     try {
       await putWithCredentials(`/api/admin/booking/${bookingId}/members/${slotId}/unlink`, {});
       showToast('Member removed', 'success');
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to unlink member', 'error');
     } finally {
@@ -920,7 +922,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setManageModeGuestForm(null);
       setManageModeGuestData({ firstName: '', lastName: '', email: '', phone: '' });
       setMemberMatchWarning(null);
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to add guest', 'error');
     } finally {
@@ -936,7 +938,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       showToast('Payment confirmed', 'success');
       setPaymentSuccess(true);
       setShowInlinePayment(false);
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (_err: unknown) {
       showToast('Failed to confirm payment', 'error');
     } finally {
@@ -989,7 +991,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       setShowWaiverInput(false);
       setWaiverReason('');
       setInlinePaymentAction(null);
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (_err: unknown) {
       showToast('Failed to waive fees', 'error');
       setInlinePaymentAction(null);
@@ -1010,7 +1012,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     try {
       await deleteWithCredentials(`/api/admin/booking/${bookingId}/guests/${guestId}`);
       showToast('Guest removed', 'success');
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (err: unknown) {
       showToast((err instanceof Error ? err.message : String(err)) || 'Failed to remove guest', 'error');
     } finally {
@@ -1183,7 +1185,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
     try {
       await postWithCredentials(`/api/admin/booking/${bookingId}/guests`, { quickAdd: true });
       showToast('Guest added', 'success');
-      await fetchRosterData();
+      await fetchRosterData({ silent: true });
     } catch (_err) {
       showToast('Failed to add guest', 'error');
     } finally {
@@ -1204,7 +1206,7 @@ export function useUnifiedBookingLogic(props: UnifiedBookingSheetProps) {
       showToast(data.message || `Booking reassigned to ${newMemberEmail}`, 'success');
       setReassignSearchOpen(false);
 
-      await Promise.allSettled([fetchRosterData(), refetchBookingContext()]);
+      await Promise.allSettled([fetchRosterData({ silent: true }), refetchBookingContext()]);
 
       onRosterUpdated?.();
       window.dispatchEvent(new CustomEvent('booking-action-completed'));
