@@ -1614,7 +1614,7 @@ html.dark .border-accessible {
   transition: grid-template-rows 0.35s var(--m3-emphasized-decel), opacity 0.3s var(--m3-emphasized-decel);
   opacity: 0;
   pointer-events: none;
-  contain: layout style paint;
+  contain: layout style;
 }
 
 .cls-safe-collapse > .cls-safe-inner {
