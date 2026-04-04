@@ -8,10 +8,17 @@ import { getErrorMessage } from '../utils/errorUtils';
 
 let tablePromise: Promise<void> | null = null;
 let tableReady = false;
+let lastTableAttempt = 0;
+const TABLE_RETRY_INTERVAL_MS = 60_000;
 
 function ensureTable(): Promise<void> {
   if (tableReady) return Promise.resolve();
+  const now = Date.now();
+  if (lastTableAttempt && now - lastTableAttempt < TABLE_RETRY_INTERVAL_MS) {
+    return Promise.resolve();
+  }
   if (!tablePromise) {
+    lastTableAttempt = now;
     tablePromise = (async () => {
       try {
         const exists = await db.execute<{ oid: string | null }>(sql`
@@ -37,7 +44,7 @@ function ensureTable(): Promise<void> {
       } catch (err) {
         const msg = getErrorMessage(err);
         if (!msg.includes('already exists')) {
-          logger.error('[PgRateLimitStore] Failed to ensure table', { extra: { error: msg } });
+          logger.error('[PgRateLimitStore] Failed to ensure table (will retry in 60s)', { extra: { error: msg } });
         } else {
           tableReady = true;
         }
@@ -106,8 +113,8 @@ export class PgRateLimitStore implements Store {
         resetTime: new Date((row.window_start as Date).getTime() + this.windowMs),
       };
     } catch (err) {
-      logger.error('[PgRateLimitStore] increment failed, blocking as precaution', { extra: { error: getErrorMessage(err) } });
-      return { totalHits: Infinity, resetTime: new Date(Date.now() + this.windowMs) };
+      logger.warn('[PgRateLimitStore] increment failed, allowing request through (fail-open)', { extra: { error: getErrorMessage(err) } });
+      return { totalHits: 0, resetTime: new Date(Date.now() + this.windowMs) };
     }
   }
 
