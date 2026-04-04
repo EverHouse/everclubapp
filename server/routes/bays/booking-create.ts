@@ -383,81 +383,6 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       AND first_name IS NOT NULL AND last_name IS NOT NULL AND phone IS NOT NULL
       AND waiver_signed_at IS NOT NULL AND app_installed_at IS NOT NULL`).catch((err) => logger.warn('[Booking] Non-critical onboarding update failed:', { extra: { error: getErrorMessage(err) } }));
 
-    const confSessionId = (row as BookingInsertRow & { _confSessionId?: number | null })._confSessionId;
-    if (resourceType === 'conference_room' && row.status === 'confirmed' && confSessionId) {
-      try {
-        await recalculateSessionFees(confSessionId, 'approval');
-        const syncResult = await syncBookingInvoice(row.id, confSessionId);
-        
-        if (!syncResult.success) {
-          logger.warn('[ConferenceRoom] Invoice sync returned failure', {
-            extra: { bookingId: row.id, error: syncResult.error }
-          });
-          try {
-            await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${syncResult.error || 'Unknown'}, updated_at = NOW() WHERE id = ${row.id}`);
-            notifyAllStaff(
-              'Booking invoice sync failed',
-              `Booking #${row.id} was confirmed but invoice creation failed. Manual billing review is needed.`,
-              'payment',
-              { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-            ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
-          } catch (flagErr: unknown) {
-            logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
-              extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
-            });
-          }
-        } else {
-          const invoiceId = await getBookingInvoiceId(row.id);
-          if (invoiceId) {
-            try {
-              const payResult = await finalizeAndPayInvoice({ bookingId: row.id });
-              logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
-                extra: { bookingId: row.id, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
-              });
-            } catch (payErr: unknown) {
-              logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete instantly — member can pay via dashboard', {
-                extra: { bookingId: row.id, error: getErrorMessage(payErr) }
-              });
-              try {
-                await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice finalization/payment failed. Member can pay via dashboard. Error: ' || ${getErrorMessage(payErr)}, updated_at = NOW() WHERE id = ${row.id}`);
-                notifyAllStaff(
-                  'Booking invoice payment failed',
-                  `Booking #${row.id} invoice was created but finalization/payment failed. Member can pay via dashboard.`,
-                  'payment',
-                  { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-                ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice pay failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
-              } catch (flagErr: unknown) {
-                logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending after pay failure', {
-                  extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
-                });
-              }
-            }
-          } else {
-            logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
-              extra: { bookingId: row.id, sessionId: confSessionId }
-            });
-          }
-        }
-      } catch (invoiceErr: unknown) {
-        logger.warn('[ConferenceRoom] Non-blocking: Failed to create invoice after booking', {
-          extra: { bookingId: row.id, error: getErrorMessage(invoiceErr) }
-        });
-        try {
-          await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${getErrorMessage(invoiceErr)}, updated_at = NOW() WHERE id = ${row.id}`);
-          notifyAllStaff(
-            'Booking invoice sync failed',
-            `Booking #${row.id} was confirmed but invoice creation failed. Manual billing review is needed.`,
-            'payment',
-            { relatedId: row.id, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
-          ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId: row.id, error: getErrorMessage(notifErr) } }));
-        } catch (flagErr: unknown) {
-          logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
-            extra: { bookingId: row.id, error: getErrorMessage(flagErr) }
-          });
-        }
-      }
-    }
-
     res.status(201).json({
       id: row.id,
       user_email: row.userEmail,
@@ -478,6 +403,72 @@ router.post('/api/booking-requests', isAuthenticated, bookingRateLimiter, valida
       updated_at: row.updatedAt,
       calendar_event_id: row.calendarEventId,
     });
+
+    const confSessionId = (row as BookingInsertRow & { _confSessionId?: number | null })._confSessionId;
+    if (resourceType === 'conference_room' && row.status === 'confirmed' && confSessionId) {
+      const bookingId = row.id;
+      setImmediate(async () => {
+        try {
+          await recalculateSessionFees(confSessionId, 'approval');
+          const syncResult = await syncBookingInvoice(bookingId, confSessionId);
+
+          if (!syncResult.success) {
+            logger.warn('[ConferenceRoom] Invoice sync returned failure', {
+              extra: { bookingId, error: syncResult.error }
+            });
+            await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${syncResult.error || 'Unknown'}, updated_at = NOW() WHERE id = ${bookingId}`);
+            notifyAllStaff(
+              'Booking invoice sync failed',
+              `Booking #${bookingId} was confirmed but invoice creation failed. Manual billing review is needed.`,
+              'payment',
+              { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+            ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId, error: getErrorMessage(notifErr) } }));
+          } else {
+            const invoiceId = await getBookingInvoiceId(bookingId);
+            if (invoiceId) {
+              try {
+                const payResult = await finalizeAndPayInvoice({ bookingId });
+                logger.info('[ConferenceRoom] Invoice finalized and payment attempted', {
+                  extra: { bookingId, sessionId: confSessionId, paidInFull: payResult.paidInFull, status: payResult.status }
+                });
+              } catch (payErr: unknown) {
+                logger.warn('[ConferenceRoom] Invoice finalize/pay did not complete — member can pay via dashboard', {
+                  extra: { bookingId, error: getErrorMessage(payErr) }
+                });
+                await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice finalization/payment failed. Member can pay via dashboard. Error: ' || ${getErrorMessage(payErr)}, updated_at = NOW() WHERE id = ${bookingId}`);
+                notifyAllStaff(
+                  'Booking invoice payment failed',
+                  `Booking #${bookingId} invoice was created but finalization/payment failed. Member can pay via dashboard.`,
+                  'payment',
+                  { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+                ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice pay failure', { extra: { bookingId, error: getErrorMessage(notifErr) } }));
+              }
+            } else {
+              logger.info('[ConferenceRoom] No fees due — skipping invoice finalization', {
+                extra: { bookingId, sessionId: confSessionId }
+              });
+            }
+          }
+        } catch (invoiceErr: unknown) {
+          logger.error('[ConferenceRoom] Async billing failed post-response', {
+            extra: { bookingId, error: getErrorMessage(invoiceErr) }
+          });
+          try {
+            await db.execute(sql`UPDATE booking_requests SET billing_sync_pending = TRUE, staff_notes = COALESCE(staff_notes, '') || CASE WHEN staff_notes IS NOT NULL AND staff_notes != '' THEN E'\n' ELSE '' END || '[Auto] Invoice creation failed after booking confirmation. Manual invoice review needed. Error: ' || ${getErrorMessage(invoiceErr)}, updated_at = NOW() WHERE id = ${bookingId}`);
+            notifyAllStaff(
+              'Booking invoice sync failed',
+              `Booking #${bookingId} was confirmed but invoice creation failed. Manual billing review is needed.`,
+              'payment',
+              { relatedId: bookingId, relatedType: 'booking_request', url: '/admin/bookings', sendPush: true }
+            ).catch((notifErr: unknown) => logger.warn('[ConferenceRoom] Failed to notify staff about invoice sync failure', { extra: { bookingId, error: getErrorMessage(notifErr) } }));
+          } catch (flagErr: unknown) {
+            logger.error('[ConferenceRoom] Failed to flag booking as billing_sync_pending', {
+              extra: { bookingId, error: getErrorMessage(flagErr) }
+            });
+          }
+        }
+      });
+    }
 
     try {
       notifyAllStaff(

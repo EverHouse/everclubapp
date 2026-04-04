@@ -1,4 +1,8 @@
 import { logger } from '../logger';
+import { db } from '../../db';
+import { systemSettings } from '../../../shared/models/system';
+import { eq } from 'drizzle-orm';
+import { getErrorMessage } from '../../utils/errorUtils';
 /**
  * Centralized pricing configuration - THE ONLY source of truth for fees
  * 
@@ -86,15 +90,28 @@ export function updateCorporateVolumePricing(tiers: VolumeTier[], basePrice: num
   logger.info('[PricingConfig] Corporate volume pricing updated from Stripe:', { extra: { detail: { tiers: _corporateVolumeTiers, basePrice: _corporateBasePrice } } });
 }
 
-/**
- * Updates the family discount percentage in memory.
- * NOTE: This is safe for single-instance deployments (Replit).
- * If horizontally scaled, persist to DB and read at billing time.
- * Stripe webhook (coupon.updated) and startup sync both call this.
- */
 export function updateFamilyDiscountPercent(percent: number): void {
   _familyDiscountPercent = percent;
   logger.info('[PricingConfig] Family discount updated from Stripe:', { extra: { detail: { percent } } });
+  db.insert(systemSettings)
+    .values({ key: 'family_discount_percent', value: String(percent), category: 'pricing', updatedBy: 'stripe_webhook' })
+    .onConflictDoUpdate({ target: systemSettings.key, set: { value: String(percent), updatedBy: 'stripe_webhook' } })
+    .catch((err: unknown) => logger.error('[PricingConfig] Failed to persist family discount to DB', { extra: { error: getErrorMessage(err) } }));
+}
+
+export async function loadPricingFromDb(): Promise<void> {
+  try {
+    const rows = await db.select().from(systemSettings).where(eq(systemSettings.key, 'family_discount_percent'));
+    if (rows.length > 0 && rows[0].value != null) {
+      const parsed = Number(rows[0].value);
+      if (!isNaN(parsed)) {
+        _familyDiscountPercent = parsed;
+        logger.info('[PricingConfig] Loaded family discount from DB:', { extra: { detail: { percent: parsed } } });
+      }
+    }
+  } catch (err: unknown) {
+    logger.warn('[PricingConfig] Failed to load pricing from DB — using defaults', { extra: { error: getErrorMessage(err) } });
+  }
 }
 
 export function isPlaceholderGuestName(name: string | null | undefined): boolean {

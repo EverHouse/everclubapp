@@ -17,7 +17,7 @@ export interface ValidatedDateResult {
   day: number;
 }
 
-export function validateBookingDate(requestDate: string, opts?: { allowPastDate?: boolean }): ValidatedDateResult {
+export function validateBookingDate(requestDate: string, opts?: { allowPastDate?: boolean; startTime?: string }): ValidatedDateResult {
   if (!requestDate || typeof requestDate !== 'string') {
     throw new BookingValidationError(400, { error: 'Missing or invalid date' });
   }
@@ -38,6 +38,22 @@ export function validateBookingDate(requestDate: string, opts?: { allowPastDate?
     const todayPacific = getTodayPacific();
     if (requestDate < todayPacific) {
       throw new BookingValidationError(400, { error: 'Cannot create bookings in the past' });
+    }
+
+    if (requestDate === todayPacific && opts?.startTime) {
+      const now = new Date();
+      const pacificFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' });
+      const parts = pacificFormatter.formatToParts(now);
+      const currentHour = Number(parts.find(p => p.type === 'hour')?.value ?? 0);
+      const currentMinute = Number(parts.find(p => p.type === 'minute')?.value ?? 0);
+      const currentTotalMinutes = currentHour * 60 + currentMinute;
+
+      const [startH, startM] = opts.startTime.split(':').map(Number);
+      const startTotalMinutes = (startH || 0) * 60 + (startM || 0);
+
+      if (startTotalMinutes < currentTotalMinutes) {
+        throw new BookingValidationError(400, { error: 'Cannot create bookings for past time slots today' });
+      }
     }
   }
 
@@ -341,7 +357,7 @@ export async function prepareBookingCreation(
     throw new BookingValidationError(404, { error: 'Account not found. Please check your email address or contact staff for assistance.' });
   }
 
-  validateBookingDate(input.requestDate, { allowPastDate: context.allowPastDate });
+  validateBookingDate(input.requestDate, { allowPastDate: context.allowPastDate, startTime: input.startTime });
   const { endTime } = computeEndTime(input.startTime, input.durationMinutes, { strictMidnight: context.strictMidnight });
 
   let resourceType = 'simulator';

@@ -218,6 +218,7 @@ async function initializeApp() {
   const { runStartupTasks, getStartupHealth } = await import('./loaders/startup');
   const { initWebSocketServer, closeWebSocketServer: _closeWebSocketServer } = await import('./core/websocket');
   const { initSchedulers, stopSchedulers: _stopSchedulers } = await import('./schedulers');
+  const { loadPricingFromDb } = await import('./core/billing/pricingConfig');
   const { processStripeWebhook } = await import('./core/stripe');
   const { securityMiddleware, csrfOriginCheck } = await import('./middleware/security');
   const { registerSitemapRoutes } = await import('./middleware/sitemap');
@@ -726,7 +727,8 @@ async function initializeApp() {
       }
     };
 
-    runStartupTasks()
+    loadPricingFromDb()
+      .then(() => runStartupTasks())
       .then(() => handleStartupResult(1))
       .then(() => {
         try {
