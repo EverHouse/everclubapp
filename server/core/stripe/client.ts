@@ -8,6 +8,19 @@ let credentialsCachedAt = 0;
 let cachedStripeClient: Stripe | null = null;
 let cachedStripeSecretKey: string | null = null;
 
+function getReplitConnectorAuth(): { hostname: string; xReplitToken: string } {
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const xReplitToken = process.env.REPL_IDENTITY
+    ? 'repl ' + process.env.REPL_IDENTITY
+    : process.env.WEB_REPL_RENEWAL
+      ? 'depl ' + process.env.WEB_REPL_RENEWAL
+      : null;
+  if (!xReplitToken || !hostname) {
+    throw new Error('Replit connector auth not available (no REPL_IDENTITY, WEB_REPL_RENEWAL, or REPLIT_CONNECTORS_HOSTNAME)');
+  }
+  return { hostname, xReplitToken };
+}
+
 async function fetchStripeConnection(hostname: string, xReplitToken: string, environment?: string): Promise<{ publishableKey: string; secretKey: string }> {
   const url = new URL(`https://${hostname}/api/v2/connection`);
   url.searchParams.set('include_secrets', 'true');
@@ -54,29 +67,25 @@ async function getCredentials() {
 
   credentialsFetchPromise = (async () => {
     try {
-      const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-      const xReplitToken = process.env.REPL_IDENTITY
-        ? 'repl ' + process.env.REPL_IDENTITY
-        : process.env.WEB_REPL_RENEWAL
-          ? 'depl ' + process.env.WEB_REPL_RENEWAL
-          : null;
-
-      if (!xReplitToken) {
-        throw new Error('X_REPLIT_TOKEN not found for repl/depl');
-      }
-
       const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
-      const targetEnvironment = isProduction ? 'production' : 'development';
 
       let creds: { publishableKey: string; secretKey: string };
-      try {
-        creds = await fetchStripeConnection(hostname!, xReplitToken, targetEnvironment);
-      } catch {
-        if (!isProduction) {
-          creds = await fetchStripeConnection(hostname!, xReplitToken);
+      if (!isProduction) {
+        const testSecret = process.env.STRIPE_TEST_SECRET_KEY;
+        const testPublishable = process.env.STRIPE_TEST_PUBLISHABLE_KEY;
+        if (testSecret && testPublishable) {
+          creds = { publishableKey: testPublishable, secretKey: testSecret };
         } else {
-          throw new Error(`Stripe ${targetEnvironment} connection not found`);
+          const { hostname, xReplitToken } = getReplitConnectorAuth();
+          try {
+            creds = await fetchStripeConnection(hostname, xReplitToken, 'development');
+          } catch {
+            creds = await fetchStripeConnection(hostname, xReplitToken);
+          }
         }
+      } else {
+        const { hostname, xReplitToken } = getReplitConnectorAuth();
+        creds = await fetchStripeConnection(hostname, xReplitToken, 'production');
       }
 
       cachedCredentials = creds;
