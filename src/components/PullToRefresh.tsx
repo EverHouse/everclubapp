@@ -57,7 +57,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
-  const [isTransitioningToDone, setIsTransitioningToDone] = useState(false);
+  const [refreshPhase, setRefreshPhase] = useState<'loading' | 'done' | 'idle'>('idle');
   const [refreshMessage, setRefreshMessage] = useState('');
   const [isFillingScreen, setIsFillingScreen] = useState(false);
   const [isSpringBack, setIsSpringBack] = useState(false);
@@ -140,6 +140,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
     
     setIsFillingScreen(false);
     setRefreshMessage(getRandomGolfMessage());
+    setRefreshPhase('loading');
     setIsRefreshing(true);
     
     try {
@@ -148,14 +149,14 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
       console.error('[PullToRefresh] Refresh failed:', err);
     }
     
-    setIsTransitioningToDone(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
+    setRefreshPhase('done');
+    await new Promise(resolve => setTimeout(resolve, 600));
     
-    setIsRefreshing(false);
-    setIsTransitioningToDone(false);
     setIsDismissing(true);
     await new Promise(resolve => setTimeout(resolve, 400));
+    setIsRefreshing(false);
     setIsDismissing(false);
+    setRefreshPhase('idle');
   }, [isRefreshing, isFillingScreen, isDismissing, onRefresh]);
 
   useEffect(() => {
@@ -365,6 +366,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
 
         setIsFillingScreen(false);
         setRefreshMessage(getRandomGolfMessage());
+        setRefreshPhase('loading');
         setIsRefreshing(true);
 
         try {
@@ -373,14 +375,14 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
           console.error('[PullToRefresh] Refresh failed:', err);
         }
 
-        setIsTransitioningToDone(true);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        setRefreshPhase('done');
+        await new Promise(resolve => setTimeout(resolve, 600));
 
-        setIsRefreshing(false);
-        setIsTransitioningToDone(false);
         setIsDismissing(true);
         await new Promise(resolve => setTimeout(resolve, 400));
+        setIsRefreshing(false);
         setIsDismissing(false);
+        setRefreshPhase('idle');
       } else {
         if (currentPullDistance > 5) {
           animateSpringBackRef.current(currentPullDistance);
@@ -483,7 +485,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         document.body
       )}
 
-      {(isRefreshing || isDismissing) && createPortal(
+      {isRefreshing && createPortal(
         <div
           className={`ptr-refresh-overlay${isDismissing ? ' ptr-refresh-overlay--dismissing' : ''}`}
         >
@@ -495,14 +497,12 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
             height={48}
           />
           <div className="ptr-refresh-text-wrapper">
-            <span className={`ptr-refresh-text${isTransitioningToDone ? ' ptr-text-exit' : ''}`}>
+            <span className={`ptr-refresh-text ${refreshPhase === 'done' ? 'ptr-text-fade-out' : ''}`}>
               {refreshMessage}
             </span>
-            {(isTransitioningToDone || isDismissing) && (
-              <span className={`ptr-refresh-text ptr-done-text${isTransitioningToDone ? ' ptr-text-enter' : ''}`}>
-                Done ✓
-              </span>
-            )}
+            <span className={`ptr-refresh-text ptr-done-text ${refreshPhase === 'done' ? 'ptr-text-fade-in' : ''}`}>
+              Done ✓
+            </span>
           </div>
         </div>,
         document.body

@@ -3301,33 +3301,20 @@ body[data-ptr-active="true"]:has(.ptr-refresh-overlay) header[role="banner"] {
   font-size: 1.1rem;
   font-weight: 400;
   color: rgba(255,255,255,0.85);
-  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-}
-
-.ptr-refresh-text.ptr-text-exit {
-  opacity: 0;
-  transform: translateY(-8px);
+  transition: opacity 0.35s ease;
 }
 
 .ptr-done-text {
   position: absolute;
-  opacity: 1;
-}
-
-.ptr-done-text.ptr-text-enter {
   opacity: 0;
-  animation: ptrTextFadeIn 0.35s ease-out 0.15s forwards;
 }
 
-@keyframes ptrTextFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.ptr-refresh-text.ptr-text-fade-out {
+  opacity: 0;
+}
+
+.ptr-done-text.ptr-text-fade-in {
+  opacity: 1;
 }
 
 /* Confetti Celebration */
