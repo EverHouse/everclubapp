@@ -212,7 +212,7 @@ export const AccordionContent: React.FC<AccordionContentProps> = ({
   const prefersReduced = useReducedMotion();
 
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence initial={false} mode="wait">
       {isOpen && (
         <motion.div
           key="accordion-content"

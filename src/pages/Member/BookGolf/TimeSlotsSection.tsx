@@ -108,7 +108,7 @@ const TimeSlotsSection: React.FC<TimeSlotsSectionProps> = ({
                   )}
                 </button>
 
-                <AnimatePresence initial={false}>
+                <AnimatePresence initial={false} mode="wait">
                   {isExpanded && (
                     <motion.div
                       id={`hour-content-${hourGroup.hour24}`}

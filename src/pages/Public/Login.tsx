@@ -9,6 +9,7 @@ import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import AppleSignInButton from '../../components/AppleSignInButton';
+import { AnimatedPage } from '../../components/motion';
 import { startAuthentication, WebAuthnAbortService } from '@simplewebauthn/browser';
 import type { PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/types';
 import { fetchWithCredentials, postWithCredentials, isAbortError } from '../../hooks/queries/useFetch';
@@ -386,7 +387,7 @@ const Login: React.FC = () => {
 
   if (otpSent) {
     return (
-      <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden animate-page-enter">
+      <AnimatedPage className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
         <div className="flex-1 flex flex-col justify-center px-6 py-12">
           <div className="w-full max-w-sm mx-auto space-y-8">
             <div className="text-center">
@@ -465,12 +466,12 @@ const Login: React.FC = () => {
           </div>
         </div>
         <Footer />
-      </div>
+      </AnimatedPage>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden animate-page-enter">
+    <AnimatedPage className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <div className="flex-1 flex flex-col justify-center px-6 py-12">
         <div className="w-full max-w-sm mx-auto space-y-8">
             
@@ -648,7 +649,7 @@ const Login: React.FC = () => {
         </div>
       </div>
       <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 

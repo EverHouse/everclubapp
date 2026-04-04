@@ -1278,7 +1278,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   return (
     <>
       <div className="space-y-3">
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
         {isRefreshing && (
           <motion.div
             key="refreshing-indicator"
