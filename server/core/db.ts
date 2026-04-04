@@ -59,7 +59,7 @@ if (forcePoolerRedirect && poolerUrl) {
   logger.info('[Database] FORCE_POOLER_REDIRECT active — using shared Supabase database via pooler');
 }
 
-const sslConfig = { rejectUnauthorized: true };
+const sslConfig = { rejectUnauthorized: false };
 const needsSsl = !isLocalDatabase(effectiveConnectionString);
 
 function appendSearchPath(connString: string | undefined): string | undefined {
