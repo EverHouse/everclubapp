@@ -328,7 +328,7 @@ export function StripePaymentWithSecret({
 
   if (error || !stripeInstance) {
     return (
-      <div className="text-center py-8">
+      <div className="flex flex-col items-center text-center py-8">
         <Icon name="error" className="text-4xl text-red-500 mb-2" />
         <p className="text-red-600 dark:text-red-400 mb-4">{error || 'Failed to load Stripe'}</p>
         <button
@@ -485,7 +485,7 @@ export function StripePaymentForm({
 
   if (error) {
     return (
-      <div className="text-center py-8">
+      <div className="flex flex-col items-center text-center py-8">
         <Icon name="error" className="text-4xl text-red-500 mb-2" />
         <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
         <button

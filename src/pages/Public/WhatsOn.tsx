@@ -200,7 +200,7 @@ const WhatsOn: React.FC = () => {
         {loading ? (
           <SkeletonList count={5} Component={BookingCardSkeleton} />
         ) : combinedItems.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="flex flex-col items-center text-center py-20">
             <Icon name="calendar_month" className="text-5xl text-primary/30 dark:text-white/30 mb-4" />
             <p className="text-primary/60 dark:text-white/60">No upcoming {filter === 'all' ? 'events or classes' : filter} scheduled.</p>
             <p className="text-primary/40 dark:text-white/40 text-sm mt-2">Check back soon for new experiences.</p>

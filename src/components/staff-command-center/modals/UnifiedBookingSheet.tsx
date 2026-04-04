@@ -94,7 +94,7 @@ export function UnifiedBookingSheet(props: UnifiedBookingSheetProps) {
               <WalkingGolferSpinner size="sm" variant="auto" />
             </div>
           ) : logic.rosterError ? (
-            <div className="text-center py-8">
+            <div className="flex flex-col items-center text-center py-8">
               <Icon name="error" className="text-4xl text-red-500 mb-2" />
               <p className="text-red-600 dark:text-red-400">{logic.rosterError}</p>
               <button type="button" onClick={logic.fetchRosterData} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">

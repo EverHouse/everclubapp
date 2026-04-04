@@ -59,7 +59,7 @@ const UnredeemedPassesList: React.FC<UnredeemedPassesListProps> = ({
           <WalkingGolferSpinner size="sm" variant="auto" />
         </div>
       ) : unredeemedPasses.length === 0 ? (
-        <div className="text-center py-6">
+        <div className="flex flex-col items-center text-center py-6">
           <Icon name="local_activity" className="text-3xl text-primary/20 dark:text-white/20 mb-2" />
           <p className="text-sm text-primary/50 dark:text-white/50">No unredeemed passes</p>
         </div>

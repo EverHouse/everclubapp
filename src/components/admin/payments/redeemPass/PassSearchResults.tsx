@@ -40,7 +40,7 @@ const PassSearchResults: React.FC<PassSearchResultsProps> = ({
 
   if (!hasSearched) {
     return (
-      <div className="text-center py-8">
+      <div className="flex flex-col items-center text-center py-8">
         <Icon name="qr_code_scanner" className="text-4xl text-primary/30 dark:text-white/30 mb-2" />
         <p className="text-sm text-primary/60 dark:text-white/60">Search by email or scan QR to find passes</p>
       </div>
