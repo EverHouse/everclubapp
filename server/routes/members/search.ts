@@ -583,9 +583,22 @@ router.get('/api/members/frequent-partners', isAuthenticated, async (req, res) =
     if (!sessionUser?.id) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    const userId = sessionUser.id;
-    const userEmail = sessionUser.email?.toLowerCase();
     const isStaff = sessionUser.isStaff || sessionUser.role === 'admin' || sessionUser.role === 'staff';
+
+    const requestedUserId = req.query.userId as string | undefined;
+    if (requestedUserId && requestedUserId !== sessionUser.id && !isStaff) {
+      return res.status(403).json({ error: 'Not authorized to view other members\' partners' });
+    }
+
+    const userId = (requestedUserId && isStaff) ? requestedUserId : sessionUser.id;
+
+    let userEmail: string | undefined;
+    if (userId !== sessionUser.id) {
+      const targetUser = await db.execute(sql`SELECT email FROM users WHERE id = ${userId} LIMIT 1`);
+      userEmail = (targetUser.rows[0] as { email?: string } | undefined)?.email?.toLowerCase();
+    } else {
+      userEmail = sessionUser.email?.toLowerCase();
+    }
 
     const memberPartners = await db.execute(sql`
       WITH my_sessions AS (
