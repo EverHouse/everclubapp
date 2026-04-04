@@ -137,7 +137,7 @@ const PublicCafe: React.FC = () => {
         {isLoading ? (
           <SkeletonList count={5} Component={MenuItemSkeleton} isDark={isDark} />
         ) : cafeMenu.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="flex flex-col items-center py-20">
             <Icon name="restaurant_menu" className="text-5xl text-primary/30 dark:text-white/30 mb-4" />
             <p className="text-primary/60 dark:text-white/60">Menu items are being updated.</p>
             <p className="text-primary/40 dark:text-white/40 text-sm mt-2">Check back soon for our latest offerings.</p>
