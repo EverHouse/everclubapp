@@ -1744,53 +1744,9 @@ html.dark .border-accessible {
   animation: popOut 0.25s var(--m3-standard-accel) forwards;
 }
 
-@keyframes toastSlideIn {
-  0% {
-    opacity: 0;
-    transform: translateY(100%) scale(0.95);
-  }
-  60% {
-    opacity: 1;
-    transform: translateY(-8px) scale(1.02);
-  }
-  80% {
-    transform: translateY(3px) scale(0.99);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes toastSlideOut {
-  0% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(100%) scale(0.95);
-  }
-}
-
 @keyframes toast-progress {
   0% { transform: scaleX(1); }
   100% { transform: scaleX(0); }
-}
-
-@keyframes fadeInOut {
-  0% { opacity: 0; transform: translateY(-100%); }
-  10% { opacity: 1; transform: translateY(0); }
-  80% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-100%); }
-}
-
-.toast-slide-in {
-  animation: toastSlideIn 0.5s var(--m3-emphasized-decel) forwards;
-}
-
-.toast-slide-out {
-  animation: toastSlideOut 0.3s var(--m3-emphasized-accel) forwards;
 }
 
 /* Fade Out Animation - Alternative exit animation for elements */

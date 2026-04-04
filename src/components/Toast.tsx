@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { springPresets, useReducedMotion } from '../utils/motion';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from './icons/Icon';
 
@@ -15,7 +17,6 @@ interface ToastMessage {
   type: ToastType;
   duration?: number;
   key?: string;
-  isExiting?: boolean;
   createdAt?: number;
   action?: ToastAction;
 }
@@ -72,7 +73,7 @@ const getTitleForType = (type: ToastType): string => {
   }
 };
 
-const ProgressBar: React.FC<{ duration: number; isExiting: boolean; color: string }> = ({ duration, isExiting, color }) => {
+const ProgressBar: React.FC<{ duration: number; isPaused: boolean; color: string; reducedMotion: boolean }> = ({ duration, isPaused, color, reducedMotion }) => {
   return (
     <div className="absolute bottom-0 left-0 right-0 h-[1px] overflow-hidden rounded-b-xl">
       <div
@@ -81,15 +82,20 @@ const ProgressBar: React.FC<{ duration: number; isExiting: boolean; color: strin
           backgroundColor: color,
           opacity: 0.6,
           transformOrigin: 'left',
-          animation: isExiting ? 'none' : `toast-progress ${duration}ms linear forwards`,
+          ...(reducedMotion
+            ? { transform: 'scaleX(0)' }
+            : {
+                animation: `toast-progress ${duration}ms linear forwards`,
+                animationPlayState: isPaused ? 'paused' : 'running',
+              }),
         }}
       />
     </div>
   );
 };
 
-const SWIPE_THRESHOLD = 80;
-type SwipeState = 'idle' | 'dragging' | 'snapping-back';
+const SWIPE_DISMISS_THRESHOLD = 80;
+const SWIPE_VELOCITY_THRESHOLD = 300;
 
 const ToastItem: React.FC<{
   toast: ToastMessage;
@@ -98,14 +104,14 @@ const ToastItem: React.FC<{
 }> = ({ toast, onDismiss, isDark }) => {
   const duration = toast.duration || 3000;
   const borderColor = getBorderColor(toast.type);
+  const prefersReducedMotion = useReducedMotion();
 
-  const [swipeX, setSwipeX] = useState(0);
-  const [swipeState, setSwipeState] = useState<SwipeState>('idle');
+  const dragX = useMotionValue(0);
+  const dragOpacity = useTransform(dragX, [-180, 0, 180], [0, 1, 0]);
 
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
-  const isHorizontalSwipe = useRef(false);
-  const currentSwipeX = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const swipeDirRef = useRef<'left' | 'right' | null>(null);
+  const [swipeExit, setSwipeExit] = useState<{ x: number; opacity: number } | null>(null);
 
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
@@ -113,7 +119,6 @@ const ToastItem: React.FC<{
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerStartRef = useRef<number>(Date.now());
   const remainingRef = useRef<number>(duration);
-  const snapBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startTimer = useCallback((ms: number) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -131,78 +136,38 @@ const ToastItem: React.FC<{
   }, []);
 
   const resumeTimer = useCallback(() => {
-    if (!toast.isExiting && remainingRef.current > 0) {
+    if (remainingRef.current > 0) {
       startTimer(remainingRef.current);
     }
-  }, [toast.isExiting, startTimer]);
+  }, [startTimer]);
 
   useEffect(() => {
-    if (toast.isExiting) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      return;
-    }
     remainingRef.current = duration;
     startTimer(duration);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [duration, toast.isExiting]);
+  }, [duration]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    isHorizontalSwipe.current = false;
-    currentSwipeX.current = 0;
+  const handleDragStart = () => {
+    setIsDragging(true);
+    pauseTimer();
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const deltaX = e.touches[0].clientX - touchStartX.current;
-    const deltaY = e.touches[0].clientY - touchStartY.current;
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(false);
+    const shouldDismiss =
+      Math.abs(info.offset.x) >= SWIPE_DISMISS_THRESHOLD ||
+      Math.abs(info.velocity.x) >= SWIPE_VELOCITY_THRESHOLD;
 
-    if (!isHorizontalSwipe.current) {
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
-      if (absX < 8 && absY < 8) return;
-      if (absY >= absX) return;
-      isHorizontalSwipe.current = true;
-      pauseTimer();
-      setSwipeState('dragging');
-    }
-
-    e.preventDefault();
-    currentSwipeX.current = deltaX;
-    setSwipeX(deltaX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!isHorizontalSwipe.current) return;
-    isHorizontalSwipe.current = false;
-
-    const finalX = currentSwipeX.current;
-
-    if (Math.abs(finalX) >= SWIPE_THRESHOLD) {
+    if (shouldDismiss) {
+      swipeDirRef.current = info.offset.x >= 0 ? 'right' : 'left';
+      setSwipeExit({ x: swipeDirRef.current === 'right' ? 300 : -300, opacity: 0 });
       onDismissRef.current();
     } else {
-      setSwipeX(0);
-      currentSwipeX.current = 0;
-      setSwipeState('snapping-back');
-      if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
-      snapBackTimerRef.current = setTimeout(() => setSwipeState('idle'), 350);
       resumeTimer();
     }
-  };
-
-  const handleTouchCancel = () => {
-    if (!isHorizontalSwipe.current) return;
-    isHorizontalSwipe.current = false;
-    setSwipeX(0);
-    currentSwipeX.current = 0;
-    setSwipeState('snapping-back');
-    if (snapBackTimerRef.current) clearTimeout(snapBackTimerRef.current);
-    snapBackTimerRef.current = setTimeout(() => setSwipeState('idle'), 350);
-    resumeTimer();
   };
 
   const handleActionClick = () => {
@@ -212,25 +177,30 @@ const ToastItem: React.FC<{
     }
   };
 
-  const isDragging = swipeState === 'dragging';
-
-  const swipeOpacity = isDragging
-    ? Math.max(0, 1 - Math.abs(swipeX) / 180)
-    : 1;
-
-  const swipeTransition = isDragging
-    ? 'none'
-    : 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease';
-
   return (
-    <div
-      className={`pointer-events-auto ${toast.isExiting ? 'toast-slide-out' : 'toast-slide-in'}`}
+    <motion.div
+      layout={!prefersReducedMotion}
+      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 40, scale: 0.95 }}
+      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, x: 0, scale: 1 }}
+      exit={prefersReducedMotion
+        ? { opacity: 0 }
+        : swipeExit
+          ? swipeExit
+          : { opacity: 0, y: -20, scale: 0.95 }
+      }
+      transition={springPresets.smooth}
+      className="pointer-events-auto"
     >
-      <div
-        className={`relative overflow-hidden rounded-xl
-          ${isDark ? 'bg-[#1e2319] border border-white/[0.12]' : 'bg-white border border-black/[0.06]'}
-        `}
+      <motion.div
+        drag={prefersReducedMotion ? false : "x"}
+        dragSnapToOrigin
+        dragElastic={0.5}
+        dragConstraints={{ left: 0, right: 0 }}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         style={{
+          x: prefersReducedMotion ? undefined : dragX,
+          opacity: prefersReducedMotion ? undefined : dragOpacity,
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           borderLeft: `3px solid ${borderColor}`,
@@ -239,15 +209,12 @@ const ToastItem: React.FC<{
             : '0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
           minWidth: '280px',
           maxWidth: '420px',
-          transform: `translateX(${swipeX}px)`,
-          opacity: swipeOpacity,
-          transition: swipeTransition,
           touchAction: 'pan-y',
+          cursor: prefersReducedMotion ? undefined : (isDragging ? 'grabbing' : 'grab'),
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchCancel}
+        className={`relative overflow-hidden rounded-xl
+          ${isDark ? 'bg-[#1e2319] border border-white/[0.12]' : 'bg-white border border-black/[0.06]'}
+        `}
         role={toast.type === 'error' ? 'alert' : 'status'}
         aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
       >
@@ -281,9 +248,9 @@ const ToastItem: React.FC<{
             <Icon name="close" className="text-[16px]" />
           </button>
         </div>
-        <ProgressBar duration={duration} isExiting={toast.isExiting || false} color={borderColor} />
-      </div>
-    </div>
+        <ProgressBar duration={duration} isPaused={isDragging} color={borderColor} reducedMotion={!!prefersReducedMotion} />
+      </motion.div>
+    </motion.div>
   );
 };
 
@@ -334,11 +301,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const hideToast = useCallback((id: string) => {
-    setToasts(prev => prev.map(t => t.id === id ? { ...t, isExiting: true } : t));
-
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 300);
+    setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
   return (
@@ -348,14 +311,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         className="fixed bottom-0 left-0 right-0 pb-[calc(80px+env(safe-area-inset-bottom,0px))] px-4 flex flex-col gap-3 items-center pointer-events-none sm:bottom-6 sm:left-6 sm:right-auto sm:pb-0 sm:px-0 sm:items-start"
         style={{ zIndex: 'var(--z-toast)', maxWidth: '420px' }}
       >
-        {toasts.map(toast => (
-          <ToastItem
-            key={toast.id}
-            toast={toast}
-            onDismiss={() => hideToast(toast.id)}
-            isDark={isDarkTheme}
-          />
-        ))}
+        <AnimatePresence mode="popLayout">
+          {toasts.map(toast => (
+            <ToastItem
+              key={toast.id}
+              toast={toast}
+              onDismiss={() => hideToast(toast.id)}
+              isDark={isDarkTheme}
+            />
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );
