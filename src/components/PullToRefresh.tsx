@@ -493,19 +493,23 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({ children, onRefresh, disa
         <div
           className={`ptr-refresh-overlay${isDismissing ? ' ptr-refresh-overlay--dismissing' : ''}`}
         >
-          <img
-            src="/assets/logos/walking-mascot-white.gif"
-            alt=""
-            className="ptr-refresh-mascot"
-            width={48}
-            height={48}
-          />
-          <span
-            key={refreshPhase === 'done' ? 'done' : 'loading'}
-            className="ptr-refresh-text ptr-refresh-text--animate"
-          >
-            {refreshPhase === 'done' ? 'Done ✓' : refreshMessage}
-          </span>
+          {!isDismissing && (
+            <>
+              <img
+                src="/assets/logos/walking-mascot-white.gif"
+                alt=""
+                className="ptr-refresh-mascot"
+                width={48}
+                height={48}
+              />
+              <span
+                key={refreshPhase === 'done' ? 'done' : 'loading'}
+                className="ptr-refresh-text ptr-refresh-text--animate"
+              >
+                {refreshPhase === 'done' ? 'Done ✓' : refreshMessage}
+              </span>
+            </>
+          )}
         </div>,
         document.body
       )}
