@@ -154,24 +154,34 @@ interface CheckoutInfo {
 }
 
 const activeCheckouts = new Map<PoolClient, CheckoutInfo>();
-const wrappedClients = new WeakSet<PoolClient>();
+const trackedClients = new WeakMap<PoolClient, PoolClient['release']>();
 
 function trackCheckout(client: PoolClient): void {
   const stack = new Error().stack?.split('\n').slice(2, 6).join('\n') || 'unknown';
   activeCheckouts.set(client, { checkedOutAt: Date.now(), stack, warnedAt: 0, erroredAt: 0 });
 
-  if (!wrappedClients.has(client)) {
-    wrappedClients.add(client);
-    const originalRelease = client.release.bind(client);
-    client.release = function trackedRelease(err?: boolean | Error) {
-      activeCheckouts.delete(client);
-      return originalRelease(err);
-    } as typeof client.release;
-  }
+  const originalRelease = client.release.bind(client);
+  const wrappedRelease: PoolClient['release'] = function trackedRelease(err?: boolean | Error) {
+    activeCheckouts.delete(client);
+    return originalRelease(err);
+  };
+  trackedClients.set(client, wrappedRelease);
+  client.release = wrappedRelease;
 }
 
 const holdTimeWatchdogTimer = setInterval(() => {
   const now = Date.now();
+
+  const poolActiveCount = (basePool.totalCount - basePool.idleCount)
+    + (directPoolInstance !== basePool ? (directPoolInstance.totalCount - directPoolInstance.idleCount) : 0);
+  if (activeCheckouts.size > poolActiveCount) {
+    activeCheckouts.forEach((_info, client) => {
+      if (client.release !== trackedClients.get(client)) {
+        activeCheckouts.delete(client);
+      }
+    });
+  }
+
   activeCheckouts.forEach((info) => {
     const holdMs = now - info.checkedOutAt;
     if (holdMs >= CONNECTION_HOLD_ERROR_MS && now - info.erroredAt > 30_000) {
