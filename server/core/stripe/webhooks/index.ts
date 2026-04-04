@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import Stripe from 'stripe';
 import { getStripeSync, getStripeClient } from '../client';
 import { updateFamilyDiscountPercent } from '../../billing/pricingConfig';
@@ -262,7 +263,7 @@ export async function processStripeWebhook(
     await client.query('BEGIN');
 
     if (resourceId) {
-      const lockKey = BigInt('0x' + Buffer.from(resourceId).subarray(0, 8).toString('hex'));
+      const lockKey = BigInt('0x' + createHash('sha256').update(resourceId).digest('hex').slice(0, 16)) & BigInt('0x7fffffffffffffff');
       await client.query('SELECT pg_advisory_xact_lock($1)', [lockKey.toString()]);
     }
 
@@ -291,7 +292,13 @@ export async function processStripeWebhook(
     isCommitted = true;
     logger.info(`[Stripe Webhook] Event ${event.id} committed successfully`);
 
-    const failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
+    let failedActions: number;
+    try {
+      failedActions = await executeDeferredActions(deferredActions, { eventId: event.id, eventType: event.type });
+    } catch (deferredError: unknown) {
+      logger.error(`[Stripe Webhook] executeDeferredActions threw for ${event.id}:`, { extra: { error: getErrorMessage(deferredError) } });
+      failedActions = deferredActions.length;
+    }
     if (failedActions > 0) {
       const dlqClient = await pool.connect();
       try {
@@ -345,7 +352,7 @@ export async function replayStripeEvent(
     await client.query('BEGIN');
 
     if (resourceId) {
-      const lockKey = BigInt('0x' + Buffer.from(resourceId).subarray(0, 8).toString('hex'));
+      const lockKey = BigInt('0x' + createHash('sha256').update(resourceId).digest('hex').slice(0, 16)) & BigInt('0x7fffffffffffffff');
       await client.query('SELECT pg_advisory_xact_lock($1)', [lockKey.toString()]);
     }
 
@@ -376,8 +383,44 @@ export async function replayStripeEvent(
     replayCommitted = true;
     logger.info(`[Stripe Webhook Replay] Event ${event.id} committed successfully`);
 
-    await executeDeferredActions(deferredActions);
+    let failedActions: number;
+    try {
+      failedActions = await executeDeferredActions(deferredActions);
+    } catch (deferredError: unknown) {
+      logger.error(`[Stripe Webhook Replay] executeDeferredActions threw for ${event.id}:`, { extra: { error: getErrorMessage(deferredError) } });
+      failedActions = deferredActions.length;
+    }
+    let dlqWriteSucceeded = false;
+    if (failedActions > 0) {
+      const dlqClient = await pool.connect();
+      try {
+        await dlqClient.query(
+          `INSERT INTO webhook_dead_letter_queue (event_id, event_type, resource_id, reason, event_payload)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (event_id) DO UPDATE SET
+             reason = webhook_dead_letter_queue.reason || E'\n' || EXCLUDED.reason,
+             event_payload = EXCLUDED.event_payload`,
+          [
+            event.id,
+            event.type,
+            resourceId || null,
+            `deferred_action_failure: ${failedActions} action(s) failed post-commit (replay)`,
+            JSON.stringify({ deferredActions, failedCount: failedActions }),
+          ]
+        );
+        dlqWriteSucceeded = true;
+        logger.warn(`[Stripe Webhook Replay] Event ${event.id} committed but ${failedActions} deferred action(s) failed — written to DLQ for retry`);
+      } catch (dlqErr) {
+        logger.error(`[Stripe Webhook Replay] Failed to write deferred action failure to DLQ for ${event.id}:`, { extra: { error: getErrorMessage(dlqErr) } });
+      } finally {
+        safeRelease(dlqClient);
+      }
+    }
 
+    if (failedActions > 0) {
+      const dlqStatus = dlqWriteSucceeded ? 'written to DLQ' : 'DLQ write also failed';
+      return { success: true, eventType: event.type, message: `Event committed but ${failedActions} deferred action(s) failed — ${dlqStatus}` };
+    }
     return { success: true, eventType: event.type, message: `Successfully replayed event ${event.id} (${event.type})` };
   } catch (handlerError: unknown) {
     if (!replayCommitted) {
