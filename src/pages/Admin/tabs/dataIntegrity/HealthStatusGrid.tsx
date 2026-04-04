@@ -1,5 +1,7 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { SystemHealth } from './dataIntegrityTypes';
+import { springPresets, contentEnterVariant, noMotionVariant, staggerContainer, listItemVariant } from '../../../../utils/motion';
 import Icon from '../../../../components/icons/Icon';
 
 interface HealthStatusGridProps {
@@ -13,8 +15,16 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
   isCheckingHealth,
   onCheckHealth,
 }) => {
+  const prefersReduced = useReducedMotion();
+
   return (
-    <div className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-6 animate-content-enter-delay-1">
+    <motion.div
+      className="mb-6 bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-6"
+      variants={prefersReduced ? noMotionVariant : contentEnterVariant}
+      initial="hidden"
+      animate="show"
+      transition={prefersReduced ? { duration: 0 } : { ...springPresets.gentle, delay: 0.08 }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Icon name="monitoring" className="text-primary dark:text-white text-[24px]" />
@@ -39,9 +49,15 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
         </button>
       </div>
 
+      <AnimatePresence mode="wait">
       {systemHealth ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+        <motion.div key="health-grid" className="space-y-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={prefersReduced ? { duration: 0 } : { duration: 0.2 }}>
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2"
+            variants={prefersReduced ? noMotionVariant : staggerContainer(0.05)}
+            initial="hidden"
+            animate="show"
+          >
             {[
               { key: 'database' as const, label: 'Database', icon: 'database' },
               { key: 'stripe' as const, label: 'Stripe', icon: 'credit_card' },
@@ -68,7 +84,11 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
               }
 
               return (
-                <div key={key} className={`border rounded-lg p-3 ${statusBgColor}`}>
+                <motion.div
+                  key={key}
+                  className={`border rounded-lg p-3 ${statusBgColor}`}
+                  variants={prefersReduced ? noMotionVariant : listItemVariant}
+                >
                   <div className="flex items-start gap-2 mb-2">
                     <Icon name={statusIcon} className={`text-[20px] ${statusTextColor}`} />
                     <div className="flex-1 min-w-0">
@@ -85,20 +105,21 @@ const HealthStatusGrid: React.FC<HealthStatusGridProps> = ({
                   {service.message && isUnhealthy && (
                     <p className={`text-[10px] ${statusTextColor} opacity-80 mt-1 line-clamp-2`}>{service.message}</p>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
           <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
             Checked {new Date(systemHealth.timestamp).toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles' })}
           </p>
-        </div>
+        </motion.div>
       ) : (
-        <div className="text-center py-4">
+        <motion.div key="health-empty" className="text-center py-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={prefersReduced ? { duration: 0 } : { duration: 0.2 }}>
           <p className="text-sm text-gray-600 dark:text-gray-400">Click "Check Health" to see system status</p>
-        </div>
+        </motion.div>
       )}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 };
 

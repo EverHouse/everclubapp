@@ -4,7 +4,7 @@ import { SegmentedButton } from '../../../components/ui/SegmentedButton';
 import SwipeablePage from '../../../components/SwipeablePage';
 import { haptic } from '../../../utils/haptics';
 import PlayerSlotEditor from '../../../components/shared/PlayerSlotEditor';
-import { AnimatedPage } from '../../../components/motion';
+import { AnimatedPage, AnimatedSection } from '../../../components/motion';
 import { formatTime12Hour } from '../../../utils/dateUtils';
 import DatePickerStrip from './DatePickerStrip';
 import ResourceCard from './ResourceCard';
@@ -56,12 +56,12 @@ const BookGolf: React.FC = () => {
   return (
     <AnimatedPage>
     <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative">
-      <section className="mb-8 pt-6 md:pt-4 animate-content-enter-delay-1" style={{ minHeight: '100px' }}>
+      <AnimatedSection className="mb-8 pt-6 md:pt-4" style={{ minHeight: '100px' }}>
         <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
           Your <span className="italic">{activeTab === 'simulator' ? 'Session' : 'Room'}</span>
         </h1>
         <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>{activeTab === 'simulator' ? 'Choose your party size, select a date, and reserve your preferred bay from the availability grid below. Requests are reviewed and confirmed by Concierge.' : 'Select your date, duration, and preferred conference space below. Conference rooms are confirmed instantly upon booking.'}</p>
-      </section>
+      </AnimatedSection>
 
       {effectiveUser?.status && !['active', 'trialing', 'past_due'].includes(effectiveUser.status.toLowerCase()) ? (
         <section className={`rounded-xl p-6 border flex flex-col items-center text-center glass-card ${isDark ? 'border-white/25' : 'border-black/10'}`}>
@@ -119,11 +119,10 @@ const BookGolf: React.FC = () => {
                   key="player-slot-editor"
                   layout={prefersReducedMotion ? false : "position"}
                   ref={playerSlotRef}
-                  initial={{ height: 0 }}
-                  animate={{ height: 'auto' }}
-                  exit={{ height: 0 }}
+                  initial={{ height: 0, overflow: 'hidden' as const }}
+                  animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
+                  exit={{ height: 0, overflow: 'hidden' as const }}
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
-                  className="overflow-hidden"
                 >
                   <PlayerSlotEditor
                     playerCount={playerCount}
@@ -176,11 +175,10 @@ const BookGolf: React.FC = () => {
                 {error && (
                   <motion.div
                     key="error-msg"
-                    initial={{ height: 0 }}
-                    animate={{ height: 'auto' }}
-                    exit={{ height: 0 }}
+                    initial={{ height: 0, overflow: 'hidden' as const }}
+                    animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
+                    exit={{ height: 0, overflow: 'hidden' as const }}
                     transition={prefersReducedMotion ? instantTransition : springPresets.quick}
-                    className="overflow-hidden"
                   >
                     <div className="p-4 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-sm flex items-center gap-3">
                       <Icon name="error" />
@@ -196,11 +194,10 @@ const BookGolf: React.FC = () => {
                 <motion.div
                   key="existing-bookings"
                   layout={prefersReducedMotion ? false : "position"}
-                  initial={{ height: 0 }}
-                  animate={{ height: 'auto' }}
-                  exit={{ height: 0 }}
+                  initial={{ height: 0, overflow: 'hidden' as const }}
+                  animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
+                  exit={{ height: 0, overflow: 'hidden' as const }}
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
-                  className="overflow-hidden"
                 >
                   <ExistingBookings
                     bookings={memberBayBookingsForDay}
@@ -243,11 +240,10 @@ const BookGolf: React.FC = () => {
                 <motion.div
                   key="conference-conflict-notice"
                   layout={prefersReducedMotion ? false : "position"}
-                  initial={{ height: 0 }}
-                  animate={{ height: 'auto' }}
-                  exit={{ height: 0 }}
+                  initial={{ height: 0, overflow: 'hidden' as const }}
+                  animate={{ height: 'auto', transitionEnd: { overflow: 'visible' as const } }}
+                  exit={{ height: 0, overflow: 'hidden' as const }}
                   transition={prefersReducedMotion ? instantTransition : springPresets.sheet}
-                  className="overflow-hidden"
                 >
                   <div className={`rounded-xl p-3 border ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
                     <p className={`text-sm flex items-center gap-2 ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>

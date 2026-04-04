@@ -5,7 +5,7 @@ import { AnnouncementFormDrawer } from '../../components/admin/AnnouncementFormD
 import { useTheme } from '../../contexts/ThemeContext';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SwipeablePage from '../../components/SwipeablePage';
-import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
+import { MotionList, MotionListItem, AnimatedPage, AnimatedSection } from '../../components/motion';
 import { getTodayPacific, formatDateDisplayWithDay, formatDateTimePacific } from '../../utils/dateUtils';
 import { getMemberNoticeTitle, getAffectedAreasList, isBlockingClosure } from '../../utils/closureUtils';
 import { useNotificationStore } from '../../stores/notificationStore';
@@ -835,9 +835,9 @@ const MemberUpdates: React.FC = () => {
         </button>
       </div>
 
-      <div key={activeTab} className="animate-content-enter">
+      <AnimatedSection key={activeTab}>
         {activeTab === 'announcements' ? renderAnnouncementsTab() : activeTab === 'notices' ? renderNoticesTab() : renderActivityTab()}
-      </div>
+      </AnimatedSection>
     </SwipeablePage>
     {isStaffOrAdmin && !isViewingAsMember && (
       <AnnouncementFormDrawer

@@ -1,13 +1,14 @@
 import React from 'react';
+import { SlideUpSection } from '../../../components/motion';
 import Icon from '../../../components/icons/Icon';
 
 export const Section: React.FC<{title: string; children: React.ReactNode; isDark?: boolean; staggerIndex?: number; id?: string}> = ({ title, children, isDark = true, staggerIndex, id }) => (
-  <div id={id} className="animate-slide-up-stagger" style={staggerIndex !== undefined ? { '--stagger-index': staggerIndex } as React.CSSProperties : undefined}>
+  <SlideUpSection delay={staggerIndex} id={id}>
      <h3 className={`text-2xl leading-tight ml-2 mb-3 ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-headline)' }}>{title}</h3>
      <div className={`rounded-xl overflow-hidden glass-card px-0 divide-y ${isDark ? 'divide-white/20 border-white/25' : 'divide-black/5 border-black/10'}`}>
         {children}
      </div>
-  </div>
+  </SlideUpSection>
 );
 
 export const Row: React.FC<{icon: string; label: string; value?: string; toggle?: boolean; arrow?: boolean; isDark?: boolean; onClick?: () => void}> = ({ icon, label, value, toggle, arrow, isDark = true, onClick }) => (

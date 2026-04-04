@@ -6,6 +6,7 @@ import { downloadICalFile } from '../../../utils/icalUtils';
 import { RosterManager } from '../../../components/booking';
 import { useToast } from '../../../components/Toast';
 import { getIconForType, type ScheduleItem, type DashboardBookingItem, type DBBookingRequest, type DBBooking, type DBRSVP, type DBWellnessEnrollment } from './dashboardTypes';
+import { PopInSection } from '../../../components/motion';
 import Icon from '../../../components/icons/Icon';
 
 interface HeroScheduleCardProps {
@@ -234,7 +235,7 @@ const HeroScheduleCard: React.FC<HeroScheduleCardProps> = ({
   const cancelLabel = isRsvp ? 'Cancel RSVP' : isWellness ? 'Cancel' : 'Cancel Booking';
 
   return (
-    <div className="mb-4 animate-pop-in">
+    <PopInSection className="mb-4">
       <div className={`rounded-2xl overflow-hidden shadow-xl bg-gradient-to-br ${gradientBg}`}>
         <div className="p-5">
           <div className="flex items-start justify-between mb-3">
@@ -341,7 +342,7 @@ const HeroScheduleCard: React.FC<HeroScheduleCardProps> = ({
         )}
       </div>
 
-    </div>
+    </PopInSection>
   );
 };
 

@@ -8,6 +8,7 @@ import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import SEO from '../../components/SEO';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import { usePublicMembershipTiers, useDayPassCheckout } from '../../hooks/queries';
+import { AnimatedPage, PopInSection } from '../../components/motion';
 import Icon from '../../components/icons/Icon';
 
 interface DayPassTier {
@@ -118,14 +119,14 @@ const BuyDayPass: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden animate-page-enter">
+    <AnimatedPage className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <SEO
         title="Day Pass — Golf Simulator & Coworking | Ever Club OC"
         description="No membership needed. Buy a day pass for Trackman indoor golf simulators or premium coworking at Ever Club in Tustin, Orange County. Walk in & play."
         url="/day-pass"
         keywords="golf simulator day pass Orange County, indoor golf near me Tustin, Trackman day pass OC, coworking day pass Tustin"
       />
-      <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-pop-in">
+      <PopInSection className="px-6 pt-4 md:pt-2 pb-6 text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Day Pass — Tustin, Orange County</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-xs mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
           No membership required. Experience Trackman indoor golf simulators or premium coworking at Ever Club in Tustin, OC.
@@ -144,7 +145,7 @@ const BuyDayPass: React.FC = () => {
             Lounge access
           </span>
         </div>
-      </div>
+      </PopInSection>
 
       <section className="px-4 mb-6">
         <h2 className="text-2xl text-primary dark:text-white mb-4 flex items-center gap-2 px-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -300,7 +301,7 @@ const BuyDayPass: React.FC = () => {
       </section>
 
       <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 

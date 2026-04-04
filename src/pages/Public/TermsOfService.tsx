@@ -1,10 +1,11 @@
 import React from 'react';
 import { Footer } from '../../components/Footer';
+import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 
 const TermsOfService: React.FC = () => {
   return (
-    <div className="min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-bone pt-24 pb-12 animate-page-enter">
+    <AnimatedPage className="min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-bone pt-24 pb-12">
       <SEO title="Terms of Service | Ever Club" description="Ever Members Club terms of service — membership agreements, monthly fees, cancellation policy, liability waivers & guest pass rules at our Tustin, OC club." url="/terms" />
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-3xl sm:text-4xl md:text-5xl mb-8 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Membership Terms & Conditions</h1>
@@ -109,7 +110,7 @@ const TermsOfService: React.FC = () => {
         </div>
       </div>
       <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 

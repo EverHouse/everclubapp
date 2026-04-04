@@ -7,6 +7,7 @@ import { usePageReady } from '../../stores/pageReadyStore';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
 import SEO from '../../components/SEO';
 import { useSubmitPrivateHireInquiry } from '../../hooks/queries';
+import { AnimatedPage, AnimatedSection } from '../../components/motion';
 import Icon from '../../components/icons/Icon';
 
 const getHubspotCookie = (): string | null => {
@@ -170,9 +171,9 @@ const PrivateHireInquire: React.FC = () => {
   } text-primary dark:text-white placeholder:text-gray-400 dark:placeholder-white/40`;
 
   return (
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
+    <AnimatedPage className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414]">
       <SEO title="Private Event Inquiry | Ever Club — OC Venue" description="Submit an inquiry for private events at Ever Club in Tustin, OC. Golf simulator parties, corporate gatherings, celebrations & custom event packages." url="/private-hire/inquire" keywords="private event inquiry Tustin, book golf simulator party Orange County, corporate event booking OC, Ever Club event inquiry" />
-      <div className="pt-4 px-4 pb-4 animate-content-enter">
+      <AnimatedSection className="pt-4 px-4 pb-4">
         <Link 
           to="/private-hire" 
           className="tactile-btn inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
@@ -180,21 +181,21 @@ const PrivateHireInquire: React.FC = () => {
           <Icon name="arrow_back" className="text-lg" />
           <span className="text-sm font-medium">Back to Private Hire</span>
         </Link>
-      </div>
+      </AnimatedSection>
 
       <div className="px-4 pb-12">
         <div className="max-w-xl mx-auto">
-          <div className="text-center mb-8 animate-content-enter-delay-1">
+          <AnimatedSection delay={1} className="text-center mb-8">
             <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
               Host Your Event
             </h1>
             <p className="text-primary/60 dark:text-white/60 text-sm md:text-base">
               Tell us about your vision, and our team will be in touch to help you bring it to life.
             </p>
-          </div>
+          </AnimatedSection>
 
           {success ? (
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center animate-content-enter">
+            <AnimatedSection className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center">
               <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Icon name="check_circle" className="text-4xl text-green-600 dark:text-green-400" />
               </div>
@@ -208,9 +209,9 @@ const PrivateHireInquire: React.FC = () => {
               >
                 Back to Private Hire
               </Link>
-            </div>
+            </AnimatedSection>
           ) : (
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden animate-content-enter-delay-2">
+            <AnimatedSection delay={2} className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden">
               <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10 dark:border-white/10">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors duration-fast ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>1</div>
                 <div className="w-16 h-0.5 bg-primary/20 dark:bg-white/20" />
@@ -509,13 +510,13 @@ const PrivateHireInquire: React.FC = () => {
                   </div>
                 )}
               </form>
-            </div>
+            </AnimatedSection>
           )}
         </div>
       </div>
 
       <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 

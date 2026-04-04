@@ -43,8 +43,8 @@ interface MembershipCardProps {
 
 const TILT_MAX_DEG = 8;
 const SPRING_CONFIG = springPresets.tilt;
-const REST_X = 0.85;
-const REST_Y = 0.15;
+const REST_X = 0.5;
+const REST_Y = 0.5;
 
 function useCard3DTilt() {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -257,7 +257,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             onTouchStart={handleTouchStart}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
-            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group animate-content-enter-delay-2 ${isExpired ? 'grayscale-[30%]' : ''}`}
+            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group ${isExpired ? 'grayscale-[30%]' : ''}`}
             whileTap={prefersReducedMotion ? undefined : { scale: 0.98, transition: SPRING_CONFIG }}
             style={{
               rotateX: prefersReducedMotion ? 0 : rotateX,
@@ -322,7 +322,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
         </motion.div>
         </div>
 
-        <div className="h-full animate-content-enter-delay-1">
+        <div className="h-full">
           <MetricsGrid
             simulatorMinutesUsed={simMinutesToday}
             simulatorMinutesAllowed={tierPermissions.dailySimulatorMinutes}

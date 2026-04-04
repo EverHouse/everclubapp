@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LayoutGroup } from 'framer-motion';
 import { useAuthData, useEventData, EventData } from '../../contexts/DataContext';
@@ -9,7 +9,8 @@ import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
+import { MotionList, MotionListItem, AnimatedPage, AnimatedSection } from '../../components/motion';
+import { scrollToAccordion } from '../../utils/motion';
 import { EmptyEvents } from '../../components/EmptyState';
 import { downloadICalFile } from '../../utils/icalUtils';
 import { getTodayPacific } from '../../utils/dateUtils';
@@ -42,7 +43,16 @@ const MemberEvents: React.FC = () => {
   const queryClient = useQueryClient();
   const isDark = effectiveTheme === 'dark';
   const [filter, setFilter] = useState('All');
-  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const [openEventIds, setOpenEventIds] = useState<Set<string>>(new Set());
+  const [lastOpenedEventId, setLastOpenedEventId] = useState<string | null>(null);
+  const lastOpenedEventRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (lastOpenedEventId && lastOpenedEventRef.current) {
+      scrollToAccordion(lastOpenedEventRef.current);
+      setLastOpenedEventId(null);
+    }
+  }, [lastOpenedEventId]);
   const [loadingRsvp, setLoadingRsvp] = useState<string | null>(null);
   const [showViewAsConfirm, setShowViewAsConfirm] = useState(false);
   const [pendingEvent, setPendingEvent] = useState<EventData | null>(null);
@@ -172,12 +182,17 @@ const MemberEvents: React.FC = () => {
     return userRsvps.some(r => r.event_id === parseInt(eventId, 10) && r.status === 'confirmed');
   };
 
-  const handleCardClick = (eventId: string, cardEl?: HTMLElement | null) => {
-    const isExpanding = expandedEventId !== eventId;
-    setExpandedEventId(isExpanding ? eventId : null);
-    if (isExpanding && cardEl) {
-      requestAnimationFrame(() => cardEl.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    }
+  const handleCardClick = (eventId: string) => {
+    setOpenEventIds(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+        setLastOpenedEventId(eventId);
+      }
+      return next;
+    });
   };
 
   const submitRSVP = async (event: EventData) => {
@@ -274,14 +289,14 @@ const MemberEvents: React.FC = () => {
   return (
     <AnimatedPage>
     <SwipeablePage className="px-6 relative overflow-hidden">
-      <section className="mb-4 pt-6 md:pt-4 animate-content-enter-delay-1">
+      <AnimatedSection delay={1} className="mb-4 pt-6 md:pt-4">
         <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
           The <span className="italic">Circuit</span>
         </h1>
         <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Tournaments, socials, and private gatherings curated for the membership. Filter by category, then tap any event to view details and secure your RSVP.</p>
-      </section>
+      </AnimatedSection>
 
-      <section className={`mb-6 border-b -mx-6 px-6 animate-content-enter-delay-2 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
+      <AnimatedSection delay={2} className={`mb-6 border-b -mx-6 px-6 ${isDark ? 'border-white/25' : 'border-black/10'}`}>
         <LayoutGroup id="event-category-tabs">
           <div className="flex gap-6 overflow-x-auto pb-0 scrollbar-hide scroll-fade-right" role="tablist">
             {['All', 'Social', 'Golf', 'Tournaments', 'Dining', 'Networking', 'Workshops', 'Family', 'Entertainment', 'Charity'].map(cat => (
@@ -296,9 +311,9 @@ const MemberEvents: React.FC = () => {
             ))}
           </div>
         </LayoutGroup>
-      </section>
+      </AnimatedSection>
 
-      <section key={filter} className="mb-6 animate-content-enter-delay-3">
+      <AnimatedSection key={filter} delay={3} className="mb-6">
         <div className={`transition-opacity duration-normal ${isLoading ? 'opacity-100' : 'opacity-0 hidden'}`}>
           <PageLoadingSpinner />
         </div>
@@ -311,7 +326,7 @@ const MemberEvents: React.FC = () => {
           ) : (
             <MotionList ref={eventsParent} className="space-y-3 -mx-6 px-3">
               {filteredAndSortedEvents.map((event, index) => {
-                const isExpanded = expandedEventId === event.id;
+                const isExpanded = openEventIds.has(event.id);
                 const isRsvpd = hasRsvp(event.id);
                 const isLoadingThis = loadingRsvp === event.id;
                 const optimisticAction = getOptimisticAction(event.id);
@@ -325,8 +340,9 @@ const MemberEvents: React.FC = () => {
                     index={index}
                     className={`accordion-item-wrapper rounded-xl overflow-hidden transition-colors duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'}`}
                   >
+                    <div ref={event.id === lastOpenedEventId ? (el) => { if (el) lastOpenedEventRef.current = el.closest('.accordion-item-wrapper') as HTMLDivElement; } : undefined} />
                     <button 
-                      onClick={(e) => handleCardClick(event.id, e.currentTarget.closest('.accordion-item-wrapper') as HTMLElement)}
+                      onClick={() => handleCardClick(event.id)}
                       aria-expanded={isExpanded}
                       aria-label={`${event.title} on ${event.date} at ${event.time}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
                       className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-colors duration-fast text-left ${isExpanded ? '' : 'tactile-btn'}`}
@@ -459,7 +475,7 @@ const MemberEvents: React.FC = () => {
             </MotionList>
           )}
         </div>
-      </section>
+      </AnimatedSection>
 
       <ModalShell 
         isOpen={showViewAsConfirm && !!viewAsUser && !!pendingEvent} 

@@ -1,4 +1,6 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { springPresets, popInVariant, noMotionVariant } from '../utils/motion';
 import Icon from './icons/Icon';
 
 interface EmptyStateProps {
@@ -20,16 +22,29 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   variant = 'default'
 }) => {
   const isCompact = variant === 'compact';
+  const prefersReduced = useReducedMotion();
 
   return (
-    <div className={`flex flex-col items-center justify-center text-center ${isCompact ? 'py-8 px-4' : 'py-16 px-6'} animate-pop-in`}>
+    <motion.div
+      className={`flex flex-col items-center justify-center text-center ${isCompact ? 'py-8 px-4' : 'py-16 px-6'}`}
+      variants={prefersReduced ? noMotionVariant : popInVariant}
+      initial="hidden"
+      animate="show"
+      transition={prefersReduced ? { duration: 0 } : springPresets.popIn}
+    >
       <div className={`relative ${isCompact ? 'mb-3' : 'mb-6'}`}>
         <div className={`${isCompact ? 'w-16 h-16' : 'w-24 h-24'} rounded-full bg-gradient-to-br from-brand-bone to-secondary flex items-center justify-center relative`}>
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/5 to-accent/10 animate-pulse" style={{ animationDuration: '3s' }} />
+          {!prefersReduced && (
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/5 to-accent/10 animate-pulse" style={{ animationDuration: '3s' }} />
+          )}
           <Icon name={icon} className={`${isCompact ? 'text-3xl' : 'text-5xl'} text-primary/70 dark:text-primary`} />
         </div>
-        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent/30 animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }} />
-        <div className="absolute -bottom-2 -left-2 w-3 h-3 rounded-full bg-primary/20 animate-bounce" style={{ animationDelay: '1s', animationDuration: '2.5s' }} />
+        {!prefersReduced && (
+          <>
+            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent/30 animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '2s' }} />
+            <div className="absolute -bottom-2 -left-2 w-3 h-3 rounded-full bg-primary/20 animate-bounce" style={{ animationDelay: '1s', animationDuration: '2.5s' }} />
+          </>
+        )}
       </div>
 
       <h3 className={`${isCompact ? 'text-base' : 'text-xl'} font-semibold text-primary dark:text-white mb-2`}>
@@ -60,7 +75,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
           {action.label}
         </button>
       )}
-    </div>
+    </motion.div>
   );
 };
 

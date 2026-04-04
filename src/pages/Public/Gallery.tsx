@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import EmptyState from '../../components/EmptyState';
 import { usePageReady } from '../../stores/pageReadyStore';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection, MotionListItem } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { usePublicGallery } from '../../hooks/queries';
 import Icon from '../../components/icons/Icon';
@@ -91,12 +91,12 @@ const Gallery: React.FC = () => {
         className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
       >
         <div className="full-bleed-bg" aria-hidden="true" />
-        <div className="px-5 pt-4 md:pt-2 pb-6 animate-content-enter">
+        <AnimatedSection className="px-5 pt-4 md:pt-2 pb-6">
           <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white leading-none" style={{ fontFamily: 'var(--font-display)' }}>Gallery</h1>
           <p className="text-base text-primary/70 dark:text-white/70 mt-2 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>Explore the exclusive spaces of Ever Club.</p>
-        </div>
+        </AnimatedSection>
 
-        <div className="pl-5 pr-5 py-2 w-full overflow-x-auto scrollbar-hide mb-6 animate-content-enter-delay-1">
+        <AnimatedSection delay={1} viewport className="pl-5 pr-5 py-2 w-full overflow-x-auto scrollbar-hide mb-6">
           <div className="flex gap-3 min-w-max pr-5">
             {categories.map(cat => (
               <FilterButton 
@@ -108,9 +108,9 @@ const Gallery: React.FC = () => {
               />
             ))}
           </div>
-        </div>
+        </AnimatedSection>
 
-        <div className="px-5 flex-1 animate-content-enter-delay-2">
+        <AnimatedSection delay={2} viewport className="px-5 flex-1">
           {filteredItems.length === 0 ? (
             <EmptyState
               icon="photo_library"
@@ -120,9 +120,11 @@ const Gallery: React.FC = () => {
             />
           ) : (
             <>
-              <div className="columns-2 gap-4 space-y-4 animate-in fade-in duration-500">
+              <div className="columns-2 gap-4 space-y-4">
                 {filteredItems.map((item, index) => (
-                  <GalleryItem key={item.id || item.img} img={item.img} title={item.title} category={item.category} onItemClick={openViewer} index={index} />
+                  <MotionListItem key={item.id || item.img} index={index} className="break-inside-avoid">
+                    <GalleryItem img={item.img} title={item.title} category={item.category} onItemClick={openViewer} index={index} />
+                  </MotionListItem>
                 ))}
               </div>
               <div className="mt-12 flex justify-center pb-8">
@@ -132,7 +134,7 @@ const Gallery: React.FC = () => {
               </div>
             </>
           )}
-        </div>
+        </AnimatedSection>
 
         <section className="px-6 py-10 text-center bg-bone dark:bg-[#141414]">
           <p className="text-primary/60 dark:text-white/60 text-sm mb-4">Like what you see?</p>
@@ -197,7 +199,7 @@ const GalleryItem: React.FC<GalleryItemProps> = React.memo(({ img, title, catego
   
   return (
     <div 
-      className={`tactile-card break-inside-avoid relative group rounded-xl overflow-hidden shadow-sm dark:shadow-black/20 cursor-pointer mb-4 border border-white/20 dark:border-white/10 active:scale-[0.98] transition-transform animate-list-item-delay-${Math.min(index, 10)}`}
+      className="tactile-card break-inside-avoid relative group rounded-xl overflow-hidden shadow-sm dark:shadow-black/20 cursor-pointer mb-4 border border-white/20 dark:border-white/10 active:scale-[0.98] transition-transform"
       onClick={handleClick}
       role="button"
       tabIndex={0}
@@ -315,7 +317,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ images, currentIndex, onClose
           src={images[currentIndex]}
           alt={`Ever Club gallery photo ${currentIndex + 1} — indoor golf simulator and social club in Tustin, Orange County`}
           loading="lazy"
-          className="max-w-full max-h-[80vh] object-contain rounded-xl animate-content-enter"
+          className="max-w-full max-h-[80vh] object-contain rounded-xl"
         />
       </div>
     </div>,

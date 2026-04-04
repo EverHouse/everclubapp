@@ -11,6 +11,7 @@ import ConfirmDialogComponent from '../../components/ConfirmDialog';
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges';
 import { useFormPersistence } from '../../hooks/useFormPersistence';
 import { useSubmitApplication } from '../../hooks/queries';
+import { AnimatedPage, AnimatedSection } from '../../components/motion';
 import Icon from '../../components/icons/Icon';
 
 const getHubspotCookie = (): string | null => {
@@ -185,9 +186,9 @@ const MembershipApply: React.FC = () => {
   } text-primary dark:text-white placeholder:text-gray-400 dark:placeholder-white/40`;
 
   return (
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
+    <AnimatedPage className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414]">
       <SEO title="Apply for Membership | Ever Club — OC Golf Club" description="Join OC's premier indoor golf & social club. Apply for membership at Ever Club in Tustin — Trackman simulators, workspace, wellness & community." url="/membership/apply" keywords="apply golf club membership Tustin, join indoor golf club Orange County, Ever Club membership application, private golf club OC" />
-      <div className="pt-4 px-4 pb-4 animate-content-enter">
+      <AnimatedSection className="pt-4 px-4 pb-4">
         <Link 
           to="/membership" 
           className="tactile-btn inline-flex items-center gap-1 text-primary/70 dark:text-white/70 hover:text-primary dark:hover:text-white transition-colors py-2"
@@ -195,21 +196,21 @@ const MembershipApply: React.FC = () => {
           <Icon name="arrow_back" className="text-lg" />
           <span className="text-sm font-medium">Back to Membership</span>
         </Link>
-      </div>
+      </AnimatedSection>
 
       <div className="px-4 pb-12">
         <div className="max-w-xl mx-auto">
-          <div className="text-center mb-8 animate-content-enter-delay-1">
+          <AnimatedSection delay={1} className="text-center mb-8">
             <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
               Apply for Membership
             </h1>
             <p className="text-primary/60 dark:text-white/60 text-sm md:text-base">
               Tell us a little about yourself. We'll reach out within 24 hours to schedule your private tour.
             </p>
-          </div>
+          </AnimatedSection>
 
           {success ? (
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center animate-content-enter">
+            <AnimatedSection className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] p-8 text-center">
               <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Icon name="check_circle" className="text-4xl text-green-600 dark:text-green-400" />
               </div>
@@ -226,9 +227,9 @@ const MembershipApply: React.FC = () => {
               >
                 Back to Membership
               </Link>
-            </div>
+            </AnimatedSection>
           ) : (
-            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden animate-content-enter-delay-2">
+            <AnimatedSection delay={2} className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] overflow-hidden">
               <div className="flex items-center justify-center gap-3 py-6 border-b border-primary/10 dark:border-white/10">
                 <div className="flex flex-col items-center gap-1">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors duration-fast ${step === 1 ? 'bg-primary text-white' : 'bg-primary/10 dark:bg-white/10 text-primary dark:text-white'}`}>1</div>
@@ -445,7 +446,7 @@ const MembershipApply: React.FC = () => {
                   </div>
                 )}
               </form>
-            </div>
+            </AnimatedSection>
           )}
         </div>
       </div>
@@ -462,7 +463,7 @@ const MembershipApply: React.FC = () => {
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
       />
-    </div>
+    </AnimatedPage>
   );
 };
 

@@ -10,7 +10,7 @@ import SwipeablePage from '../../components/SwipeablePage';
 import { formatTime12Hour, getRelativeDateLabel } from '../../utils/dateUtils';
 import InvoicePaymentModal from '../../components/billing/InvoicePaymentModal';
 import { MemberPaymentModal } from '../../components/booking/MemberPaymentModal';
-import { AnimatedPage, MotionListItem } from '../../components/motion';
+import { AnimatedPage, AnimatedSection, MotionListItem } from '../../components/motion';
 import { EmptyVisits, EmptyPayments } from '../../components/EmptyState';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import { TabTransition } from '../../components/motion/TabTransition';
@@ -142,14 +142,14 @@ const History: React.FC = () => {
   return (
     <AnimatedPage>
       <SwipeablePage className="px-6 lg:px-8 xl:px-12 relative overflow-hidden">
-        <section className="mb-4 pt-6 md:pt-4 animate-content-enter-delay-1">
+        <AnimatedSection delay={1} className="mb-4 pt-6 md:pt-4">
           <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
             Your <span className="italic">Archive</span>
           </h1>
           <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Every session, every event, every transaction — all in one place. Switch between visits and payments to review your complete membership history.</p>
-        </section>
+        </AnimatedSection>
 
-        <section className={`mb-6 animate-content-enter-delay-2`}>
+        <AnimatedSection delay={2} className="mb-6">
           <SegmentedButton
             options={[
               { value: 'visits' as const, label: 'Visits' },
@@ -159,7 +159,7 @@ const History: React.FC = () => {
             onChange={(value: "payments" | "visits") => setActiveTab(value)}
             aria-label="History view"
           />
-        </section>
+        </AnimatedSection>
 
         <TabTransition activeKey={activeTab}>
         <div className="relative z-10">
@@ -365,7 +365,7 @@ const History: React.FC = () => {
                       const monthLabel = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/Los_Angeles' });
                       
                       return (
-                        <div key={monthKey} className={monthIndex < 10 ? `animate-content-enter-delay-${monthIndex}` : 'animate-content-enter'}>
+                        <AnimatedSection key={monthKey} delay={Math.min(monthIndex, 10)}>
                           <h3 className={`text-[11px] font-semibold uppercase tracking-[0.2em] mb-3 ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-label)' }}>
                             {monthLabel}
                           </h3>
@@ -470,7 +470,7 @@ const History: React.FC = () => {
                               </MotionListItem>
                             ))}
                           </div>
-                        </div>
+                        </AnimatedSection>
                       );
                     })}
                     {hasMoreMonths && (

@@ -8,7 +8,8 @@ import { useToast } from '../../components/Toast';
 import { apiRequest } from '../../lib/apiRequest';
 import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import { MotionList, MotionListItem, AnimatedPage } from '../../components/motion';
+import { MotionList, MotionListItem, AnimatedPage, AnimatedSection } from '../../components/motion';
+import { scrollToAccordion } from '../../utils/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
 import { EmptyWellness } from '../../components/EmptyState';
 import { playSound } from '../../utils/sounds';
@@ -127,14 +128,14 @@ const Wellness: React.FC = () => {
   return (
     <AnimatedPage>
     <SwipeablePage className="px-6 relative overflow-hidden">
-      <section className="mb-4 pt-6 md:pt-4 animate-content-enter-delay-1">
+      <AnimatedSection delay={1} className="mb-4 pt-6 md:pt-4">
         <h1 className={`leading-none mb-3 text-4xl md:text-5xl ${isDark ? 'text-white' : 'text-primary'}`} style={{ fontFamily: 'var(--font-display)' }}>
           Rest & <span className="italic">Recovery</span>
         </h1>
         <p className={`text-base leading-relaxed max-w-md ${isDark ? 'text-white/60' : 'text-primary/60'}`} style={{ fontFamily: 'var(--font-body)' }}>Performance demands recovery. Browse upcoming classes or explore our MedSpa menu, then reserve your session directly from the schedule below.</p>
-      </section>
+      </AnimatedSection>
 
-      <section className={`mb-8 animate-content-enter-delay-2`}>
+      <AnimatedSection delay={2} className="mb-8">
         <SegmentedButton
           options={[
             { value: 'classes' as const, label: 'Upcoming' },
@@ -144,7 +145,7 @@ const Wellness: React.FC = () => {
           onChange={setActiveTab}
           aria-label="Wellness view"
         />
-      </section>
+      </AnimatedSection>
 
       <TabTransition activeKey={activeTab}>
       <div className="relative z-10">
@@ -163,7 +164,16 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
   const { setPageReady } = usePageReady();
   const queryClient = useQueryClient();
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+  const [lastOpenedId, setLastOpenedId] = useState<number | null>(null);
+  const lastOpenedWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (lastOpenedId !== null && lastOpenedWrapperRef.current) {
+      scrollToAccordion(lastOpenedWrapperRef.current);
+      setLastOpenedId(null);
+    }
+  }, [lastOpenedId]);
   const [loadingCancel, setLoadingCancel] = useState<number | null>(null);
   const [loadingRsvp, setLoadingRsvp] = useState<number | null>(null);
   const [recentlyEnrolled, setRecentlyEnrolled] = useState<Set<number>>(new Set());
@@ -476,7 +486,7 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
         <MotionList className="space-y-3 -mx-6 px-3">
             {displayedClasses.length > 0 ? (
                 displayedClasses.map((cls, index) => {
-                    const isExpanded = expandedId === cls.id;
+                    const isExpanded = openIds.has(cls.id);
                     const enrolled = isEnrolled(cls.id);
                     const waitlisted = isOnWaitlist(cls.id);
                     const isCancelling = loadingCancel === cls.id;
@@ -488,7 +498,8 @@ const ClassesView: React.FC<{isDark?: boolean; userEmail?: string; userStatus?: 
                             {...cls}
                             date={formatDateForDisplay(cls.date)}
                             isExpanded={isExpanded}
-                            onToggle={() => setExpandedId(isExpanded ? null : cls.id)}
+                            expandedRef={cls.id === lastOpenedId ? lastOpenedWrapperRef : undefined}
+                            onToggle={() => { setOpenIds(prev => { const next = new Set(prev); if (next.has(cls.id)) { next.delete(cls.id); } else { next.add(cls.id); setLastOpenedId(cls.id); } return next; }); }}
                             onBook={() => handleRsvp(cls)}
                             onCancel={() => handleCancel(cls)}
                             isEnrolled={enrolled}
@@ -672,9 +683,10 @@ interface ClassCardProps {
   waitlistEnabled?: boolean;
   waitlistCount?: number;
   externalUrl?: string;
+  expandedRef?: React.MutableRefObject<HTMLDivElement | null>;
 }
 
-const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status: _status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isCancelDisabled = false, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl }) => {
+const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, instructor, duration, category, spots, spotsRemaining, enrolledCount, status: _status, description, isExpanded, onToggle, onBook, onCancel, isEnrolled, isOnWaitlist, isCancelling, isRsvping, isCancelDisabled = false, isDark = true, isMembershipInactive = false, isFull = false, capacity, waitlistEnabled, waitlistCount = 0, externalUrl, expandedRef }) => {
   const formattedTime = formatTimeTo12Hour(time);
   const showJoinWaitlist = isFull && waitlistEnabled && !isEnrolled;
   const showFullNoWaitlist = isFull && !waitlistEnabled && !isEnrolled;
@@ -722,16 +734,10 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
   return (
   <div 
     className={`accordion-item-wrapper rounded-xl relative overflow-hidden transition-colors duration-fast glass-card p-0 ${isDark ? 'border-white/25' : 'border-black/10'} ${isPending ? 'ring-2 ring-offset-2 ring-offset-transparent animate-pulse' : ''} ${isCancelling ? 'ring-red-500/50' : isRsvping ? (showJoinWaitlist ? 'ring-amber-500/50' : 'ring-green-500/50') : ''}`}
+    ref={isExpanded && expandedRef ? (el) => { if (el) expandedRef.current = el; } : undefined}
   >
     <button 
-      onClick={(e) => {
-        const wasCollapsed = !isExpanded;
-        onToggle();
-        if (wasCollapsed) {
-          const el = e.currentTarget.closest('.accordion-item-wrapper') as HTMLElement;
-          if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-        }
-      }}
+      onClick={() => onToggle()}
       aria-expanded={isExpanded}
       aria-label={`${title} on ${date} at ${formattedTime.time} ${formattedTime.period}. ${isExpanded ? 'Collapse' : 'Expand'} for details`}
       className={`w-full px-4 pt-4 pb-3 cursor-pointer transition-transform duration-fast text-left ${isExpanded ? '' : 'active:scale-[0.98]'}`}

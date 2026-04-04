@@ -3,9 +3,10 @@ import { Footer } from '../../components/Footer';
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import EmptyState from '../../components/EmptyState';
 import { usePageReady } from '../../stores/pageReadyStore';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection, AccordionContent } from '../../components/motion';
+import SmoothReveal from '../../components/motion/SmoothReveal';
+import { scrollToAccordion } from '../../utils/motion';
 import SEO from '../../components/SEO';
-import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { usePublicFaqs } from '../../hooks/queries';
 import Icon from '../../components/icons/Icon';
 
@@ -35,8 +36,7 @@ const FAQ: React.FC = () => {
   const { data: faqsData, isLoading: loading } = usePublicFaqs();
   const faqs = ((faqsData as unknown as FaqItem[])?.length ?? 0) > 0 ? (faqsData as unknown as FaqItem[]) : FALLBACK_FAQS;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [faqParent] = useAutoAnimate();
-
+  const [openFaqIds, setOpenFaqIds] = useState<Set<number>>(new Set());
   useEffect(() => {
     if (!loading) {
       setPageReady(true);
@@ -81,13 +81,13 @@ const FAQ: React.FC = () => {
       className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
     >
       <div className="full-bleed-bg" aria-hidden="true" />
-      <div className="px-6 pt-4 md:pt-2 pb-4 animate-content-enter">
+      <AnimatedSection className="px-6 pt-4 md:pt-2 pb-4">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-2 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Frequently Asked Questions</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>Common questions about membership, amenities, and policies.</p>
-      </div>
+      </AnimatedSection>
 
       {!loading && categories.length > 0 && (
-        <div className="px-6 pb-4 animate-content-enter-delay-1">
+        <AnimatedSection delay={1} className="px-6 pb-4">
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide scroll-fade-right">
             <button
               onClick={() => setSelectedCategory(null)}
@@ -113,15 +113,17 @@ const FAQ: React.FC = () => {
               </button>
             ))}
           </div>
-        </div>
+        </AnimatedSection>
       )}
 
-      <div ref={faqParent} className="px-6 pb-12 flex-1 space-y-3 animate-content-enter-delay-2">
-        {loading ? (
+      <AnimatedSection delay={2} viewport className="px-6 pb-12 flex-1 space-y-4">
+        {loading && (
           <div className="flex justify-center py-8">
             <PageLoadingSpinner />
           </div>
-        ) : filteredFaqs.length === 0 ? (
+        )}
+        <SmoothReveal isLoaded={!loading} className="space-y-4">
+        {filteredFaqs.length === 0 ? (
           <EmptyState
             icon="help"
             title="No questions found"
@@ -131,11 +133,17 @@ const FAQ: React.FC = () => {
         ) : (
           filteredFaqs.map((faq, _index) => (
             <div key={faq.id}>
-              <AccordionItem question={faq.question} answer={faq.answer} />
+              <AccordionItem
+                question={faq.question}
+                answer={faq.answer}
+                isOpen={openFaqIds.has(faq.id)}
+                onToggle={() => setOpenFaqIds(prev => { const next = new Set(prev); if (next.has(faq.id)) next.delete(faq.id); else next.add(faq.id); return next; })}
+              />
             </div>
           ))
         )}
-      </div>
+        </SmoothReveal>
+      </AnimatedSection>
 
       <Footer />
     </div>
@@ -143,36 +151,34 @@ const FAQ: React.FC = () => {
   );
 };
 
-const AccordionItem: React.FC<{ question: string; answer: string }> = ({ question, answer }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const AccordionItem: React.FC<{
+  question: string;
+  answer: string;
+  isOpen: boolean;
+  onToggle: () => void;
+}> = ({ question, answer, isOpen, onToggle }) => {
   const itemRef = useRef<HTMLDivElement>(null);
-
-  const handleToggle = () => {
-    const willOpen = !isOpen;
-    setIsOpen(willOpen);
-    if (willOpen && itemRef.current) {
-      requestAnimationFrame(() => {
-        itemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }
-  };
 
   return (
     <div ref={itemRef} className="accordion-item-wrapper border border-primary/10 dark:border-white/10 rounded-xl overflow-hidden bg-white/40 dark:bg-white/5 backdrop-blur-xl" style={{ borderRadius: '12px' }}>
       <button 
-        onClick={handleToggle}
+        onClick={() => {
+          const isExpanding = !isOpen;
+          onToggle();
+          if (isExpanding) {
+            scrollToAccordion(itemRef.current);
+          }
+        }}
         className="w-full flex items-center justify-between p-4 text-left font-bold text-primary dark:text-white hover:bg-primary/5 dark:hover:bg-white/5 transition-colors"
       >
         <span>{question}</span>
         <Icon name="expand_more" className={`transition-transform duration-normal ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      <div className={`accordion-content ${isOpen ? 'is-open' : ''}`}>
-        <div className="accordion-inner">
-          <div className="p-4 pt-0 text-sm text-primary/70 dark:text-white/70 leading-relaxed">
-            {answer}
-          </div>
+      <AccordionContent isOpen={isOpen}>
+        <div className="p-4 pt-0 text-sm text-primary/70 dark:text-white/70 leading-relaxed">
+          {answer}
         </div>
-      </div>
+      </AccordionContent>
     </div>
   );
 };

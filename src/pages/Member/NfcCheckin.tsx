@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthData } from '../../contexts/DataContext';
+import { AnimatedPage } from '../../components/motion';
 import PwaSmartBanner from '../../components/PwaSmartBanner';
 import Icon from '../../components/icons/Icon';
 
@@ -74,7 +75,7 @@ const NfcCheckin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4 animate-page-enter">
+    <AnimatedPage className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <PwaSmartBanner />
       <div className="w-full max-w-sm">
         {displayState === 'loading' && (
@@ -129,7 +130,7 @@ const NfcCheckin: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </AnimatedPage>
   );
 };
 

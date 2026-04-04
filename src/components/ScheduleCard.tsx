@@ -1,5 +1,7 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
+import { springPresets, slideUpVariant, noMotionVariant } from '../utils/motion';
 import Icon from './icons/Icon';
 
 interface MetadataChip {
@@ -41,9 +43,10 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
 }) => {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === 'dark';
+  const prefersReduced = useReducedMotion();
 
   return (
-    <div
+    <motion.div
       onClick={onClick}
       {...(onClick && !(actions && actions.length > 0) ? {
         role: 'button' as const,
@@ -53,8 +56,12 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
         tabIndex: 0,
         onKeyDown: (e: React.KeyboardEvent) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); } }
       } : {})}
-      className={`glass-card p-6 animate-slide-up-stagger ${onClick ? 'tactile-row cursor-pointer card-pressable glass-interactive transition-transform active:scale-[0.98]' : ''}`}
-      style={staggerIndex !== undefined ? { '--stagger-index': staggerIndex, animationFillMode: 'both' } as React.CSSProperties : { animationFillMode: 'both' }}
+      className={`glass-card p-6 ${onClick ? 'tactile-row cursor-pointer card-pressable glass-interactive transition-transform active:scale-[0.98]' : ''}`}
+      variants={prefersReduced ? noMotionVariant : slideUpVariant}
+      initial="hidden"
+      animate="show"
+      exit={prefersReduced ? { opacity: 1 } : { opacity: 0, y: -8, transition: { duration: 0.2 } }}
+      transition={prefersReduced ? { duration: 0 } : { ...springPresets.smooth, delay: (staggerIndex ?? 0) * 0.06 }}
     >
       <div className="flex items-start justify-between mb-4">
         {status && (
@@ -117,7 +124,7 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

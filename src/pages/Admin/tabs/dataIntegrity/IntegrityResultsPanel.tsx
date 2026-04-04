@@ -1,6 +1,7 @@
 import React from 'react';
-import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { UseMutationResult, useQueryClient } from '@tanstack/react-query';
+import { springPresets, listItemVariant, noMotionVariant } from '../../../../utils/motion';
 import { getCheckMetadata, CheckSeverity } from '../../../../data/integrityCheckMetadata';
 import EmptyState from '../../../../components/EmptyState';
 import { useUndoAction } from '../../../../hooks/useUndoAction';
@@ -125,8 +126,7 @@ interface IntegrityResultsPanelProps {
 }
 
 const AnimatedCategoryDiv: React.FC<{ category: string; className?: string; children: React.ReactNode }> = ({ className, children }) => {
-  const [ref] = useAutoAnimate();
-  return <div ref={ref} className={className}>{children}</div>;
+  return <div className={className}>{children}</div>;
 };
 
 const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
@@ -195,7 +195,7 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
   reviewItemsResult,
   handleApproveAllReviewItems,
 }) => {
-  const [resultsRef] = useAutoAnimate();
+  const prefersReducedMotion = useReducedMotion();
   const { execute: undoAction } = useUndoAction();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -1277,14 +1277,22 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
 
   return (
     <>
-      <div ref={resultsRef} className="space-y-3">
+      <div className="space-y-3">
+        <AnimatePresence>
         {isRefreshing && (
-          <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 animate-pulse">
+          <motion.div
+            key="refreshing-indicator"
+            initial={prefersReducedMotion ? {} : { opacity: 0, y: -8 }}
+            animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, y: -8 }}
+            transition={prefersReducedMotion ? { duration: 0 } : springPresets.quick}
+            className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 animate-pulse"
+          >
             <Icon name="progress_activity" className="animate-spin text-[16px]" />
             Refreshing data integrity results...
-          </div>
+          </motion.div>
         )}
-        {results.length > 0 && results.map((result) => {
+        {results.length > 0 && results.map((result, resultIndex) => {
             const metadata = getCheckMetadata(result.checkName);
             const displayTitle = metadata?.title || result.checkName;
             const description = metadata?.description;
@@ -1292,8 +1300,12 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
             const isExpanded = expandedChecks.has(result.checkName);
             
             return (
-              <div
+              <motion.div
                 key={result.checkName}
+                variants={prefersReducedMotion ? noMotionVariant : listItemVariant}
+                initial="hidden"
+                animate="show"
+                transition={prefersReducedMotion ? { duration: 0 } : { ...springPresets.listItem, delay: resultIndex * 0.04 }}
                 className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl overflow-hidden"
               >
                 <button
@@ -2576,9 +2588,10 @@ const IntegrityResultsPanel: React.FC<IntegrityResultsPanelProps> = ({
                     ))}
                   </div>
                 )}
-              </div>
+              </motion.div>
             );
           })}
+        </AnimatePresence>
       </div>
 
       {results.length > 0 && results.every(r => r.status === 'pass') && (

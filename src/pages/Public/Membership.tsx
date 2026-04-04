@@ -4,7 +4,7 @@ import { Footer } from '../../components/Footer';
 import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection } from '../../components/motion';
 import MotionButton from '../../components/ui/MotionButton';
 import SEO from '../../components/SEO';
 import { usePricing } from '../../hooks/usePricing';
@@ -117,20 +117,22 @@ const MembershipOverview: React.FC = () => {
       />
     <div className="bg-bone dark:bg-[#141414] min-h-screen overflow-x-hidden">
     <div className="px-4 pt-4 pb-0 flex flex-col gap-8 max-w-6xl mx-auto lg:px-8">
-      <div className="text-center px-2 animate-content-enter">
+      <AnimatedSection className="text-center px-2">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Membership — Tustin, OC</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[320px] mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
           Select the plan that fits how you work, play, and connect at Orange County's premier indoor golf simulator club.
         </p>
-      </div>
+      </AnimatedSection>
 
-      <Link to="compare" className="tactile-btn w-full flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors py-2 animate-content-enter-delay-1">
+      <AnimatedSection delay={1}>
+      <Link to="compare" className="tactile-btn w-full flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-widest text-primary/60 dark:text-white/60 hover:text-primary dark:hover:text-white transition-colors py-2">
         Compare full feature table
         <Icon name="arrow_forward" className="text-[16px]" />
       </Link>
+      </AnimatedSection>
 
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 animate-content-enter-delay-2">
+      <AnimatedSection delay={2} viewport className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {tiers.map((tier) => {
           const isCorporate = tier.tier_type === 'corporate';
           const suffix = isCorporate ? '/mo per employee' : extractSuffix(tier.price_string);
@@ -195,18 +197,18 @@ const MembershipOverview: React.FC = () => {
             );
           }
         })}
-      </div>
+      </AnimatedSection>
 
-      <div className="text-center py-6 px-4 animate-content-enter-delay-3">
+      <AnimatedSection delay={3} viewport className="text-center py-6 px-4">
         <p className="text-xs text-primary/50 dark:text-white/50 uppercase tracking-[0.15em] font-medium mb-1">
           For perspective
         </p>
         <p className="text-sm text-primary/70 dark:text-white/70 font-light max-w-md mx-auto leading-relaxed">
           Traditional country club initiation fees start at $20,000+. A home simulator build-out runs $15,000–$25,000. Ever Club gives you Trackman technology, a premium workspace, and a curated community — starting at a fraction of the cost.
         </p>
-      </div>
+      </AnimatedSection>
       
-      <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-6 border border-white/60 dark:border-white/10 shadow-sm dark:shadow-black/20 animate-content-enter-delay-3">
+      <AnimatedSection delay={3} viewport className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-6 border border-white/60 dark:border-white/10 shadow-sm dark:shadow-black/20">
         <div className="text-center mb-8">
           <h3 className="text-2xl text-primary dark:text-white mb-2 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>How to Join</h3>
           <p className="text-primary/60 dark:text-white/60 text-sm font-light">Your path to membership in 3 simple steps</p>
@@ -265,9 +267,9 @@ const MembershipOverview: React.FC = () => {
             We cap membership to ensure availability. Once a tier fills, the waitlist opens.
           </p>
         </div>
-      </div>
+      </AnimatedSection>
 
-      <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-5 border border-white/60 dark:border-white/10 shadow-sm dark:shadow-black/20 animate-content-enter-delay-4">
+      <AnimatedSection delay={4} viewport className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-5 border border-white/60 dark:border-white/10 shadow-sm dark:shadow-black/20">
         <div className="flex items-center gap-3 mb-4">
            <div className="p-2 bg-primary/5 dark:bg-white/5 rounded-xl text-primary dark:text-white">
               <Icon name="id_card" className="font-light" />
@@ -305,7 +307,7 @@ const MembershipOverview: React.FC = () => {
         >
            Experience the Club
         </Link>
-      </div>
+      </AnimatedSection>
 
     </div>
 
@@ -367,7 +369,7 @@ const Corporate: React.FC = () => {
     return (
       <AnimatedPage>
       <div className="px-6 pt-6 pb-12 flex flex-col gap-6 bg-bone dark:bg-[#141414] min-h-screen">
-        <div className="flex flex-col gap-2 mb-2 pt-4 animate-content-enter">
+        <AnimatedSection className="flex flex-col gap-2 mb-2 pt-4">
             <div className="flex items-center gap-2">
                 <span className="w-fit px-2 py-1 bg-white/50 dark:bg-white/5 backdrop-blur text-primary dark:text-white text-[10px] font-bold rounded-[4px] uppercase tracking-widest border border-primary/5 dark:border-white/10 shadow-sm dark:shadow-black/20">
                     For the team
@@ -379,9 +381,9 @@ const Corporate: React.FC = () => {
             <p className="text-primary/70 dark:text-white/70 text-base font-light leading-relaxed max-w-xs mt-2">
                 A unified space for your team to connect, create, and grow together.
             </p>
-        </div>
+        </AnimatedSection>
 
-        <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-8 shadow-sm dark:shadow-black/20 border border-white/60 dark:border-white/10 animate-content-enter-delay-1">
+        <AnimatedSection delay={1} className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-8 shadow-sm dark:shadow-black/20 border border-white/60 dark:border-white/10">
             <ul className="space-y-8">
                 <li className="flex gap-4 items-center">
                     <div className="w-10 h-10 rounded-full bg-[#E8E8E0] dark:bg-white/5 flex items-center justify-center shrink-0">
@@ -411,9 +413,9 @@ const Corporate: React.FC = () => {
                     </div>
                 </li>
             </ul>
-        </div>
+        </AnimatedSection>
 
-        <div className="mt-4 animate-content-enter-delay-2">
+        <AnimatedSection delay={2} className="mt-4">
              <div className="flex justify-between items-center mb-6 px-2">
                 <h2 className="text-2xl text-primary dark:text-white leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>Volume Discounts</h2>
                 <span className="w-fit px-2 py-1 bg-white/50 dark:bg-white/5 rounded-[4px] border border-primary/5 dark:border-white/10 text-[10px] font-bold text-primary/60 dark:text-white/60 uppercase tracking-widest">Per employee / mo</span>
@@ -473,9 +475,9 @@ const Corporate: React.FC = () => {
              <p className="text-center text-[10px] text-primary/40 dark:text-white/40 mt-6 px-8 leading-relaxed max-w-xs mx-auto">
                  Prices listed are per employee, billed monthly. Minimum contract terms may apply.
              </p>
-        </div>
+        </AnimatedSection>
 
-        <Link to="/membership/apply" className="w-full py-5 px-6 rounded-[4px] bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group animate-content-enter-delay-3">
+        <Link to="/membership/apply" className="w-full py-5 px-6 rounded-[4px] bg-primary text-white font-bold text-sm uppercase tracking-widest hover:bg-primary/90 shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 mb-8 group">
             Apply for Corporate Membership
             <Icon name="arrow_forward" className="text-[20px] group-hover:translate-x-1 transition-transform" />
         </Link>
@@ -582,14 +584,14 @@ const CompareFeatures: React.FC = () => {
   return (
     <AnimatedPage>
     <div className="flex flex-col gap-6 pt-6 px-4 pb-12 bg-bone dark:bg-[#141414] min-h-screen">
-       <div className="text-center px-2 pt-4 animate-content-enter">
+       <AnimatedSection className="text-center px-2 pt-4">
         <h2 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Compare Features</h2>
         <p className="text-primary/70 dark:text-white/70 text-base font-light leading-relaxed max-w-[320px] mx-auto">
           Select up to 3 memberships to compare side-by-side.
         </p>
-      </div>
+      </AnimatedSection>
       
-      <div className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-4 shadow-sm dark:shadow-black/20 border border-white/60 dark:border-white/10 animate-content-enter-delay-1">
+      <AnimatedSection delay={1} className="bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-4 shadow-sm dark:shadow-black/20 border border-white/60 dark:border-white/10">
         <h3 className="text-xs font-bold text-primary/50 dark:text-white/50 mb-3 uppercase tracking-wider">Select to Compare (Max 3)</h3>
         <div className="flex flex-wrap gap-2">
           {tierNames.map(t => {
@@ -606,9 +608,9 @@ const CompareFeatures: React.FC = () => {
             )
           })}
         </div>
-      </div>
+      </AnimatedSection>
 
-      <div className="w-full bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-4 shadow-sm dark:shadow-black/20 border border-white/60 dark:border-white/10 overflow-x-auto animate-content-enter-delay-2">
+      <AnimatedSection delay={2} className="w-full bg-white/40 dark:bg-white/5 backdrop-blur-xl rounded-xl p-4 shadow-sm dark:shadow-black/20 border border-white/60 dark:border-white/10 overflow-x-auto">
         <div className="min-w-[320px]">
           <div className="grid grid-cols-[25%_1fr_1fr_1fr] gap-1 mb-4 border-b border-primary/5 dark:border-white/10 pb-4 items-end">
              <div className="text-[10px] font-bold text-primary/40 dark:text-white/40 uppercase tracking-widest pl-1">Features</div>
@@ -674,7 +676,7 @@ const CompareFeatures: React.FC = () => {
               );
           })}
         </div>
-      </div>
+      </AnimatedSection>
     </div>
     </AnimatedPage>
   );

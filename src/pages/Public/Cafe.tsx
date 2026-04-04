@@ -4,7 +4,9 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Footer } from '../../components/Footer';
 import { MenuItemSkeleton, SkeletonList } from '../../components/skeletons';
 import { usePageReady } from '../../stores/pageReadyStore';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection, MotionListItem, AccordionContent } from '../../components/motion';
+import SmoothReveal from '../../components/motion/SmoothReveal';
+import { scrollToAccordion } from '../../utils/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
@@ -26,16 +28,16 @@ const PublicCafe: React.FC = () => {
   const isDark = effectiveTheme === 'dark';
   const [cafeMenu, setCafeMenu] = useState<CafeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-  const expandedRef = useRef<HTMLDivElement | null>(null);
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const [lastOpenedId, setLastOpenedId] = useState<string | null>(null);
+  const lastOpenedRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (expandedItemId && expandedRef.current) {
-      requestAnimationFrame(() => {
-        expandedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+    if (lastOpenedId && lastOpenedRef.current) {
+      scrollToAccordion(lastOpenedRef.current);
+      setLastOpenedId(null);
     }
-  }, [expandedItemId]);
+  }, [lastOpenedId]);
 
   const categories = useMemo(() => Array.from(new Set(cafeMenu.map(item => item.category))), [cafeMenu]);
   const [activeCategory, setActiveCategory] = useState('');
@@ -107,36 +109,40 @@ const PublicCafe: React.FC = () => {
       className="full-bleed-page flex flex-col bg-[#EAEBE6] dark:bg-[#141414] overflow-x-hidden w-full max-w-full"
     >
       <div className="full-bleed-bg" aria-hidden="true" />
-      <section className="px-6 pt-4 md:pt-2 pb-6 bg-[#EAEBE6] dark:bg-[#141414] animate-content-enter">
+      <AnimatedSection className="px-6 pt-4 md:pt-2 pb-6 bg-[#EAEBE6] dark:bg-[#141414]">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-4 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Cafe Menu</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[90%]" style={{ fontFamily: 'var(--font-body)' }}>
           Curated bites and beverages at the House. From artisan coffee to light fare.
         </p>
-      </section>
+      </AnimatedSection>
 
-      <div 
-        ref={categoryScrollRef}
-        className="flex gap-2 overflow-x-auto px-6 pb-4 scrollbar-hide animate-content-enter-delay-1 scroll-fade-right"
-      >
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`tactile-btn px-4 py-2 rounded-[4px] text-sm font-bold whitespace-nowrap transition-colors duration-fast flex-shrink-0 min-h-[44px] ${
-              activeCategory === cat
-                ? 'bg-primary text-white'
-                : 'bg-white dark:bg-white/5 text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
+      <AnimatedSection delay={1} viewport>
+        <div
+          ref={categoryScrollRef}
+          className="flex gap-2 overflow-x-auto px-6 pb-4 scrollbar-hide scroll-fade-right"
+        >
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`tactile-btn px-4 py-2 rounded-[4px] text-sm font-bold whitespace-nowrap transition-colors duration-fast flex-shrink-0 min-h-[44px] ${
+                activeCategory === cat
+                  ? 'bg-primary text-white'
+                  : 'bg-white dark:bg-white/5 text-primary dark:text-white hover:bg-primary/10 dark:hover:bg-white/10'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </AnimatedSection>
 
-      <div className="px-6 space-y-3 pb-8 flex-1 animate-content-enter-delay-2">
-        {isLoading ? (
+      <AnimatedSection delay={2} viewport className="px-6 space-y-3 pb-8 flex-1">
+        {isLoading && (
           <SkeletonList count={5} Component={MenuItemSkeleton} isDark={isDark} />
-        ) : cafeMenu.length === 0 ? (
+        )}
+        <SmoothReveal isLoaded={!isLoading}>
+        {cafeMenu.length === 0 ? (
           <div className="flex flex-col items-center py-20">
             <Icon name="restaurant_menu" className="text-5xl text-primary/30 dark:text-white/30 mb-4" />
             <p className="text-primary/60 dark:text-white/60">Menu items are being updated.</p>
@@ -149,18 +155,19 @@ const PublicCafe: React.FC = () => {
               className={activeCategory === cat.category ? 'block space-y-3' : 'hidden'}
             >
               {cat.items.map((item, index) => {
-                const isExpanded = expandedItemId === item.id;
+                const isExpanded = openIds.has(item.id);
                 return (
-                  <div
+                  <MotionListItem
                     key={item.id}
-                    ref={isExpanded ? expandedRef : undefined}
-                    className={`accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-colors duration-fast animate-list-item-delay-${Math.min(index, 10)}`}
+                    index={index}
+                    className="accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-colors duration-fast"
                   >
+                    <div ref={item.id === lastOpenedId ? (el) => { if (el) lastOpenedRef.current = el.closest('.accordion-item-wrapper') as HTMLDivElement; } : undefined} />
                     <div
-                      onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
+                      onClick={() => { if (isExpanded) { setOpenIds(prev => { const next = new Set(prev); next.delete(item.id); return next; }); } else { setOpenIds(prev => new Set(prev).add(item.id)); setLastOpenedId(item.id); } }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedItemId(isExpanded ? null : item.id); } }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isExpanded) { setOpenIds(prev => { const next = new Set(prev); next.delete(item.id); return next; }); } else { setOpenIds(prev => new Set(prev).add(item.id)); setLastOpenedId(item.id); } } }}
                       className={`flex justify-between items-center group p-3 cursor-pointer transition-colors duration-fast hover:bg-primary/5 dark:hover:bg-white/5`}
                     >
                       <div className="flex gap-4 flex-1 items-center">
@@ -182,20 +189,21 @@ const PublicCafe: React.FC = () => {
                       </div>
                       <Icon name="expand_more" className={`text-[20px] transition-transform duration-normal ml-2 text-primary/40 dark:text-white/40 ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
-                    <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
+                    <AccordionContent isOpen={isExpanded}>
                       <div className="px-3 pb-3 pt-0">
                         <p className="text-sm leading-relaxed text-primary/60 dark:text-white/60">
                           {item.desc || "A delicious choice from our menu, prepared fresh to order."}
                         </p>
                       </div>
-                    </div>
-                  </div>
+                    </AccordionContent>
+                  </MotionListItem>
                 );
               })}
             </div>
           ))
         )}
-      </div>
+        </SmoothReveal>
+      </AnimatedSection>
 
 
       <Footer />

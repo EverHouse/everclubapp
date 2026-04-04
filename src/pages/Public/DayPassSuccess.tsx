@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
+import { AnimatedPage, PopInSection } from '../../components/motion';
 import Icon from '../../components/icons/Icon';
 
 const DayPassSuccess: React.FC = () => {
@@ -17,9 +18,9 @@ const DayPassSuccess: React.FC = () => {
   }, [setPageReady]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden animate-page-enter">
+    <AnimatedPage className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="bg-white dark:bg-[#1a1d15] rounded-xl p-8 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10 max-w-md w-full text-center animate-pop-in">
+        <PopInSection className="bg-white dark:bg-[#1a1d15] rounded-xl p-8 shadow-sm dark:shadow-none border border-black/5 dark:border-white/10 max-w-md w-full text-center">
           <div className="w-20 h-20 bg-green-100 dark:bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
             <Icon name="check_circle" className="text-5xl text-green-600 dark:text-green-400" />
           </div>
@@ -56,11 +57,11 @@ const DayPassSuccess: React.FC = () => {
               Buy Another Pass
             </button>
           </div>
-        </div>
+        </PopInSection>
       </div>
       
       <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 

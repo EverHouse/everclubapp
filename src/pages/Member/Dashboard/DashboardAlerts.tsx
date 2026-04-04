@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BannerAnnouncement } from './dashboardTypes';
+import { PopInSection } from '../../../components/motion';
 import Icon from '../../../components/icons/Icon';
 import { useAnnouncementBadgeStore } from '../../../stores/announcementBadgeStore';
 
@@ -17,7 +18,7 @@ export const PasskeyNudge: React.FC<PasskeyNudgeProps> = ({
   if (!showPasskeyNudge) return null;
 
   return (
-    <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 animate-pop-in ${isDark ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'}`}>
+    <PopInSection className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${isDark ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-emerald-50 border border-emerald-200'}`}>
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <Icon name="fingerprint" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
         <div className="min-w-0 flex-1">
@@ -39,7 +40,7 @@ export const PasskeyNudge: React.FC<PasskeyNudgeProps> = ({
           <Icon name="close" className="text-lg" />
         </button>
       </div>
-    </div>
+    </PopInSection>
   );
 };
 
@@ -65,7 +66,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
   if (!bannerAnnouncement || bannerDismissed || isBannerInitiallyDismissed) return null;
 
   return (
-    <div className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${bannerExiting ? 'animate-card-fade-out overflow-hidden' : 'animate-pop-in'} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
+    <PopInSection className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${bannerExiting ? 'animate-card-fade-out overflow-hidden' : ''} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}>
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <Icon name="campaign" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-lavender' : 'text-primary'}`} />
         <div className="min-w-0 flex-1">
@@ -113,7 +114,7 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
       >
         <Icon name="close" className="text-[18px]" />
       </button>
-    </div>
+    </PopInSection>
   );
 };
 
@@ -126,7 +127,7 @@ export const MembershipStatusAlert: React.FC<MembershipStatusAlertProps> = ({ us
   if (!userStatus || ['active', 'trialing', 'past_due'].includes(userStatus.toLowerCase())) return null;
 
   return (
-    <div className="mb-4 p-4 rounded-xl bg-red-500/90 border border-red-600 animate-pop-in">
+    <PopInSection className="mb-4 p-4 rounded-xl bg-red-500/90 border border-red-600">
       <div className="flex items-center gap-3">
         <Icon name="warning" className="text-2xl text-white" />
         <div className="flex-1">
@@ -136,6 +137,6 @@ export const MembershipStatusAlert: React.FC<MembershipStatusAlertProps> = ({ us
           </p>
         </div>
       </div>
-    </div>
+    </PopInSection>
   );
 };

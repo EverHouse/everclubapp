@@ -1,4 +1,15 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import {
+  springPresets,
+  staggerContainer,
+  listItemVariant,
+  pageEnterVariant,
+  contentEnterVariant,
+  popInVariant,
+  slideUpVariant,
+  noMotionVariant,
+} from '../../utils/motion';
 
 interface MotionListProps {
   children: React.ReactNode;
@@ -6,10 +17,18 @@ interface MotionListProps {
 }
 
 export const MotionList = React.forwardRef<HTMLDivElement, MotionListProps>(({ children, className }, ref) => {
+  const prefersReduced = useReducedMotion();
+
   return (
-    <div ref={ref} className={`animate-fade-in ${className || ''}`}>
+    <motion.div
+      ref={ref}
+      className={className || ''}
+      variants={prefersReduced ? noMotionVariant : staggerContainer(0.04)}
+      initial="hidden"
+      animate="show"
+    >
       {children}
-    </div>
+    </motion.div>
   );
 });
 
@@ -21,12 +40,6 @@ interface MotionListItemProps {
   index?: number;
 }
 
-const getStaggerDelayClass = (index: number): string => {
-  if (index <= 0) return 'animate-list-item';
-  if (index > 10) return 'animate-list-item-delay-10';
-  return `animate-list-item-delay-${index}`;
-};
-
 export const MotionListItem: React.FC<MotionListItemProps> = React.memo(({ 
   children, 
   className, 
@@ -34,9 +47,15 @@ export const MotionListItem: React.FC<MotionListItemProps> = React.memo(({
   style,
   index = 0
 }) => {
+  const prefersReduced = useReducedMotion();
+
   return (
-    <div
-      className={`${getStaggerDelayClass(index)} ${className || ''}`}
+    <motion.div
+      className={className || ''}
+      variants={prefersReduced ? noMotionVariant : listItemVariant}
+      initial="hidden"
+      animate="show"
+      transition={prefersReduced ? { duration: 0 } : { ...springPresets.listItem, delay: index * 0.04 }}
       onClick={onClick}
       {...(onClick ? {
         role: 'button' as const,
@@ -46,7 +65,7 @@ export const MotionListItem: React.FC<MotionListItemProps> = React.memo(({
       style={style}
     >
       {children}
-    </div>
+    </motion.div>
   );
 });
 
@@ -58,10 +77,17 @@ interface AnimatedPageProps {
 }
 
 export const AnimatedPage: React.FC<AnimatedPageProps> = ({ children, className }) => {
+  const prefersReduced = useReducedMotion();
+
   return (
-    <div className={`animate-page-enter ${className || ''}`}>
+    <motion.div
+      className={className || ''}
+      variants={prefersReduced ? noMotionVariant : pageEnterVariant}
+      initial="hidden"
+      animate="show"
+    >
       {children}
-    </div>
+    </motion.div>
   );
 };
 
@@ -69,23 +95,138 @@ interface AnimatedSectionProps {
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  style?: React.CSSProperties;
+  id?: string;
+  viewport?: boolean;
 }
 
 export const AnimatedSection: React.FC<AnimatedSectionProps> = ({ 
   children, 
   className,
-  delay = 0
+  delay = 0,
+  style,
+  id,
+  viewport = false,
 }) => {
-  const delayClass = delay <= 0 
-    ? 'animate-content-enter' 
-    : delay > 12 
-      ? 'animate-content-enter-delay-12'
-      : `animate-content-enter-delay-${delay}`;
-  
+  const prefersReduced = useReducedMotion();
+  const variants = prefersReduced ? noMotionVariant : contentEnterVariant;
+  const transition = prefersReduced ? { duration: 0 } : { ...springPresets.gentle, delay: delay * 0.08 };
+
   return (
-    <div className={`${delayClass} ${className || ''}`}>
+    <motion.div
+      id={id}
+      className={className || ''}
+      variants={variants}
+      initial="hidden"
+      {...(viewport
+        ? { whileInView: 'show', viewport: { once: true, amount: 0.15 } }
+        : { animate: 'show' }
+      )}
+      transition={transition}
+      style={style}
+    >
       {children}
-    </div>
+    </motion.div>
+  );
+};
+
+interface PopInSectionProps {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  viewport?: boolean;
+}
+
+export const PopInSection: React.FC<PopInSectionProps> = ({
+  children,
+  className,
+  delay = 0,
+  viewport = false,
+}) => {
+  const prefersReduced = useReducedMotion();
+
+  return (
+    <motion.div
+      className={className || ''}
+      variants={prefersReduced ? noMotionVariant : popInVariant}
+      initial="hidden"
+      {...(viewport
+        ? { whileInView: 'show', viewport: { once: true, amount: 0.15 } }
+        : { animate: 'show' }
+      )}
+      transition={prefersReduced ? { duration: 0 } : { ...springPresets.popIn, delay: delay * 0.08 }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+interface SlideUpSectionProps {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  style?: React.CSSProperties;
+  id?: string;
+  viewport?: boolean;
+}
+
+export const SlideUpSection: React.FC<SlideUpSectionProps> = ({
+  children,
+  className,
+  delay = 0,
+  style,
+  id,
+  viewport = false,
+}) => {
+  const prefersReduced = useReducedMotion();
+
+  return (
+    <motion.div
+      id={id}
+      className={className || ''}
+      variants={prefersReduced ? noMotionVariant : slideUpVariant}
+      initial="hidden"
+      {...(viewport
+        ? { whileInView: 'show', viewport: { once: true, amount: 0.15 } }
+        : { animate: 'show' }
+      )}
+      transition={prefersReduced ? { duration: 0 } : { ...springPresets.smooth, delay: delay * 0.08 }}
+      style={style}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+interface AccordionContentProps {
+  isOpen: boolean;
+  children: React.ReactNode;
+  className?: string;
+}
+
+export const AccordionContent: React.FC<AccordionContentProps> = ({
+  isOpen,
+  children,
+  className = '',
+}) => {
+  const prefersReduced = useReducedMotion();
+
+  return (
+    <AnimatePresence initial={false}>
+      {isOpen && (
+        <motion.div
+          key="accordion-content"
+          initial={prefersReduced ? { opacity: 1 } : { height: 0, opacity: 0 }}
+          animate={prefersReduced ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
+          exit={prefersReduced ? { opacity: 0 } : { height: 0, opacity: 0 }}
+          transition={prefersReduced ? { duration: 0 } : springPresets.sheet}
+          className={className}
+          style={{ overflow: 'hidden' }}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -96,5 +237,7 @@ export const getStaggerClass = (index: number, prefix: 'list' | 'content' = 'lis
     if (index > 12) return 'animate-content-enter-delay-12';
     return `animate-content-enter-delay-${index}`;
   }
-  return getStaggerDelayClass(index);
+  if (index <= 0) return 'animate-list-item';
+  if (index > 10) return 'animate-list-item-delay-10';
+  return `animate-list-item-delay-${index}`;
 };

@@ -5,6 +5,7 @@ import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../stores/pageReadyStore';
 import SEO from '../../components/SEO';
 import WalkingGolferSpinner from '../../components/WalkingGolferSpinner';
+import { AnimatedPage, AnimatedSection, PopInSection } from '../../components/motion';
 import Icon from '../../components/icons/Icon';
 
 interface JoinTier {
@@ -124,7 +125,7 @@ const MembershipJoin: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden animate-page-enter">
+    <AnimatedPage className="min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
       <SEO
         title="Join Ever Club"
         description="Join Ever Club — select your membership tier and complete checkout."
@@ -132,7 +133,7 @@ const MembershipJoin: React.FC = () => {
       />
 
       <div className="px-4 pt-8 pb-12 max-w-3xl mx-auto lg:px-8">
-        <div className="text-center mb-10 animate-content-enter">
+        <AnimatedSection className="text-center mb-10">
           <h1
             className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none"
             style={{ fontFamily: 'var(--font-display)' }}
@@ -142,10 +143,10 @@ const MembershipJoin: React.FC = () => {
           <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-md mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
             Select your membership, enter your details, and complete checkout.
           </p>
-        </div>
+        </AnimatedSection>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="animate-content-enter-delay-1">
+          <AnimatedSection delay={1}>
             <h2 className="text-lg font-semibold text-primary dark:text-white mb-4">Choose Your Tier</h2>
             {fieldErrors.tier && (
               <p className="text-sm text-red-500 dark:text-red-400 mb-3 flex items-center gap-1">
@@ -212,9 +213,9 @@ const MembershipJoin: React.FC = () => {
                 );
               })}
             </div>
-          </div>
+          </AnimatedSection>
 
-          <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-sm p-6 space-y-5 animate-content-enter-delay-2">
+          <AnimatedSection delay={2} className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl border border-white/80 dark:border-white/10 shadow-sm p-6 space-y-5">
             <h2 className="text-lg font-semibold text-primary dark:text-white">Your Information</h2>
 
             <div className="grid grid-cols-2 gap-4">
@@ -313,16 +314,16 @@ const MembershipJoin: React.FC = () => {
               />
               <p className="text-xs text-primary/50 dark:text-white/50 mt-1">Optional — enter if you have a discount code.</p>
             </div>
-          </div>
+          </AnimatedSection>
 
           {error && (
-            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2 animate-content-enter">
+            <AnimatedSection className="p-4 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 flex items-start gap-2">
               <Icon name="error" className="text-red-600 dark:text-red-400 text-lg mt-0.5" />
               <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
-            </div>
+            </AnimatedSection>
           )}
 
-          <div className="animate-content-enter-delay-3">
+          <AnimatedSection delay={3}>
             <button
               type="submit"
               disabled={submitting}
@@ -340,12 +341,12 @@ const MembershipJoin: React.FC = () => {
             <p className="text-xs text-primary/40 dark:text-white/40 text-center mt-3 font-light">
               You'll be redirected to Stripe to complete your payment securely.
             </p>
-          </div>
+          </AnimatedSection>
         </form>
       </div>
 
       <Footer hideCta />
-    </div>
+    </AnimatedPage>
   );
 };
 

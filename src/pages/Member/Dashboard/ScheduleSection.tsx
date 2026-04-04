@@ -6,6 +6,7 @@ import { createPacificDate } from '../../../utils/dateUtils';
 import { getStatusBadge as getStatusBadgeColor, formatStatusLabel } from '../../../utils/statusColors';
 import { getIconForType, type ScheduleItem, type DashboardBookingItem, type DBBookingRequest, type DBBooking, type DBRSVP, type DBWellnessEnrollment } from './dashboardTypes';
 import MotionButton from '../../../components/ui/MotionButton';
+import { PopInSection } from '../../../components/motion';
 import Icon from '../../../components/icons/Icon';
 import HeroScheduleCard, { findHeroItem } from './HeroScheduleCard';
 
@@ -386,7 +387,7 @@ interface EmptyScheduleProps {
 }
 
 const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, navigate }) => (
-  <div className="space-y-4 animate-pop-in">
+  <PopInSection className="space-y-4">
     <div className={`flex flex-col items-center justify-center text-center py-6 px-6 rounded-xl ${isDark ? 'bg-white/5' : 'bg-primary/[0.03]'}`}>
       <div className="relative mb-3">
         <div className={`w-14 h-14 rounded-full flex items-center justify-center ${isDark ? 'bg-accent/20' : 'bg-accent/10'}`}>
@@ -425,5 +426,5 @@ const EmptySchedule: React.FC<EmptyScheduleProps> = ({ isDark, startNavigation, 
         <p className={`text-xs ${isDark ? 'text-white/50' : 'text-primary/50'}`}>RSVP to events to see them here.</p>
       </div>
     </div>
-  </div>
+  </PopInSection>
 );

@@ -4,6 +4,7 @@ import { Footer } from '../../components/Footer';
 import VirtualTour from '../../components/VirtualTour';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useParallax } from '../../hooks/useParallax';
+import { AnimatedPage, AnimatedSection, MotionListItem, SlideUpSection } from '../../components/motion';
 import SEO from '../../components/SEO';
 import Icon from '../../components/icons/Icon';
 
@@ -28,7 +29,7 @@ const PrivateHire: React.FC = () => {
   }, [setPageReady]);
 
   return (
-    <div className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414] animate-page-enter">
+    <AnimatedPage className="min-h-screen pb-0 overflow-x-hidden relative bg-bone dark:bg-[#141414]">
        <SEO title="Private Events & Venue Hire | Ever Club, Tustin" description="Host private events, corporate gatherings & celebrations at Ever Club in Tustin. Trackman simulator bays, conference rooms & event spaces in OC." url="/private-hire" keywords="private event venue Tustin, corporate event Orange County, golf simulator party OC, private golf event Tustin, venue hire Orange County" />
        <div 
          className="fixed top-0 left-0 right-0 bg-primary"
@@ -137,24 +138,25 @@ const PrivateHire: React.FC = () => {
                { icon: 'speaker_group', title: 'Advanced Audio & Visual', desc: 'A 180" projection screen, wireless microphones, and a zoned overhead sound system support everything from presentations to live performances.' },
                { icon: 'local_parking', title: 'Abundant On-Site Parking', desc: 'Over 400 on-site parking spaces make arrival and departure effortless for guests of all sizes.' },
              ].map((feature, i) => (
-               <div
+               <MotionListItem
                  key={feature.title}
-                 className={`flex flex-col p-6 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] ${i < 10 ? `animate-list-item-delay-${i}` : 'animate-list-item'}`}
+                 index={i}
+                 className="flex flex-col p-6 bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-white/60 dark:border-white/10 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
                >
                  <Icon name={feature.icon} className="text-3xl text-primary dark:text-white mb-3" />
                  <h4 className="text-lg font-bold text-primary dark:text-white mb-2">{feature.title}</h4>
                  <p className="text-sm text-primary/60 dark:text-white/60 leading-relaxed">{feature.desc}</p>
-               </div>
+               </MotionListItem>
              ))}
            </div>
          </div>
        </section>
 
        <div className="px-4 pb-8 max-w-7xl mx-auto">
-          <div className="flex items-center justify-between px-2 pb-6 animate-content-enter">
+          <AnimatedSection className="flex items-center justify-between px-2 pb-6">
              <h3 className="text-lg font-bold text-primary dark:text-white">Available Spaces</h3>
              <span className="text-xs font-bold text-primary/50 dark:text-white/50 bg-[#E8E8E0] dark:bg-white/5 px-2 py-1 rounded uppercase tracking-widest">Select One</span>
-          </div>
+          </AnimatedSection>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <SpaceCard
@@ -187,12 +189,12 @@ const PrivateHire: React.FC = () => {
        </div>
        
        <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 
 const SpaceCard: React.FC<{ title: string; cap: string; img: string; tags: string[]; desc: string; index?: number }> = ({ title, cap, img, tags, desc, index = 0 }) => (
-  <div className="group relative flex flex-col rounded-xl overflow-hidden backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-transform duration-[400ms] animate-slide-up-stagger" style={{ '--stagger-index': index + 1 } as React.CSSProperties}>
+  <SlideUpSection delay={index + 1} className="group relative flex flex-col rounded-xl overflow-hidden backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.6)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:scale-[1.02] hover:-translate-y-1 transition-transform duration-[400ms]">
      <div className="h-56 bg-cover bg-center relative" style={{backgroundImage: `url("${img}")`}}>
         <div className="absolute inset-0 bg-gradient-to-t from-white/40 dark:from-black/40 to-transparent"></div>
         <div className="absolute top-4 right-4 bg-black/30 backdrop-blur-md border border-white/30 px-2 py-1.5 rounded-[4px] flex items-center gap-1 shadow-[0_0_12px_rgba(0,0,0,0.2)]">
@@ -209,7 +211,7 @@ const SpaceCard: React.FC<{ title: string; cap: string; img: string; tags: strin
            ))}
         </div>
      </div>
-  </div>
+  </SlideUpSection>
 );
 
 export default PrivateHire;

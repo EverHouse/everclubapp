@@ -1,10 +1,11 @@
 import React from 'react';
 import { Footer } from '../../components/Footer';
+import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 
 const PrivacyPolicy: React.FC = () => {
   return (
-    <div className="min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-bone pt-24 pb-12 animate-page-enter">
+    <AnimatedPage className="min-h-screen bg-bone dark:bg-[#141414] text-primary dark:text-bone pt-24 pb-12">
       <SEO title="Privacy Policy | Ever Club" description="Read the Ever Members Club privacy policy. How we collect, use, and protect your personal data from bookings, payments & membership in Tustin, CA." url="/privacy" />
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-3xl sm:text-4xl md:text-5xl mb-8 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Privacy Policy</h1>
@@ -99,7 +100,7 @@ const PrivacyPolicy: React.FC = () => {
         </div>
       </div>
       <Footer />
-    </div>
+    </AnimatedPage>
   );
 };
 

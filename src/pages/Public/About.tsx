@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Footer } from '../../components/Footer';
 import { usePageReady } from '../../stores/pageReadyStore';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection } from '../../components/motion';
 import SEO from '../../components/SEO';
 import Icon from '../../components/icons/Icon';
 
@@ -40,16 +40,16 @@ const About: React.FC = () => {
         className="full-bleed-page flex flex-col bg-bone dark:bg-[#141414] overflow-x-hidden"
       >
         <div className="full-bleed-bg" aria-hidden="true" />
-        <section className="px-6 pt-8 md:pt-12 pb-10 text-center animate-content-enter">
+        <AnimatedSection className="px-6 pt-8 md:pt-12 pb-10 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>
             About Ever Club — Tustin, Orange County
           </h1>
           <p className="text-base text-primary/70 dark:text-white/70 font-medium max-w-md mx-auto leading-relaxed" style={{ fontFamily: 'var(--font-body)' }}>
             Orange County's Premier Indoor Golf Simulator & Social Club
           </p>
-        </section>
+        </AnimatedSection>
 
-        <section className="px-6 pb-10 animate-content-enter-delay-1">
+        <AnimatedSection delay={1} className="px-6 pb-10">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl text-primary dark:text-white mb-4 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
               Our Story
@@ -66,9 +66,9 @@ const About: React.FC = () => {
               </p>
             </div>
           </div>
-        </section>
+        </AnimatedSection>
 
-        <section className="px-6 pb-10 animate-content-enter-delay-2">
+        <AnimatedSection delay={2} viewport className="px-6 pb-10">
           <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl text-primary dark:text-white mb-6 leading-tight" style={{ fontFamily: 'var(--font-headline)' }}>
               What We Offer
@@ -90,7 +90,7 @@ const About: React.FC = () => {
               ))}
             </div>
           </div>
-        </section>
+        </AnimatedSection>
 
         <section className="px-6 pb-10">
           <div className="max-w-2xl mx-auto">

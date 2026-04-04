@@ -4,7 +4,7 @@ import { Footer } from '../../components/Footer';
 import Input from '../../components/Input';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection } from '../../components/motion';
 import { getNetworkErrorMessage } from '../../utils/errorHandling';
 import SEO from '../../components/SEO';
 import { useMapKitToken as useMapKitTokenQuery, usePublicSettings, useSubmitContactForm } from '../../hooks/queries';
@@ -252,7 +252,7 @@ const Contact: React.FC = () => {
     <AnimatedPage>
     <SEO title="Contact Us | Ever Club — Tustin, OC" description={`Contact Ever Club at ${s['contact.address_line1']}, ${s['contact.city_state_zip']}. Membership inquiries, private events, tours & questions. ${s['contact.phone']}.`} url="/contact" keywords="contact Ever Club, golf simulator club Tustin address, indoor golf Orange County location, Ever Club phone number" />
     <div className="flex flex-col min-h-screen bg-bone dark:bg-[#141414] overflow-x-hidden">
-      <div className="px-6 pt-4 md:pt-2 pb-6 text-center animate-content-enter">
+      <AnimatedSection className="px-6 pt-4 md:pt-2 pb-6 text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-3 leading-none" style={{ fontFamily: 'var(--font-display)' }}>Get in Touch</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-xs mx-auto" style={{ fontFamily: 'var(--font-body)' }}>
            We look forward to hearing from you. Please fill out the form below or visit us in Tustin.
@@ -263,9 +263,9 @@ const Contact: React.FC = () => {
             <Icon name="arrow_forward" className="text-lg" />
           </Link>
         </div>
-      </div>
+      </AnimatedSection>
 
-      <section className="px-4 mb-8 space-y-3 animate-content-enter-delay-1 max-w-2xl mx-auto w-full">
+      <AnimatedSection delay={1} className="px-4 mb-8 space-y-3 max-w-2xl mx-auto w-full">
            <ContactCard icon="location_on" title="VISIT US" value={s['contact.address_line1']} />
            <ContactCard icon="call" title="CALL US" value={s['contact.phone']} href={`tel:${phoneDigits}`} />
            <ContactCard icon="mail" title="EMAIL US" value={s['contact.email']} href={`mailto:${s['contact.email']}`} />
@@ -290,7 +290,7 @@ const Contact: React.FC = () => {
                 <Icon name="chevron_right" className="text-white/30 group-hover:text-white transition-colors" />
              </a>
            )}
-      </section>
+      </AnimatedSection>
 
       <section className="px-4 mb-8 max-w-2xl mx-auto w-full">
          <div className="bg-[#E8E8E0]/50 dark:bg-white/5 rounded-xl p-6">

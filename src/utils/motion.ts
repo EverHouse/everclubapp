@@ -156,3 +156,54 @@ export const ReducedMotion: React.FC<{ children: React.ReactNode }> = ({ childre
     children,
   );
 };
+
+export const staggerContainer = (staggerChildren = 0.05) => ({
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren,
+    },
+  },
+});
+
+export const listItemVariant = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: springPresets.listItem },
+};
+
+export const pageEnterVariant = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: springPresets.smooth },
+};
+
+export const contentEnterVariant = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0, transition: springPresets.gentle },
+};
+
+export const popInVariant = {
+  hidden: { opacity: 0, scale: 0.92 },
+  show: { opacity: 1, scale: 1, transition: springPresets.popIn },
+};
+
+export const slideUpVariant = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: springPresets.smooth },
+};
+
+export const noMotionVariant = {
+  hidden: {},
+  show: {},
+};
+
+export function scrollToAccordion(el: HTMLElement | null) {
+  if (!el) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const style = getComputedStyle(document.documentElement);
+      const offset = parseFloat(style.getPropertyValue('--header-offset')) || 96;
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    });
+  });
+}

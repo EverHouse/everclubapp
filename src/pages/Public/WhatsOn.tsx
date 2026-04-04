@@ -6,7 +6,9 @@ import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../stores/pageReadyStore';
 import { useNavigationLoading } from '../../stores/navigationLoadingStore';
 import { formatDateDisplayWithDay } from '../../utils/dateUtils';
-import { AnimatedPage } from '../../components/motion';
+import { AnimatedPage, AnimatedSection, MotionListItem, AccordionContent } from '../../components/motion';
+import SmoothReveal from '../../components/motion/SmoothReveal';
+import { scrollToAccordion } from '../../utils/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
@@ -52,16 +54,16 @@ const WhatsOn: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [wellnessClasses, setWellnessClasses] = useState<WellnessClass[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const expandedRef = useRef<HTMLDivElement | null>(null);
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  const [lastOpenedId, setLastOpenedId] = useState<string | null>(null);
+  const lastOpenedRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (expandedId && expandedRef.current) {
-      requestAnimationFrame(() => {
-        expandedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
+    if (lastOpenedId && lastOpenedRef.current) {
+      scrollToAccordion(lastOpenedRef.current);
+      setLastOpenedId(null);
     }
-  }, [expandedId]);
+  }, [lastOpenedId]);
   const [filter, setFilter] = useState<'all' | 'events' | 'wellness'>('all');
   const [displayCount, setDisplayCount] = useState(ITEMS_PER_PAGE);
 
@@ -173,14 +175,14 @@ const WhatsOn: React.FC = () => {
       className="full-bleed-page flex flex-col bg-[#EAEBE6] dark:bg-[#141414] overflow-x-hidden"
     >
       <div className="full-bleed-bg" aria-hidden="true" />
-      <section className="px-6 pt-4 md:pt-2 pb-6 bg-[#EAEBE6] dark:bg-[#141414] animate-content-enter">
+      <AnimatedSection className="px-6 pt-4 md:pt-2 pb-6 bg-[#EAEBE6] dark:bg-[#141414]">
         <h1 className="text-3xl sm:text-4xl md:text-5xl text-primary dark:text-white mb-4 leading-none" style={{ fontFamily: 'var(--font-display)' }}>What's On</h1>
         <p className="text-base text-primary/70 dark:text-white/70 leading-relaxed max-w-[90%]" style={{ fontFamily: 'var(--font-body)' }}>
            Upcoming events, wellness classes, and experiences for members and guests.
         </p>
-      </section>
+      </AnimatedSection>
 
-      <div className="flex gap-2 px-6 pb-4 animate-content-enter-delay-1">
+      <AnimatedSection delay={1} viewport className="flex gap-2 px-6 pb-4">
         {(['all', 'events', 'wellness'] as const).map((f) => (
           <button
             key={f}
@@ -194,12 +196,14 @@ const WhatsOn: React.FC = () => {
             {f === 'all' ? 'All' : f === 'events' ? 'Events' : 'Wellness'}
           </button>
         ))}
-      </div>
+      </AnimatedSection>
 
-      <div className="px-4 space-y-3 pb-12 flex-1 animate-content-enter-delay-2">
-        {loading ? (
+      <AnimatedSection delay={2} viewport className="px-4 space-y-3 pb-12 flex-1">
+        {loading && (
           <SkeletonList count={5} Component={BookingCardSkeleton} />
-        ) : combinedItems.length === 0 ? (
+        )}
+        <SmoothReveal isLoaded={!loading} className="space-y-4">
+        {combinedItems.length === 0 ? (
           <div className="flex flex-col items-center text-center py-20">
             <Icon name="calendar_month" className="text-5xl text-primary/30 dark:text-white/30 mb-4" />
             <p className="text-primary/60 dark:text-white/60">No upcoming {filter === 'all' ? 'events or classes' : filter} scheduled.</p>
@@ -212,19 +216,20 @@ const WhatsOn: React.FC = () => {
             const dateStr = isEvent ? item.event_date : item.date;
             const date = formatDate(dateStr);
             const itemId = getItemId(item);
-            const isExpanded = expandedId === itemId;
+            const isExpanded = openIds.has(itemId);
 
             return (
-              <div 
+              <MotionListItem
                 key={itemId}
-                ref={isExpanded ? expandedRef : undefined}
-                className={`accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-colors duration-fast animate-list-item-delay-${Math.min(index, 10)}`}
+                index={index}
+                className="accordion-item-wrapper bg-white dark:bg-[#1a1d15] rounded-xl overflow-hidden shadow-layered dark:shadow-black/20 transition-colors duration-fast"
               >
+                <div ref={itemId === lastOpenedId ? (el) => { if (el) lastOpenedRef.current = el.closest('.accordion-item-wrapper') as HTMLDivElement; } : undefined} />
                 <div 
-                  onClick={() => setExpandedId(isExpanded ? null : itemId)}
+                  onClick={() => { if (isExpanded) { setOpenIds(prev => { const next = new Set(prev); next.delete(itemId); return next; }); } else { setOpenIds(prev => new Set(prev).add(itemId)); setLastOpenedId(itemId); } }}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : itemId); } }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (isExpanded) { setOpenIds(prev => { const next = new Set(prev); next.delete(itemId); return next; }); } else { setOpenIds(prev => new Set(prev).add(itemId)); setLastOpenedId(itemId); } } }}
                   className={`flex gap-4 p-4 cursor-pointer transition-colors duration-fast hover:bg-primary/5 dark:hover:bg-white/5`}
                 >
                   <div className="w-14 h-14 flex-shrink-0 flex flex-col items-center justify-center rounded-xl bg-[#EAEBE6] dark:bg-white/5 text-primary dark:text-white">
@@ -258,7 +263,7 @@ const WhatsOn: React.FC = () => {
                   </div>
                 </div>
 
-                <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
+                <AccordionContent isOpen={isExpanded}>
                   <div className="px-4 pb-4 pt-0">
                     {isEvent && item.image_url && (
                       <div className="rounded-xl overflow-hidden mb-3">
@@ -327,8 +332,8 @@ const WhatsOn: React.FC = () => {
                       )
                     )}
                   </div>
-                </div>
-              </div>
+                </AccordionContent>
+              </MotionListItem>
             );
           })}
           
@@ -343,7 +348,8 @@ const WhatsOn: React.FC = () => {
           )}
           </>
         )}
-      </div>
+        </SmoothReveal>
+      </AnimatedSection>
 
       <section className="px-4 py-8 mb-4">
         <div className="bg-primary rounded-xl p-6 text-center">
