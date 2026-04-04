@@ -4,10 +4,11 @@ import { getConsentHistory, backfillConsentBaseline } from '../../core/consentSe
 import { logger } from '../../core/logger';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { requiredStringParam } from '../../middleware/paramSchemas';
+import { sensitiveActionRateLimiter, memberLookupRateLimiter } from '../../middleware/rateLimiting';
 
 const router = Router();
 
-router.get('/api/members/:email/consent-history', isStaffOrAdmin, async (req, res) => {
+router.get('/api/members/:email/consent-history', memberLookupRateLimiter, isStaffOrAdmin, async (req, res) => {
   try {
     const { email } = req.params;
     const emailParse = requiredStringParam.safeParse(email);
@@ -22,7 +23,7 @@ router.get('/api/members/:email/consent-history', isStaffOrAdmin, async (req, re
   }
 });
 
-router.post('/api/admin/consent/backfill', isStaffOrAdmin, async (req, res) => {
+router.post('/api/admin/consent/backfill', sensitiveActionRateLimiter, isStaffOrAdmin, async (req, res) => {
   try {
     const result = await backfillConsentBaseline();
     res.json({ success: true, ...result });

@@ -8038,5 +8038,11 @@
     "method": "POST",
     "path": "/api/admin/performance/clear",
     "reason": "staff-only admin endpoint — protected by isStaffOrAdmin middleware"
+  },
+  {
+    "file": "server/routes/members/consent.ts",
+    "method": "POST",
+    "path": "/api/admin/consent/backfill",
+    "reason": "no-body staff-only backfill — rate limited + isStaffOrAdmin, no request body to validate"
   }
 ]
