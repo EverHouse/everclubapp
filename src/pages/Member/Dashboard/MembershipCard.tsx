@@ -87,9 +87,9 @@ function useCardLightEffects() {
     SPRING_CONFIG
   );
   const shimmerBackground = useTransform(
-    shimmerPosition,
-    (pos: number) =>
-      `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) ${pos - 20}%, rgba(255,255,255,0.18) ${pos}%, rgba(255,255,255,0.04) ${pos + 20}%, transparent 100%)`
+    [sheenAngle, shimmerPosition],
+    ([angle, pos]: number[]) =>
+      `linear-gradient(${angle}deg, transparent ${pos - 20}%, rgba(255,255,255,0.18) ${pos}%, transparent ${pos + 20}%)`
   );
 
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
