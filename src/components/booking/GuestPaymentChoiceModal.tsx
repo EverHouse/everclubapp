@@ -154,7 +154,7 @@ export function GuestPaymentChoiceModal({
     >
       <div className="p-4" ref={animateRef}>
         {error && (
-          <div className={`mb-4 p-3 rounded-xl flex items-start gap-2.5 animate-content-enter ${
+          <div className={`mb-4 p-3 rounded-xl flex items-start gap-2.5 ${
             isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'
           }`}>
             <Icon name="info" className={`text-base mt-0.5 shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />

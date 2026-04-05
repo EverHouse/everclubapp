@@ -207,8 +207,8 @@ const ApplicationPipeline: React.FC = () => {
   }, {} as Record<string, number>);
 
   return (
-    <div className="animate-page-enter">
-      <div className="flex items-center justify-end mb-3 animate-content-enter-delay-1">
+    <div >
+      <div className="flex items-center justify-end mb-3">
         <button
           onClick={handleSyncFromHubSpot}
           disabled={isSyncing}
@@ -222,7 +222,7 @@ const ApplicationPipeline: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-2 scroll-fade-right">
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 scroll-fade-right">
         {STATUS_TABS.map(tab => (
           <button
             key={tab.id}
@@ -403,7 +403,7 @@ const ApplicationPipeline: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-300">No membership applications match your current filter.</p>
         </div>
       ) : (
-        <div ref={applicationsRef} className="space-y-3 animate-content-enter-delay-3">
+        <div ref={applicationsRef} className="space-y-3">
           {filteredApplications.map((app, index) => (
             <button
               key={app.id}
@@ -415,7 +415,7 @@ const ApplicationPipeline: React.FC = () => {
                     ? 'border-gray-200 dark:border-white/20 opacity-60'
                     : 'border-gray-200 dark:border-white/20'
               }`}
-              style={{ '--stagger-index': index + 4 } as React.CSSProperties}
+
             >
               <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${

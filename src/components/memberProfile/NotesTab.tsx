@@ -40,7 +40,7 @@ const NotesTab: React.FC<NotesTabProps> = ({
   return (
     <div className="space-y-4">
       <div 
-        className="animate-content-enter"
+        
       >
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
           <textarea
@@ -73,13 +73,13 @@ const NotesTab: React.FC<NotesTabProps> = ({
 
       {notes.length === 0 ? (
         <div 
-          className="animate-content-enter-delay-1"
+          
         >
           <ProfileEmptyState icon="sticky_note_2" message="No notes yet" />
         </div>
       ) : (
         <div 
-          className="animate-content-enter-delay-1 space-y-3"
+          className=" space-y-3"
         >
           {notes.map((note) => (
             <div key={note.id} className={`p-4 rounded-xl tactile-row ${isDark ? 'bg-white/5' : 'bg-gray-50'} ${note.isPinned ? 'ring-2 ring-yellow-500/50' : ''}`}>

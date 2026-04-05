@@ -117,8 +117,8 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
         >
             <div className="hidden lg:block absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-t-xl" />
             <div className="hidden lg:block absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white dark:from-[#1e1e1e] to-transparent z-10 pointer-events-none rounded-b-xl" />
-            <div className="space-y-6 p-5 animate-content-enter h-full overflow-y-auto overflow-x-hidden pb-10">
-                <div className="animate-content-enter-delay-1">
+            <div className="space-y-6 p-5 h-full overflow-y-auto overflow-x-hidden pb-10">
+                <div >
                     <div className="flex flex-col gap-2 mb-4">
                         <div className="flex items-center justify-between">
                             <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
@@ -286,7 +286,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                     </div>
                 </div>
 
-                <div className="animate-content-enter-delay-2">
+                <div >
                     <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
                         <Icon name="calendar_today" className="text-primary dark:text-accent" />
                         Scheduled ({scheduledBookings.length})
@@ -375,7 +375,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                     ]}
                                                 >
                                                     <div 
-                                                        className={`p-4 rounded-xl animate-content-enter cursor-pointer shadow-sm ${
+                                                        className={`p-4 rounded-xl cursor-pointer shadow-sm ${
                                                             isOptimisticNew
                                                                 ? 'bg-green-50/80 dark:bg-green-500/10 border-2 border-dashed border-green-300 dark:border-green-500/30 opacity-70'
                                                                 : isActionPending
@@ -384,7 +384,7 @@ const BookingRequestsPanel: React.FC<BookingRequestsPanelProps> = ({
                                                                         ? 'bg-amber-50/80 dark:bg-amber-500/10 border-2 border-dashed border-amber-300 dark:border-amber-500/30 hover:bg-amber-100/80 dark:hover:bg-amber-500/20 hover:shadow-md hover:scale-[1.01]' 
                                                                         : 'glass-card border border-primary/10 dark:border-white/25 hover:shadow-md'
                                                         } transition-colors duration-fast`} 
-                                                        style={{ '--stagger-index': index } as React.CSSProperties}
+
                                                         onClick={() => !isOptimisticNew && !isActionPending && setBookingSheet({
                                                             isOpen: true,
                                                             trackmanBookingId: booking.trackman_booking_id || null,

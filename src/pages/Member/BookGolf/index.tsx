@@ -125,7 +125,7 @@ const BookGolf: React.FC = () => {
                   transition={prefersReducedMotion ? instantTransition : { duration: 0.15 }}
                   style={{ overflow: 'hidden', transformOrigin: 'top center' }}
                 >
-                  <div className="cls-safe-inner">
+                  <div>
                   <PlayerSlotEditor
                     playerCount={playerCount}
                     onPlayerCountChange={(count) => { haptic.selection(); setPlayerCount(count); }}

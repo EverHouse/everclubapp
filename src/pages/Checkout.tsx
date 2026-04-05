@@ -96,7 +96,7 @@ function CheckoutForm({ tier, email, quantity = 1, companyName, jobTitle, isCorp
 
   if (error) {
     return (
-      <div className="flex flex-col items-center text-center py-16 animate-content-enter">
+      <div className="flex flex-col items-center text-center py-16">
         <Icon name="info" className="text-5xl text-amber-500 mb-4" />
         <p className="text-amber-700 dark:text-amber-300 text-base mb-4">{error}</p>
         <a
@@ -400,7 +400,7 @@ function CorporateCheckoutForm({ tier, email: _email, initialQuantity }: Corpora
       </div>
 
       {error && (
-        <div className="flex items-center justify-center gap-2 text-sm animate-content-enter">
+        <div className="flex items-center justify-center gap-2 text-sm">
           <Icon name="info" className="text-amber-500 text-base" />
           <p className="text-amber-600 dark:text-amber-400">{error}</p>
         </div>
@@ -528,7 +528,7 @@ function DayPassesSection() {
 
   if (error && !selectedProduct) {
     return (
-      <div className="flex flex-col items-center text-center py-8 animate-content-enter">
+      <div className="flex flex-col items-center text-center py-8">
         <Icon name="info" className="text-4xl text-amber-500 mb-2" />
         <p className="text-amber-700 dark:text-amber-300 text-sm">{error}</p>
       </div>
@@ -611,7 +611,7 @@ function DayPassesSection() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-sm animate-content-enter">
+              <div className="flex items-center gap-2 text-sm">
                 <Icon name="info" className="text-amber-500 text-base" />
                 <p className="text-amber-600 dark:text-amber-400">{error}</p>
               </div>
@@ -980,15 +980,15 @@ export default function Checkout() {
 
       <main className="max-w-4xl mx-auto px-6 py-12">
         {isSuccess ? (
-          <div className="animate-content-enter">
+          <div >
             <CheckoutSuccess />
           </div>
         ) : tier && tierLoading ? (
-          <div className="animate-content-enter flex justify-center py-20">
+          <div className=" flex justify-center py-20">
             <PageLoadingSpinner />
           </div>
         ) : tier && tierLoadError ? (
-          <div className="animate-content-enter text-center py-20">
+          <div className=" text-center py-20">
             <EmptyState
               icon="error_outline"
               title="Unable to load checkout"
@@ -997,7 +997,7 @@ export default function Checkout() {
             />
           </div>
         ) : tier ? (
-          <div className="animate-content-enter glass-card rounded-xl p-6 md:p-8 backdrop-blur-xl bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10">
+          <div className=" glass-card rounded-xl p-6 md:p-8 backdrop-blur-xl bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10">
             {isCorporate ? (
               <CorporateCheckoutForm 
                 tier={tier} 
@@ -1012,7 +1012,7 @@ export default function Checkout() {
             )}
           </div>
         ) : (
-          <div className="animate-content-enter">
+          <div >
             <DayPassesSection />
           </div>
         )}

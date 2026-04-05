@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useAuthData } from '../contexts/DataContext';
 import { fetchWithCredentials, postWithCredentials } from '../hooks/queries/useFetch';
 import { useToast } from '../hooks/useToast';
+import { springPresets, collapseVariants } from '../utils/motion';
 import Icon from './icons/Icon';
 
 interface OnboardingStep {
@@ -152,6 +154,11 @@ const OnboardingChecklist: React.FC = () => {
   };
 
   const isChecklistVisible = !loading && !!status && !dismissed && !status.isDismissed && (!status.isComplete || celebrating);
+  const prefersReduced = useReducedMotion();
+
+  const collapseTransition = prefersReduced
+    ? { duration: 0 }
+    : springPresets.smooth;
 
   const progressPercent = status ? Math.round((status.completedCount / status.totalSteps) * 100) : 0;
 
@@ -164,9 +171,17 @@ const OnboardingChecklist: React.FC = () => {
   };
 
   return (
-    <div className={`cls-safe-collapse ${isChecklistVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isChecklistVisible}>
-    <div className="cls-safe-inner">
-    {status ? (
+    <AnimatePresence>
+    {isChecklistVisible && status ? (
+    <motion.div
+      key="onboarding-checklist"
+      variants={collapseVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={collapseTransition}
+      style={{ overflow: 'hidden' }}
+    >
     <div className="mb-6 glass-card rounded-xl p-5 backdrop-blur-xl bg-white/30 dark:bg-white/5 border border-white/20">
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -233,9 +248,9 @@ const OnboardingChecklist: React.FC = () => {
         ))}
       </div>
     </div>
+    </motion.div>
     ) : null}
-    </div>
-    </div>
+    </AnimatePresence>
   );
 };
 

@@ -602,7 +602,7 @@ const ActivitySubTab: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 animate-content-enter-delay-1">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <div className="relative">

@@ -1,6 +1,8 @@
 import React from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { BannerAnnouncement } from './dashboardTypes';
 import { PopInSection } from '../../../components/motion';
+import { springPresets } from '../../../utils/motion';
 import Icon from '../../../components/icons/Icon';
 import { useAnnouncementBadgeStore } from '../../../stores/announcementBadgeStore';
 
@@ -63,12 +65,18 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
   bannerExiting, setBannerExiting, setBannerDismissed, bannerExitTimer,
   userEmail, startNavigation, navigate,
 }) => {
-  if (!bannerAnnouncement || bannerDismissed || isBannerInitiallyDismissed) return null;
+  const prefersReduced = useReducedMotion();
+  const showBanner = !!bannerAnnouncement && !bannerDismissed && !isBannerInitiallyDismissed && !bannerExiting;
 
   return (
-    <PopInSection
-      className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${bannerExiting ? 'animate-card-fade-out overflow-hidden' : ''} ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}
-      onAnimationEnd={bannerExiting ? () => { setBannerDismissed(true); if (bannerExitTimer.current) { clearTimeout(bannerExitTimer.current); bannerExitTimer.current = null; } } : undefined}
+    <AnimatePresence onExitComplete={() => { setBannerDismissed(true); if (bannerExitTimer.current) { clearTimeout(bannerExitTimer.current); bannerExitTimer.current = null; } }}>
+    {showBanner && (
+    <motion.div
+      initial={prefersReduced ? false : { opacity: 0, scale: 0.95, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
+      transition={prefersReduced ? { duration: 0 } : springPresets.popIn}
+      className={`mb-4 py-3 px-4 rounded-xl flex items-start justify-between gap-3 ${isDark ? 'bg-lavender/20 border border-lavender/30' : 'bg-lavender/30 border border-lavender/40'}`}
     >
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <Icon name="campaign" className={`text-xl flex-shrink-0 mt-0.5 ${isDark ? 'text-lavender' : 'text-primary'}`} />
@@ -117,7 +125,9 @@ export const BannerAlert: React.FC<BannerAlertProps> = ({
       >
         <Icon name="close" className="text-[18px]" />
       </button>
-    </PopInSection>
+    </motion.div>
+    )}
+    </AnimatePresence>
   );
 };
 

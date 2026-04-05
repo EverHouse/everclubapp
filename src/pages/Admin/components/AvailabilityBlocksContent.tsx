@@ -351,7 +351,7 @@ const AvailabilityBlocksContent: React.FC = () => {
     }, [pastBlocks]);
 
     return (
-        <div className="animate-content-enter">
+        <div >
             <div className="mb-4 p-4 bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20">
                 <div className="flex items-center gap-3">
                     <select
@@ -429,7 +429,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                         return (
                             <div 
                                 key={date} 
-                                className={`bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden ${groupIndex < 10 ? `animate-list-item-delay-${groupIndex}` : 'animate-list-item'}`}
+                                className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 overflow-hidden"
                             >
                                 <button
                                     onClick={() => toggleDay(date)}
@@ -466,7 +466,7 @@ const AvailabilityBlocksContent: React.FC = () => {
                                                 tabIndex={0}
                                                 onClick={() => openEdit(block)}
                                                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(block); } }}
-                                                className={`tactile-row bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors ${blockIndex < 10 ? `animate-list-item-delay-${blockIndex}` : 'animate-list-item'}`}
+                                                className="tactile-row bg-gray-50 dark:bg-black/20 p-3 rounded-lg flex flex-col gap-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-black/30 transition-colors"
                                             >
                                                 <div className="flex gap-3">
                                                     <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center ${getBlockTypeColor(block.block_type)}`}>

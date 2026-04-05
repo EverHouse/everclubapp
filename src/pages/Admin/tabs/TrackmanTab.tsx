@@ -463,8 +463,8 @@ const TrackmanTab: React.FC = () => {
 
   return (
     <LayoutGroup>
-    <div className="px-6 pb-4 space-y-6 animate-page-enter">
-      <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter">
+    <div className="px-6 pb-4 space-y-6">
+      <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
         <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
           <Icon name="upload_file" />
           Import Trackman Bookings
@@ -554,14 +554,14 @@ const TrackmanTab: React.FC = () => {
       </div>
 
       {importRuns.length > 0 && (
-        <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter-delay-1">
+        <div className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
           <h2 className="text-2xl leading-tight text-primary dark:text-white mb-4 flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <Icon name="history" />
             Import History
           </h2>
           <div className="space-y-2">
             {importRuns.slice(0, 5).map((run: ImportRun, idx: number) => (
-              <div key={run.id} className={`p-3 bg-white/50 dark:bg-white/5 rounded-xl ${idx < 10 ? `animate-list-item-delay-${idx}` : 'animate-list-item'}`}>
+              <div key={run.id} className="p-3 bg-white/50 dark:bg-white/5 rounded-xl">
                 <div className="flex flex-col gap-1">
                   <p className="font-medium text-primary dark:text-white text-sm truncate">{formatImportLabel(run.filename, run.createdAt)}</p>
                   <p className="text-xs text-primary/80 dark:text-white/80">
@@ -579,7 +579,7 @@ const TrackmanTab: React.FC = () => {
         </div>
       )}
 
-      <div ref={unmatchedSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25 animate-content-enter-delay-2">
+      <div ref={unmatchedSectionRef} className="glass-card p-6 rounded-xl border border-primary/10 dark:border-white/25">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl leading-tight text-primary dark:text-white flex items-center gap-2" style={{ fontFamily: 'var(--font-headline)' }}>
             <Icon name="warning" />

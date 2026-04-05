@@ -12,7 +12,7 @@ const SwipeablePage: React.FC<SwipeablePageProps> = ({ children, className = "" 
 
   return (
     <div 
-      className={`full-bleed-page w-full bg-transparent animate-page-enter ${className}`}
+      className={`full-bleed-page w-full bg-transparent ${className}`}
       style={{
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 80px)'
       }}

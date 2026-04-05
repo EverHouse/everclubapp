@@ -71,7 +71,7 @@ const PageLoadingSpinner: React.FC<PageLoadingSpinnerProps> = ({
   const textColor = resolvedDark ? 'text-white/60' : 'text-primary/50';
 
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-20 animate-content-enter">
+    <div className="flex flex-col items-center justify-center gap-4 py-20">
       <img
         src={imageSrc}
         alt="Loading"

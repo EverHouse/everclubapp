@@ -21,7 +21,7 @@ const ActivityTab: React.FC<ActivityTabProps> = ({
 }) => {
   return (
     <div 
-      className="animate-content-enter"
+      
     >
       <MemberActivityTab
         memberEmail={memberEmail}

@@ -174,7 +174,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12 animate-page-enter">
+      <div className="flex items-center justify-center py-12">
         <Icon name="progress_activity" className="animate-spin text-4xl text-primary/70" />
       </div>
     );
@@ -197,7 +197,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
   }
 
   return (
-    <div className="space-y-4 animate-page-enter">
+    <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -249,7 +249,7 @@ const DiscountsSubTab: React.FC<DiscountsSubTabProps> = ({ onCreateClick }) => {
                   ? 'bg-white dark:bg-surface-dark border-gray-200 dark:border-white/20' 
                   : 'bg-gray-50 dark:bg-surface-dark/50 border-gray-200 dark:border-white/10 opacity-60'
               }`}
-              style={{ '--stagger-index': index } as React.CSSProperties}
+
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">

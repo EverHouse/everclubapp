@@ -1,12 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
-
-const EXIT_DURATION = 250;
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { springPresets } from '../utils/motion';
 
 export default function OfflineBanner() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [isExiting, setIsExiting] = useState(false);
-  const [rendered, setRendered] = useState(!navigator.onLine);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefersReduced = useReducedMotion();
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -19,44 +17,21 @@ export default function OfflineBanner() {
     };
   }, []);
 
-  useEffect(() => {
-    if (exitTimer.current) {
-      clearTimeout(exitTimer.current);
-      exitTimer.current = null;
-    }
-
-    if (isOffline && !rendered) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsExiting(false);
-      setRendered(true);
-    } else if (!isOffline && rendered) {
-      setIsExiting(true);
-      exitTimer.current = setTimeout(() => {
-        setIsExiting(false);
-        setRendered(false);
-        exitTimer.current = null;
-      }, EXIT_DURATION);
-    }
-
-    return () => {
-      if (exitTimer.current) {
-        clearTimeout(exitTimer.current);
-        exitTimer.current = null;
-      }
-    };
-  }, [isOffline, rendered]);
-
   return (
-    <div className="fixed top-0 left-0 right-0" style={{ zIndex: 'var(--z-nav)', height: rendered ? 'auto' : 0, contain: 'layout' }}>
-      {rendered && (
-        <div
-          className={`bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium ${
-            isExiting ? 'transition-gpu duration-normal ease-[var(--m3-emphasized-decel)] opacity-0 -translate-y-full' : 'animate-banner-slide-down'
-          }`}
-        >
-          You're offline. Showing your last available data.
-        </div>
-      )}
+    <div className="fixed top-0 left-0 right-0" style={{ zIndex: 'var(--z-nav)', contain: 'layout' }}>
+      <AnimatePresence>
+        {isOffline && (
+          <motion.div
+            initial={prefersReduced ? false : { opacity: 0, y: '-100%' }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: '-100%' }}
+            transition={prefersReduced ? { duration: 0 } : springPresets.snappy}
+            className="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium"
+          >
+            You're offline. Showing your last available data.
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

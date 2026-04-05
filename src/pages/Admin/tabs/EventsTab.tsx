@@ -69,8 +69,8 @@ const EventsTab: React.FC = () => {
     });
     
     return (
-            <div className="animate-page-enter backdrop-blur-sm">
-                <div className="flex gap-2 mb-4 animate-content-enter-delay-1">
+            <div className=" backdrop-blur-sm">
+                <div className="flex gap-2 mb-4">
                     <button
                         type="button"
                         onClick={() => setActiveSubTab('events')}
@@ -99,7 +99,7 @@ const EventsTab: React.FC = () => {
                     </button>
                 </div>
 
-                <div key={activeSubTab} className="animate-content-enter">
+                <div key={activeSubTab} >
                     {activeSubTab === 'events' && <PageErrorBoundary pageName="EventsTab"><EventsAdminContent /></PageErrorBoundary>}
                     {activeSubTab === 'wellness' && <PageErrorBoundary pageName="WellnessTab"><WellnessAdminContent /></PageErrorBoundary>}
                 </div>

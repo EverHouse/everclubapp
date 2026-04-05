@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Footer } from '../../components/Footer';
 import BackToTop from '../../components/BackToTop';
 import { usePageReady } from '../../stores/pageReadyStore';
@@ -10,8 +11,8 @@ import { AnimatedPage } from '../../components/motion';
 import SEO from '../../components/SEO';
 import { fetchWithCredentials } from '../../hooks/queries/useFetch';
 import Icon from '../../components/icons/Icon';
-import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { isStaffTier } from '../../utils/tierUtils';
+import { springPresets } from '../../utils/motion';
 
 interface MembershipTier {
   id: number;
@@ -41,7 +42,7 @@ const Landing: React.FC = () => {
     stops: ['0%', '25%', '45%', '65%'],
   }), []);
   const { ref: heroRef, imageRef: heroImageRef, overlayRef: heroOverlayRef } = useParallax({ speed: 0.15, maxOffset: 80, imageScale: 1.03, gradient: landingGradient });
-  const scrollRef = useScrollReveal<HTMLDivElement>();
+  const prefersReduced = useReducedMotion();
   const [heroAnimPlayed] = useState(() => {
     try {
       const played = sessionStorage.getItem(HERO_ANIM_KEY) === '1';
@@ -136,30 +137,41 @@ const Landing: React.FC = () => {
             height: 'calc(100% + max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)))'
           }}
         >
-          <img 
+          <motion.img 
             ref={heroImageRef as React.RefObject<HTMLImageElement>}
             src="/images/hero-lounge-optimized.webp" 
             alt="Ever Members Club indoor lounge and social space in Tustin, Orange County" 
-            className={`absolute inset-0 w-full h-[115%] object-cover object-[center_35%] will-change-transform ${heroAnimPlayed ? '' : 'animate-hero-bg'}`}
+            className="absolute inset-0 w-full h-[115%] object-cover object-[center_35%] will-change-transform"
             loading="eager"
             fetchPriority="high"
             decoding="sync"
             width={1920}
             height={1080}
+            initial={heroAnimPlayed ? false : { opacity: 0, scale: 1.08 }}
+            animate={{ opacity: 1, scale: 1.03 }}
+            transition={{ duration: 1.2, ease: [0.2, 0, 0, 1] }}
             style={{ 
               transform: 'translateY(0px) scale(1.03)'
             }}
           />
-          <div 
+          <motion.div 
             ref={heroOverlayRef as React.RefObject<HTMLDivElement>}
-            className={`absolute inset-0 transition-opacity duration-normal ${heroAnimPlayed ? '' : 'animate-hero-overlay'}`}
+            className="absolute inset-0"
+            initial={heroAnimPlayed ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.3 }}
             style={{
               background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 25%, rgba(0,0,0,0.12) 45%, transparent 65%)'
             }}
           />
         </div>
 
-        <div className={`relative z-10 px-6 md:px-16 pb-20 md:pb-28 max-w-2xl ${heroAnimPlayed ? '' : 'animate-hero-headline'}`}>
+        <motion.div
+          className="relative z-10 px-6 md:px-16 pb-20 md:pb-28 max-w-2xl"
+          initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.4 }}
+        >
           <h1 className="mb-6 text-white">
             <span
               className="block text-5xl md:text-7xl font-normal italic leading-[1.05]"
@@ -174,19 +186,30 @@ const Landing: React.FC = () => {
               Office. Course. Club.
             </span>
           </h1>
-          <p
-            className={`text-sm text-white/60 mb-2 max-w-md leading-[1.8] font-light ${heroAnimPlayed ? '' : 'animate-hero-tagline'}`}
+          <motion.p
+            className="text-sm text-white/60 mb-2 max-w-md leading-[1.8] font-light"
             style={{ fontFamily: 'var(--font-body)' }}
+            initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.55 }}
           >
             Orange County's premier indoor golf simulator club for professionals who work, play, and connect — all under one roof in Tustin, CA.
-          </p>
-          <p
-            className={`text-[10px] text-white/30 uppercase tracking-[0.3em] mb-10 ${heroAnimPlayed ? '' : 'animate-hero-tagline'}`}
+          </motion.p>
+          <motion.p
+            className="text-[10px] text-white/30 uppercase tracking-[0.3em] mb-10"
             style={{ fontFamily: 'var(--font-label)' }}
+            initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.55 }}
           >
             Formerly Even House · Tustin, CA
-          </p>
-          <div className={`flex flex-wrap gap-5 ${heroAnimPlayed ? '' : 'animate-hero-cta'}`}>
+          </motion.p>
+          <motion.div
+            className="flex flex-wrap gap-5"
+            initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.7 }}
+          >
             <Link
               to="/tour"
               className="border border-white/60 bg-white text-primary px-8 py-3.5 uppercase tracking-[0.2em] text-[10px] font-medium transition-colors duration-[600ms] hover:bg-white/90"
@@ -201,16 +224,22 @@ const Landing: React.FC = () => {
             >
               Explore Membership
             </Link>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
 
       <h2 className="sr-only">Indoor Golf Simulator & Social Club in Tustin, Orange County — Trackman Simulators, Coworking & Events</h2>
 
-      <div ref={scrollRef} className="scroll-reveal-group bg-bone dark:bg-[#141414]">
+      <div className="bg-bone dark:bg-[#141414]">
 
       {/* As Seen In — minimal horizontal strip */}
-      <div className="scroll-reveal px-6 py-16 md:py-20 bg-bone dark:bg-[#141414]">
+      <motion.div
+        className="px-6 py-16 md:py-20 bg-bone dark:bg-[#141414]"
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -40px 0px' }}
+        transition={prefersReduced ? { duration: 0 } : { ...springPresets.smooth, delay: 0 }}
+      >
         <p
           className="text-center text-[10px] uppercase tracking-[0.35em] text-primary/30 dark:text-white/30 mb-10"
           style={{ fontFamily: 'var(--font-label)', fontWeight: 400 }}
@@ -259,10 +288,16 @@ const Landing: React.FC = () => {
             Forbes
           </cite>
         </blockquote>
-      </div>
+      </motion.div>
 
       {/* Private Events — editorial spread */}
-      <div className="scroll-reveal px-6 md:px-12 py-16 bg-bone dark:bg-[#141414]">
+      <motion.div
+        className="px-6 md:px-12 py-16 bg-bone dark:bg-[#141414]"
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -40px 0px' }}
+        transition={prefersReduced ? { duration: 0 } : { ...springPresets.smooth, delay: 0.06 }}
+      >
          <div
            className="relative overflow-hidden h-[450px] md:h-[500px] group max-w-5xl mx-auto cursor-pointer"
            onClick={() => navigate('/private-hire')}
@@ -295,7 +330,7 @@ const Landing: React.FC = () => {
                 </Link>
             </div>
          </div>
-      </div>
+      </motion.div>
 
       {/* Editorial Showcases */}
       <div className="space-y-32 py-32 px-6 md:px-20 bg-bone dark:bg-[#141414]">
@@ -345,7 +380,13 @@ const Landing: React.FC = () => {
       </div>
 
       {/* Membership Tiers — typographic, no glassmorphism */}
-      <section className="scroll-reveal px-6 py-24 bg-bone dark:bg-[#141414]">
+      <motion.section
+        className="px-6 py-24 bg-bone dark:bg-[#141414]"
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -40px 0px' }}
+        transition={prefersReduced ? { duration: 0 } : { ...springPresets.smooth, delay: 0.12 }}
+      >
          <div className="text-center mb-16">
             <p
               className="text-[10px] uppercase tracking-[0.35em] text-primary/30 dark:text-white/30 mb-4"
@@ -483,11 +524,17 @@ const Landing: React.FC = () => {
               Compare all tiers
               <Icon name="arrow_forward" className="text-[14px]" />
             </Link>
-      </section>
+      </motion.section>
 
 
       {/* Final CTA — calm invitation */}
-      <section className="scroll-reveal px-6 py-28 md:py-36 bg-bone dark:bg-[#141414]">
+      <motion.section
+        className="px-6 py-28 md:py-36 bg-bone dark:bg-[#141414]"
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -40px 0px' }}
+        transition={prefersReduced ? { duration: 0 } : { ...springPresets.smooth, delay: 0.18 }}
+      >
         <div className="max-w-lg mx-auto text-center">
           <h2
             className="text-3xl md:text-4xl text-primary dark:text-white mb-5 leading-tight"
@@ -509,7 +556,7 @@ const Landing: React.FC = () => {
             Book Your Private Tour
           </Link>
         </div>
-      </section>
+      </motion.section>
 
       </div>
 

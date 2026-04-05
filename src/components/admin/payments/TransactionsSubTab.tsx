@@ -1197,7 +1197,7 @@ const MobileTransactionsView: React.FC = () => {
           <button
             key={action.id}
             onClick={() => setActiveSection(action.id)}
-            className={`${action.bgClass} ${action.textClass} ${action.borderClass} ${action.hoverClass} border backdrop-blur-md rounded-xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-transform duration-normal relative animate-list-item-delay-${Math.min(index, 10)}`}
+            className={`${action.bgClass} ${action.textClass} ${action.borderClass} ${action.hoverClass} border backdrop-blur-md rounded-xl p-4 flex flex-col items-center gap-2 min-h-[100px] shadow-lg active:scale-95 transition-transform duration-normal`}
           >
             <Icon name={action.icon} className={`text-3xl ${action.iconClass}`} />
             <span className="font-semibold text-sm">{action.label}</span>

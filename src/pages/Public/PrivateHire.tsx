@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Footer } from '../../components/Footer';
 import VirtualTour from '../../components/VirtualTour';
 import { usePageReady } from '../../stores/pageReadyStore';
@@ -51,23 +52,29 @@ const PrivateHire: React.FC = () => {
              height: 'calc(100% + max(env(safe-area-inset-top, 0px), env(titlebar-area-height, 0px)))'
            }}
          >
-           <img 
+           <motion.img 
              ref={heroImageRef as React.RefObject<HTMLImageElement>}
              src="/images/venue-wide-optimized.webp" 
              alt="Private event venue with Trackman golf simulators at Ever Members Club in Orange County" 
-             className={`absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform ${heroAnimPlayed ? '' : 'animate-hero-bg'}`}
+             className="absolute inset-0 w-full h-[120%] object-cover object-[center_35%] will-change-transform"
              loading="eager"
              fetchPriority="high"
              width={1920}
              height={1080}
+             initial={heroAnimPlayed ? false : { opacity: 0, scale: 1.08 }}
+             animate={{ opacity: 1, scale: 1.05 }}
+             transition={{ duration: 1.2, ease: [0.2, 0, 0, 1] }}
              style={{ 
                transform: 'translateY(0px) scale(1.05)',
                opacity: 1
              }}
            />
-           <div 
+           <motion.div 
              ref={heroOverlayRef as React.RefObject<HTMLDivElement>}
-             className={`absolute inset-0 transition-opacity duration-normal ${heroAnimPlayed ? '' : 'animate-hero-overlay'}`}
+             className="absolute inset-0"
+             initial={heroAnimPlayed ? false : { opacity: 0 }}
+             animate={{ opacity: 1 }}
+             transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.3 }}
              style={{
                background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.45) 20%, rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.08) 50%, transparent 60%)'
              }}
@@ -76,19 +83,41 @@ const PrivateHire: React.FC = () => {
          
          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none z-[1] rounded-b-[2.5rem]" />
 
-         <div className={`absolute left-4 right-4 mx-auto bottom-12 md:left-12 md:right-auto md:mx-0 md:bottom-20 z-10 w-auto md:max-w-xl ${heroAnimPlayed ? '' : 'animate-hero-headline'}`}>
+         <motion.div
+           className="absolute left-4 right-4 mx-auto bottom-12 md:left-12 md:right-auto md:mx-0 md:bottom-20 z-10 w-auto md:max-w-xl"
+           initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.4 }}
+         >
            <div className="bg-black/40 backdrop-blur-3xl border border-white/10 p-8 md:p-12 rounded-xl text-center md:text-left">
              <h1 className="mb-4 text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
                <span className="block text-4xl md:text-6xl font-normal italic" style={{ fontFamily: 'var(--font-display)' }}>Curated</span>
                <span className="block text-3xl md:text-5xl font-bold uppercase tracking-[0.25em] mt-1" style={{ fontFamily: 'var(--font-body)' }}>Spaces</span>
              </h1>
-             <p className={`text-sm text-white/70 mb-2 max-w-sm leading-relaxed ${heroAnimPlayed ? '' : 'animate-hero-tagline'} mx-auto md:mx-0`} style={{ fontFamily: 'var(--font-body)' }}>
+             <motion.p
+               className="text-sm text-white/70 mb-2 max-w-sm leading-relaxed mx-auto md:mx-0"
+               style={{ fontFamily: 'var(--font-body)' }}
+               initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.55 }}
+             >
                From intimate dinners to grand receptions, discover the perfect setting for your next event. Our team handles every detail so you can focus on your guests.
-             </p>
-             <p className={`text-[10px] text-white/40 uppercase tracking-[0.3em] mb-6 ${heroAnimPlayed ? '' : 'animate-hero-tagline'}`} style={{ fontFamily: 'var(--font-label)' }}>
+             </motion.p>
+             <motion.p
+               className="text-[10px] text-white/40 uppercase tracking-[0.3em] mb-6"
+               style={{ fontFamily: 'var(--font-label)' }}
+               initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.55 }}
+             >
                Private events for 10 to 600+ guests · Tustin, CA
-             </p>
-             <div className={`flex flex-wrap gap-4 ${heroAnimPlayed ? '' : 'animate-hero-cta'} justify-center md:justify-start`}>
+             </motion.p>
+             <motion.div
+               className="flex flex-wrap gap-4 justify-center md:justify-start"
+               initial={heroAnimPlayed ? false : { opacity: 0, y: 30 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.8, ease: [0.2, 0, 0, 1], delay: 0.7 }}
+             >
                <Link
                  to="/private-hire/inquire"
                  className="border border-white/40 bg-transparent hover:bg-white/10 text-white px-6 py-3 uppercase tracking-[0.2em] text-[10px] font-medium transition-colors drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
@@ -96,9 +125,9 @@ const PrivateHire: React.FC = () => {
                >
                  Plan Your Event
                </Link>
-             </div>
+             </motion.div>
            </div>
-         </div>
+         </motion.div>
        </div>
 
        <div className="bg-bone dark:bg-[#141414]">

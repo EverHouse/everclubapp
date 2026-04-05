@@ -310,7 +310,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
 
     return (
         <div ref={calendarColRef} className={`flex-1 lg:flex lg:flex-col ${activeView === 'calendar' ? 'block' : 'hidden lg:flex'}`}>
-            <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0 animate-content-enter">
+            <div className="bg-gray-50 dark:bg-white/5 py-3 shrink-0">
                 <div className="flex items-center justify-center px-2 relative">
                     <div className="flex items-center gap-2 relative">
                         <button
@@ -429,7 +429,7 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({
                 </div>
             </div>
             
-            <div className="flex-1 relative animate-content-enter-delay-1 overflow-x-auto scroll-smooth">
+            <div className="flex-1 relative overflow-x-auto scroll-smooth">
                 <div className="w-full px-1 sm:px-2 pb-4">
                     <div className="w-full">
                     <div ref={gridRef} className="grid gap-0.5 w-full relative" style={{ gridTemplateColumns: `minmax(32px, 0.6fr) repeat(${resources.length}, minmax(0, 1fr))` }}>

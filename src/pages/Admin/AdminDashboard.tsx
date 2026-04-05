@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation, useSearchParams, Outlet } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthData } from '../../contexts/DataContext';
 import { BottomSentinel } from '../../components/layout/BottomSentinel';
@@ -30,6 +31,7 @@ import { usePendingCounts } from './layout/hooks/usePendingCounts';
 import { useUnreadNotifications } from './layout/hooks/useUnreadNotifications';
 import { useCommandCenter } from './layout/hooks/useCommandCenter';
 import { fetchWithCredentials, putWithCredentials, postWithCredentials, deleteWithCredentials, ApiError } from '../../hooks/queries/useFetch';
+import { springPresets, collapseVariants } from '../../utils/motion';
 import Icon from '../../components/icons/Icon';
 
 const TabLoadingFallback = () => (
@@ -256,7 +258,7 @@ const AdminDashboard: React.FC = () => {
         </button>
       </div>
       
-      <h1 key={getTabTitle()} className="text-2xl font-normal italic text-[#F2F2EC] text-center truncate flex-1 leading-none lowercase translate-y-[1px] font-serif animate-header-title">
+      <h1 key={getTabTitle()} className="text-2xl font-normal italic text-[#F2F2EC] text-center truncate flex-1 leading-none lowercase translate-y-[1px] font-serif">
         {getTabTitle()}
       </h1>
 
@@ -594,6 +596,7 @@ const TrainingSectionModal: React.FC<TrainingModalProps> = ({ isOpen, onClose, s
 };
 
 const StaffTrainingGuide: React.FC = () => {
+    const prefersReducedMotion = useReducedMotion();
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
     const [sections, setSections] = useState<TrainingSectionDB[]>([]);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -696,7 +699,7 @@ const StaffTrainingGuide: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 animate-page-enter pb-32">
+        <div className="space-y-6 pb-32">
             <div className="mb-6">
                 <p className="text-sm text-primary/80 dark:text-white/80 mb-2">
                     A complete guide to using the Ever Club Staff Portal. Tap any section to expand and view detailed instructions.
@@ -782,8 +785,17 @@ const StaffTrainingGuide: React.FC = () => {
                             )}
                         </div>
 
-                        <div className={`cls-safe-collapse ${isPrinting || expandedSection === String(section.id) ? 'cls-safe-visible' : ''}`}>
-                            <div className="cls-safe-inner">
+                        <AnimatePresence>
+                        {(isPrinting || expandedSection === String(section.id)) && (
+                            <motion.div
+                                key={`training-section-${section.id}`}
+                                variants={collapseVariants}
+                                initial={isPrinting ? false : 'hidden'}
+                                animate="visible"
+                                exit="exit"
+                                transition={prefersReducedMotion ? { duration: 0 } : springPresets.smooth}
+                                style={{ overflow: 'hidden' }}
+                            >
                                 <div className="px-8 pt-4 pb-8 space-y-4 print:pt-2">
                                     {section.steps.map((step, index) => (
                                         <div key={`display-step-${index}-${step.title}`} className="flex gap-4">
@@ -807,8 +819,9 @@ const StaffTrainingGuide: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-                        </div>
+                            </motion.div>
+                        )}
+                        </AnimatePresence>
                     </div>
                 ))}
 

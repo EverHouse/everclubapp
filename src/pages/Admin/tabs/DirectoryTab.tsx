@@ -234,7 +234,7 @@ const DirectoryTab: React.FC = () => {
                 />
             )}
 
-            <div key={memberTab} className="flex flex-col animate-content-enter">
+            <div key={memberTab} className="flex flex-col">
                 {memberTab === 'active' && (
                     <ActiveMembersList
                         members={members}

@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { triggerHaptic } from '../utils/haptics';
+import { springPresets } from '../utils/motion';
 import MotionButton from './ui/MotionButton';
 import WalkingGolferSpinner from './WalkingGolferSpinner';
 import { useTheme } from '../contexts/ThemeContext';
@@ -123,7 +125,12 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
       
       <div className="p-6 pt-0">
         {success ? (
-          <div className="py-8 flex flex-col items-center text-center animate-pop-in">
+          <motion.div
+            className="py-8 flex flex-col items-center text-center"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={springPresets.popIn}
+          >
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-4">
               <Icon name="check" className="text-3xl" />
             </div>
@@ -140,7 +147,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
             >
               Done
             </MotionButton>
-          </div>
+          </motion.div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (

@@ -36,7 +36,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({
   const isCompact = variant === 'compact';
 
   return (
-    <div className={`flex flex-col items-center justify-center text-center ${isCompact ? 'py-8 px-4' : 'py-16 px-6'} animate-pop-in`}>
+    <div className={`flex flex-col items-center justify-center text-center ${isCompact ? 'py-8 px-4' : 'py-16 px-6'}`}>
       <div className={`relative ${isCompact ? 'mb-3' : 'mb-6'}`}>
         <div className={`${isCompact ? 'w-16 h-16' : 'w-24 h-24'} rounded-full bg-gradient-to-br from-red-100 to-red-50 dark:from-red-500/20 dark:to-red-500/10 flex items-center justify-center`}>
           <Icon name="error_outline" className={`${isCompact ? 'text-3xl' : 'text-5xl'} text-red-500 dark:text-red-400`} />

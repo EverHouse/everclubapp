@@ -26,7 +26,7 @@ const TiersTab: React.FC = () => {
     }
 
     return (
-        <div className="animate-page-enter">
+        <div >
             <div className="flex gap-1 p-1 bg-gray-100 dark:bg-black/30 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
                 {SUB_TABS.map(t => (
                     <button
@@ -44,7 +44,7 @@ const TiersTab: React.FC = () => {
                 ))}
             </div>
 
-            <div key={tab.activeSubTab} className="animate-content-enter">
+            <div key={tab.activeSubTab} >
                 {tab.activeSubTab === 'fees' && (
                     <FeesSubTab feeProducts={tab.feeProducts} openEdit={tab.openEdit} openCreate={tab.openCreateOneTime} />
                 )}

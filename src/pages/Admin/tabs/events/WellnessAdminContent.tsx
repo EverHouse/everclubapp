@@ -355,10 +355,10 @@ export const WellnessAdminContent: React.FC = () => {
 
     return (
         <div key={activeCategory}>
-            <p className="text-sm text-primary/80 dark:text-white/80 mb-4 animate-content-enter">
+            <p className="text-sm text-primary/80 dark:text-white/80 mb-4">
                 Synced from Google Calendar: <span className="font-medium">Wellness & Classes</span>
             </p>
-            <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-1 scroll-fade-right">
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 scroll-fade-right">
                 {WELLNESS_CATEGORY_TABS.map(tab => (
                     <button
                         key={tab.id}
@@ -391,7 +391,7 @@ export const WellnessAdminContent: React.FC = () => {
             )}
 
             {needsReviewClasses.length > 0 && (
-                <div className="mb-6 animate-content-enter-delay-2">
+                <div className="mb-6">
                     <div className="bg-amber-50/80 dark:bg-amber-900/20 backdrop-blur-sm border border-amber-200 dark:border-amber-700/50 rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
                             <Icon name="rate_review" className="text-amber-500" />
@@ -460,14 +460,14 @@ export const WellnessAdminContent: React.FC = () => {
             ) : (
                 <div className="space-y-6">
                     {upcomingClasses.length > 0 && (
-                        <div className="animate-content-enter-delay-2">
+                        <div >
                             <div className="flex items-center gap-2 mb-3">
                                 <Icon name="schedule" className="text-green-500" />
                                 <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingClasses.length})</h3>
                             </div>
                             <div className="grid grid-cols-1 gap-4">
                                 {upcomingClasses.slice(0, showAllUpcoming ? upcomingClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
-                                    <div key={cls.id} onClick={() => openEdit(cls)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(cls); } }} role="button" tabIndex={0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
+                                    <div key={cls.id} onClick={() => openEdit(cls)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(cls); } }} role="button" tabIndex={0} className="tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors">
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {cls.image_url ? (
@@ -508,7 +508,7 @@ export const WellnessAdminContent: React.FC = () => {
                     )}
                     
                     {pastClasses.length > 0 && (
-                        <div className="animate-content-enter-delay-3">
+                        <div >
                             <button 
                                 onClick={() => setShowPastClasses(!showPastClasses)}
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
@@ -521,7 +521,7 @@ export const WellnessAdminContent: React.FC = () => {
                             <>
                             <div className="grid grid-cols-1 gap-4 opacity-70">
                                 {pastClasses.slice(0, showAllPast ? pastClasses.length : INITIAL_DISPLAY_COUNT).map((cls, index) => (
-                                    <div key={cls.id} onClick={() => openEdit(cls)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(cls); } }} role="button" tabIndex={0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors animate-list-item-delay-${Math.min(index + 1, 10)}`}>
+                                    <div key={cls.id} onClick={() => openEdit(cls)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(cls); } }} role="button" tabIndex={0} className="tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex flex-col gap-3 relative overflow-hidden cursor-pointer hover:border-primary/30 transition-colors">
                                         <div className="flex gap-4">
                                             <div className="w-20 h-20 rounded-lg bg-[#CCB8E4]/20 dark:bg-[#CCB8E4]/10 flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                 {cls.image_url ? (

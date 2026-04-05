@@ -198,7 +198,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
     const syncingTo = syncToSheetMutation.isPending;
 
     return (
-        <div className="animate-page-enter">
+        <div >
             <SlideUpDrawer 
                 isOpen={isEditing} 
                 onClose={() => setIsEditing(false)} 
@@ -291,7 +291,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                 </div>
             </SlideUpDrawer>
 
-            <div className="space-y-4 animate-content-enter-delay-1">
+            <div className="space-y-4">
                 {/* Tools Bar */}
                 <div className="bg-white dark:bg-surface-dark rounded-xl border border-gray-200 dark:border-white/20 p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -401,7 +401,7 @@ const AnnouncementManager: React.FC<AnnouncementManagerProps> = ({ triggerCreate
                     const idB = parseInt(b.id, 10) || 0;
                     return idB - idA;
                 }).map((item, index) => (
-                    <div key={item.id} onClick={() => openEdit(item)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(item); } }} role="button" tabIndex={0} className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-colors duration-fast tactile-row ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}>
+                    <div key={item.id} onClick={() => openEdit(item)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(item); } }} role="button" tabIndex={0} className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm flex justify-between items-start cursor-pointer hover:border-primary/30 transition-colors duration-fast tactile-row">
                         <div>
                             <div className="flex items-center gap-2 mb-1.5">
                                 <span className="w-2 h-2 rounded-full bg-accent"></span>

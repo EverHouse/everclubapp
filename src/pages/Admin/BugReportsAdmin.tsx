@@ -127,9 +127,9 @@ const BugReportsAdmin: React.FC = () => {
     const openCount = reports.filter(r => r.status === 'open').length;
 
     return (
-        <div className="min-h-screen pb-32 animate-page-enter">
+        <div className="min-h-screen pb-32">
             <div className="px-4 pt-6">
-                <div className="flex items-center justify-between mb-6 animate-content-enter">
+                <div className="flex items-center justify-between mb-6">
                     <div>
                         <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-primary'}`}>Bug Reports</h1>
                         <p className={`text-sm mt-1 ${isDark ? 'text-white/80' : 'text-primary/80'}`}>
@@ -141,7 +141,7 @@ const BugReportsAdmin: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide animate-content-enter-delay-1 scroll-fade-right">
+                <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide scroll-fade-right">
                     {STATUS_TABS.map(tab => (
                         <button
                             key={tab.id}

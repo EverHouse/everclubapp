@@ -6,7 +6,8 @@ import { QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-q
 import { queryClient } from './lib/queryClient';
 import { DataProvider, useAuthData, useAnnouncementData } from './contexts/DataContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
-import DirectionalPageTransition, { TransitionContext, PageExitContext } from './components/motion/DirectionalPageTransition';
+import { AnimatePresence } from 'framer-motion';
+import DirectionalPageTransition, { TransitionContext } from './components/motion/DirectionalPageTransition';
 import Logo from './components/Logo';
 import MenuOverlay from './components/MenuOverlay';
 import MemberMenuOverlay from './components/MemberMenuOverlay';
@@ -315,57 +316,7 @@ const ROUTE_INDICES: Record<string, number> = {
   '/profile': 6,
 };
 
-const PAGE_EXIT_DURATION = 150;
-
-const useViewTransitionLocation = () => {
-  const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [isExiting, setIsExiting] = useState(false);
-  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isFirstRender = useRef(true);
-  const latestLocationRef = useRef(location);
-  latestLocationRef.current = location;
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      setDisplayLocation(location);
-      return;
-    }
-
-    if (exitTimerRef.current) {
-      clearTimeout(exitTimerRef.current);
-      exitTimerRef.current = null;
-    }
-
-    if (location.pathname === displayLocation.pathname && location.search === displayLocation.search) {
-      setIsExiting(false);
-      setDisplayLocation(location);
-      return;
-    }
-
-    setIsExiting(true);
-
-    exitTimerRef.current = setTimeout(() => {
-      const latest = latestLocationRef.current;
-      setIsExiting(false);
-      setDisplayLocation(latest);
-      exitTimerRef.current = null;
-    }, PAGE_EXIT_DURATION);
-
-    return () => {
-      if (exitTimerRef.current) {
-        clearTimeout(exitTimerRef.current);
-        exitTimerRef.current = null;
-      }
-    };
-  }, [location]);
-
-  return { displayLocation, isExiting };
-};
-
 const AnimatedRoutes: React.FC = () => {
-  const { displayLocation, isExiting } = useViewTransitionLocation();
   const location = useLocation();
   const prevPathRef = useRef(location.pathname);
   const { user } = useAuthData();
@@ -407,7 +358,7 @@ const AnimatedRoutes: React.FC = () => {
 
     historyIndexRef.current = currentIdx;
     prevLocationKeyRef.current = currentKey;
-  }, [displayLocation.pathname, navigationType, location.key]);
+  }, [location.pathname, navigationType, location.key]);
   
   useEffect(() => {
     if (prevEmailRef.current && prevEmailRef.current !== user?.email) {
@@ -446,10 +397,12 @@ const AnimatedRoutes: React.FC = () => {
     prevPathRef.current = location.pathname;
   }, [location.pathname]);
 
+  const routeKey = '/' + (location.pathname.split('/')[1] || '');
+
   return (
     <TransitionContext.Provider value={transitionState}>
-      <PageExitContext.Provider value={isExiting}>
-          <Routes location={displayLocation}>
+      <AnimatePresence mode="wait">
+          <Routes location={location} key={routeKey}>
             <Route path="/" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="Landing"><Landing /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
             <Route path="/join" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="MembershipJoin"><MembershipJoin /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
             <Route path="/membership/apply" element={<DirectionalPageTransition><Suspense fallback={<PageSkeleton />}><PageErrorBoundary pageName="MembershipApply"><MembershipApply /></PageErrorBoundary></Suspense></DirectionalPageTransition>} />
@@ -579,7 +532,7 @@ const AnimatedRoutes: React.FC = () => {
             
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-      </PageExitContext.Provider>
+      </AnimatePresence>
     </TransitionContext.Provider>
   );
 };
@@ -771,7 +724,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Center section - auto width, centered between equal flex-1 sides */}
       <div className="flex-shrink-0 flex justify-center">
         {isMemberRoute ? (
-          <h1 key={getPageTitle()} className="text-2xl font-normal italic text-[#F2F2EC] truncate leading-none lowercase translate-y-[1px] font-serif animate-header-title">
+          <h1 key={getPageTitle()} className="text-2xl font-normal italic text-[#F2F2EC] truncate leading-none lowercase translate-y-[1px] font-serif">
             {getPageTitle()}
           </h1>
         ) : (
@@ -797,12 +750,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             className={`w-11 h-11 flex items-center justify-center ${headerBtnClasses} focus:ring-2 focus:ring-accent focus:outline-none rounded-lg relative`}
             aria-label={isStaffOrAdmin && !isViewingAs ? "Updates" : "Notifications"}
           >
-            <Icon name={isStaffOrAdmin && !isViewingAs ? 'campaign' : 'notifications'} className="text-[24px]" />
-            {unreadCount > 0 && (
-              <span className="absolute top-0 right-0 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-badge-pulse">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+            <div className="relative flex">
+              <Icon name={isStaffOrAdmin && !isViewingAs ? 'campaign' : 'notifications'} className="text-[24px]" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-badge-pulse">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
           </button>
         )}
         {isMemberRoute && user ? (

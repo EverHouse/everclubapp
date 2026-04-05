@@ -89,7 +89,7 @@ const TierCardList: React.FC<TierCardListProps> = ({
                     variant="compact"
                 />
             ) : (
-                <div ref={tiersRef} className="space-y-3 animate-content-enter">
+                <div ref={tiersRef} className="space-y-3">
                     {subscriptionTiers.map((tier) => (
                         <div 
                             key={tier.id} 

@@ -1,10 +1,12 @@
 import React, { useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour, isFacilityOpen, formatDateDisplayWithDay } from '../../../utils/dateUtils';
 import { isBlockingClosure, getNoticeTypeLabel, getNoticeSecondaryTag } from '../../../utils/closureUtils';
 import type { BayStatus, Closure, Announcement, TabType, RecentActivity, StaffNotification } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
+import { staggerContainer, listItemVariant } from '../../../utils/motion';
 import { RESOURCE_TYPE } from '../../../../shared/constants/statuses';
 
 interface NoticeBoardCardProps {
@@ -21,7 +23,9 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
   announcements,
   upcomingClosure,
   navigateToTab
-}) => (
+}) => {
+  const prefersReduced = useReducedMotion();
+  return (
   <div className={`${variant === 'desktop' ? 'h-full' : ''} bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark overflow-hidden ${variant === 'desktop' ? 'flex flex-col' : ''}`}>
     <div className="flex items-center justify-between mb-3 lg:mb-4 px-4">
       <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Internal Notice Board</h3>
@@ -77,19 +81,18 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
         </div>
       )
     ) : (
-      <div className={`space-y-3 px-4 pb-4 ${variant === 'desktop' ? 'flex-1' : ''}`}>
+      <motion.div className={`space-y-3 px-4 pb-4 ${variant === 'desktop' ? 'flex-1' : ''}`} variants={prefersReduced ? undefined : staggerContainer()} initial={prefersReduced ? false : 'hidden'} animate="show">
         {closures.slice(0, 3).map((closure, index) => {
           const blocking = isBlockingClosure(closure.affectedAreas);
           return (
+            <motion.div key={closure.id ?? `closure-${index}`} variants={prefersReduced ? undefined : listItemVariant}>
             <button 
-              key={closure.id ?? `closure-${index}`}
               onClick={() => navigateToTab('blocks')}
-              className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger tactile-card ${
+              className={`w-full text-left rounded-lg p-3 transition-colors tactile-card ${
                 blocking
                   ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
                   : 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
               }`}
-              style={{ '--stagger-index': index } as React.CSSProperties}
             >
               <div className="flex flex-wrap items-center gap-1.5 mb-1">
                 <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
@@ -119,22 +122,24 @@ const NoticeBoardCard = memo<NoticeBoardCardProps>(({
                 {closure.startTime && ` at ${formatTime12Hour(closure.startTime)}`}
               </p>
             </button>
+            </motion.div>
           );
         })}
         {announcements.slice(0, 3).map((announcement, index) => (
+          <motion.div key={announcement.id ?? `ann-${index}`} variants={prefersReduced ? undefined : listItemVariant}>
           <button 
-            key={announcement.id ?? `ann-${index}`}
             onClick={() => navigateToTab('announcements')}
-            className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger tactile-card"
-            style={{ '--stagger-index': index } as React.CSSProperties}
+            className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors tactile-card"
           >
             <p className="text-sm font-medium text-purple-800 dark:text-purple-200">{announcement.title}</p>
           </button>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     )}
   </div>
-));
+  );
+});
 
 interface FacilityStatusCardProps {
   bayStatuses: BayStatus[];
@@ -165,8 +170,7 @@ const FacilityStatusCard = memo<FacilityStatusCardProps>(({
         <button
           key={`conf-${variant}-${bay.id}`}
           onClick={() => navigate(`/admin/bookings?resourceType=conference&bay=${bay.id}`)}
-          className="w-full flex items-center gap-2 py-2 mb-2 border-b border-primary/5 dark:border-white/10 text-left hover:opacity-80 transition-opacity animate-slide-up-stagger tactile-card"
-          style={{ '--stagger-index': index } as React.CSSProperties}
+          className="w-full flex items-center gap-2 py-2 mb-2 border-b border-primary/5 dark:border-white/10 text-left hover:opacity-80 transition-opacity tactile-card"
         >
           <span className={`w-2 h-2 rounded-full ${dotColor}`} />
           <div>
@@ -190,8 +194,7 @@ const FacilityStatusCard = memo<FacilityStatusCardProps>(({
           <button
             key={`bay-${variant}-${bay.id}`}
             onClick={() => navigate(`/admin/bookings?bay=${bay.id}`)}
-            className={`p-3 rounded-xl border text-left hover:opacity-80 transition-opacity animate-slide-up-stagger tactile-card ${isClosed ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-white dark:bg-white/10 border-primary/5 dark:border-white/10'}`}
-            style={{ '--stagger-index': index } as React.CSSProperties}
+            className={`p-3 rounded-xl border text-left hover:opacity-80 transition-opacity tactile-card ${isClosed ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-white dark:bg-white/10 border-primary/5 dark:border-white/10'}`}
           >
             <div className="flex items-center gap-2 mb-1">
               <span className={`w-2 h-2 rounded-full ${dotColor}`} />
@@ -291,6 +294,7 @@ export const NoticeBoardWidget: React.FC<{
   announcements: Announcement[];
 }> = ({ closures, upcomingClosure, announcements }) => {
   const navigate = useNavigate();
+  const prefersReduced = useReducedMotion();
   const navigateToTab = useCallback((tab: TabType) => {
     if ((tabToPath as Record<string, string>)[tab]) navigate((tabToPath as Record<string, string>)[tab]);
   }, [navigate]);
@@ -351,19 +355,18 @@ export const NoticeBoardWidget: React.FC<{
           </div>
         )
       ) : (
-        <div className="space-y-3 flex-1">
+        <motion.div className="space-y-3 flex-1" variants={prefersReduced ? undefined : staggerContainer()} initial={prefersReduced ? false : 'hidden'} animate="show">
           {closures.slice(0, 3).map((closure, index) => {
             const blocking = isBlockingClosure(closure.affectedAreas);
             return (
+              <motion.div key={closure.id ?? `closure-${index}`} variants={prefersReduced ? undefined : listItemVariant}>
               <button 
-                key={closure.id ?? `closure-${index}`} 
                 onClick={() => navigateToTab('blocks')}
-                className={`w-full text-left rounded-lg p-3 transition-colors animate-slide-up-stagger tactile-card ${
+                className={`w-full text-left rounded-lg p-3 transition-colors tactile-card ${
                   blocking
                     ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
                     : 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
                 }`}
-                style={{ '--stagger-index': index } as React.CSSProperties}
               >
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                   <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
@@ -393,19 +396,20 @@ export const NoticeBoardWidget: React.FC<{
                   {closure.startTime && ` at ${formatTime12Hour(closure.startTime)}`}
                 </p>
               </button>
+              </motion.div>
             );
           })}
           {announcements.slice(0, 3).map((announcement, index) => (
+            <motion.div key={announcement.id ?? `ann-${index}`} variants={prefersReduced ? undefined : listItemVariant}>
             <button 
-              key={announcement.id ?? `ann-${index}`}
               onClick={() => navigateToTab('announcements')}
-              className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors animate-slide-up-stagger tactile-card"
-              style={{ '--stagger-index': index } as React.CSSProperties}
+              className="w-full text-left bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors tactile-card"
             >
               <p className="text-sm font-medium text-purple-800 dark:text-purple-200">{announcement.title}</p>
             </button>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );

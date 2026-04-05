@@ -235,8 +235,8 @@ const GalleryAdmin: React.FC = () => {
     const categories = ['venue', 'events', 'food', 'golf', 'wellness', 'outdoor'];
 
     return (
-        <div className="animate-page-enter">
-            <div className="flex justify-between items-center mb-4 animate-content-enter-delay-1">
+        <div >
+            <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Gallery Images</h2>
             </div>
 
@@ -367,7 +367,7 @@ const GalleryAdmin: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-300">Add images to the gallery to get started.</p>
                 </div>
             ) : (
-                <div ref={galleryRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-content-enter-delay-2">
+                <div ref={galleryRef} className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {displayImages.map((image) => {
                         const isDragging = image.id === draggedItemId;
                         return (

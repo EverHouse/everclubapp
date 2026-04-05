@@ -9,7 +9,7 @@ import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from
 import PageLoadingSpinner from '../../components/PageLoadingSpinner';
 import TabButton from '../../components/TabButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import { MotionList, MotionListItem, AnimatedPage, AnimatedSection } from '../../components/motion';
+import { MotionList, MotionListItem, AnimatedPage, AnimatedSection, AccordionContent } from '../../components/motion';
 import { scrollToAccordion } from '../../utils/motion';
 import { EmptyEvents } from '../../components/EmptyState';
 import { downloadICalFile } from '../../utils/icalUtils';
@@ -385,8 +385,7 @@ const MemberEvents: React.FC = () => {
                       </div>
                     </button>
 
-                    <div className={`accordion-content ${isExpanded ? 'is-open' : ''}`}>
-                      <div className="accordion-inner">
+                    <AccordionContent isOpen={isExpanded}>
                       <div className={`px-4 pb-4 pt-2 border-t ${isDark ? 'border-white/25' : 'border-black/10'}`}>
                         <p className={`text-sm leading-relaxed mb-4 ${isDark ? 'text-white/70' : 'text-primary/70'}`}>
                           {event.description}
@@ -467,8 +466,7 @@ const MemberEvents: React.FC = () => {
                           )}
                         </div>
                       </div>
-                    </div>
-                    </div>
+                    </AccordionContent>
                   </MotionListItem>
                 );
               })}

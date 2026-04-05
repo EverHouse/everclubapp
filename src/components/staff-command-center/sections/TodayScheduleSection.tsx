@@ -1,10 +1,12 @@
 import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import EmptyState from '../../EmptyState';
 import { formatTime12Hour, formatDateFromDb } from '../../../utils/dateUtils';
 import { DateBlock, GlassListRow, getWellnessIcon, getEventIcon, formatTimeLeft } from '../helpers';
 import type { Tour, DBEvent, WellnessClass, TabType, NextActivityItem } from '../types';
 import { tabToPath } from '../../../lib/nav-constants';
+import { staggerContainer, listItemVariant } from '../../../utils/motion';
 import Icon from '../../icons/Icon';
 
 interface NextTourWidgetProps {
@@ -147,7 +149,9 @@ interface WellnessCardProps {
   onNavigateToWellness: () => void;
 }
 
-const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, upcomingWellness, today, onNavigateToWellness }) => (
+const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, upcomingWellness, today, onNavigateToWellness }) => {
+  const prefersReduced = useReducedMotion();
+  return (
   <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark overflow-hidden`}>
     <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0 px-4">
       <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming Wellness</h3>
@@ -158,7 +162,7 @@ const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, u
         <EmptyState icon="self_improvement" title="No classes scheduled" description={isDesktop ? "Wellness classes will appear here" : undefined} variant="compact" />
       </div>
     ) : (
-      <div className={`${isDesktop ? 'flex-1 overflow-y-auto pb-6' : ''}`}>
+      <motion.div className={`${isDesktop ? 'flex-1 overflow-y-auto pb-6' : ''}`} variants={prefersReduced ? undefined : staggerContainer()} initial={prefersReduced ? false : 'hidden'} animate="show">
         {upcomingWellness.slice(0, isDesktop ? 5 : 3).map((wellness, index) => {
           let dateStr = '';
           if (wellness.date) {
@@ -169,7 +173,8 @@ const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, u
             }
           }
           return (
-            <GlassListRow key={wellness.id ?? `wellness-${index}`} onClick={onNavigateToWellness} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
+            <motion.div key={wellness.id ?? `wellness-${index}`} variants={prefersReduced ? undefined : listItemVariant}>
+            <GlassListRow onClick={onNavigateToWellness} className="tactile-row">
               <DateBlock dateStr={dateStr} today={today} />
               <Icon name={getWellnessIcon(wellness.title)} className="text-lg text-primary dark:text-[#CCB8E4]" />
               <div className="flex-1 min-w-0">
@@ -180,12 +185,14 @@ const WellnessCard: React.FC<WellnessCardProps> = ({ isDesktopGrid, isDesktop, u
               </div>
               <Icon name="chevron_right" className="text-base text-primary/70 dark:text-white/70 flex-shrink-0" />
             </GlassListRow>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     )}
   </div>
-);
+  );
+};
 
 interface EventsCardProps {
   isDesktopGrid: boolean;
@@ -195,7 +202,9 @@ interface EventsCardProps {
   onNavigateToEvents: () => void;
 }
 
-const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcomingEvents, today, onNavigateToEvents }) => (
+const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcomingEvents, today, onNavigateToEvents }) => {
+  const prefersReduced = useReducedMotion();
+  return (
   <div className={`${isDesktopGrid ? 'h-full min-h-[280px]' : 'min-h-[200px]'} flex flex-col bg-white/40 dark:bg-white/[0.08] backdrop-blur-xl border border-white/60 dark:border-white/[0.12] rounded-xl pt-4 shadow-liquid dark:shadow-liquid-dark overflow-hidden`}>
     <div className="flex items-center justify-between mb-3 lg:mb-4 flex-shrink-0 px-4">
       <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming Events</h3>
@@ -206,7 +215,7 @@ const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcom
         <EmptyState icon="celebration" title="No events scheduled" description={isDesktop ? "Events will appear here" : undefined} variant="compact" />
       </div>
     ) : (
-      <div className={`${isDesktop ? 'flex-1 overflow-y-auto pb-6' : ''}`}>
+      <motion.div className={`${isDesktop ? 'flex-1 overflow-y-auto pb-6' : ''}`} variants={prefersReduced ? undefined : staggerContainer()} initial={prefersReduced ? false : 'hidden'} animate="show">
         {upcomingEvents.slice(0, isDesktop ? 5 : 3).map((event, index) => {
           const dateStr = event.event_date;
           const hasStartTime = event.start_time && event.start_time !== '00:00';
@@ -217,7 +226,8 @@ const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcom
               ? formatTime12Hour(event.start_time!)
               : 'All Day';
           return (
-            <GlassListRow key={event.id ?? `event-${index}`} onClick={onNavigateToEvents} className="animate-slide-up-stagger tactile-row" style={{ '--stagger-index': index } as React.CSSProperties}>
+            <motion.div key={event.id ?? `event-${index}`} variants={prefersReduced ? undefined : listItemVariant}>
+            <GlassListRow onClick={onNavigateToEvents} className="tactile-row">
               <DateBlock dateStr={dateStr} today={today} />
               <Icon name={getEventIcon(event.category || '')} className="text-lg text-primary dark:text-[#CCB8E4]" />
               <div className="flex-1 min-w-0">
@@ -226,12 +236,14 @@ const EventsCard: React.FC<EventsCardProps> = ({ isDesktopGrid, isDesktop, upcom
               </div>
               <Icon name="chevron_right" className="text-base text-primary/70 dark:text-white/70 flex-shrink-0" />
             </GlassListRow>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     )}
   </div>
-);
+  );
+};
 
 interface TodayScheduleSectionProps {
   upcomingEvents: DBEvent[];

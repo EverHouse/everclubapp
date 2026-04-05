@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthData } from '../contexts/DataContext';
 import { getTodayPacific } from '../utils/dateUtils';
 import { isBlockingClosure, getNoticeLabel as getNoticeLabelUtil } from '../utils/closureUtils';
 import { fetchWithCredentials, isAbortError } from '../hooks/queries/useFetch';
+import { springPresets, collapseVariants } from '../utils/motion';
 import Icon from './icons/Icon';
-
-const EXIT_DURATION = 250;
 
 interface Closure {
   id: number;
@@ -37,8 +37,6 @@ const ClosureAlert: React.FC = () => {
   const [dismissedIds, setDismissedIds] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const getStorageKey = useCallback(() => `eh_dismissed_notices_${user?.email || 'guest'}`, [user?.email]);
 
   useEffect(() => {
@@ -120,41 +118,41 @@ const ClosureAlert: React.FC = () => {
     });
   }, [closures, dismissedIds, isStaffOrAdmin, isViewingAsMember]);
 
-  useEffect(() => {
-    return () => {
-      if (exitTimer.current) clearTimeout(exitTimer.current);
-    };
-  }, []);
+  const prefersReduced = useReducedMotion();
 
   const handleDismiss = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const closure = activeClosures[0];
     if (!closure) return;
-    if (exitTimer.current) clearTimeout(exitTimer.current);
     setIsExiting(true);
-    exitTimer.current = setTimeout(() => {
-      const newDismissed = new Set(dismissedIds);
-      newDismissed.add(closure.id);
-      setDismissedIds(newDismissed);
-      localStorage.setItem(getStorageKey(), JSON.stringify([...newDismissed]));
-      setIsExiting(false);
-      exitTimer.current = null;
+  }, [activeClosures]);
 
-      const persistDismiss = (attempt = 1) => {
-        fetchWithCredentials('/api/notices/dismiss', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ noticeType: 'closure', noticeId: closure.id })
-        }).catch((err) => {
-          if (attempt < 3) {
-            setTimeout(() => persistDismiss(attempt + 1), 1000 * attempt);
-          } else {
-            console.warn('[ClosureAlert] Failed to persist dismissal after retries:', err);
-          }
-        });
-      };
-      persistDismiss();
-    }, EXIT_DURATION);
+  const handleExitComplete = useCallback(() => {
+    const closure = activeClosures[0];
+    if (!closure) {
+      setIsExiting(false);
+      return;
+    }
+    const newDismissed = new Set(dismissedIds);
+    newDismissed.add(closure.id);
+    setDismissedIds(newDismissed);
+    localStorage.setItem(getStorageKey(), JSON.stringify([...newDismissed]));
+    setIsExiting(false);
+
+    const persistDismiss = (attempt = 1) => {
+      fetchWithCredentials('/api/notices/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noticeType: 'closure', noticeId: closure.id })
+      }).catch((err) => {
+        if (attempt < 3) {
+          setTimeout(() => persistDismiss(attempt + 1), 1000 * attempt);
+        } else {
+          console.warn('[ClosureAlert] Failed to persist dismissal after retries:', err);
+        }
+      });
+    };
+    persistDismiss();
   }, [activeClosures, dismissedIds, getStorageKey]);
 
   const handleViewDetails = () => {
@@ -184,10 +182,22 @@ const ClosureAlert: React.FC = () => {
   
   const noticeLabel = closure ? getNoticeLabelUtil(closure) : '';
 
+  const collapseTransition = prefersReduced
+    ? { duration: 0 }
+    : springPresets.smooth;
+
   return (
-    <div className={`cls-safe-collapse cls-safe-reserve ${isVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isVisible}>
-    <div className="cls-safe-inner">
-    {closure ? (
+    <AnimatePresence onExitComplete={handleExitComplete}>
+    {isVisible && closure ? (
+    <motion.div
+      key={`closure-alert-${closure.id}`}
+      variants={collapseVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={collapseTransition}
+      style={{ overflow: 'hidden' }}
+    >
     <div 
       className={`mb-4 py-2 px-4 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-colors duration-normal ease-spring-smooth ${
         blocking
@@ -239,9 +249,9 @@ const ClosureAlert: React.FC = () => {
         <Icon name="close" className="text-lg" />
       </button>
     </div>
+    </motion.div>
     ) : null}
-    </div>
-    </div>
+    </AnimatePresence>
   );
 };
 

@@ -265,7 +265,7 @@ export function MemberPaymentModal({
         )}
 
         {error && (
-          <div className="flex flex-col items-center text-center py-8 animate-content-enter">
+          <div className="flex flex-col items-center text-center py-8">
             <Icon name="info" className={`text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
             <p className={`mb-4 text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{error}</p>
             <button
@@ -433,7 +433,7 @@ export function MemberPaymentModal({
                     customerSessionClientSecret={paymentData.customerSessionClientSecret}
                   />
                 ) : paymentData.error ? (
-                  <div className={`rounded-xl p-4 flex flex-col items-center text-center animate-content-enter ${isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'}`}>
+                  <div className={`rounded-xl p-4 flex flex-col items-center text-center ${isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200/60'}`}>
                     <Icon name="info" className={`text-4xl mb-2 ${isDark ? 'text-amber-400' : 'text-amber-500'}`} />
                     <p className={`text-sm ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>
                       {paymentData.error}

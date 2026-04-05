@@ -169,8 +169,8 @@ const InquiriesAdmin: React.FC = () => {
     };
 
     return (
-        <div className="animate-page-enter">
-            <div className="flex items-center justify-end mb-3 animate-content-enter-delay-1">
+        <div >
+            <div className="flex items-center justify-end mb-3">
                 <button
                     onClick={handleSyncFromHubSpot}
                     disabled={isSyncing}
@@ -184,7 +184,7 @@ const InquiriesAdmin: React.FC = () => {
                 </button>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-2 scroll-fade-right">
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide -mx-4 px-4 scroll-fade-right">
                 {STATUS_TABS.map(tab => (
                     <button
                         key={tab.id}
@@ -201,7 +201,7 @@ const InquiriesAdmin: React.FC = () => {
                 ))}
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 animate-content-enter-delay-3 scroll-fade-right">
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide -mx-4 px-4 scroll-fade-right">
                 {FORM_TYPE_CHIPS.map(chip => (
                     <button
                         key={chip.id}
@@ -344,7 +344,7 @@ const InquiriesAdmin: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-300">No form submissions match your current filters.</p>
                 </div>
             ) : (
-                <div ref={inquiriesRef} className="space-y-3 animate-content-enter-delay-4">
+                <div ref={inquiriesRef} className="space-y-3">
                     {inquiries.map((inquiry, _index) => (
                         <button
                             key={inquiry.id}

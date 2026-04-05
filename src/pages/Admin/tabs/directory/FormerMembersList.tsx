@@ -1,10 +1,12 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { MemberProfile } from '../../../../contexts/DataContext';
 import TierBadge from '../../../../components/TierBadge';
 import { DirectoryTabSkeleton } from '../../../../components/skeletons';
 import EmptyState from '../../../../components/EmptyState';
 import { formatPhoneNumber } from '../../../../utils/formatting';
 import { getMemberStatusBadgeClass, getMemberStatusLabel } from '../../../../utils/statusColors';
+import { staggerContainer, listItemVariant } from '../../../../utils/motion';
 import { prefetchMemberProfile } from '../../../../lib/prefetch-actions';
 import { formatJoinDate } from './directoryTypes';
 import SortableHeader from './DirectoryListHeader';
@@ -107,17 +109,18 @@ const FormerMembersList: React.FC<FormerMembersListProps> = ({
         <>
             <div className="md:hidden relative">
                 <div className="pt-2 pb-24">
-                    <div className="space-y-3 px-1">
+                    <motion.div className="space-y-3 px-1" variants={staggerContainer()} initial="hidden" animate="show">
                         {visibleItems.map((m, index) => (
-                            <div
+                            <motion.div
                                 key={m.email || `member-${index}`}
+                                variants={listItemVariant}
                                 role="button"
                                 tabIndex={0}
                                 onClick={() => openDetailsModal(m)}
                                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetailsModal(m); } }}
                                 onMouseEnter={() => prefetchMemberProfile(m.email)}
                                 onFocus={() => prefetchMemberProfile(m.email)}
-                                className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+                                className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98]"
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex-1">
@@ -162,9 +165,9 @@ const FormerMembersList: React.FC<FormerMembersListProps> = ({
                                         {m.stripeCustomerId ? 'Send Link' : 'New Signup'}
                                     </span>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </div>
 

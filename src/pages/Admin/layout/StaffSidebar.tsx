@@ -1,11 +1,50 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, LayoutGroup, useReducedMotion } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from './types';
 import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
 import { getLatestVersion } from '../../../data/changelog-version';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
+import { springPresets } from '../../../utils/motion';
 import Icon from '../../../components/icons/Icon';
+
+interface NavButtonProps {
+  item: NavItemData;
+  isActive: boolean;
+  pillTransition: Transition;
+  onNavigate: (tab: TabType) => void;
+  onPrefetch: (path: string) => void;
+  suppressInitialAnimation: boolean;
+}
+
+const NavButton: React.FC<NavButtonProps> = ({ item, isActive, pillTransition, onNavigate, onPrefetch, suppressInitialAnimation }) => {
+  return (
+    <button
+      onClick={() => onNavigate(item.id)}
+      onMouseEnter={() => onPrefetch(tabToPath[item.id])}
+      style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
+      className={`
+        tactile-row relative w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-normal ease-out
+        ${isActive 
+          ? 'text-white font-semibold' 
+          : 'text-white/50 hover:text-white/80 border-l-2 border-transparent group/nav'
+        }
+      `}
+    >
+      {isActive && (
+        <motion.div
+          layoutId="sidebarActiveIndicator"
+          className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#CCB8E4]"
+          transition={suppressInitialAnimation ? { duration: 0 } : pillTransition}
+        />
+      )}
+      <Icon name={item.icon} className={`text-[18px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'group-hover/nav:text-white/70'}`} />
+      <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">{item.label}</span>
+    </button>
+  );
+};
 
 interface StaffSidebarProps {
   activeTab: TabType;
@@ -20,6 +59,7 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   const location = useLocation();
   const { startNavigation } = useNavigationLoading();
   const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+  const hasMounted = useRef(false);
   
   useEffect(() => {
     prefetchAdjacentStaffRoutes(location.pathname);
@@ -27,10 +67,16 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
   
   useEffect(() => {
     if (optimisticTab && activeTab === optimisticTab) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOptimisticTab(null);
     }
   }, [activeTab, optimisticTab]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      hasMounted.current = true;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   
   const displayActiveTab = optimisticTab || activeTab;
   
@@ -43,26 +89,13 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
     }
   }, [navigate, startNavigation, activeTab]);
   
-  const NavButton: React.FC<{ item: NavItemData }> = ({ item }) => {
-    const isActive = displayActiveTab === item.id;
-    return (
-      <button
-        onClick={() => navigateToTab(item.id)}
-        onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
-        style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
-        className={`
-          tactile-row relative w-full flex items-center gap-3 px-3 py-3 text-left transition-colors duration-normal ease-out
-          ${isActive 
-            ? 'text-white font-semibold border-l-2 border-[#CCB8E4]' 
-            : 'text-white/50 hover:text-white/80 border-l-2 border-transparent group/nav'
-          }
-        `}
-      >
-        <Icon name={item.icon} className={`text-[18px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'group-hover/nav:text-white/70'}`} />
-        <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">{item.label}</span>
-      </button>
-    );
-  };
+  const prefersReduced = useReducedMotion();
+
+  const pillTransition = prefersReduced
+    ? { duration: 0 }
+    : springPresets.pill;
+
+  const suppressInitialAnimation = !hasMounted.current;
 
   const sidebarContent = (
     <aside className="hidden xl:flex flex-col w-64 h-screen fixed left-0 top-0 bg-gradient-to-b from-[#293515] via-[#1f2a0f] to-[#1a220c] border-r border-white/10 isolate" style={{ zIndex: 'var(--z-nav)' }}>
@@ -87,9 +120,10 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
       </button>
 
       <nav className="relative flex-1 min-h-0 overflow-y-auto px-3 py-4">
+        <LayoutGroup id="staff-sidebar-nav">
         <div className="space-y-0.5">
           {MAIN_NAV_ITEMS.map(item => (
-            <NavButton key={item.id} item={item} />
+            <NavButton key={item.id} item={item} isActive={displayActiveTab === item.id} pillTransition={pillTransition} onNavigate={navigateToTab} onPrefetch={prefetchStaffRoute} suppressInitialAnimation={suppressInitialAnimation} />
           ))}
         </div>
 
@@ -100,11 +134,12 @@ export const StaffSidebar: React.FC<StaffSidebarProps> = ({
             </p>
             <div className="space-y-0.5">
               {ADMIN_NAV_ITEMS.map(item => (
-                <NavButton key={item.id} item={item} />
+                <NavButton key={item.id} item={item} isActive={displayActiveTab === item.id} pillTransition={pillTransition} onNavigate={navigateToTab} onPrefetch={prefetchStaffRoute} suppressInitialAnimation={suppressInitialAnimation} />
               ))}
             </div>
           </div>
         )}
+        </LayoutGroup>
       </nav>
 
       <div className="px-3 py-4 border-t border-white/10 flex-shrink-0 space-y-2" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}>

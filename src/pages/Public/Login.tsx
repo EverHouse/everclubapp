@@ -513,7 +513,7 @@ const Login: React.FC = () => {
                   </div>
                   
                   {showPasswordField && hasPassword && (
-                    <div className="animate-pop-in">
+                    <div >
                       <label htmlFor="login-password" className="sr-only">Password</label>
                       <input
                         id="login-password"
@@ -595,7 +595,7 @@ const Login: React.FC = () => {
                 )}
 
                 {showPasswordField && hasPassword && (
-                  <div className="animate-pop-in">
+                  <div >
                     <hr className="border-black/10 dark:border-white/10" />
                     <button
                       type="button"

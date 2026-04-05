@@ -1,7 +1,9 @@
 import React from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { formatTitleForDisplay } from '../../../../utils/closureUtils';
 import type { BlocksClosure } from './blocksTabTypes';
 import { stripHtml } from './blocksTabTypes';
+import { springPresets, collapseVariants } from '../../../../utils/motion';
 import Icon from '../../../../components/icons/Icon';
 
 interface NoticeListProps {
@@ -45,6 +47,9 @@ export const NoticeList: React.FC<NoticeListProps> = ({
     setShowPastAccordion,
     setPastNoticesLimit,
 }) => {
+    const prefersReduced = useReducedMotion();
+    const collapseTransition = prefersReduced ? { duration: 0 } : springPresets.smooth;
+
     if (closuresLoading) {
         return <div className="text-center py-8 text-gray-600 dark:text-white/70">Loading notices...</div>;
     }
@@ -71,7 +76,7 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                         return (
                             <div
                                 key={closure.id}
-                                className={`scroll-mt-20 bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group tactile-card ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
+                                className={`scroll-mt-20 bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-white/80 dark:border-white/10 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-colors duration-fast overflow-hidden group tactile-card ${
                                     isIncomplete
                                         ? 'border-l-4 border-l-blue-500'
                                         : blocking
@@ -206,8 +211,17 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                     </div>
                                 </div>
 
-                                <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
-                                    <div className="cls-safe-inner">
+                                <AnimatePresence>
+                                {isExpanded && (
+                                    <motion.div
+                                        key={`notice-detail-${closure.id}`}
+                                        variants={collapseVariants}
+                                        initial="hidden"
+                                        animate="visible"
+                                        exit="exit"
+                                        transition={collapseTransition}
+                                        style={{ overflow: 'hidden' }}
+                                    >
                                         <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-4 space-y-3">
                                             {closure.notes && (
                                                 <div>
@@ -242,8 +256,9 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                 </button>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
+                                    </motion.div>
+                                )}
+                                </AnimatePresence>
                             </div>
                         );
                     })}
@@ -266,8 +281,17 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                         <Icon name="expand_more" className={`text-gray-400 transition-transform ${showPastAccordion ? 'rotate-180' : ''}`} />
                     </button>
 
-                    <div className={`accordion-content ${showPastAccordion ? 'is-open' : ''}`}>
-                      <div className="accordion-inner">
+                    <AnimatePresence>
+                    {showPastAccordion && (
+                      <motion.div
+                        key="past-notices"
+                        variants={collapseVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        transition={collapseTransition}
+                        style={{ overflow: 'hidden' }}
+                      >
                         <div className="p-4 space-y-3 bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10">
                             {pastClosures.slice(0, pastNoticesLimit).map((closure, _index) => {
                                 const blocking = isBlocking(closure.affectedAreas);
@@ -350,8 +374,17 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                             </div>
                                         </div>
 
-                                        <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
-                                            <div className="cls-safe-inner">
+                                        <AnimatePresence>
+                                        {isExpanded && (
+                                            <motion.div
+                                                key={`past-notice-detail-${closure.id}`}
+                                                variants={collapseVariants}
+                                                initial="hidden"
+                                                animate="visible"
+                                                exit="exit"
+                                                transition={collapseTransition}
+                                                style={{ overflow: 'hidden' }}
+                                            >
                                                 <div className="bg-gray-50/50 dark:bg-white/5 border-t border-gray-200/50 dark:border-white/10 p-3">
                                                     <div className="flex gap-2">
                                                         <button
@@ -368,8 +401,9 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                                         </button>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
+                                            </motion.div>
+                                        )}
+                                        </AnimatePresence>
                                     </div>
                                 );
                             })}
@@ -382,8 +416,9 @@ export const NoticeList: React.FC<NoticeListProps> = ({
                                 </button>
                             )}
                         </div>
-                      </div>
-                    </div>
+                      </motion.div>
+                    )}
+                    </AnimatePresence>
                 </div>
             )}
         </>

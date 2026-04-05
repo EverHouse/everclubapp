@@ -336,7 +336,7 @@ const TeamTab: React.FC = () => {
   if (!isAdmin) {
     return (
       <AnimatedPage>
-        <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-white/25 flex flex-col items-center text-center animate-content-enter-delay-1">
+        <div className="bg-white dark:bg-surface-dark rounded-xl p-8 border border-gray-200 dark:border-white/25 flex flex-col items-center text-center">
           <Icon name="lock" className="text-6xl mb-4 text-gray-400 dark:text-white/40" />
           <h3 className="text-lg font-bold text-primary dark:text-white mb-2">Admin Access Required</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -349,7 +349,7 @@ const TeamTab: React.FC = () => {
 
   return (
     <AnimatedPage>
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20 animate-content-enter-delay-1">
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-primary/10 dark:border-white/20">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Manage Team</h3>
@@ -387,7 +387,7 @@ const TeamTab: React.FC = () => {
             {searchQuery ? 'No team members match your search.' : (isAdmin ? 'No team members added yet. Add an email to grant portal access.' : 'No team members to display.')}
           </div>
         ) : (
-          <div ref={teamRef} className="space-y-3 animate-content-enter-delay-2">
+          <div ref={teamRef} className="space-y-3">
             {filteredMembers.map((member, _index) => (
               <div 
                 key={member.id}

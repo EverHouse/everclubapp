@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { useScrollLockManager } from '../hooks/useScrollLockManager';
 import { useNavigationLoading } from '../stores/navigationLoadingStore';
 import { useBottomNav } from '../stores/bottomNavStore';
 import { haptic } from '../utils/haptics';
+import { springPresets, sidebarVariants, backdropVariants, menuItemVariants, menuContainerVariants } from '../utils/motion';
 import BugReportModal from './BugReportModal';
 import Icon from './icons/Icon';
 
@@ -42,10 +44,8 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
   const { startNavigation } = useNavigationLoading();
   const { setDrawerOpen } = useBottomNav();
   const isDark = effectiveTheme === 'dark';
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const prefersReduced = useReducedMotion();
   const originalBodyBgRef = useRef<string>('');
   const originalHtmlBgRef = useRef<string>('');
   const scrollingRef = useRef(false);
@@ -56,42 +56,30 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
 
   useEffect(() => {
     if (isOpen) {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
       originalBodyBgRef.current = document.body.style.backgroundColor || '';
       originalHtmlBgRef.current = document.documentElement.style.backgroundColor || '';
       document.documentElement.style.backgroundColor = menuBgColor;
       document.body.style.backgroundColor = menuBgColor;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsVisible(true);
-      setIsClosing(false);
-    } else if (isVisible) {
-      setIsClosing(true);
-      timerRef.current = setTimeout(() => {
+    }
+    return () => {
+      if (isOpen) {
         document.documentElement.style.backgroundColor = originalHtmlBgRef.current;
         document.body.style.backgroundColor = originalBodyBgRef.current;
-        setIsVisible(false);
-        setIsClosing(false);
-        timerRef.current = null;
-      }, 250);
-    }
-    
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
       }
     };
-  }, [isOpen, isVisible, menuBgColor]);
+  }, [isOpen, menuBgColor]);
 
-  useScrollLockManager(isVisible);
+  useScrollLockManager(isOpen);
 
   useEffect(() => {
-    setDrawerOpen(isVisible);
+    setDrawerOpen(isOpen);
     return () => setDrawerOpen(false);
-  }, [isVisible, setDrawerOpen]);
+  }, [isOpen, setDrawerOpen]);
+
+  const handleExitComplete = () => {
+    document.documentElement.style.backgroundColor = originalHtmlBgRef.current;
+    document.body.style.backgroundColor = originalBodyBgRef.current;
+  };
 
   const handleClose = () => {
     haptic.selection();
@@ -103,6 +91,12 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
     startNavigation();
     navigate(path);
     handleClose();
+  };
+
+  const handleDrag = (_: unknown, info: { offset: { x: number }; velocity: { x: number } }) => {
+    if (info.offset.x < -50 || info.velocity.x < -300) {
+      handleClose();
+    }
   };
 
   const isActive = (item: MenuItem) => {
@@ -137,112 +131,143 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
     return false;
   };
 
-  if (!isVisible) return null;
+  const sidebarTransition = prefersReduced
+    ? { duration: 0.15 }
+    : springPresets.sheet;
+
+  const backdropTransition = prefersReduced
+    ? { duration: 0.15 }
+    : { duration: 0.25 };
 
   const menuContent = (
-    <div 
-      className="fixed inset-0 flex justify-start pointer-events-auto" 
-      style={{ zIndex: 'var(--z-drawer)' }}
-    >
-      <div 
-        className={`absolute inset-0 bg-black/20 backdrop-blur-xl ${isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'}`}
-        onClick={handleClose}
-        aria-hidden="true"
-      ></div>
+    <AnimatePresence onExitComplete={handleExitComplete}>
+      {isOpen && (
+        <div 
+          className="fixed inset-0 flex justify-start pointer-events-auto" 
+          style={{ zIndex: 'var(--z-drawer)' }}
+        >
+          <motion.div 
+            className="absolute inset-0 bg-black/20 backdrop-blur-xl"
+            variants={backdropVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={backdropTransition}
+            onClick={handleClose}
+            aria-hidden="true"
+          />
 
-      <div 
-        className={`relative w-[85%] md:w-[320px] lg:w-[320px] h-full flex flex-col border-l-0 ${isClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'}`}
-      >
-      <div 
-        style={{ height: '100%' }}
-        className={`relative flex flex-col overflow-hidden rounded-tr-[2rem] rounded-br-[2rem] ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl`}
-      >
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply"></div>
+          <motion.div 
+            className="relative w-[85%] md:w-[320px] lg:w-[320px] h-full flex flex-col border-l-0"
+            variants={sidebarVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            transition={sidebarTransition}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={{ left: 0.4, right: 0 }}
+            onDragEnd={handleDrag}
+          >
+          <div 
+            style={{ height: '100%' }}
+            className={`relative flex flex-col overflow-hidden rounded-tr-[2rem] rounded-br-[2rem] ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'} backdrop-blur-xl`}
+          >
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply"></div>
 
-        <div className={`relative z-10 flex flex-col lg:w-[320px] safe-area-inset-menu h-full ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>
-            
-            <div className="flex items-center justify-between mb-6 px-1">
-                <button 
-                  onClick={() => handleNav('/')}
-                  aria-label="Go to home"
-                  className="w-14 h-14 min-w-[56px] min-h-[56px] flex items-center justify-center transition-transform duration-normal rounded-full active:scale-90 hover:scale-105"
+            <div className={`relative z-10 flex flex-col lg:w-[320px] safe-area-inset-menu h-full ${isDark ? 'text-[#F2F2EC]' : 'text-[#293515]'}`}>
+                
+                <div className="flex items-center justify-between mb-6 px-1">
+                    <button 
+                      onClick={() => handleNav('/')}
+                      aria-label="Go to home"
+                      className="w-14 h-14 min-w-[56px] min-h-[56px] flex items-center justify-center transition-transform duration-normal rounded-full active:scale-90 hover:scale-105"
+                    >
+                      <img 
+                        src={isDark ? "/assets/logos/mascot-white.webp" : "/assets/logos/mascot-dark.webp"}
+                        alt="Ever Club mascot character"
+                        className="h-14 w-auto object-contain"
+                        width={56}
+                        height={56}
+                      />
+                    </button>
+                    <button 
+                      onClick={handleClose}
+                      aria-label="Close menu"
+                      className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-normal rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
+                    >
+                        <Icon name="close" className="text-3xl" />
+                    </button>
+                </div>
+                
+                <motion.nav
+                  className="flex flex-col gap-0.5 flex-1 overflow-y-auto scrollbar-hide py-2 px-2" data-scroll-lock-allow
+                  variants={prefersReduced ? undefined : menuContainerVariants}
+                  initial="hidden"
+                  animate="visible"
+                  onTouchStart={(e) => {
+                    touchStartYRef.current = e.touches[0].clientY;
+                    if (scrollCooldownRef.current) {
+                      clearTimeout(scrollCooldownRef.current);
+                      scrollCooldownRef.current = null;
+                    }
+                  }}
+                  onTouchMove={(e) => {
+                    if (touchStartYRef.current !== null && Math.abs(e.touches[0].clientY - touchStartYRef.current) > 8) {
+                      scrollingRef.current = true;
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    touchStartYRef.current = null;
+                    if (scrollingRef.current) {
+                      scrollCooldownRef.current = setTimeout(() => {
+                        scrollingRef.current = false;
+                        scrollCooldownRef.current = null;
+                      }, 300);
+                    }
+                  }}
                 >
-                  <img 
-                    src={isDark ? "/assets/logos/mascot-white.webp" : "/assets/logos/mascot-dark.webp"}
-                    alt="Ever Club mascot character"
-                    className="h-14 w-auto object-contain"
-                    width={56}
-                    height={56}
-                  />
-                </button>
-                <button 
-                  onClick={handleClose}
-                  aria-label="Close menu"
-                  className={`w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center hover:rotate-90 transition-transform duration-normal rounded-full active:scale-90 ${isDark ? 'text-[#F2F2EC] hover:bg-white/10' : 'text-[#293515] hover:bg-black/5'}`}
+                  {MEMBER_MENU_ITEMS.map((item) => (
+                    <MemberMenuLink
+                      key={item.id}
+                      item={item}
+                      isActive={isActive(item)}
+                      onClick={() => handleNav(item.path)}
+                      isDark={isDark}
+                      scrollingRef={scrollingRef}
+                      prefersReduced={prefersReduced}
+                    />
+                  ))}
+                </motion.nav>
+                
+                <motion.div
+                  className={`mt-4 pt-4 border-t px-2 ${isDark ? 'border-white/10' : 'border-black/10'}`}
+                  variants={prefersReduced ? undefined : menuItemVariants}
+                  transition={prefersReduced ? { duration: 0 } : springPresets.listItem}
                 >
-                    <Icon name="close" className="text-3xl" />
-                </button>
+                  <button
+                    onClick={() => {
+                      haptic.light();
+                      setShowBugReport(true);
+                    }}
+                    style={{ fontFamily: 'var(--font-label)' }}
+                    className={`tactile-row w-full flex items-center gap-4 px-4 py-3.5 text-left transition-colors duration-normal leading-tight min-h-[48px] border-l-2 border-transparent ${
+                      isDark 
+                        ? 'text-[#F2F2EC]/50 hover:text-[#F2F2EC]/80' 
+                        : 'text-[#293515]/50 hover:text-[#293515]/80'
+                    }`}
+                  >
+                    <Icon name="bug_report" className="text-[18px]" />
+                    <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Report a Bug</span>
+                  </button>
+                </motion.div>
             </div>
-            
-            <nav
-              className="flex flex-col gap-0.5 flex-1 overflow-y-auto scrollbar-hide py-2 px-2" data-scroll-lock-allow
-              onTouchStart={(e) => {
-                touchStartYRef.current = e.touches[0].clientY;
-                if (scrollCooldownRef.current) {
-                  clearTimeout(scrollCooldownRef.current);
-                  scrollCooldownRef.current = null;
-                }
-              }}
-              onTouchMove={(e) => {
-                if (touchStartYRef.current !== null && Math.abs(e.touches[0].clientY - touchStartYRef.current) > 8) {
-                  scrollingRef.current = true;
-                }
-              }}
-              onTouchEnd={() => {
-                touchStartYRef.current = null;
-                if (scrollingRef.current) {
-                  scrollCooldownRef.current = setTimeout(() => {
-                    scrollingRef.current = false;
-                    scrollCooldownRef.current = null;
-                  }, 300);
-                }
-              }}
-            >
-              {MEMBER_MENU_ITEMS.map((item, index) => (
-                <MemberMenuLink
-                  key={item.id}
-                  item={item}
-                  isActive={isActive(item)}
-                  onClick={() => handleNav(item.path)}
-                  staggerIndex={index}
-                  isDark={isDark}
-                  scrollingRef={scrollingRef}
-                />
-              ))}
-            </nav>
-            
-            <div className={`mt-4 pt-4 border-t px-2 animate-slide-up-stagger ${isDark ? 'border-white/10' : 'border-black/10'}`} style={{ '--stagger-index': MEMBER_MENU_ITEMS.length } as React.CSSProperties}>
-              <button
-                onClick={() => {
-                  haptic.light();
-                  setShowBugReport(true);
-                }}
-                style={{ fontFamily: 'var(--font-label)' }}
-                className={`tactile-row w-full flex items-center gap-4 px-4 py-3.5 text-left transition-colors duration-normal leading-tight min-h-[48px] border-l-2 border-transparent ${
-                  isDark 
-                    ? 'text-[#F2F2EC]/50 hover:text-[#F2F2EC]/80' 
-                    : 'text-[#293515]/50 hover:text-[#293515]/80'
-                }`}
-              >
-                <Icon name="bug_report" className="text-[18px]" />
-                <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px]">Report a Bug</span>
-              </button>
-            </div>
+          </div>
+          <div className={`flex-1 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'}`} />
+          </motion.div>
         </div>
-      </div>
-      <div className={`flex-1 ${isDark ? 'bg-[#141414]' : 'bg-[#F2F2EC]'}`} />
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 
   return (
@@ -260,23 +285,25 @@ interface MemberMenuLinkProps {
   item: MenuItem;
   isActive: boolean;
   onClick: () => void;
-  staggerIndex: number;
   isDark: boolean;
   scrollingRef: React.MutableRefObject<boolean>;
+  prefersReduced: boolean | null;
 }
 
-const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick, staggerIndex, isDark, scrollingRef }) => {
+const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick, isDark, scrollingRef, prefersReduced }) => {
   const handleClick = () => {
     if (scrollingRef.current) return;
     onClick();
   };
 
   return (
-    <button 
+    <motion.button 
       type="button"
       onClick={handleClick}
-      style={{ '--stagger-index': staggerIndex, touchAction: 'pan-y', animationFillMode: 'both', fontFamily: 'var(--font-label)' } as React.CSSProperties}
-      className={`tactile-row flex items-center gap-4 px-4 py-3.5 text-left transition-colors duration-normal animate-slide-up-stagger leading-tight min-h-[48px] ${
+      style={{ touchAction: 'pan-y', fontFamily: 'var(--font-label)' }}
+      variants={prefersReduced ? undefined : menuItemVariants}
+      transition={prefersReduced ? { duration: 0 } : springPresets.listItem}
+      className={`tactile-row flex items-center gap-4 px-4 py-3.5 text-left transition-colors duration-normal leading-tight min-h-[48px] ${
         isActive
           ? isDark 
             ? 'text-[#F2F2EC] font-semibold border-l-2 border-[#CCB8E4]' 
@@ -288,7 +315,7 @@ const MemberMenuLink: React.FC<MemberMenuLinkProps> = ({ item, isActive, onClick
     >
       <Icon name={item.icon} className={`text-[18px] ${ isActive ? isDark ? 'filled text-[#CCB8E4]' : 'filled text-[#293515]' : '' }`} />
       <span className="text-[11px] uppercase tracking-[0.2em] translate-y-[1px] flex-1">{item.label}</span>
-    </button>
+    </motion.button>
   );
 };
 

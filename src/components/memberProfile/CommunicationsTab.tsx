@@ -42,7 +42,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
   return (
     <div className="space-y-4">
       <div 
-        className="animate-content-enter"
+        
       >
         <button
           onClick={() => setShowAddComm(!showAddComm)}
@@ -55,7 +55,7 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
 
       {showAddComm && (
         <div 
-          className="animate-content-enter-delay-1"
+          
         >
           <div className={`p-4 rounded-xl ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
             <div className="space-y-3">
@@ -116,13 +116,13 @@ const CommunicationsTab: React.FC<CommunicationsTabProps> = ({
 
       {communications.length === 0 ? (
         <div 
-          className="animate-content-enter-delay-2"
+          
         >
           <ProfileEmptyState icon="chat" message="No communications logged yet" />
         </div>
       ) : (
         <div 
-          className="animate-content-enter-delay-2 space-y-3"
+          className=" space-y-3"
         >
           {communications.map((comm) => (
             <div key={comm.id} className={`p-4 rounded-xl tactile-row ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>

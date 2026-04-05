@@ -34,7 +34,7 @@ const DataIntegrityTab: React.FC = () => {
   const [showMaintenanceTools, setShowMaintenanceTools] = React.useState(false);
 
   return (
-    <div className="space-y-6 animate-page-enter pb-32">
+    <div className="space-y-6 pb-32">
       <HealthStatusGrid
         systemHealth={state.systemHealth}
         isCheckingHealth={state.isCheckingHealth}

@@ -8,7 +8,7 @@ import { useToast } from '../../hooks/useToast';
 import { apiRequest } from '../../lib/apiRequest';
 import { SegmentedButton } from '../../components/ui/SegmentedButton';
 import SwipeablePage from '../../components/SwipeablePage';
-import { MotionList, MotionListItem, AnimatedPage, AnimatedSection } from '../../components/motion';
+import { MotionList, MotionListItem, AnimatedPage, AnimatedSection, AccordionContent } from '../../components/motion';
 import { scrollToAccordion } from '../../utils/motion';
 import { TabTransition } from '../../components/motion/TabTransition';
 import { EmptyWellness } from '../../components/EmptyState';
@@ -761,8 +761,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
         <Icon name="expand_more" className={`text-base ${isDark ? 'text-white/30' : 'text-primary/30'}`} />
       </div>
     </button>
-    <div className={`accordion-content ${isExpanded ? 'is-open' : ''}`}>
-      <div className="accordion-inner">
+    <AccordionContent isOpen={isExpanded}>
       <div className="px-4 pb-4 pt-0 space-y-3">
         <div className={`flex items-center gap-1.5 text-sm ${isDark ? 'text-gray-400' : 'text-primary/70'}`}>
           <Icon name="person" className="text-[16px]" />
@@ -814,8 +813,7 @@ const ClassCard: React.FC<ClassCardProps> = React.memo(({ title, date, time, ins
           </button>
         )}
       </div>
-      </div>
-    </div>
+    </AccordionContent>
   </div>
   );
 });

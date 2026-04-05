@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { apiRequest } from '../../lib/apiRequest';
+import { springPresets } from '../../utils/motion';
 import Icon from '../icons/Icon';
 
 interface ConsentEvent {
@@ -63,10 +65,12 @@ const ConsentHistorySection: React.FC<ConsentHistorySectionProps> = ({ email, is
       .finally(() => setLoading(false));
   }, [email, expanded]);
 
+  const prefersReduced = useReducedMotion();
   return (
-    <div
-      className="animate-slide-up-stagger"
-      style={{ '--stagger-index': 5 } as React.CSSProperties}
+    <motion.div
+      initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={prefersReduced ? { duration: 0 } : { delay: 5 * 0.06, ...springPresets.gentle }}
     >
       <div className={`rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <button
@@ -148,7 +152,7 @@ const ConsentHistorySection: React.FC<ConsentHistorySectionProps> = ({ email, is
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

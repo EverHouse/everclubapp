@@ -697,7 +697,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
   return (
     <>
       <AnimatedPage className="pb-40">
-        <div className="flex items-start justify-between mb-4 lg:mb-6 animate-content-enter-delay-1">
+        <div className="flex items-start justify-between mb-4 lg:mb-6">
           <div>
             <h1 className="text-4xl lg:text-5xl font-bold text-primary dark:text-white leading-none" style={{ fontFamily: 'var(--font-display)', fontOpticalSizing: 'auto', letterSpacing: '-0.03em' }}>Welcome, {actualUser?.firstName || (actualUser?.name && !actualUser.name.includes('@') ? actualUser.name.split(' ')[0] : 'Staff')}</h1>
             <p className="text-sm lg:text-base text-primary/60 dark:text-white/60 mt-1">{formatTodayDate()}</p>
@@ -705,7 +705,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         </div>
 
         {/* Desktop Layout */}
-        <div className="hidden lg:block space-y-6 animate-content-enter-delay-2">
+        <div className="hidden lg:block space-y-6">
           {/* Top row: Next Tour, Next Event, Facility Status */}
           <div className="grid grid-cols-3 gap-6">
             <TodayScheduleSection
@@ -801,7 +801,7 @@ const StaffCommandCenter: React.FC<StaffCommandCenterProps> = ({ onTabChange: on
         </div>
 
         {/* Mobile Layout - Order: Next Tour/Event → Facility Status → Notice Board → Alerts → Booking Requests → Upcoming Bookings → Upcoming Events → Upcoming Wellness */}
-        <div className="lg:hidden space-y-4 animate-content-enter-delay-2">
+        <div className="lg:hidden space-y-4">
           {/* Next Tour/Event cards */}
           <TodayScheduleSection
             upcomingEvents={data.upcomingEvents}

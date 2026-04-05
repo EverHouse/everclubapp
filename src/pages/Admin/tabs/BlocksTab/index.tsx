@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, LayoutGroup, useReducedMotion } from 'framer-motion';
 import AvailabilityBlocksContent from '../../components/AvailabilityBlocksContent';
 import { AnimatedPage } from '../../../../components/motion';
 import { TabTransition } from '../../../../components/motion/TabTransition';
@@ -8,12 +9,18 @@ import { useBlocksData } from './useBlocksData';
 import { NoticeList } from './NoticeList';
 import { ClosureFormDrawer } from './ClosureFormDrawer';
 import { ClosureReasonsSection, NoticeTypesSection, EditReasonDrawer, EditNoticeTypeDrawer } from './ConfigSections';
+import { springPresets } from '../../../../utils/motion';
 import Icon from '../../../../components/icons/Icon';
 
 const BlocksTab: React.FC = () => {
     const data = useBlocksData();
+    const prefersReduced = useReducedMotion();
 
     const configuredClosures = data.upcomingClosures;
+
+    const pillTransition = prefersReduced
+        ? { duration: 0 }
+        : springPresets.pill;
 
     if (data.isLoading && data.closuresLoading) {
         return (
@@ -23,15 +30,9 @@ const BlocksTab: React.FC = () => {
 
     return (
         <AnimatedPage className="space-y-6">
-            <div className="flex items-center justify-between gap-3 flex-wrap animate-content-enter-delay-1">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+                <LayoutGroup id="blocks-sub-tabs">
                 <div className="inline-flex bg-black/5 dark:bg-white/10 backdrop-blur-sm rounded-full p-1 relative">
-                    <div
-                        className="absolute top-1 bottom-1 bg-white dark:bg-white/20 shadow-md rounded-full transition-colors duration-normal"
-                        style={{
-                            width: 'calc(50% - 4px)',
-                            left: data.activeSubTab === 'notices' ? '4px' : 'calc(50% + 0px)',
-                        }}
-                    />
                     <button
                         onClick={() => data.setActiveSubTab('notices')}
                         className={`tactile-btn relative z-10 px-5 py-1.5 text-sm font-medium transition-colors duration-fast rounded-full flex items-center gap-1.5 ${
@@ -40,6 +41,14 @@ const BlocksTab: React.FC = () => {
                                 : 'text-gray-500 dark:text-white/60'
                         }`}
                     >
+                        {data.activeSubTab === 'notices' && (
+                            <motion.div
+                                layoutId="blocksSubTabPill"
+                                className="absolute inset-0 bg-white dark:bg-white/20 shadow-md rounded-full"
+                                transition={pillTransition}
+                                style={{ zIndex: -1 }}
+                            />
+                        )}
                         <Icon name="notifications" className="text-[18px]" />
                         Notices
                     </button>
@@ -51,10 +60,19 @@ const BlocksTab: React.FC = () => {
                                 : 'text-gray-500 dark:text-white/60'
                         }`}
                     >
+                        {data.activeSubTab === 'blocks' && (
+                            <motion.div
+                                layoutId="blocksSubTabPill"
+                                className="absolute inset-0 bg-white dark:bg-white/20 shadow-md rounded-full"
+                                transition={pillTransition}
+                                style={{ zIndex: -1 }}
+                            />
+                        )}
                         <Icon name="event_busy" className="text-[18px]" />
                         Blocks
                     </button>
                 </div>
+                </LayoutGroup>
 
                 {data.activeSubTab === 'notices' && (
                     <div className="flex items-center gap-2">
@@ -91,12 +109,12 @@ const BlocksTab: React.FC = () => {
             </div>
 
             <TabTransition activeKey={data.activeSubTab}>
-            <div className="animate-content-enter">
+            <div >
             {data.activeSubTab === 'blocks' && <AvailabilityBlocksContent />}
 
             {data.activeSubTab === 'notices' && (
             <>
-            <div className="flex items-center gap-3 py-2 text-[10px] flex-wrap animate-content-enter">
+            <div className="flex items-center gap-3 py-2 text-[10px] flex-wrap">
                 <div className="flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
                     <span className="text-gray-500 dark:text-white/60">Blocks</span>

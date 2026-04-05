@@ -215,7 +215,7 @@ const UpdatesTab: React.FC = () => {
     };
 
     const renderAlertsTab = () => (
-        <div className="animate-content-enter">
+        <div >
             {notifications.length > 0 && (
                 <div className="flex justify-end gap-2 mb-4">
                     {unreadCount > 0 && (
@@ -264,7 +264,7 @@ const UpdatesTab: React.FC = () => {
                                     ? 'bg-white hover:bg-gray-50 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]' 
                                     : 'bg-accent/10 hover:bg-accent/15 border border-accent/30 dark:border-accent/20'
                             } shadow-layered dark:shadow-layered-dark`}
-                            style={{ '--stagger-index': index } as React.CSSProperties}
+
                         >
                             <div className="flex gap-3 p-4">
                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
@@ -321,7 +321,7 @@ const UpdatesTab: React.FC = () => {
     const renderAnnouncementsFeed = () => {
         const announcements = Array.isArray(announcementsData) ? announcementsData : [];
         return (
-            <div className="animate-content-enter space-y-3">
+            <div className=" space-y-3">
                 <button
                     onClick={() => { setEditingAnnouncement(null); setAnnouncementFormOpen(true); }}
                     className="w-full py-3 px-4 rounded-xl bg-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors tactile-btn shadow-md"
@@ -394,7 +394,7 @@ const UpdatesTab: React.FC = () => {
 
     return (
             <AnimatedPage className="pb-32">
-                <div className="flex gap-1.5 sm:gap-2 mb-6 animate-content-enter-delay-1">
+                <div className="flex gap-1.5 sm:gap-2 mb-6">
                     <button
                         onClick={() => setActiveSubTab('alerts')}
                         className={`tactile-btn flex-1 py-3 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wide transition-colors duration-fast relative ${

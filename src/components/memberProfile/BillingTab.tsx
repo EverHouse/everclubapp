@@ -1,6 +1,8 @@
 import type { GuestPassInfo, GuestCheckInItem } from './memberProfileTypes';
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import MemberBillingTab from '../admin/MemberBillingTab';
+import { springPresets } from '../../utils/motion';
 import type { GuestVisit } from './memberProfileTypes';
 
 interface BillingTabProps {
@@ -26,11 +28,13 @@ const BillingTab: React.FC<BillingTabProps> = ({
   guestHistory,
   guestCheckInsHistory,
 }) => {
+  const prefersReduced = useReducedMotion();
   return (
     <div className="space-y-4">
-      <div 
-        className="animate-slide-up-stagger"
-        style={{ '--stagger-index': 0 } as React.CSSProperties}
+      <motion.div 
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={prefersReduced ? { duration: 0 } : springPresets.gentle}
       >
         <MemberBillingTab 
           memberEmail={memberEmail} 
@@ -43,7 +47,7 @@ const BillingTab: React.FC<BillingTabProps> = ({
           guestHistory={guestHistory}
           guestCheckInsHistory={guestCheckInsHistory.map(c => ({ id: c.id, guestName: c.guest_name ?? null, checkInDate: c.check_in_date }))}
         />
-      </div>
+      </motion.div>
     </div>
   );
 };

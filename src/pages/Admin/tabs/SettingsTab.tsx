@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import { copyToClipboard } from '../../../lib/copyToClipboard';
+import { springPresets } from '../../../utils/motion';
 import Toggle from '../../../components/Toggle';
 import PageLoadingSpinner from '../../../components/PageLoadingSpinner';
 import Icon from '../../../components/icons/Icon';
@@ -369,9 +371,9 @@ const SettingsTab: React.FC = () => {
   const errorMessage = error instanceof Error ? error.message : (saveMutation.error instanceof Error ? saveMutation.error.message : null);
 
   return (
-    <div className="animate-page-enter space-y-6 pb-32 backdrop-blur-sm">
+    <div className=" space-y-6 pb-32 backdrop-blur-sm">
       {errorMessage && (
-        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm flex items-center gap-2 animate-content-enter">
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
           <Icon name="error" className="text-lg" />
           {errorMessage}
         </div>
@@ -862,8 +864,14 @@ const SettingsTab: React.FC = () => {
         </div>
       </div>
 
+      <AnimatePresence>
       {hasChanges && (
-        <div className="fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-72 lg:right-8 bg-white/80 dark:bg-white/10 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl shadow-lg p-4 flex items-center justify-between gap-4 z-50 animate-slide-up">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={springPresets.snappy}
+          className="fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-72 lg:right-8 bg-white/80 dark:bg-white/10 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl shadow-lg p-4 flex items-center justify-between gap-4 z-50">
           <p className="text-sm text-gray-600 dark:text-gray-400">You have unsaved changes</p>
           <div className="flex items-center gap-3">
             <button onClick={handleReset} disabled={saveMutation.isPending} className="tactile-btn px-4 py-2 rounded-full text-primary dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-sm font-medium">Reset</button>
@@ -875,8 +883,9 @@ const SettingsTab: React.FC = () => {
               )}
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

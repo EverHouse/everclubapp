@@ -82,7 +82,7 @@ const FinancialsTab: React.FC = () => {
   return (
     <AnimatedPage className="pb-32">
       {/* Sub-tab Navigation */}
-      <div className="flex gap-2 mb-6 animate-content-enter-delay-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         <button
           onClick={() => setActiveTab('POS')}
           className={`shrink-0 px-4 py-2 rounded-full font-medium transition-colors tactile-btn ${
@@ -141,7 +141,7 @@ const FinancialsTab: React.FC = () => {
 
       {/* Tab Content */}
       <TabTransition activeKey={activeTab}>
-      <div className="animate-content-enter">
+      <div >
         {activeTab === 'POS' && <POSRegister />}
         {activeTab === 'Transactions' && <TransactionsSubTab />}
         {activeTab === 'Subscriptions' && <SubscriptionsSubTab />}
@@ -608,7 +608,7 @@ const InvoicesSubTab: React.FC = () => {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 animate-content-enter-delay-1">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-4">
           <div className="flex-1">
             <div className="relative">

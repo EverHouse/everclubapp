@@ -1,13 +1,13 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAnnouncementBadge } from '../stores/announcementBadgeStore';
 import { Announcement } from '../contexts/DataContext';
 import { haptic } from '../utils/haptics';
 import { useToast } from '../hooks/useToast';
+import { springPresets, collapseVariants } from '../utils/motion';
 import Icon from './icons/Icon';
-
-const EXIT_DURATION = 250;
 
 const AnnouncementAlert: React.FC = () => {
   const navigate = useNavigate();
@@ -16,32 +16,29 @@ const AnnouncementAlert: React.FC = () => {
   const { unseenHighPriority, markSingleAsSeen, markAllAsSeen } = useAnnouncementBadge();
   const { showToast } = useToast();
   const [isExiting, setIsExiting] = useState(false);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefersReduced = useReducedMotion();
 
-  useEffect(() => {
-    return () => {
-      if (exitTimer.current) clearTimeout(exitTimer.current);
-    };
-  }, []);
-
-  const handleDismiss = useCallback((e: React.MouseEvent) => {
+  const handleDismiss = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (exitTimer.current) clearTimeout(exitTimer.current);
     haptic.light();
     setIsExiting(true);
-    exitTimer.current = setTimeout(async () => {
-      try {
-        await markSingleAsSeen(unseenHighPriority[0]?.id);
-      } catch {
-        showToast('Failed to dismiss announcement', 'error');
-      }
-      setIsExiting(false);
-      exitTimer.current = null;
-    }, EXIT_DURATION);
+  }, []);
+
+  const handleExitComplete = useCallback(async () => {
+    try {
+      await markSingleAsSeen(unseenHighPriority[0]?.id);
+    } catch {
+      showToast('Failed to dismiss announcement', 'error');
+    }
+    setIsExiting(false);
   }, [markSingleAsSeen, unseenHighPriority, showToast]);
 
   const latestAnnouncement = unseenHighPriority[0];
   const isAlertVisible = unseenHighPriority.length > 0 && !isExiting;
+
+  const collapseTransition = prefersReduced
+    ? { duration: 0 }
+    : springPresets.smooth;
   const hasMultiple = unseenHighPriority.length > 1;
   const isUpdate = latestAnnouncement?.type === 'update';
 
@@ -111,9 +108,17 @@ const AnnouncementAlert: React.FC = () => {
   };
 
   return (
-    <div className={`cls-safe-collapse cls-safe-reserve ${isAlertVisible ? 'cls-safe-visible' : ''}`} aria-hidden={!isAlertVisible}>
-    <div className="cls-safe-inner">
-    {latestAnnouncement ? (
+    <AnimatePresence onExitComplete={handleExitComplete}>
+    {isAlertVisible && latestAnnouncement ? (
+    <motion.div
+      key="announcement-alert"
+      variants={collapseVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      transition={collapseTransition}
+      style={{ overflow: 'hidden' }}
+    >
     <article 
       className={`mb-6 p-4 rounded-xl border cursor-pointer transition-colors duration-normal ease-spring-smooth ${cardColors} focus-visible:ring-2 focus-visible:ring-[#CCB8E4] focus-visible:outline-none`}
       onClick={handleViewAll}
@@ -168,9 +173,9 @@ const AnnouncementAlert: React.FC = () => {
         </div>
       </div>
     </article>
+    </motion.div>
     ) : null}
-    </div>
-    </div>
+    </AnimatePresence>
   );
 };
 

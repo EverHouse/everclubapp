@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { DirectoryTabSkeleton } from '../../../../components/skeletons';
 import EmptyState from '../../../../components/EmptyState';
 import { formatPhoneNumber } from '../../../../utils/formatting';
+import { staggerContainer, listItemVariant } from '../../../../utils/motion';
 import type { TeamMember, StaffRole } from './directoryTypes';
 import Icon from '../../../../components/icons/Icon';
 
@@ -106,15 +108,16 @@ const TeamList: React.FC<TeamListProps> = ({
     return (
         <div className="flex-1 min-h-0 relative">
             <div className="h-full overflow-y-auto">
-                <div className="md:hidden space-y-3 px-1 pt-2 pb-24">
-                    {filteredTeamMembers.map((member, index) => (
-                        <div
+                <motion.div className="md:hidden space-y-3 px-1 pt-2 pb-24" variants={staggerContainer()} initial="hidden" animate="show">
+                    {filteredTeamMembers.map((member) => (
+                        <motion.div
                             key={member.staff_id}
+                            variants={listItemVariant}
                             role="button"
                             tabIndex={0}
                             onClick={() => openTeamMemberDetails(member)}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTeamMemberDetails(member); } }}
-                            className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+                            className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98]"
                         >
                             <div className="flex justify-between items-start mb-2">
                                 <div className="flex-1">
@@ -130,9 +133,9 @@ const TeamList: React.FC<TeamListProps> = ({
                                 <p className="text-xs text-gray-500 dark:text-gray-400">{member.job_title || '-'}</p>
                                 <Icon name="chevron_right" className="text-gray-400 text-[16px]" />
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
-                </div>
+                </motion.div>
                 <table className="hidden md:table w-full" style={{ tableLayout: 'fixed' }}>
                     <colgroup>
                         <col style={{ width: '18%' }} />

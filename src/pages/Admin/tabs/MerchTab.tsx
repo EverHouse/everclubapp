@@ -139,8 +139,8 @@ const MerchTab: React.FC = () => {
     const isLoading = uploadImageMutation.isPending || createItemMutation.isPending || updateItemMutation.isPending;
 
     return (
-        <div className="animate-page-enter backdrop-blur-sm">
-            <div className="flex justify-between items-center mb-4 animate-content-enter-delay-1">
+        <div className=" backdrop-blur-sm">
+            <div className="flex justify-between items-center mb-4">
                 <div>
                     <h2 className="text-2xl leading-tight text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Merchandise</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5" style={{ fontFamily: 'var(--font-body)' }}>
@@ -149,7 +149,7 @@ const MerchTab: React.FC = () => {
                     </p>
                 </div>
             </div>
-            <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1 mb-4 animate-content-enter-delay-2 scroll-fade-right">
+            <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1 mb-4 scroll-fade-right">
                 {types.map(t => (
                     <button
                         key={t}
@@ -282,7 +282,7 @@ const MerchTab: React.FC = () => {
                 </div>
             </ModalShell>
 
-            <div ref={merchRef} className="space-y-3 animate-content-enter-delay-3">
+            <div ref={merchRef} className="space-y-3">
                 {filteredItems.map((item) => (
                     <div key={item.id} onClick={() => openEdit(item)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(item); } }} role="button" tabIndex={0} className={`bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 flex items-center gap-4 cursor-pointer hover:border-primary/30 transition-colors tactile-card ${item.isActive === false ? 'opacity-50' : ''}`}>
                         <div className="w-16 h-16 rounded-lg bg-gray-100 dark:bg-white/5 flex-shrink-0 overflow-hidden">

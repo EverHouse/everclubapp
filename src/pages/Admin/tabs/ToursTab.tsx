@@ -153,7 +153,7 @@ const TourCard: React.FC<TourCardProps> = ({ tour, isToday = false, isPast = fal
                 className="fixed inset-0 z-40" 
                 onClick={() => onStatusMenuToggle(null)}
               />
-              <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 min-w-[140px] animate-pop-in">
+              <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-primary/10 dark:border-white/20 py-1 min-w-[140px]">
                 {Object.entries(statusConfig).filter(([key]) => key !== 'pending').map(([key, { label, icon, colors }]) => (
                   <button
                     key={key}
@@ -415,7 +415,7 @@ const ToursTab: React.FC = () => {
 
   return (
       <AnimatedPage className="space-y-6 pb-32 backdrop-blur-sm">
-        <p className="text-sm text-primary/80 dark:text-white/80 animate-content-enter-delay-1">
+        <p className="text-sm text-primary/80 dark:text-white/80">
           Synced from HubSpot Meetings
         </p>
 
@@ -428,7 +428,7 @@ const ToursTab: React.FC = () => {
       {renderNeedsReviewSection()}
 
       {toursData.todayTours.length > 0 && (
-        <div className="animate-content-enter-delay-2">
+        <div >
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
             <Icon name="today" className="text-lg" />
             Today's Tours ({toursData.todayTours.length})
@@ -442,14 +442,14 @@ const ToursTab: React.FC = () => {
       )}
 
       {toursData.todayTours.length === 0 && (
-        <div className="flex flex-col items-center py-8 bg-white/40 dark:bg-white/5 rounded-xl animate-content-enter-delay-2">
+        <div className="flex flex-col items-center py-8 bg-white/40 dark:bg-white/5 rounded-xl">
           <Icon name="event_available" className="text-4xl text-primary/30 dark:text-white/70 mb-2" />
           <p className="text-primary/80 dark:text-white/80 text-sm">No tours scheduled for today</p>
         </div>
       )}
 
       {toursData.upcomingTours.length > 0 && (
-        <div className="animate-content-enter-delay-3">
+        <div >
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2" style={{ fontFamily: 'var(--font-label)' }}>
             <Icon name="upcoming" className="text-lg" />
             Upcoming Tours ({toursData.upcomingTours.length})
@@ -472,7 +472,7 @@ const ToursTab: React.FC = () => {
       )}
 
       {toursData.pastTours.length > 0 && (
-        <div className="animate-content-enter-delay-4">
+        <div >
           <h3 className="text-sm font-bold uppercase tracking-wider text-primary/70 dark:text-white/70 mb-3 flex items-center gap-2">
             <Icon name="history" className="text-lg" />
             Past Tours ({toursData.pastTours.length})

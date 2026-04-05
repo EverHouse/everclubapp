@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { MemberProfile } from '../../types/data';
 import { formatDatePacific } from './memberProfileTypes';
 import { apiRequest } from '../../lib/apiRequest';
 import { copyToClipboard } from '../../lib/copyToClipboard';
+import { springPresets } from '../../utils/motion';
 import Icon from '../icons/Icon';
 import ConsentHistorySection from './ConsentHistorySection';
 
@@ -51,10 +53,14 @@ const WaiverHistorySection: React.FC<{
     if (next && !loaded) loadHistory();
   };
 
+  const prefersReduced = useReducedMotion();
+  const staggerDelay = (idx: number) => prefersReduced ? { duration: 0 } : { delay: idx * 0.06, ...springPresets.gentle };
+
   return (
-    <div
-      className="animate-slide-up-stagger"
-      style={{ '--stagger-index': 2.5 } as React.CSSProperties}
+    <motion.div
+      initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={staggerDelay(2.5)}
     >
       <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
         <div className="flex items-center justify-between">
@@ -145,7 +151,7 @@ const WaiverHistorySection: React.FC<{
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -255,6 +261,9 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   handleRemoveLinkedEmail,
   onMemberUpdated,
 }) => {
+  const prefersReduced = useReducedMotion();
+  const staggerDelay = (idx: number) => prefersReduced ? { duration: 0 } : { delay: idx * 0.06, ...springPresets.gentle };
+
   const [outstanding, setOutstanding] = useState<OutstandingBalance | null>(null);
   const [outstandingExpanded, setOutstandingExpanded] = useState(false);
   const [editingPersonalInfo, setEditingPersonalInfo] = useState(false);
@@ -333,9 +342,11 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
 
   return (
     <div className="space-y-4">
-      <div 
-        className="animate-slide-up-stagger grid grid-cols-2 gap-3"
-        style={{ '--stagger-index': 0 } as React.CSSProperties}
+      <motion.div 
+        className="grid grid-cols-2 gap-3"
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={staggerDelay(0)}
       >
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center gap-2 mb-1">
@@ -365,12 +376,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
           <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Attended Visits</p>
         </div>
-      </div>
+      </motion.div>
 
       {(member.mindbodyClientId || member.stripeCustomerId || member.hubspotId) && (
-        <div
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 0.5 } as React.CSSProperties}
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(0.5)}
         >
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <h4 className={`text-xs font-bold mb-2 flex items-center gap-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -398,13 +410,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {member.visitorType === 'wellhub' && member.wellhubStatus && member.wellhubStatus !== 'active' && (
-        <div
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 0.6 } as React.CSSProperties}
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(0.6)}
         >
           <div className={`p-3 rounded-xl border ${
             member.wellhubStatus === 'cancelled'
@@ -437,13 +450,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {member.visitorType === 'wellhub' && (!member.wellhubStatus || member.wellhubStatus === 'active') && (
-        <div
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 0.6 } as React.CSSProperties}
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(0.6)}
         >
           <div className={`p-3 rounded-xl border ${isDark ? 'bg-emerald-900/20 border-emerald-700/40' : 'bg-emerald-50 border-emerald-200'}`}>
             <div className="flex items-center gap-2">
@@ -453,13 +467,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </span>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {isAdmin && !visitorMode && member.pendingTierChange && (
-        <div
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 0.75 } as React.CSSProperties}
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(0.75)}
         >
           <div className={`p-3 rounded-xl border ${isDark ? 'bg-amber-900/20 border-amber-700/40' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex items-start gap-2">
@@ -485,13 +500,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {isAdmin && !visitorMode && (
-        <div 
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 1 } as React.CSSProperties}
+        <motion.div 
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(1)}
         >
           <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-3">
@@ -569,13 +585,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </button>
           )}
         </div>
-        </div>
+        </motion.div>
       )}
 
       {isAdmin && !visitorMode && outstanding && outstanding.totalCents > 0 && (
-        <div
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 1.5 } as React.CSSProperties}
+        <motion.div
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(1.5)}
         >
           <div className={`p-4 rounded-xl border ${isDark ? 'bg-amber-900/20 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
             <div className="flex items-center justify-between mb-1">
@@ -628,13 +645,14 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {(
-        <div 
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 2 } as React.CSSProperties}
+        <motion.div 
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(2)}
         >
           <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-3">
@@ -699,14 +717,15 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
 
       <WaiverHistorySection member={member} isDark={isDark} isAdmin={isAdmin} visitorMode={visitorMode} />
 
-      <div 
-        className="animate-slide-up-stagger"
-        style={{ '--stagger-index': 3 } as React.CSSProperties}
+      <motion.div 
+        initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={staggerDelay(3)}
       >
         <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
           <div className="flex items-center justify-between mb-3">
@@ -860,12 +879,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
       
       {isAdmin && linkedEmails.length > 0 && (
-        <div 
-          className="animate-slide-up-stagger"
-          style={{ '--stagger-index': 4 } as React.CSSProperties}
+        <motion.div 
+          initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={staggerDelay(4)}
         >
           <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <h4 className={`text-sm font-bold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -892,7 +912,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             ))}
           </div>
         </div>
-        </div>
+        </motion.div>
       )}
 
       {!visitorMode && member?.email && (

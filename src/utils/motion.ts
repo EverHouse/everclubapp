@@ -196,6 +196,52 @@ export const noMotionVariant = {
   show: {},
 };
 
+export const sidebarVariants = {
+  hidden: { x: '-100%' },
+  visible: { x: 0 },
+  exit: { x: '-100%' },
+};
+
+export const backdropVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+  exit: { opacity: 0 },
+};
+
+export const menuItemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0 },
+};
+
+export const menuContainerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.1,
+    },
+  },
+  exit: {},
+};
+
+export const collapseVariants = {
+  hidden: { height: 0, opacity: 0 },
+  visible: { height: 'auto', opacity: 1 },
+  exit: { height: 0, opacity: 0 },
+};
+
+export const pageFadeVariants = {
+  enter: { opacity: 0, y: 6 },
+  center: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -4 },
+};
+
+export const tabFadeVariants = {
+  enter: { opacity: 0, y: 4 },
+  center: { opacity: 1, y: 0 },
+  exit: { opacity: 0 },
+};
+
 export function scrollToAccordion(el: HTMLElement | null) {
   if (!el) return;
   requestAnimationFrame(() => {

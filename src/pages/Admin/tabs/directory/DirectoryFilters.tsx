@@ -85,7 +85,7 @@ const DirectoryFilters: React.FC<DirectoryFiltersProps> = ({
 }) => {
     const { tiers } = useTierNames();
     return (
-        <div className="mb-6 space-y-3 animate-content-enter-delay-1 sticky top-0 z-10 bg-transparent pt-2 pb-3">
+        <div className="mb-6 space-y-3 sticky top-0 z-10 bg-transparent pt-2 pb-3">
             {memberTab !== 'visitors' && memberTab !== 'team' && (
                 <div className="flex gap-2 relative" ref={filterPopoverRef}>
                     <div className="relative flex-1">

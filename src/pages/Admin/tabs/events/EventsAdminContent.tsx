@@ -758,9 +758,9 @@ export const EventsAdminContent: React.FC = () => {
                     variant="compact"
                 />
             ) : (
-                <div key={activeCategory} className="space-y-6 animate-content-enter">
+                <div key={activeCategory} className="space-y-6">
                     {upcomingEvents.length > 0 && (
-                        <div className="animate-content-enter-delay-1">
+                        <div >
                             <div className="flex items-center gap-2 mb-3">
                                 <Icon name="schedule" className="text-green-500" />
                                 <h3 className="text-2xl leading-tight font-bold text-primary dark:text-white" style={{ fontFamily: 'var(--font-headline)' }}>Upcoming ({upcomingEvents.length})</h3>
@@ -770,7 +770,7 @@ export const EventsAdminContent: React.FC = () => {
                                     const isPending = pendingEventIds.has(event.id);
                                     const isOptimistic = event.id < 0;
                                     return (
-                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isOptimistic) { e.preventDefault(); openEdit(event); } }} role="button" tabIndex={isOptimistic ? -1 : 0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
+                                    <div key={event.id} onClick={() => !isOptimistic && openEdit(event)} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !isOptimistic) { e.preventDefault(); openEdit(event); } }} role="button" tabIndex={isOptimistic ? -1 : 0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${
                                         isPending || isOptimistic 
                                             ? 'border-brand-green/50 animate-pulse cursor-wait' 
                                             : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-transform active:scale-[0.98]'
@@ -840,7 +840,7 @@ export const EventsAdminContent: React.FC = () => {
                     )}
                     
                     {pastEvents.length > 0 && (
-                        <div className="animate-content-enter-delay-2">
+                        <div >
                             <button 
                                 onClick={() => setShowPastEvents(!showPastEvents)}
                                 className="flex items-center gap-2 mb-3 w-full text-left group"
@@ -855,7 +855,7 @@ export const EventsAdminContent: React.FC = () => {
                                 {pastEvents.slice(0, showAllPastEvents ? pastEvents.length : 20).map((event, index) => {
                                     const isPending = pendingEventIds.has(event.id);
                                     return (
-                                    <div key={event.id} onClick={() => openEdit(event)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(event); } }} role="button" tabIndex={0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'} ${
+                                    <div key={event.id} onClick={() => openEdit(event)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEdit(event); } }} role="button" tabIndex={0} className={`tactile-card bg-white dark:bg-surface-dark p-4 rounded-xl shadow-sm border flex flex-col gap-3 relative overflow-hidden transition-colors ${
                                         isPending ? 'border-brand-green/50 animate-pulse cursor-wait' : 'border-gray-200 dark:border-white/20 cursor-pointer hover:border-primary/30 transition-transform active:scale-[0.98]'
                                     }`}>
                                         {isPending && (

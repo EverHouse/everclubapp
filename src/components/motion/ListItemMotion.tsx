@@ -215,30 +215,20 @@ export const AccordionContent: React.FC<AccordionContentProps> = ({
   const prefersReduced = useReducedMotion();
 
   return (
-    <div
-      className={`accordion-content ${isOpen ? 'is-open' : ''} ${className}`}
-      aria-hidden={!isOpen}
-      inert={!isOpen ? true : undefined}
-    >
-      <div className="accordion-inner" style={{ overflow: 'hidden' }}>
-        {prefersReduced ? (
-          <div style={{ opacity: isOpen ? 1 : 0 }}>{children}</div>
-        ) : (
-          children
-        )}
-      </div>
-    </div>
+    <AnimatePresence initial={false}>
+      {isOpen && (
+        <motion.div
+          className={className}
+          initial={prefersReduced ? false : { height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={prefersReduced ? { duration: 0 } : { height: { type: 'spring', stiffness: 500, damping: 40 }, opacity: { duration: 0.2 } }}
+          style={{ overflow: 'hidden' }}
+          aria-hidden={false}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
-};
-
-// eslint-disable-next-line react-refresh/only-export-components
-export const getStaggerClass = (index: number, prefix: 'list' | 'content' = 'list'): string => {
-  if (prefix === 'content') {
-    if (index <= 0) return 'animate-content-enter';
-    if (index > 12) return 'animate-content-enter-delay-12';
-    return `animate-content-enter-delay-${index}`;
-  }
-  if (index <= 0) return 'animate-list-item';
-  if (index > 10) return 'animate-list-item-delay-10';
-  return `animate-list-item-delay-${index}`;
 };

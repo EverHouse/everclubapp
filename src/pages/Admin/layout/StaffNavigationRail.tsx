@@ -1,10 +1,49 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, LayoutGroup, useReducedMotion } from 'framer-motion';
+import type { Transition } from 'framer-motion';
 import { TabType, NavItemData, tabToPath, MAIN_NAV_ITEMS, ADMIN_NAV_ITEMS } from './types';
 import { useNavigationLoading } from '../../../stores/navigationLoadingStore';
 import { prefetchStaffRoute, prefetchAdjacentStaffRoutes } from '../../../lib/prefetch-actions';
+import { springPresets } from '../../../utils/motion';
 import Icon from '../../../components/icons/Icon';
+
+interface RailItemProps {
+  item: NavItemData;
+  isActive: boolean;
+  pillTransition: Transition;
+  onNavigate: (tab: TabType) => void;
+  onPrefetch: (path: string) => void;
+  suppressInitialAnimation: boolean;
+}
+
+const RailItem: React.FC<RailItemProps> = ({ item, isActive, pillTransition, onNavigate, onPrefetch, suppressInitialAnimation }) => {
+  return (
+    <button
+      onClick={() => onNavigate(item.id)}
+      onMouseEnter={() => onPrefetch(tabToPath[item.id])}
+      style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
+      aria-label={item.label}
+      aria-current={isActive ? 'page' : undefined}
+      className="tactile-btn flex flex-col items-center gap-1 w-full min-h-[56px] py-2 px-1 transition-colors duration-normal ease-out"
+    >
+      <div className="relative flex items-center justify-center w-10 h-7 rounded-full">
+        {isActive && (
+          <motion.div
+            layoutId="railActivePill"
+            className="absolute inset-0 rounded-full bg-accent/20"
+            transition={suppressInitialAnimation ? { duration: 0 } : pillTransition}
+          />
+        )}
+        <Icon name={item.icon} className={`text-[20px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'text-white/50 group-hover:text-white/70'}`} />
+      </div>
+      <span className={`text-[9px] uppercase tracking-[0.1em] leading-tight text-center truncate w-full px-0.5 transition-colors duration-normal ${isActive ? 'text-white font-semibold' : 'text-white/50'}`}>
+        {item.label}
+      </span>
+    </button>
+  );
+};
 
 interface StaffNavigationRailProps {
   activeTab: TabType;
@@ -19,6 +58,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
   const location = useLocation();
   const { startNavigation } = useNavigationLoading();
   const [optimisticTab, setOptimisticTab] = useState<TabType | null>(null);
+  const hasMounted = useRef(false);
 
   useEffect(() => {
     prefetchAdjacentStaffRoutes(location.pathname);
@@ -26,10 +66,16 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
 
   useEffect(() => {
     if (optimisticTab && activeTab === optimisticTab) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOptimisticTab(null);
     }
   }, [activeTab, optimisticTab]);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      hasMounted.current = true;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const displayActiveTab = optimisticTab || activeTab;
 
@@ -42,26 +88,13 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
     }
   }, [navigate, startNavigation, activeTab]);
 
-  const RailItem: React.FC<{ item: NavItemData }> = ({ item }) => {
-    const isActive = displayActiveTab === item.id;
-    return (
-      <button
-        onClick={() => navigateToTab(item.id)}
-        onMouseEnter={() => prefetchStaffRoute(tabToPath[item.id])}
-        style={{ WebkitTapHighlightColor: 'transparent', fontFamily: 'var(--font-label)' }}
-        aria-label={item.label}
-        aria-current={isActive ? 'page' : undefined}
-        className="tactile-btn flex flex-col items-center gap-1 w-full min-h-[56px] py-2 px-1 transition-colors duration-normal ease-out"
-      >
-        <div className={`flex items-center justify-center w-10 h-7 rounded-full transition-colors duration-normal ${isActive ? 'bg-accent/20' : 'hover:bg-white/10'}`}>
-          <Icon name={item.icon} className={`text-[20px] transition-colors duration-normal ${isActive ? 'filled text-[#CCB8E4]' : 'text-white/50 group-hover:text-white/70'}`} />
-        </div>
-        <span className={`text-[9px] uppercase tracking-[0.1em] leading-tight text-center truncate w-full px-0.5 transition-colors duration-normal ${isActive ? 'text-white font-semibold' : 'text-white/50'}`}>
-          {item.label}
-        </span>
-      </button>
-    );
-  };
+  const prefersReduced = useReducedMotion();
+
+  const pillTransition = prefersReduced
+    ? { duration: 0 }
+    : springPresets.pill;
+
+  const suppressInitialAnimation = !hasMounted.current;
 
   const railContent = (
     <aside
@@ -84,9 +117,10 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
       </button>
 
       <nav className="relative flex-1 min-h-0 overflow-y-auto px-1 py-2" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' } as React.CSSProperties}>
+        <LayoutGroup id="staff-rail-nav">
         <div className="space-y-0.5">
           {MAIN_NAV_ITEMS.map(item => (
-            <RailItem key={item.id} item={item} />
+            <RailItem key={item.id} item={item} isActive={displayActiveTab === item.id} pillTransition={pillTransition} onNavigate={navigateToTab} onPrefetch={prefetchStaffRoute} suppressInitialAnimation={suppressInitialAnimation} />
           ))}
         </div>
 
@@ -94,11 +128,12 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
           <div className="mt-3 pt-3 border-t border-white/10">
             <div className="space-y-0.5">
               {ADMIN_NAV_ITEMS.map(item => (
-                <RailItem key={item.id} item={item} />
+                <RailItem key={item.id} item={item} isActive={displayActiveTab === item.id} pillTransition={pillTransition} onNavigate={navigateToTab} onPrefetch={prefetchStaffRoute} suppressInitialAnimation={suppressInitialAnimation} />
               ))}
             </div>
           </div>
         )}
+        </LayoutGroup>
 
         <div className="mt-3 pt-3 border-t border-white/10">
           <button
@@ -115,7 +150,7 @@ export const StaffNavigationRail: React.FC<StaffNavigationRailProps> = ({
             </span>
           </button>
         </div>
-      </nav>
+        </nav>
     </aside>
   );
 

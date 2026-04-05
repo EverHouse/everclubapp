@@ -1,6 +1,8 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { RedemptionSuccess } from './types';
 import { formatPassType } from './types';
+import { springPresets } from '../../../../utils/motion';
 import Icon from '../../../icons/Icon';
 
 interface RedemptionSuccessCardProps {
@@ -16,8 +18,13 @@ const RedemptionSuccessCard: React.FC<RedemptionSuccessCardProps> = ({
   onClose,
   onReset,
 }) => {
+  const prefersReduced = useReducedMotion();
   return (
-    <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 space-y-4 animate-modal-slide-up">
+    <motion.div
+      initial={prefersReduced ? false : { opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={prefersReduced ? { duration: 0 } : springPresets.snappy}
+      className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 space-y-4">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 w-12 h-12 rounded-full bg-green-100 dark:bg-green-800/40 flex items-center justify-center">
           <Icon name="check_circle" className="text-2xl text-green-600 dark:text-green-400" />
@@ -74,7 +81,7 @@ const RedemptionSuccessCard: React.FC<RedemptionSuccessCardProps> = ({
           Done
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

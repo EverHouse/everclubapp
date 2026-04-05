@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { SlideUpDrawer } from './SlideUpDrawer';
 import WalkingGolferSpinner from './WalkingGolferSpinner';
 import { fetchWithCredentials } from '../hooks/queries/useFetch';
+import { springPresets, collapseVariants } from '../utils/motion';
 import Icon from './icons/Icon';
 
 interface TrainingSectionDB {
@@ -28,6 +30,8 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
   const [loading, setLoading] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const expandedRef = useRef<HTMLDivElement | null>(null);
+  const prefersReduced = useReducedMotion();
+  const collapseTransition = prefersReduced ? { duration: 0 } : springPresets.smooth;
 
   useEffect(() => {
     if (expandedSection && expandedRef.current) {
@@ -104,8 +108,17 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                   </div>
                 </div>
 
-                <div className={`cls-safe-collapse ${isExpanded ? 'cls-safe-visible' : ''}`}>
-                  <div className="cls-safe-inner">
+                <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    key={`help-section-${section.id}`}
+                    variants={collapseVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    transition={collapseTransition}
+                    style={{ overflow: 'hidden' }}
+                  >
                     <div className="px-8 pt-4 pb-8 space-y-4">
                       {section.steps.map((step, index) => (
                         <div key={index} className="flex gap-4">
@@ -129,8 +142,9 @@ export default function ContextualHelp({ guideIds, title = 'Page Guide' }: Conte
                         </div>
                       ))}
                     </div>
-                  </div>
-                </div>
+                  </motion.div>
+                )}
+                </AnimatePresence>
               </div>
             );})
           )}

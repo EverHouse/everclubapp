@@ -41,7 +41,7 @@ const MobileMemberRow: React.FC<MemberRowProps> = React.memo(({
             onKeyDown={handleKeyDown}
             onMouseEnter={handlePrefetch}
             onFocus={handlePrefetch}
-            className={`bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98] ${index < 10 ? `animate-list-item-delay-${index}` : 'animate-list-item'}`}
+            className="bg-white dark:bg-surface-dark p-4 rounded-xl border border-gray-200 dark:border-white/20 shadow-sm cursor-pointer hover:border-primary/50 transition-interactive active:scale-[0.98]"
         >
             <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
