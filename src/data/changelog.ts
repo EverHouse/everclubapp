@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.49",
+    date: "2026-04-05",
+    title: "Session Handling",
+    changes: [
+      "Improved: When your session expires, you're now automatically redirected to the login page instead of seeing a broken screen. You'll be taken back to the page you were on after logging in again.",
+    ]
+  },
+  {
     version: "8.98.48",
     date: "2026-04-05",
     title: "Email & Upload Safety",

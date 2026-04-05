@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.49] - 2026-04-05
+
+### Global 401 Session Expiry Handler
+- **Added automatic redirect to login on session expiry.** Previously, when a member's session expired, API calls would return 401 errors but the UI would remain on the protected page showing broken/empty states (spinners that never resolve, blank data). Now both `fetchWithCredentials` (React Query) and `apiRequest` (imperative calls) detect 401 responses and automatically: (1) clear cached user data from localStorage, (2) redirect to `/login` with a `returnTo` query param so the user returns to their page after re-authenticating. Auth-check endpoints (`/api/auth/session`, `/api/auth/check-staff-admin`, `/api/auth/verify`) are excluded to prevent redirect loops during initial session validation.
+- **Stopped React Query from retrying 401/403 errors.** `queryClient` default retry function now returns `false` for `ApiError` instances with status 401 or 403, preventing 2 unnecessary retry requests before the redirect fires.
+
+Files changed: `src/hooks/queries/useFetch.ts`, `src/lib/apiRequest.ts`, `src/lib/queryClient.ts`
+
 ## [8.98.48] - 2026-04-05
 
 ### Email & Upload Hardening

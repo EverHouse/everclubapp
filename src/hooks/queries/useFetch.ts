@@ -15,6 +15,23 @@ export class ApiError extends Error {
   }
 }
 
+let sessionExpiredRedirectPending = false;
+
+export function handleSessionExpired(url: string): void {
+  const pathname = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0];
+  if (pathname.startsWith('/api/auth/')) return;
+  if (sessionExpiredRedirectPending) return;
+
+  const currentPath = window.location.pathname;
+  if (currentPath === '/login' || currentPath === '/staff-login') return;
+
+  sessionExpiredRedirectPending = true;
+  try { localStorage.removeItem('eh_member'); } catch {}
+
+  const returnTo = currentPath !== '/' ? `?returnTo=${encodeURIComponent(currentPath)}` : '';
+  window.location.href = `/login${returnTo}`;
+}
+
 export async function fetchWithCredentials<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     credentials: 'include',
@@ -22,6 +39,9 @@ export async function fetchWithCredentials<T>(url: string, options?: RequestInit
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleSessionExpired(url);
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new ApiError(
       errorData.error || errorData.message || `Request failed with status ${response.status}`,

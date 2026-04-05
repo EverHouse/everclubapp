@@ -4,6 +4,8 @@
  * For React Query queryFn callbacks, prefer the simpler fetchWithCredentials()
  * helpers in src/hooks/queries/useFetch.ts.
  */
+import { handleSessionExpired } from '../hooks/queries/useFetch';
+
 const isDev = import.meta.env.DEV;
 
 // CSRF protection removed - SameSite cookies + CORS provide sufficient protection for SPA
@@ -112,6 +114,10 @@ export async function apiRequest<T = unknown>(
         const errorData = await res.json().catch(() => ({}));
         const error = errorData.error || errorData.message || `Request failed (${res.status})`;
         if (isDev) console.error('[API]', url, error);
+
+        if (res.status === 401) {
+          handleSessionExpired(url);
+        }
         
         const isServerOrColdStart = res.status >= 500 || res.status === 502 || res.status === 503 || res.status === 504;
         if (isServerOrColdStart && canRetry && attempt < maxRetries) {
