@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.58",
+    date: "2026-04-05",
+    title: "Session Security & Stability Improvements",
+    changes: [
+      "Fixed: Expired sessions are now properly rejected across all protected pages, not just the session check screen.",
+      "Fixed: Gallery image reordering is now protected against conflicts when two staff members edit at the same time.",
+      "Improved: Staff dashboard data queries now have a safety timeout to prevent slow-loading pages.",
+    ]
+  },
+  {
     version: "8.98.57",
     date: "2026-04-05",
     title: "Email Safety & Access Controls",

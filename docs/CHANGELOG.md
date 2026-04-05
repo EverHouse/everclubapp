@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.58] - 2026-04-05
+
+### Expired Session Bypass in Auth Middleware
+- **Added `expires_at` check to `isAuthenticated`, `isAdmin`, and `isStaffOrAdmin` middleware.** Previously, only the `/api/auth/session` endpoint checked whether the session's `expires_at` timestamp had passed. All other protected routes relied solely on the presence of a session user object. This meant an expired session could still access any API endpoint until the user happened to hit the session check. Now all three auth middleware functions reject expired sessions with a 401 before proceeding.
+
+Files changed: `server/replit_integrations/auth/replitAuth.ts`
+
+### Gallery Reorder Race Condition
+- **Wrapped gallery reorder updates in a database transaction.** The `/api/admin/gallery/reorder` endpoint used `Promise.all` to fire independent `UPDATE` queries concurrently. If two staff members reordered the gallery simultaneously, the final `sortOrder` values could become inconsistent. Now uses a sequential transaction so all updates are atomic.
+
+Files changed: `server/routes/gallery.ts`
+
+### Command Center Query Timeout
+- **Added 10-second statement timeout to the revenue aggregation query in the command center.** The `/api/admin/command-center` endpoint runs a complex revenue query joining `stripe_transaction_cache` and `stripe_payment_intents` with subqueries. As transaction volume grows, this query could hang and saturate the connection pool. Now wrapped in a transaction with `SET LOCAL statement_timeout = '10s'` so Postgres cancels it if it runs too long.
+
+Files changed: `server/routes/staff/index.ts`
+
 ## [8.98.57] - 2026-04-05
 
 ### Email Template XSS Prevention

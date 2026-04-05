@@ -22,7 +22,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
     const startOfDayUnix = Math.floor(getPacificMidnightUTC(today).getTime() / 1000);
     const tomorrow = addDaysToPacificDate(today, 1);
     const endOfDayUnix = Math.floor(getPacificMidnightUTC(tomorrow).getTime() / 1000);
-    
+
     // Run all queries in parallel for maximum efficiency using Drizzle
     const [
       pendingBookingsCount,
@@ -155,20 +155,23 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
     // Financials queries with error handling for missing columns/tables
     const financials = { todayRevenueCents: 0, overduePaymentsCount: 0, failedPaymentsCount: 0 };
     try {
-      const todayRevenue = await db.execute(sql`
-        SELECT COALESCE(SUM(stc.amount_cents), 0) as total_cents
-        FROM stripe_transaction_cache stc
-        LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = COALESCE(stc.payment_intent_id, stc.stripe_id)
-        WHERE stc.status IN ('succeeded', 'paid')
-        AND stc.created_at >= to_timestamp(${startOfDayUnix}) AND stc.created_at < to_timestamp(${endOfDayUnix})
-        AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
-        AND NOT EXISTS (
-          SELECT 1 FROM stripe_transaction_cache ref_ch
-          WHERE ref_ch.payment_intent_id = COALESCE(stc.payment_intent_id, stc.stripe_id)
-          AND ref_ch.object_type = 'charge'
-          AND ref_ch.status IN ('refunded', 'partially_refunded')
-        )
-      `);
+      const todayRevenue = await db.transaction(async (tx) => {
+        await tx.execute(sql`SET LOCAL statement_timeout = '10s'`);
+        return tx.execute(sql`
+          SELECT COALESCE(SUM(stc.amount_cents), 0) as total_cents
+          FROM stripe_transaction_cache stc
+          LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = COALESCE(stc.payment_intent_id, stc.stripe_id)
+          WHERE stc.status IN ('succeeded', 'paid')
+          AND stc.created_at >= to_timestamp(${startOfDayUnix}) AND stc.created_at < to_timestamp(${endOfDayUnix})
+          AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
+          AND NOT EXISTS (
+            SELECT 1 FROM stripe_transaction_cache ref_ch
+            WHERE ref_ch.payment_intent_id = COALESCE(stc.payment_intent_id, stc.stripe_id)
+            AND ref_ch.object_type = 'charge'
+            AND ref_ch.status IN ('refunded', 'partially_refunded')
+          )
+        `);
+      });
       financials.todayRevenueCents = parseInt(String(todayRevenue.rows[0]?.total_cents || '0'), 10);
     } catch (err) { logger.debug('[Command Center] Failed to query today revenue — table may not have expected structure', { extra: { error: getErrorMessage(err) } }); }
     

@@ -136,13 +136,14 @@ router.post('/api/admin/gallery/reorder', isStaffOrAdmin, async (req, res) => {
       }
     }
     
-    await Promise.all(
-      order.map(item =>
-        db.update(galleryImages)
+    const sorted = [...order].sort((a, b) => a.id - b.id);
+    await db.transaction(async (tx) => {
+      for (const item of sorted) {
+        await tx.update(galleryImages)
           .set({ sortOrder: item.sortOrder })
-          .where(eq(galleryImages.id, item.id))
-      )
-    );
+          .where(eq(galleryImages.id, item.id));
+      }
+    });
     
     logFromRequest(req, 'reorder_gallery', 'gallery', undefined, 'Gallery Reorder', {});
     res.json({ success: true, updated: order.length });

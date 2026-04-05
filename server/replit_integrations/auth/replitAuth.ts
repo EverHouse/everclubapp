@@ -223,6 +223,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  if (user.expires_at && Date.now() > user.expires_at) {
+    return res.status(401).json({ message: "Session expired" });
+  }
+
   return next();
 };
 
@@ -231,6 +235,10 @@ export const isAdmin: RequestHandler = async (req, res, next) => {
 
   if (!user) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (user.expires_at && Date.now() > user.expires_at) {
+    return res.status(401).json({ message: "Session expired" });
   }
 
   const email = user.email?.toLowerCase() || '';
@@ -248,6 +256,10 @@ export const isStaffOrAdmin: RequestHandler = async (req, res, next) => {
 
   if (!user) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if (user.expires_at && Date.now() > user.expires_at) {
+    return res.status(401).json({ message: "Session expired" });
   }
 
   const email = user.email?.toLowerCase() || '';
