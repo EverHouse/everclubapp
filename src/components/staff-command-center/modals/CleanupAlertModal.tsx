@@ -137,8 +137,8 @@ const CleanupAlertModal: React.FC<CleanupAlertModalProps> = ({
             <Icon name="cleaning_services" className="text-base text-amber-200 flex-shrink-0" />
             <span>
               {isConferenceRoom
-                ? 'Please clean up and reset the conference room — clear items, wipe surfaces, and reset A/V equipment.'
-                : 'Please clean up and reset the bay — collect equipment, wipe surfaces, and reset the screen.'}
+                ? 'Remind the booking owner their session is about to end, then clean up the area and reset chairs.'
+                : 'Clear drinks, reset the balls, and organize the tees.'}
             </span>
           </div>
 

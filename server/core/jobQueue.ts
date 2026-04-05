@@ -523,8 +523,8 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         const cleanupTitle = 'Session Ending Soon';
         const isConferenceRoom = cleanupBooking.resource_type === 'conference';
         const cleanupInstruction = isConferenceRoom
-          ? 'Please prepare to reset the conference room (clear items, wipe surfaces, reset A/V).'
-          : 'Please prepare to clean up and reset the bay (collect equipment, wipe surfaces, reset screen).';
+          ? 'Please remind the booking owner their session is about to end, then clean up the area and reset chairs.'
+          : 'Please clear drinks, reset the balls, and organize the tees.';
         const cleanupMessage = `${cleanupBooking.resource_name} — ${cleanupBooking.user_name || cleanupBooking.user_email} — ends in 10 minutes. ${cleanupInstruction}${hasNextBooking ? ` Next: ${nextBookingInfo?.user_name || nextBookingInfo?.user_email} at ${nextBookingInfo?.start_time?.substring(0, 5)}.` : ''}`;
 
         await notifyAllStaff(cleanupTitle, cleanupMessage, 'booking_reminder', {
