@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.51",
+    date: "2026-04-05",
+    title: "Notifications, Events & POS Safety",
+    changes: [
+      "Fixed: Push notifications for announcements no longer reach former or archived members — only active members receive them now.",
+      "Fixed: You can no longer RSVP to events that have already passed.",
+      "Fixed: Terminal POS payments now safely cancel if the payment record can't be saved, preventing charges with no matching record in the system.",
+    ]
+  },
+  {
     version: "8.98.50",
     date: "2026-04-05",
     title: "Billing Fix",

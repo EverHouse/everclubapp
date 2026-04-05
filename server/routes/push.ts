@@ -46,10 +46,15 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
   const results = { sent: 0, pushFailed: 0 };
   
   try {
+    const activeMemberFilter = and(
+      or(eq(users.role, 'member'), isNull(users.role)),
+      inArray(users.membershipStatus, ['active', 'trialing', 'past_due'])
+    );
+
     const allMembers = await db
       .select({ email: users.email })
       .from(users)
-      .where(or(eq(users.role, 'member'), isNull(users.role)));
+      .where(activeMemberFilter);
     
     if (allMembers.length === 0) {
       logger.info('[Push to Members] No members found');
@@ -65,7 +70,7 @@ export async function sendPushNotificationToAllMembers(payload: { title: string;
       })
       .from(pushSubscriptions)
       .innerJoin(users, eq(pushSubscriptions.userEmail, users.email))
-      .where(or(eq(users.role, 'member'), isNull(users.role)));
+      .where(activeMemberFilter);
     
     const uniqueEmails = [...new Set(allMembers.filter(m => m.email).map(m => m.email!))];
     const notifyResults = await Promise.allSettled(

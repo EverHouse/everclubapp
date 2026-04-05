@@ -414,9 +414,15 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
            VALUES (${userId}, ${paymentIntent.id}, ${customerId || null}, ${Math.round(amount)}, ${isBookingFee ? 'booking_fee' : 'one_time_purchase'}, ${finalDescription}, 'pending', ${null}, ${metadata?.items || null}, ${bookingIdVal}, ${sessionIdVal})
            ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
       } catch (dbErr: unknown) {
-        logger.error('[Terminal] CRITICAL: Payment record insert failed — Stripe charge exists without local record', {
+        logger.error('[Terminal] CRITICAL: Payment record insert failed — canceling PI to prevent untracked charge', {
           extra: { paymentIntentId: paymentIntent.id, amount, description: finalDescription, dbErr: getErrorMessage(dbErr) }
         });
+        try {
+          await stripe.paymentIntents.cancel(paymentIntent.id);
+        } catch (cancelErr: unknown) {
+          logger.error('[Terminal] Failed to cancel PI after DB insert failure', { extra: { paymentIntentId: paymentIntent.id, error: getErrorMessage(cancelErr) } });
+        }
+        return res.status(500).json({ error: 'Payment could not be recorded. Please try again.' });
       }
     }
 

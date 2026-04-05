@@ -2,7 +2,7 @@ import { db } from '../db';
 import { events, eventRsvps, wellnessEnrollments, wellnessClasses } from '../../shared/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { notifyAllStaff, notifyMember } from './notificationService';
-import { formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb } from '../utils/dateUtils';
+import { formatDateDisplayWithDay, formatTime12Hour, formatDateFromDb, getTodayPacific } from '../utils/dateUtils';
 import { broadcastToStaff, broadcastWaitlistUpdate } from './websocket';
 import { logger } from './logger';
 import { getErrorMessage } from '../utils/errorUtils';
@@ -41,6 +41,11 @@ export async function createEventRsvp(
   }
 
   const evt = eventData[0];
+
+  if (evt.eventDate && evt.eventDate < getTodayPacific()) {
+    throw Object.assign(new Error('Cannot RSVP to a past event'), { statusCode: 400 });
+  }
+
   const formattedDate = formatDateDisplayWithDay(evt.eventDate);
   const formattedTime = evt.startTime ? formatTime12Hour(evt.startTime) : '';
   const memberMessage = `You're confirmed for ${evt.title} on ${formattedDate}${formattedTime ? ` at ${formattedTime}` : ''}${evt.location ? ` - ${evt.location}` : ''}.`;

@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.51] - 2026-04-05
+
+### Push Notification Audience Fix
+- **Fixed push notifications being sent to archived/inactive members.** `sendPushNotificationToAllMembers` in `push.ts` queried all users with `role = 'member'` or `role IS NULL`, but did not filter by `membership_status`. This meant former members, archived members, cancelled members, and any non-active status would receive push notifications for announcements and other broadcast events. Now filters to only `membership_status IN ('active', 'trialing', 'past_due')` in both the member email query and the push subscription join.
+
+Files changed: `server/routes/push.ts`
+
+### Past Event RSVP Prevention
+- **Added date validation to event RSVP creation.** `createEventRsvp` in `registrationService.ts` checked for capacity and duplicate enrollment but never validated whether the event date was in the future. A member could RSVP to a past event by sending the `event_id` directly. Now checks `eventDate` against the current date before proceeding, returning a 400 error with "Cannot RSVP to a past event."
+
+Files changed: `server/core/registrationService.ts`
+
+### Terminal POS DB Insert Safety
+- **Terminal POS now cancels the Stripe payment intent if the local DB record fails to insert.** Previously, if the `INSERT INTO stripe_payment_intents` failed (DB connection error, constraint violation, etc.), the error was caught and logged but the code continued to `stripe.terminal.readers.processPaymentIntent`, charging the customer with no local record. Now on DB insert failure, the payment intent is cancelled via `stripe.paymentIntents.cancel` and the endpoint returns a 500 error, preventing untracked charges.
+
+Files changed: `server/routes/stripe/terminal.ts`
+
 ## [8.98.50] - 2026-04-05
 
 ### Checkout Duplicate Stripe Customer Fix
