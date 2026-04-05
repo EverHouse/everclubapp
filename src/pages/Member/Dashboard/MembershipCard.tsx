@@ -55,6 +55,20 @@ function useCardLightEffects() {
 
   const SHEEN_ANGLE = 105;
 
+  const shadowX = useSpring(
+    useTransform(mouseX, [0, 0.5, 1], [8, 0, -8]),
+    SPRING_CONFIG
+  );
+  const shadowY = useSpring(
+    useTransform(mouseY, [0, 0.5, 1], [8, 0, -8]),
+    SPRING_CONFIG
+  );
+  const hoverShadow = useTransform(
+    [shadowX, shadowY],
+    ([sx, sy]: number[]) =>
+      `${sx}px ${sy + 12}px 24px rgba(0,0,0,0.25), ${sx * 0.5}px ${sy * 0.5 + 6}px 10px rgba(0,0,0,0.18), 0px 2px 4px rgba(0,0,0,0.12)`
+  );
+
   const sheenPosition = useSpring(
     useTransform(mouseX, [0, 1], [0, 100]),
     SPRING_CONFIG
@@ -216,6 +230,7 @@ function useCardLightEffects() {
     iridescentBackground: prefersReducedMotion ? undefined : iridescentBackground,
     clearCoatBackground: prefersReducedMotion ? undefined : clearCoatBackground,
     edgeGlimmerBackground: prefersReducedMotion ? undefined : edgeGlimmerBackground,
+    hoverShadow: prefersReducedMotion ? undefined : hoverShadow,
     handlePointerMove,
     handlePointerLeave,
     requestGyroPermission,
@@ -240,7 +255,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
   const {
-    cardRef, iridescentBackground, clearCoatBackground, edgeGlimmerBackground,
+    cardRef, iridescentBackground, clearCoatBackground, edgeGlimmerBackground, hoverShadow,
     handlePointerMove, handlePointerLeave, requestGyroPermission, prefersReducedMotion,
   } = useCardLightEffects();
 
@@ -259,7 +274,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               aria-hidden="true"
             />
           )}
-          <div
+          <motion.div
             ref={cardRef}
             onClick={() => { requestGyroPermission(); setIsCardOpen(true); }}
             role="button"
@@ -268,7 +283,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
             className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group transition-transform duration-150 motion-safe:active:scale-[0.98] ${isExpired ? 'grayscale-[30%]' : ''}`}
-            style={{ touchAction: 'none' }}
+            style={{ touchAction: 'none', boxShadow: hoverShadow || '0px 12px 24px rgba(0,0,0,0.25), 0px 6px 10px rgba(0,0,0,0.18), 0px 2px 4px rgba(0,0,0,0.12)' }}
           >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
@@ -327,7 +342,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               <span className="font-bold text-sm text-white/90">{isExpired ? 'Renew Membership' : 'View Membership Details'}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
         </div>
 
         <div className="h-full">
