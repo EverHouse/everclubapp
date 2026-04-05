@@ -35,11 +35,17 @@ function validatePassword(password: unknown): password is string {
   return typeof password === 'string' && password.length >= 6 && password.length <= MAX_PASSWORD_LENGTH;
 }
 
+let _cachedAnonClient: SupabaseClient | null = null;
+
 function createPerRequestClient(): SupabaseClient | null {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) return null;
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
-  });
+
+  if (!_cachedAnonClient) {
+    _cachedAnonClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    });
+  }
+  return _cachedAnonClient;
 }
 
 function getSupabaseClient(): SupabaseClient | null {
@@ -217,13 +223,17 @@ export function setupSupabaseAuthRoutes(app: Express) {
     }
   });
 
-  app.post('/api/supabase/logout', async (req, res) => {
-    const client = createPerRequestClient();
-    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
+  app.post('/api/supabase/logout', async (_req, res) => {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+      return res.status(503).json({ error: 'Supabase authentication is not configured' });
+    }
 
     try {
+      const freshClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      });
       const { error } = await withTimeout(
-        client.auth.signOut(),
+        freshClient.auth.signOut(),
         'Supabase signOut'
       );
       

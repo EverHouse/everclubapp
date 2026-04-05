@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.38] - 2026-04-05
+
+### Performance & Security — Supabase Client Caching, Rate Limit Hardening
+- **Fixed: Supabase client per-request instantiation.** `createPerRequestClient()` in `server/supabase/auth.ts` was creating a new `SupabaseClient` on every request (signup, login, user, OAuth). Client instantiation is heavy (parses config, initializes GoTrue, mounts Realtime interceptors). Now caches a single non-persistent client in `_cachedAnonClient` and reuses it across all requests.
+- **Fixed: Global rate limiter bypass via fake file extensions.** The `skip` function in `globalRateLimiter` (`server/middleware/rateLimiting.ts`) checked `req.path` against a regex for static asset extensions (`.js`, `.css`, `.png`, etc.). An attacker could bypass rate limiting on any dynamic route by appending a fake extension (e.g., `/api/users/123.jpg`). Now requires the path to start with `/assets/` or `/public/` before applying the static asset skip.
+
+Files changed: `server/supabase/auth.ts`, `server/middleware/rateLimiting.ts`
+
 ## [8.98.37] - 2026-04-05
 
 ### Bug Fixes — Missing Table, SQL Type Mismatch, CSP Header Race

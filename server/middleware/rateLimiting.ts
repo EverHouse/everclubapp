@@ -38,7 +38,8 @@ export const globalRateLimiter = rateLimit({
     if (req.path === '/api/auth/session') {
       return true;
     }
-    if (/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/.test(req.path)) {
+    const isStaticAssetPath = req.path.startsWith('/assets/') || req.path.startsWith('/public/');
+    if (isStaticAssetPath && /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|map|webp|avif)(\?|$)/.test(req.path)) {
       return true;
     }
     return false;

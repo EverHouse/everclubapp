@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.38",
+    date: "2026-04-05",
+    title: "Performance & Security Improvements",
+    changes: [
+      "Improved: Authentication service now reuses its connection instead of creating a new one on every request — reduces server load.",
+      "Improved: Tightened rate limiting so it can no longer be bypassed by disguising API requests as static files.",
+    ]
+  },
+  {
     version: "8.98.37",
     date: "2026-04-05",
     title: "Bug Fixes",
