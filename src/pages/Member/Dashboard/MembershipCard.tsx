@@ -54,37 +54,52 @@ function useCardLightEffects() {
   const mouseY = useMotionValue(REST_Y);
 
   const SHEEN_ANGLE = 105;
+
   const sheenPosition = useSpring(
     useTransform(mouseX, [0, 1], [0, 100]),
     SPRING_CONFIG
   );
+  const tiltIntensity = useSpring(
+    useTransform(mouseY, [0, 0.5, 1], [1, 0, 1]),
+    SPRING_CONFIG
+  );
   const iridescentBackground = useTransform(
-    sheenPosition,
-    (pos: number) =>
-      `linear-gradient(${SHEEN_ANGLE}deg, transparent ${pos - 20}%, rgba(255,190,230,0.09) ${pos - 10}%, rgba(255,255,255,0.16) ${pos - 3}%, rgba(255,255,255,0.20) ${pos}%, rgba(255,255,255,0.16) ${pos + 3}%, rgba(170,210,255,0.09) ${pos + 10}%, transparent ${pos + 20}%)`
+    [sheenPosition, tiltIntensity],
+    ([pos, intensity]: number[]) => {
+      const halfWidth = 20 - intensity * 14;
+      const fringeWidth = halfWidth * 2;
+      const coreWidth = Math.max(1, halfWidth * 0.15);
+      const peakAlpha = 0.12 + intensity * 0.28;
+      const fringeAlpha = 0.06 + intensity * 0.10;
+      return `linear-gradient(${SHEEN_ANGLE}deg, transparent ${pos - fringeWidth}%, rgba(255,190,230,${fringeAlpha}) ${pos - halfWidth}%, rgba(255,255,255,${peakAlpha}) ${pos - coreWidth}%, rgba(255,255,255,${peakAlpha + 0.04}) ${pos}%, rgba(255,255,255,${peakAlpha}) ${pos + coreWidth}%, rgba(170,210,255,${fringeAlpha}) ${pos + halfWidth}%, transparent ${pos + fringeWidth}%)`;
+    }
+  );
+
+  const clearCoatPosition = useSpring(
+    useTransform(mouseX, [0, 1], [10, 90]),
+    { ...SPRING_CONFIG, damping: SPRING_CONFIG.damping * 1.4 }
+  );
+  const clearCoatBackground = useTransform(
+    [clearCoatPosition, tiltIntensity],
+    ([pos, intensity]: number[]) => {
+      const alpha = 0.03 + intensity * 0.06;
+      return `linear-gradient(${SHEEN_ANGLE}deg, transparent ${pos - 40}%, rgba(255,255,255,${alpha}) ${pos - 15}%, rgba(255,255,255,${alpha + 0.02}) ${pos}%, rgba(255,255,255,${alpha}) ${pos + 15}%, transparent ${pos + 40}%)`;
+    }
   );
 
   const edgeAngle = useSpring(
     useTransform([mouseX, mouseY], ([mx, my]: number[]) => {
-      const angle = Math.atan2(my - 0.5, mx - 0.5) * (180 / Math.PI) + 180;
-      return angle;
+      return Math.atan2(my - 0.5, mx - 0.5) * (180 / Math.PI) + 180;
     }),
     SPRING_CONFIG
   );
   const edgeGlimmerBackground = useTransform(
-    edgeAngle,
-    (a: number) =>
-      `conic-gradient(from ${a}deg, transparent 0deg, rgba(255,200,240,0.5) 30deg, rgba(180,220,255,0.6) 60deg, rgba(200,255,220,0.5) 90deg, transparent 120deg, transparent 180deg, rgba(255,220,180,0.4) 210deg, rgba(200,180,255,0.5) 240deg, transparent 270deg, transparent 360deg)`
-  );
-
-  const shimmerPosition = useSpring(
-    useTransform(mouseX, [0, 1], [-100, 200]),
-    SPRING_CONFIG
-  );
-  const shimmerBackground = useTransform(
-    shimmerPosition,
-    (pos: number) =>
-      `linear-gradient(${SHEEN_ANGLE}deg, transparent ${pos - 20}%, rgba(255,255,255,0.18) ${pos}%, transparent ${pos + 20}%)`
+    [edgeAngle, tiltIntensity],
+    ([a, intensity]: number[]) => {
+      const base = 0.3 + intensity * 0.5;
+      const peak = 0.4 + intensity * 0.6;
+      return `conic-gradient(from ${a}deg, transparent 0deg, rgba(255,200,240,${base}) 20deg, rgba(180,220,255,${peak}) 45deg, rgba(255,255,255,${peak + 0.15}) 60deg, rgba(200,255,220,${base}) 80deg, transparent 110deg, transparent 180deg, rgba(255,220,180,${base * 0.7}) 210deg, rgba(200,180,255,${base * 0.8}) 240deg, transparent 270deg, transparent 360deg)`;
+    }
   );
 
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -200,8 +215,8 @@ function useCardLightEffects() {
   return {
     cardRef,
     iridescentBackground: prefersReducedMotion ? undefined : iridescentBackground,
+    clearCoatBackground: prefersReducedMotion ? undefined : clearCoatBackground,
     edgeGlimmerBackground: prefersReducedMotion ? undefined : edgeGlimmerBackground,
-    shimmerBackground: prefersReducedMotion ? undefined : shimmerBackground,
     handlePointerMove,
     handlePointerLeave,
     requestGyroPermission,
@@ -224,7 +239,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
   const {
-    cardRef, iridescentBackground, edgeGlimmerBackground, shimmerBackground,
+    cardRef, iridescentBackground, clearCoatBackground, edgeGlimmerBackground,
     handlePointerMove, handlePointerLeave, requestGyroPermission, prefersReducedMotion,
   } = useCardLightEffects();
 
@@ -261,7 +276,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           {!prefersReducedMotion && (
             <motion.div
               className="absolute inset-0 rounded-xl pointer-events-none z-[3]"
-              style={{ background: shimmerBackground, willChange: 'background' }}
+              style={{ background: clearCoatBackground, willChange: 'background' }}
               aria-hidden="true"
             />
           )}
