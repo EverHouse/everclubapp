@@ -93,8 +93,11 @@ export const authRateLimiterByEmail = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const rawEmail = String(req.body?.email || 'unknown').trim().toLowerCase();
-    return `auth-email:${rawEmail}`;
+    const rawEmail = req.body?.email;
+    if (!rawEmail || typeof rawEmail !== 'string') {
+      return `auth-email-fallback:${req.ip || 'unknown'}`;
+    }
+    return `auth-email:${rawEmail.trim().toLowerCase()}`;
   },
   validate: false,
   store: new PgRateLimitStore('auth-email'),
@@ -128,8 +131,8 @@ export const checkoutRateLimiter = rateLimit({
   keyGenerator: (req) => {
     const email = req.body?.email;
     const sessionId = req.params?.sessionId;
-    if (email) {
-      return `checkout:${String(email).toLowerCase()}:${String(req.ip || 'unknown')}`;
+    if (email && typeof email === 'string') {
+      return `checkout:${email.trim().toLowerCase()}:${String(req.ip || 'unknown')}`;
     }
     if (sessionId) {
       return `checkout:session:${String(sessionId)}:${String(req.ip || 'unknown').toLowerCase()}`;

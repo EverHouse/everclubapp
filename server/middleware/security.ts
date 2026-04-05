@@ -82,6 +82,11 @@ export function csrfOriginCheck(req: Request, res: Response, next: NextFunction)
     return;
   }
 
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return next();
+  }
+
   const origin = req.headers['origin'] as string | undefined;
   const referer = req.headers['referer'] as string | undefined;
 

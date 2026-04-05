@@ -139,7 +139,10 @@ export function setupSupabaseAuthRoutes(app: Express) {
           logger.error('[Supabase Auth] Local DB sync failed after signup, Supabase user may be orphaned', {
             extra: { userId: data.user.id, email, error: getErrorMessage(dbError) }
           });
-          return res.status(500).json({ error: 'Failed to initialize user profile. Please try again or contact support.' });
+          return res.status(201).json({
+            message: 'Account created, but we experienced a delay initializing your profile. Please try logging in.',
+            user: data.user
+          });
         }
       }
       
@@ -401,6 +404,17 @@ export const isSupabaseAuthenticated: RequestHandler = async (req, res, next) =>
       } catch (err) {
         if (err instanceof joseErrors.JWTExpired) {
           return res.status(401).json({ error: 'Token expired' });
+        }
+        if (
+          err instanceof joseErrors.JWSSignatureVerificationFailed ||
+          err instanceof joseErrors.JWTInvalid ||
+          err instanceof joseErrors.JWTClaimValidationFailed ||
+          err instanceof joseErrors.JWSInvalid
+        ) {
+          logger.warn('[Supabase Auth] JWT verification rejected locally', {
+            extra: { reason: err instanceof Error ? err.message : 'unknown' }
+          });
+          return res.status(401).json({ error: 'Invalid token' });
         }
         logger.debug('[Supabase Auth] Local JWT verification failed, falling back to remote', {
           extra: { error: err instanceof Error ? err.message : 'unknown' }
