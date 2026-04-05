@@ -492,6 +492,316 @@ router.post('/api/payments/cancel', isStaffOrAdmin, validateBody(cancelPaymentSc
   }
 });
 
+router.get('/api/payments/:paymentIntentId/details', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { paymentIntentId } = req.params;
+
+    const payment = await getPaymentByIntentId(paymentIntentId);
+
+    if (!payment) {
+      const cacheResult = await db.execute(sql`
+        SELECT stc.stripe_id, stc.payment_intent_id, stc.amount_cents, stc.status,
+               COALESCE(stc.description, 'Stripe payment') as description,
+               COALESCE(stc.customer_email, 'Unknown') as customer_email,
+               COALESCE(stc.customer_name,
+                 NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+                 stc.customer_email, 'Unknown') as customer_name,
+               stc.created_at, stc.object_type
+        FROM stripe_transaction_cache stc
+        LEFT JOIN users u ON LOWER(u.email) = LOWER(stc.customer_email)
+        WHERE stc.stripe_id = ${paymentIntentId}
+           OR stc.payment_intent_id = ${paymentIntentId}
+        LIMIT 1
+      `);
+
+      if (cacheResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Transaction not found' });
+      }
+
+      const cached = cacheResult.rows[0] as {
+        stripe_id: string; payment_intent_id: string | null; amount_cents: number;
+        status: string; description: string; customer_email: string; customer_name: string;
+        created_at: string; object_type: string;
+      };
+
+      const resolvedPiId = cached.payment_intent_id || cached.stripe_id;
+      let paymentMethodLabel = 'Unknown';
+      let paymentMethodBrand = '';
+      let paymentMethodLast4 = '';
+      let receiptUrl: string | null = null;
+      let chargeSource = cached.object_type === 'invoice' ? 'Invoice' : 'Stripe Payment';
+      const refundHistory: Array<{ id: string; amount: number; reason: string | null; status: string; createdAt: number; processedBy: string | null }> = [];
+      let totalRefunded = 0;
+
+      const stripe = await getStripeClient();
+
+      if (resolvedPiId.startsWith('pi_')) {
+        try {
+          const stripePI = await stripe.paymentIntents.retrieve(resolvedPiId, {
+            expand: ['latest_charge', 'latest_charge.refunds']
+          });
+          const charge = stripePI.latest_charge as Stripe.Charge | null;
+          if (charge) {
+            receiptUrl = charge.receipt_url || null;
+            const pm = charge.payment_method_details;
+            if (pm?.card) {
+              paymentMethodBrand = pm.card.brand || '';
+              paymentMethodLast4 = pm.card.last4 || '';
+              const wallet = pm.card.wallet?.type;
+              if (wallet === 'apple_pay') paymentMethodLabel = 'Apple Pay';
+              else if (wallet === 'google_pay') paymentMethodLabel = 'Google Pay';
+              else paymentMethodLabel = `${paymentMethodBrand.charAt(0).toUpperCase() + paymentMethodBrand.slice(1)} ending in ${paymentMethodLast4}`;
+            } else if (pm?.card_present) {
+              paymentMethodBrand = pm.card_present.brand || '';
+              paymentMethodLast4 = pm.card_present.last4 || '';
+              paymentMethodLabel = `Terminal — ${paymentMethodBrand.charAt(0).toUpperCase() + paymentMethodBrand.slice(1)} ending in ${paymentMethodLast4}`;
+            } else if (pm?.type) {
+              paymentMethodLabel = pm.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            }
+            if (charge.refunds?.data) {
+              for (const r of charge.refunds.data) {
+                refundHistory.push({ id: r.id, amount: r.amount, reason: r.reason, status: r.status || 'unknown', createdAt: r.created, processedBy: null });
+              }
+            }
+          }
+          const metadata = stripePI.metadata || {};
+          if (metadata.source) {
+            chargeSource = metadata.source.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          }
+        } catch (stripeErr: unknown) {
+          logger.warn('[Payments] Could not retrieve Stripe details for cached transaction', { extra: { resolvedPiId, error: getErrorMessage(stripeErr) } });
+        }
+      } else if (resolvedPiId.startsWith('ch_')) {
+        try {
+          const charge = await stripe.charges.retrieve(resolvedPiId, { expand: ['refunds'] });
+          receiptUrl = charge.receipt_url || null;
+          const pm = charge.payment_method_details;
+          if (pm?.card) {
+            paymentMethodBrand = pm.card.brand || '';
+            paymentMethodLast4 = pm.card.last4 || '';
+            paymentMethodLabel = `${paymentMethodBrand.charAt(0).toUpperCase() + paymentMethodBrand.slice(1)} ending in ${paymentMethodLast4}`;
+          } else if (pm?.type) {
+            paymentMethodLabel = pm.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+          }
+          if (charge.refunds?.data) {
+            for (const r of charge.refunds.data) {
+              refundHistory.push({ id: r.id, amount: r.amount, reason: r.reason, status: r.status || 'unknown', createdAt: r.created, processedBy: null });
+            }
+          }
+        } catch (stripeErr: unknown) {
+          logger.warn('[Payments] Could not retrieve Stripe charge details for cached transaction', { extra: { resolvedPiId, error: getErrorMessage(stripeErr) } });
+        }
+      } else if (resolvedPiId.startsWith('in_')) {
+        try {
+          const invoice = await stripe.invoices.retrieve(resolvedPiId);
+          chargeSource = 'Invoice';
+          if (invoice.charge && typeof invoice.charge === 'string') {
+            const charge = await stripe.charges.retrieve(invoice.charge, { expand: ['refunds'] });
+            receiptUrl = charge.receipt_url || null;
+            const pm = charge.payment_method_details;
+            if (pm?.card) {
+              paymentMethodBrand = pm.card.brand || '';
+              paymentMethodLast4 = pm.card.last4 || '';
+              paymentMethodLabel = `${paymentMethodBrand.charAt(0).toUpperCase() + paymentMethodBrand.slice(1)} ending in ${paymentMethodLast4}`;
+            }
+            if (charge.refunds?.data) {
+              for (const r of charge.refunds.data) {
+                refundHistory.push({ id: r.id, amount: r.amount, reason: r.reason, status: r.status || 'unknown', createdAt: r.created, processedBy: null });
+              }
+            }
+          }
+        } catch (stripeErr: unknown) {
+          logger.warn('[Payments] Could not retrieve Stripe invoice details for cached transaction', { extra: { resolvedPiId, error: getErrorMessage(stripeErr) } });
+        }
+      }
+
+      totalRefunded = refundHistory.reduce((sum, r) => sum + r.amount, 0);
+      const refundableAmount = Math.max(0, cached.amount_cents - totalRefunded);
+
+      return res.json({
+        id: cached.stripe_id,
+        amount: cached.amount_cents,
+        status: cached.status,
+        description: cached.description,
+        purpose: cached.object_type,
+        createdAt: cached.created_at,
+        memberEmail: cached.customer_email,
+        memberName: cached.customer_name,
+        paymentMethod: paymentMethodLabel,
+        paymentMethodBrand,
+        paymentMethodLast4,
+        chargeSource,
+        receiptUrl,
+        stripeUrl: `https://dashboard.stripe.com/payments/${resolvedPiId}`,
+        bookingInfo: null,
+        refundHistory,
+        totalRefunded,
+        refundableAmount,
+        sourceType: 'cache',
+      });
+    }
+
+    const stripe = await getStripeClient();
+
+    let stripePI: Stripe.PaymentIntent | null = null;
+    let paymentMethodLabel = 'Unknown';
+    let paymentMethodBrand = '';
+    let paymentMethodLast4 = '';
+    let receiptUrl: string | null = null;
+    let chargeSource = 'Unknown';
+
+    try {
+      stripePI = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['latest_charge', 'latest_charge.refunds']
+      });
+
+      const charge = stripePI.latest_charge as Stripe.Charge | null;
+      if (charge) {
+        receiptUrl = charge.receipt_url || null;
+
+        const pm = charge.payment_method_details;
+        if (pm?.card) {
+          paymentMethodBrand = pm.card.brand || '';
+          paymentMethodLast4 = pm.card.last4 || '';
+          const wallet = pm.card.wallet?.type;
+          if (wallet === 'apple_pay') {
+            paymentMethodLabel = 'Apple Pay';
+          } else if (wallet === 'google_pay') {
+            paymentMethodLabel = 'Google Pay';
+          } else {
+            const brandName = paymentMethodBrand.charAt(0).toUpperCase() + paymentMethodBrand.slice(1);
+            paymentMethodLabel = `${brandName} ending in ${paymentMethodLast4}`;
+          }
+        } else if (pm?.card_present) {
+          paymentMethodBrand = pm.card_present.brand || '';
+          paymentMethodLast4 = pm.card_present.last4 || '';
+          const brandName = paymentMethodBrand.charAt(0).toUpperCase() + paymentMethodBrand.slice(1);
+          paymentMethodLabel = `Terminal — ${brandName} ending in ${paymentMethodLast4}`;
+        } else if (pm?.type === 'us_bank_account') {
+          paymentMethodLabel = 'Bank Transfer';
+        } else if (pm?.type) {
+          paymentMethodLabel = pm.type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+      }
+
+      const metadata = stripePI.metadata || {};
+      if (metadata.source === 'pos_register' || metadata.source === 'pos') {
+        chargeSource = 'POS Register';
+      } else if (metadata.source === 'online_checkout' || metadata.source === 'online') {
+        chargeSource = 'Online Checkout';
+      } else if (metadata.source === 'staff_charge' || metadata.source === 'staff') {
+        chargeSource = 'Staff Charge';
+      } else if (metadata.source === 'terminal') {
+        chargeSource = 'Terminal';
+      } else if (metadata.source === 'kiosk') {
+        chargeSource = 'Kiosk';
+      } else {
+        const purpose = payment.purpose;
+        if (purpose === 'subscription' || purpose === 'membership') {
+          chargeSource = 'Subscription';
+        } else if (purpose === 'booking_fee' || purpose === 'overage' || purpose === 'guest_fee') {
+          chargeSource = 'Booking Fee';
+        } else if (purpose === 'merch' || purpose === 'merchandise') {
+          chargeSource = 'Merchandise';
+        } else {
+          chargeSource = purpose ? purpose.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Unknown';
+        }
+      }
+    } catch (stripeErr: unknown) {
+      logger.warn('[Payments] Could not retrieve Stripe PaymentIntent details', { extra: { paymentIntentId, error: getErrorMessage(stripeErr) } });
+    }
+
+    let bookingInfo: { bookingId: number; date: string; resourceName: string; startTime: string; endTime: string } | null = null;
+    if (payment.bookingId) {
+      try {
+        const bookingResult = await db.execute(sql`
+          SELECT br.id, br.booking_date, r.name as resource_name, br.start_time, br.end_time
+          FROM booking_requests br
+          LEFT JOIN resources r ON r.id = br.resource_id
+          WHERE br.id = ${payment.bookingId}
+          LIMIT 1
+        `);
+        if (bookingResult.rows.length > 0) {
+          const row = bookingResult.rows[0] as { id: number; booking_date: string; resource_name: string; start_time: string; end_time: string };
+          bookingInfo = {
+            bookingId: row.id,
+            date: row.booking_date,
+            resourceName: row.resource_name || 'Unknown',
+            startTime: row.start_time,
+            endTime: row.end_time,
+          };
+        }
+      } catch (bookingErr: unknown) {
+        logger.warn('[Payments] Could not retrieve linked booking info', { extra: { bookingId: payment.bookingId, error: getErrorMessage(bookingErr) } });
+      }
+    }
+
+    const refundHistory: Array<{ id: string; amount: number; reason: string | null; status: string; createdAt: number; processedBy: string | null }> = [];
+    try {
+      const charge = stripePI?.latest_charge as Stripe.Charge | null;
+      if (charge?.refunds?.data) {
+        for (const r of charge.refunds.data) {
+          refundHistory.push({
+            id: r.id,
+            amount: r.amount,
+            reason: r.reason,
+            status: r.status || 'unknown',
+            createdAt: r.created,
+            processedBy: null,
+          });
+        }
+      }
+
+      if (refundHistory.length > 0) {
+        const auditResult = await db.execute(sql`
+          SELECT details->>'refundId' as refund_id, staff_name as performed_by_name
+          FROM admin_audit_log
+          WHERE resource_type = 'billing'
+            AND action = 'payment_refunded'
+            AND details->>'paymentIntentId' = ${paymentIntentId}
+          ORDER BY created_at DESC
+        `);
+        const auditMap = new Map<string, string>();
+        for (const row of auditResult.rows as Array<{ refund_id: string; performed_by_name: string }>) {
+          if (row.refund_id) auditMap.set(row.refund_id, row.performed_by_name);
+        }
+        for (const r of refundHistory) {
+          r.processedBy = auditMap.get(r.id) || null;
+        }
+      }
+    } catch (auditErr: unknown) {
+      logger.warn('[Payments] Could not retrieve refund audit history', { extra: { paymentIntentId, error: getErrorMessage(auditErr) } });
+    }
+
+    const totalRefunded = refundHistory.reduce((sum, r) => sum + r.amount, 0);
+    const refundableAmount = payment.amountCents - totalRefunded;
+
+    res.json({
+      id: payment.stripePaymentIntentId,
+      amount: payment.amountCents,
+      status: payment.status,
+      description: payment.description,
+      purpose: payment.purpose,
+      createdAt: payment.createdAt,
+      memberEmail: payment.memberEmail || payment.member_email,
+      memberName: payment.member_name,
+      paymentMethod: paymentMethodLabel,
+      paymentMethodBrand,
+      paymentMethodLast4,
+      chargeSource,
+      receiptUrl,
+      stripeUrl: `https://dashboard.stripe.com/payments/${paymentIntentId}`,
+      bookingInfo,
+      refundHistory,
+      totalRefunded,
+      refundableAmount,
+    });
+  } catch (error: unknown) {
+    logger.error('[Payments] Error fetching transaction details', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to fetch transaction details' });
+  }
+});
+
 router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSchema), async (req: Request, res: Response) => {
   try {
     const { paymentIntentId, amountCents, reason } = req.body;
@@ -500,10 +810,113 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
     const payment = await getPaymentByIntentId(paymentIntentId);
 
     if (!payment) {
-      return res.status(404).json({ error: 'Payment not found' });
+      const cacheResult = await db.execute(sql`
+        SELECT stc.stripe_id, stc.payment_intent_id, stc.amount_cents, stc.status,
+               COALESCE(stc.customer_email, 'Unknown') as customer_email,
+               COALESCE(stc.customer_name, stc.customer_email, 'Unknown') as customer_name,
+               stc.object_type
+        FROM stripe_transaction_cache stc
+        WHERE stc.stripe_id = ${paymentIntentId}
+           OR stc.payment_intent_id = ${paymentIntentId}
+        LIMIT 1
+      `);
+
+      if (cacheResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Payment not found' });
+      }
+
+      const cached = cacheResult.rows[0] as {
+        stripe_id: string; payment_intent_id: string | null; amount_cents: number;
+        status: string; customer_email: string; customer_name: string; object_type: string;
+      };
+
+      if (cached.status !== 'succeeded' && cached.status !== 'partially_refunded') {
+        return res.status(400).json({ error: `Cannot refund payment with status: ${cached.status}` });
+      }
+
+      const stripe = await getStripeClient();
+      const resolvedPiId = cached.payment_intent_id || cached.stripe_id;
+
+      const refundParams: Stripe.RefundCreateParams = {};
+      if (resolvedPiId.startsWith('pi_')) {
+        refundParams.payment_intent = resolvedPiId;
+      } else if (resolvedPiId.startsWith('ch_')) {
+        refundParams.charge = resolvedPiId;
+      } else if (resolvedPiId.startsWith('in_')) {
+        const invoice = await stripe.invoices.retrieve(resolvedPiId);
+        if (invoice.charge && typeof invoice.charge === 'string') {
+          refundParams.charge = invoice.charge;
+        } else {
+          return res.status(400).json({ error: 'This invoice has no associated charge and cannot be refunded.' });
+        }
+      } else {
+        return res.status(400).json({ error: 'This transaction type cannot be refunded from this interface. Please use the Stripe dashboard.' });
+      }
+
+      if (amountCents && amountCents > 0 && amountCents < cached.amount_cents) {
+        refundParams.amount = amountCents;
+      }
+
+      const refund = await stripe.refunds.create(refundParams, {
+        idempotencyKey: `refund_cache_${cached.stripe_id}_${amountCents || 'full'}_${staffEmail}`
+      });
+
+      const refundedAmount = refund.amount;
+      const isPartialRefund = refundedAmount < cached.amount_cents;
+      const newStatus = isPartialRefund ? 'partially_refunded' : 'refunded';
+
+      await db.execute(sql`
+        UPDATE stripe_transaction_cache
+        SET status = ${newStatus}, updated_at = NOW()
+        WHERE stripe_id = ${cached.stripe_id}
+      `);
+
+      await logBillingAudit({
+        memberEmail: cached.customer_email,
+        actionType: 'payment_refunded',
+        actionDetails: {
+          paymentIntentId: cached.stripe_id,
+          refundId: refund.id,
+          refundAmount: refundedAmount,
+          reason: reason || 'No reason provided',
+          originalAmount: cached.amount_cents,
+          isPartialRefund,
+          sourceType: 'cache',
+        },
+        newValue: `Refunded $${(refundedAmount / 100).toFixed(2)} of $${(cached.amount_cents / 100).toFixed(2)} (historical transaction)`,
+        performedBy: staffEmail,
+        performedByName: staffName
+      });
+
+      logger.info('[Payments] Refund created for cached/historical transaction', {
+        extra: { refundId: refund.id, stripeId: cached.stripe_id, resolvedPiId, refundedAmount: (refundedAmount / 100).toFixed(2) }
+      });
+
+      if (cached.customer_email && cached.customer_email !== 'Unknown') {
+        sendNotificationToUser(cached.customer_email, {
+          type: 'billing_update',
+          title: 'Refund Processed',
+          message: `A refund of $${(refundedAmount / 100).toFixed(2)} has been processed to your payment method.`,
+          data: { paymentIntentId: cached.stripe_id, refundId: refund.id, amount: refundedAmount }
+        });
+      }
+
+      broadcastBillingUpdate({
+        action: 'payment_refunded',
+        memberEmail: cached.customer_email,
+        amount: refundedAmount,
+        status: newStatus
+      });
+
+      return res.json({
+        success: true,
+        refundId: refund.id,
+        refundedAmount,
+        newStatus
+      });
     }
 
-    if (payment.status !== 'succeeded' && payment.status !== 'refunding') {
+    if (payment.status !== 'succeeded' && payment.status !== 'refunding' && payment.status !== 'partially_refunded') {
       return res.status(400).json({ error: `Cannot refund payment with status: ${payment.status}` });
     }
 

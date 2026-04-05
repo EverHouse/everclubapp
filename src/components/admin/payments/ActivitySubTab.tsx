@@ -1,10 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import Icon from '../../icons/Icon';
 import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { FinancialsSubTabSkeleton } from '../../skeletons';
 import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
+import { TransactionDetailSheet } from './TransactionDetailSheet';
 import {
   useActivityFeed,
   useActivityCounts,
@@ -117,41 +119,42 @@ const formatDateTime = (isoString: string) => {
   });
 };
 
-const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void }> = ({ item, onViewBooking }) => {
+const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void; onViewTransaction?: (id: string) => void }> = ({ item, onViewBooking, onViewTransaction }) => {
   const typeInfo = TYPE_ICONS[item.type] || { icon: 'receipt_long', label: item.type };
+  const isClickable = !!onViewTransaction;
 
-  return (
-    <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4 tactile-row">
-      <div className="flex items-start gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getStatusBadgeClasses(item.status)}`}>
-          <Icon name={getStatusIcon(item.status)} className="text-lg" />
-        </div>
+  const content = (
+    <div className="flex items-start gap-3">
+      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${getStatusBadgeClasses(item.status)}`}>
+        <Icon name={getStatusIcon(item.status)} className="text-lg" />
+      </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-medium text-sm text-primary dark:text-white truncate">
-              {item.memberName}
-            </p>
-            <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-semibold uppercase tracking-wide ${getStatusBadgeClasses(item.status)}`}>
-              {formatStatusLabel(item.status)}
-            </span>
-          </div>
-          <p className="text-xs text-primary/60 dark:text-white/60 truncate mt-0.5">
-            {item.description}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-medium text-sm text-primary dark:text-white truncate">
+            {item.memberName}
           </p>
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className="flex items-center gap-1 text-[11px] text-primary/50 dark:text-white/50">
-              <Icon name={typeInfo.icon} className="text-xs" />
-              {typeInfo.label}
-            </span>
-            <span className="text-primary/30 dark:text-white/30">&middot;</span>
-            <span className="text-[11px] text-primary/50 dark:text-white/50">
-              {formatDateTime(item.createdAt)}
-            </span>
-          </div>
+          <span className={`px-2 py-0.5 rounded-[4px] text-[10px] font-semibold uppercase tracking-wide ${getStatusBadgeClasses(item.status)}`}>
+            {formatStatusLabel(item.status)}
+          </span>
         </div>
+        <p className="text-xs text-primary/60 dark:text-white/60 truncate mt-0.5">
+          {item.description}
+        </p>
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="flex items-center gap-1 text-[11px] text-primary/50 dark:text-white/50">
+            <Icon name={typeInfo.icon} className="text-xs" />
+            {typeInfo.label}
+          </span>
+          <span className="text-primary/30 dark:text-white/30">&middot;</span>
+          <span className="text-[11px] text-primary/50 dark:text-white/50">
+            {formatDateTime(item.createdAt)}
+          </span>
+        </div>
+      </div>
 
-        <div className="text-right flex-shrink-0">
+      <div className="text-right flex-shrink-0 flex items-center gap-2">
+        <div>
           <p className={`font-bold text-sm ${
             item.status === 'refunded' || item.status === 'partially_refunded' ? 'text-purple-600 dark:text-purple-400' :
             item.status === 'failed' ? 'text-red-600 dark:text-red-400' :
@@ -168,16 +171,41 @@ const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
             </button>
           )}
         </div>
+        {isClickable && (
+          <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-lg" />
+        )}
       </div>
+    </div>
+  );
+
+  if (isClickable) {
+    return (
+      <button
+        type="button"
+        onClick={() => onViewTransaction(item.id)}
+        className="w-full text-left bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4 tactile-row hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4 tactile-row">
+      {content}
     </div>
   );
 };
 
-const ActivityTableRow: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void }> = ({ item, onViewBooking }) => {
+const ActivityTableRow: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void; onViewTransaction?: (id: string) => void }> = ({ item, onViewBooking, onViewTransaction }) => {
   const typeInfo = TYPE_ICONS[item.type] || { icon: 'receipt_long', label: item.type };
+  const isClickable = !!onViewTransaction;
 
   return (
-    <tr className="hover:bg-primary/5 dark:hover:bg-white/5 transition-colors tactile-row">
+    <tr
+      className={`hover:bg-primary/5 dark:hover:bg-white/5 transition-colors tactile-row ${isClickable ? 'cursor-pointer' : ''}`}
+      onClick={isClickable ? () => onViewTransaction(item.id) : undefined}
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getStatusBadgeClasses(item.status)}`}>
@@ -230,6 +258,7 @@ const ActivityTableRow: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
 };
 
 const ActivitySubTab: React.FC = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -240,6 +269,7 @@ const ActivitySubTab: React.FC = () => {
   const [appliedStartDate, setAppliedStartDate] = useState('');
   const [appliedEndDate, setAppliedEndDate] = useState('');
   const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
+  const [detailTxId, setDetailTxId] = useState<string | null>(null);
   const [listParent] = useAutoAnimate();
   const [tbodyParent] = useAutoAnimate();
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -325,6 +355,10 @@ const ActivitySubTab: React.FC = () => {
 
   const handleViewBooking = (bookingId: number) => {
     setBookingSheet({ isOpen: true, bookingId });
+  };
+
+  const handleViewTransaction = (id: string) => {
+    setDetailTxId(id);
   };
 
   if (isLoading) {
@@ -464,7 +498,7 @@ const ActivitySubTab: React.FC = () => {
         <>
           <div ref={listParent} className="md:hidden space-y-3">
             {items.map((item) => (
-              <ActivityListItem key={item.id} item={item} onViewBooking={handleViewBooking} />
+              <ActivityListItem key={item.id} item={item} onViewBooking={handleViewBooking} onViewTransaction={handleViewTransaction} />
             ))}
           </div>
 
@@ -484,7 +518,7 @@ const ActivitySubTab: React.FC = () => {
                 </thead>
                 <tbody ref={tbodyParent} className="divide-y divide-primary/5 dark:divide-white/5">
                   {items.map((item) => (
-                    <ActivityTableRow key={item.id} item={item} onViewBooking={handleViewBooking} />
+                    <ActivityTableRow key={item.id} item={item} onViewBooking={handleViewBooking} onViewTransaction={handleViewTransaction} />
                   ))}
                 </tbody>
               </table>
@@ -519,6 +553,23 @@ const ActivitySubTab: React.FC = () => {
           setBookingSheet({ isOpen: false, bookingId: null });
         }}
         onRosterUpdated={() => { queryClient.invalidateQueries({ queryKey: ['financials'] }); }}
+      />
+
+      <TransactionDetailSheet
+        isOpen={!!detailTxId}
+        onClose={() => setDetailTxId(null)}
+        paymentIntentId={detailTxId}
+        onOpenBooking={(bookingId) => {
+          setDetailTxId(null);
+          handleViewBooking(bookingId);
+        }}
+        onOpenMemberProfile={(email) => {
+          setDetailTxId(null);
+          navigate(`/admin/directory?search=${encodeURIComponent(email)}`);
+        }}
+        onRefundComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['financials'] });
+        }}
       />
     </div>
   );

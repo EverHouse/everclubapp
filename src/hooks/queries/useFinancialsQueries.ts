@@ -111,7 +111,50 @@ interface InvoiceListItem {
   invoicePdf: string | null;
 }
 
+export interface TransactionDetail {
+  id: string;
+  amount: number;
+  status: string;
+  description: string | null;
+  purpose: string | null;
+  createdAt: string;
+  memberEmail: string | null;
+  memberName: string;
+  paymentMethod: string;
+  paymentMethodBrand: string;
+  paymentMethodLast4: string;
+  chargeSource: string;
+  receiptUrl: string | null;
+  stripeUrl: string;
+  bookingInfo: {
+    bookingId: number;
+    date: string;
+    resourceName: string;
+    startTime: string;
+    endTime: string;
+  } | null;
+  refundHistory: Array<{
+    id: string;
+    amount: number;
+    reason: string | null;
+    status: string;
+    createdAt: number;
+    processedBy: string | null;
+  }>;
+  totalRefunded: number;
+  refundableAmount: number;
+  sourceType?: 'cache';
+}
+
 export { financialsKeys };
+
+export function useTransactionDetail(paymentIntentId: string | null) {
+  return useQuery({
+    queryKey: financialsKeys.transactionDetail(paymentIntentId || ''),
+    queryFn: () => fetchWithCredentials<TransactionDetail>(`/api/payments/${paymentIntentId}/details`),
+    enabled: !!paymentIntentId,
+  });
+}
 
 export function useDailySummary() {
   return useQuery({

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createPortal } from 'react-dom';
 import EmptyState from '../../EmptyState';
@@ -6,6 +7,8 @@ import WalkingGolferSpinner from '../../WalkingGolferSpinner';
 import { useRefundPayment } from '../../../hooks/queries/useFinancialsQueries';
 import { fetchWithCredentials, postWithCredentials } from '../../../hooks/queries/useFetch';
 import Icon from '../../icons/Icon';
+import { TransactionDetailSheet } from './TransactionDetailSheet';
+import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
 
 export interface Transaction {
   id: string;
@@ -36,6 +39,8 @@ interface TransactionNote {
 }
 
 const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>(({ onClose, variant = 'modal' }, ref) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
@@ -43,6 +48,9 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
   const [notesLoading, setNotesLoading] = useState(false);
   const [newNote, setNewNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+
+  const [detailTxId, setDetailTxId] = useState<string | null>(null);
+  const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
 
   const [refundTarget, setRefundTarget] = useState<Transaction | null>(null);
   const [isPartialRefund, setIsPartialRefund] = useState(false);
@@ -166,7 +174,12 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
   ) : (
     <div className="space-y-2 max-h-[300px] overflow-y-auto">
       {transactions.map(tx => (
-        <div key={tx.id} className="tactile-row flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
+        <button
+          type="button"
+          key={tx.id}
+          onClick={() => tx.id.startsWith('pi_') ? setDetailTxId(tx.id) : undefined}
+          className="tactile-row w-full text-left flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
+        >
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
             tx.status === 'succeeded' ? 'bg-green-100 dark:bg-green-900/30' : 
             tx.status === 'pending' ? 'bg-amber-100 dark:bg-amber-900/30' : 
@@ -178,35 +191,14 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
             <p className="font-medium text-sm text-primary dark:text-white truncate">{tx.memberName}</p>
             <p className="text-xs text-primary/60 dark:text-white/60 truncate">{tx.description || tx.type}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => handleOpenNotes(tx.id)}
-            className="tactile-btn p-1.5 rounded-full hover:bg-primary/10 dark:hover:bg-white/10 transition-colors flex-shrink-0"
-            title="View/Add Notes"
-          >
-            <Icon name="sticky_note_2" className="text-primary/60 dark:text-white/60 text-lg" />
-          </button>
-          {tx.status === 'succeeded' && tx.id.startsWith('pi_') && (
-            <button
-              type="button"
-              onClick={() => {
-                setRefundTarget(tx);
-                setRefundError(null);
-                setRefundSuccess(false);
-              }}
-              className="tactile-btn px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex-shrink-0"
-              title="Refund"
-            >
-              Refund
-            </button>
-          )}
           <div className="text-right flex-shrink-0">
             <p className="font-bold text-primary dark:text-white">${(tx.amount / 100).toFixed(2)}</p>
             <p className="text-xs text-primary/50 dark:text-white/50">
               {new Date(tx.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' })}
             </p>
           </div>
-        </div>
+          <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-lg flex-shrink-0" />
+        </button>
       ))}
 
     </div>
@@ -421,6 +413,28 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
         </div>
         {notesModal && createPortal(notesModal, document.body)}
         {refundModal && createPortal(refundModal, document.body)}
+        <TransactionDetailSheet
+          paymentIntentId={detailTxId}
+          isOpen={!!detailTxId}
+          onClose={() => { setDetailTxId(null); fetchTransactions(); }}
+          onRefundComplete={fetchTransactions}
+          onOpenBooking={(bookingId) => {
+            setDetailTxId(null);
+            setBookingSheet({ isOpen: true, bookingId });
+          }}
+          onOpenMemberProfile={(email) => {
+            setDetailTxId(null);
+            navigate(`/admin/directory?search=${encodeURIComponent(email)}`);
+          }}
+        />
+        <UnifiedBookingSheet
+          isOpen={bookingSheet.isOpen}
+          onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
+          mode="manage"
+          bookingId={bookingSheet.bookingId || undefined}
+          onSuccess={() => setBookingSheet({ isOpen: false, bookingId: null })}
+          onRosterUpdated={() => { queryClient.invalidateQueries({ queryKey: ['financials'] }); }}
+        />
       </>
     );
   }
@@ -441,6 +455,28 @@ const RecentTransactionsSection = forwardRef<TransactionListRef, SectionProps>((
       </div>
       {notesModal && createPortal(notesModal, document.body)}
       {refundModal && createPortal(refundModal, document.body)}
+      <TransactionDetailSheet
+        paymentIntentId={detailTxId}
+        isOpen={!!detailTxId}
+        onClose={() => { setDetailTxId(null); fetchTransactions(); }}
+        onRefundComplete={fetchTransactions}
+        onOpenBooking={(bookingId) => {
+          setDetailTxId(null);
+          setBookingSheet({ isOpen: true, bookingId });
+        }}
+        onOpenMemberProfile={(email) => {
+          setDetailTxId(null);
+          navigate(`/admin/directory?search=${encodeURIComponent(email)}`);
+        }}
+      />
+      <UnifiedBookingSheet
+        isOpen={bookingSheet.isOpen}
+        onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
+        mode="manage"
+        bookingId={bookingSheet.bookingId || undefined}
+        onSuccess={() => setBookingSheet({ isOpen: false, bookingId: null })}
+        onRosterUpdated={() => { queryClient.invalidateQueries({ queryKey: ['financials'] }); }}
+      />
     </>
   );
 });

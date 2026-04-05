@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import EmptyState from '../../EmptyState';
 import { useIsMobile } from '../../../hooks/useBreakpoint';
@@ -8,6 +9,7 @@ import { formatTime12Hour } from '../../../utils/dateUtils';
 import RecentTransactionsSection from './TransactionList';
 import OverduePaymentsPanel from './OverduePaymentsPanel';
 import { UnifiedBookingSheet } from '../../staff-command-center/modals/UnifiedBookingSheet';
+import { TransactionDetailSheet } from './TransactionDetailSheet';
 import Icon from '../../icons/Icon';
 import {
   useDailySummary,
@@ -944,7 +946,11 @@ const FailedPaymentsSection: React.FC<SectionProps> = ({ onClose, variant = 'mod
 };
 
 const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: payments = [], isLoading: loading } = useRefundedPayments();
+  const [detailTxId, setDetailTxId] = useState<string | null>(null);
+  const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
 
   const content = loading ? (
     <div className="flex items-center justify-center py-8">
@@ -955,7 +961,12 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
   ) : (
     <div className="space-y-2 max-h-[300px] overflow-y-auto">
       {payments.map((payment: RefundablePayment) => (
-        <div key={payment.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10">
+        <button
+          type="button"
+          key={payment.id}
+          onClick={() => payment.paymentIntentId?.startsWith('pi_') ? setDetailTxId(payment.paymentIntentId) : undefined}
+          className="w-full text-left flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-primary/5 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
+        >
           <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
             <Icon name="undo" className="text-purple-600 dark:text-purple-400 text-lg" />
           </div>
@@ -972,41 +983,88 @@ const RefundsSection: React.FC<SectionProps> = ({ onClose, variant = 'modal' }) 
           <span className="px-2 py-1 text-xs rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 font-medium flex-shrink-0">
             {payment.status === 'partially_refunded' ? 'Partial' : 'Refunded'}
           </span>
-        </div>
+          <Icon name="chevron_right" className="text-primary/30 dark:text-white/30 text-lg flex-shrink-0" />
+        </button>
       ))}
     </div>
   );
 
   if (variant === 'card') {
     return (
-      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Icon name="undo" className="text-purple-600 dark:text-purple-400" />
-          <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
-          {payments.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full">
-              {payments.length}
-            </span>
-          )}
+      <>
+        <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon name="undo" className="text-purple-600 dark:text-purple-400" />
+            <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
+            {payments.length > 0 && (
+              <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full">
+                {payments.length}
+              </span>
+            )}
+          </div>
+          {content}
         </div>
-        {content}
-      </div>
+        <TransactionDetailSheet
+          paymentIntentId={detailTxId}
+          isOpen={!!detailTxId}
+          onClose={() => setDetailTxId(null)}
+          onOpenBooking={(bookingId) => {
+            setDetailTxId(null);
+            setBookingSheet({ isOpen: true, bookingId });
+          }}
+          onOpenMemberProfile={(email) => {
+            setDetailTxId(null);
+            navigate(`/admin/directory?search=${encodeURIComponent(email)}`);
+          }}
+        />
+        <UnifiedBookingSheet
+          isOpen={bookingSheet.isOpen}
+          onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
+          mode="manage"
+          bookingId={bookingSheet.bookingId || undefined}
+          onSuccess={() => setBookingSheet({ isOpen: false, bookingId: null })}
+          onRosterUpdated={() => { queryClient.invalidateQueries({ queryKey: ['financials'] }); }}
+        />
+      </>
     );
   }
 
   return (
-    <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Icon name="undo" className="text-purple-600 dark:text-purple-400" />
-          <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
+    <>
+      <div className="bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Icon name="undo" className="text-purple-600 dark:text-purple-400" />
+            <h3 className="font-bold text-primary dark:text-white">Refund History</h3>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
+            <Icon name="close" className="text-primary/60 dark:text-white/60" />
+          </button>
         </div>
-        <button type="button" onClick={onClose} className="p-2 hover:bg-primary/10 dark:hover:bg-white/10 rounded-full" aria-label="Close">
-          <Icon name="close" className="text-primary/60 dark:text-white/60" />
-        </button>
+        {content}
       </div>
-      {content}
-    </div>
+      <TransactionDetailSheet
+        paymentIntentId={detailTxId}
+        isOpen={!!detailTxId}
+        onClose={() => setDetailTxId(null)}
+        onOpenBooking={(bookingId) => {
+          setDetailTxId(null);
+          setBookingSheet({ isOpen: true, bookingId });
+        }}
+        onOpenMemberProfile={(email) => {
+          setDetailTxId(null);
+          navigate(`/admin/directory?search=${encodeURIComponent(email)}`);
+        }}
+      />
+      <UnifiedBookingSheet
+        isOpen={bookingSheet.isOpen}
+        onClose={() => setBookingSheet({ isOpen: false, bookingId: null })}
+        mode="manage"
+        bookingId={bookingSheet.bookingId || undefined}
+        onSuccess={() => setBookingSheet({ isOpen: false, bookingId: null })}
+        onRosterUpdated={() => { queryClient.invalidateQueries({ queryKey: ['financials'] }); }}
+      />
+    </>
   );
 };
 

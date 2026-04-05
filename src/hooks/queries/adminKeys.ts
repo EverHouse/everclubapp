@@ -45,6 +45,7 @@ export const adminKeys = {
     futureBookingsWithFees: () => [...adminKeys.financials.all, 'future-bookings-with-fees'] as const,
     refundablePayments: () => [...adminKeys.financials.all, 'refundable-payments'] as const,
     refundedPayments: () => [...adminKeys.financials.all, 'refunded-payments'] as const,
+    transactionDetail: (id: string) => [...adminKeys.financials.all, 'transaction-detail', id] as const,
     subscriptions: (status?: string) => [...adminKeys.financials.all, 'subscriptions', { status }] as const,
     invoices: (params?: { status?: string; startDate?: string; endDate?: string }) =>
       [...adminKeys.financials.all, 'invoices', params] as const,
