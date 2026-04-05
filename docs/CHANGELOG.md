@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.63] - 2026-04-05
+
+### Event Update Notifications for RSVPed Members
+- **Added notifications to RSVPed members when event date, time, or location changes.** The `PUT /api/events/:id` endpoint updated event details (including date, time, and location) and synced with Google Calendar, but never notified members who had already RSVPed. Members could show up at the wrong time or place. Now detects date, time, and location changes and sends an in-app notification to all confirmed RSVPs with a summary of what changed.
+
+Files changed: `server/routes/events/crud.ts`
+
+### Booking Approval Past-Date Guard
+- **Added past-date validation to `approveBooking`.** The approval flow checked for time-slot conflicts, closures, and availability blocks, but never validated whether the requested date had already passed. A booking request submitted days ago could be approved for a date that was now in the past, creating a phantom booking. Now rejects approval for past dates with a clear message suggesting the staff decline or reschedule.
+
+Files changed: `server/core/bookingService/approvalFlow.ts`
+
+### Roster Participant Overlap Check
+- **Added overlapping booking check when adding a member participant via roster.** The `addParticipant` function in `rosterParticipants.ts` checked that the member wasn't already in the *current* booking, but never checked if they had a *different* booking at the same time. Staff could add a member to two concurrent bookings, creating scheduling conflicts. Now calls `checkMemberAvailability` and returns a 409 error with the conflicting bay name if the member is already booked.
+
+Files changed: `server/core/bookingService/rosterParticipants.ts`
+
 ## [8.98.62] - 2026-04-05
 
 ### XSS Escaping in Guest Pass and Payment Emails

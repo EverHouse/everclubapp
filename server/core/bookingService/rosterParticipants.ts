@@ -13,6 +13,7 @@ import {
   enforceSocialTierRules,
   type ParticipantForValidation,
 } from './tierRules';
+import { checkMemberAvailability } from './conflictDetection';
 import { getMemberTierByEmail } from '../tierService';
 import {
   invalidateCachedFees,
@@ -153,6 +154,23 @@ export async function addParticipant(params: AddParticipantParams): Promise<AddP
       );
       if (existingMember) {
         throw createServiceError('This member is already a participant', 400);
+      }
+
+      if (booking.request_date && booking.start_time && booking.end_time) {
+        const availability = await checkMemberAvailability(
+          memberInfo.email,
+          booking.request_date,
+          booking.start_time,
+          booking.end_time,
+          bookingId
+        );
+        if (!availability.available) {
+          const conflictNames = availability.conflicts.map(c => c.resourceName || 'another bay').join(', ');
+          throw createServiceError(
+            `${memberInfo.firstName || 'Member'} already has a booking at this time (${conflictNames})`,
+            409
+          );
+        }
       }
 
       const memberFullName = `${memberInfo.firstName || ''} ${memberInfo.lastName || ''}`.trim().toLowerCase();

@@ -18,6 +18,7 @@ import { PaymentStatusService } from '../billing/PaymentStatusService';
 import { cancelPaymentIntent, getStripeClient } from '../stripe';
 import Stripe from 'stripe';
 import { getCalendarNameForBayAsync } from '../calendar/calendarHelpers';
+import { getTodayPacific } from '../../utils/dateUtils';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent } from '../calendar/index';
 import { createPrepaymentIntent } from '../billing/prepaymentService';
 import { finalizeAndPayInvoice, syncBookingInvoice, getBookingInvoiceId } from '../billing/bookingInvoiceService';
@@ -100,6 +101,14 @@ export async function approveBooking(params: ApproveBookingParams) {
 
     if (!assignedBayId) {
       throw new AppError(400, 'Bay must be assigned before approval');
+    }
+
+    const approvalDate = suggested_time
+      ? suggested_time.split('T')[0] || req_data.requestDate
+      : req_data.requestDate;
+    const today = getTodayPacific();
+    if (approvalDate && today && approvalDate < today) {
+      throw new AppError(400, `Cannot approve booking for a past date (${approvalDate}). Please decline this request or reschedule.`);
     }
 
     const sameDayCandidates = await tx.select().from(bookingRequests).where(and(

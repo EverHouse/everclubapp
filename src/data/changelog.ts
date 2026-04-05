@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.63",
+    date: "2026-04-05",
+    title: "Event Notifications, Booking Safety & Roster Overlap",
+    changes: [
+      "Fixed: Members with RSVPs are now notified when an event's date, time, or location changes.",
+      "Fixed: Staff can no longer approve a booking request for a date that has already passed.",
+      "Fixed: Adding a member to a booking roster now checks if they already have a conflicting booking at the same time.",
+    ]
+  },
+  {
     version: "8.98.62",
     date: "2026-04-05",
     title: "Email Security & Payment Idempotency",

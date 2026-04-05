@@ -305,7 +305,12 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       blockBookings: events.blockBookings,
       blockSimulators: events.blockSimulators,
       blockConferenceRoom: events.blockConferenceRoom,
-      needsReview: events.needsReview
+      needsReview: events.needsReview,
+      title: events.title,
+      eventDate: events.eventDate,
+      startTime: events.startTime,
+      endTime: events.endTime,
+      location: events.location
     }).from(events).where(eq(events.id, eventId));
     
     const _previousBlockBookings = existing[0]?.blockBookings || false;
@@ -438,6 +443,40 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
         logger.error('[Events] Failed to update Google Calendar event — locallyEdited flag retained for retry', {
           extra: { error: getErrorMessage(calError), eventId, googleCalendarId: existing[0].googleCalendarId }
         });
+      }
+    }
+
+    const oldEvent = existing[0];
+    const dateChanged = oldEvent.eventDate !== trimmedEventDate;
+    const timeChanged = oldEvent.startTime !== trimmedStartTime || (oldEvent.endTime || null) !== (trimmedEndTime || null);
+    const locationChanged = (oldEvent.location || '') !== (location || '');
+
+    if (dateChanged || timeChanged || locationChanged) {
+      try {
+        const rsvpEmails = await db.select({ userEmail: eventRsvps.userEmail })
+          .from(eventRsvps)
+          .where(and(eq(eventRsvps.eventId, eventId), eq(eventRsvps.status, 'confirmed')));
+
+        const changes: string[] = [];
+        if (dateChanged) changes.push(`date changed to ${trimmedEventDate}`);
+        if (timeChanged) changes.push(`time changed to ${trimmedStartTime}${trimmedEndTime ? ` – ${trimmedEndTime}` : ''}`);
+        if (locationChanged) changes.push(`location changed to ${location || 'TBD'}`);
+        const changesList = changes.join(', ');
+
+        for (const rsvp of rsvpEmails) {
+          notifyMember({
+            userEmail: rsvp.userEmail,
+            title: 'Event Updated',
+            message: `"${trimmedTitle}" has been updated: ${changesList}.`,
+            type: 'event_update',
+            relatedId: eventId,
+            relatedType: 'event',
+            url: '/events'
+          }).catch(err => logger.warn('[Events] Failed to notify RSVP about event update', { extra: { error: getErrorMessage(err), eventId, email: rsvp.userEmail } }));
+        }
+        logger.info(`[Events] Notified ${rsvpEmails.length} RSVPed members about event update`, { extra: { eventId, changes: changesList } });
+      } catch (notifyErr: unknown) {
+        logger.warn('[Events] Failed to send event update notifications', { extra: { error: getErrorMessage(notifyErr), eventId } });
       }
     }
 
