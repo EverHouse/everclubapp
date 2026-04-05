@@ -69,7 +69,7 @@ const CleanupAlertModal: React.FC<CleanupAlertModalProps> = ({
 
   if (!isOpen || !data) return null;
 
-  const isConferenceRoom = data.resourceType === 'conference_room';
+  const isConferenceRoom = data.resourceType === 'conference' || data.resourceType === 'conference_room';
 
   const modal = (
     <div
@@ -133,6 +133,15 @@ const CleanupAlertModal: React.FC<CleanupAlertModalProps> = ({
             </div>
           </div>
 
+          <div className="flex items-center gap-2 text-white text-xs bg-white/10 rounded-lg p-3 mb-3 text-left">
+            <Icon name="cleaning_services" className="text-base text-amber-200 flex-shrink-0" />
+            <span>
+              {isConferenceRoom
+                ? 'Please clean up and reset the conference room — clear items, wipe surfaces, and reset A/V equipment.'
+                : 'Please clean up and reset the bay — collect equipment, wipe surfaces, and reset the screen.'}
+            </span>
+          </div>
+
           {data.hasNextBooking && (
             <div className="flex items-center justify-center gap-2 text-amber-100 text-xs bg-white/10 rounded-lg p-2">
               <Icon name="arrow_forward" className="text-sm" />
@@ -146,7 +155,7 @@ const CleanupAlertModal: React.FC<CleanupAlertModalProps> = ({
           {!data.hasNextBooking && (
             <div className="flex items-center justify-center gap-2 text-white/60 text-xs">
               <Icon name="check_circle" className="text-sm" />
-              <span>No booking follows — prepare for cleanup</span>
+              <span>No upcoming booking</span>
             </div>
           )}
         </div>

@@ -521,7 +521,11 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         const nextBookingInfo = hasNextBooking ? (nextBookingResult.rows[0] as { user_name: string | null; user_email: string; start_time: string }) : null;
 
         const cleanupTitle = 'Session Ending Soon';
-        const cleanupMessage = `${cleanupBooking.resource_name} — ${cleanupBooking.user_name || cleanupBooking.user_email} — ends in 10 minutes${hasNextBooking ? ` (next: ${nextBookingInfo?.user_name || nextBookingInfo?.user_email} at ${nextBookingInfo?.start_time?.substring(0, 5)})` : ''}`;
+        const isConferenceRoom = cleanupBooking.resource_type === 'conference';
+        const cleanupInstruction = isConferenceRoom
+          ? 'Please prepare to reset the conference room (clear items, wipe surfaces, reset A/V).'
+          : 'Please prepare to clean up and reset the bay (collect equipment, wipe surfaces, reset screen).';
+        const cleanupMessage = `${cleanupBooking.resource_name} — ${cleanupBooking.user_name || cleanupBooking.user_email} — ends in 10 minutes. ${cleanupInstruction}${hasNextBooking ? ` Next: ${nextBookingInfo?.user_name || nextBookingInfo?.user_email} at ${nextBookingInfo?.start_time?.substring(0, 5)}.` : ''}`;
 
         await notifyAllStaff(cleanupTitle, cleanupMessage, 'booking_reminder', {
           relatedId: cleanupBookingId,
