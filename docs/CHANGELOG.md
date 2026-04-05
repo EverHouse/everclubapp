@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.54] - 2026-04-05
+
+### Login & Bug Report Double-Submit Prevention
+- **Added early-return guard to `handlePasswordLogin` and `handleRequestOTP` in `Login.tsx`.** Both handlers set `loading` state to disable the submit button, but neither returned early if `loading` was already true. A rapid double-tap or Enter key press before React's state update could fire multiple login/OTP requests. Now checks `if (loading) return;` before proceeding.
+- **Added early-return guard to `handleSubmit` in `BugReportModal.tsx`.** Same pattern — `loading` state was set but no early return prevented a second submission if the button was clicked faster than the state update disabled it.
+
+Files changed: `src/pages/Public/Login.tsx`, `src/components/BugReportModal.tsx`
+
+### Zero-Dollar Invoice Prevention
+- **Added $0 invoice guard in `finalizeAndSendInvoice`.** `invoices.ts` finalized and sent invoices without checking the total amount. If a draft invoice ended up with $0 (e.g., all line items waived, or fee rounding to 0), it would still be finalized and emailed to the member. Now retrieves the draft first, checks `amount_due`, and voids $0 invoices instead of sending them.
+
+Files changed: `server/core/stripe/invoices.ts`
+
 ## [8.98.53] - 2026-04-05
 
 ### Member Directory Pagination Stability

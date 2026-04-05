@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.54",
+    date: "2026-04-05",
+    title: "Login & Billing Safety",
+    changes: [
+      "Fixed: Login and bug report forms now prevent accidental double-submissions from rapid clicking or Enter key presses.",
+      "Fixed: The billing system now catches and voids $0 invoices instead of sending empty bills to members.",
+    ]
+  },
+  {
     version: "8.98.53",
     date: "2026-04-05",
     title: "Directory & Sync Fixes",

@@ -167,6 +167,13 @@ export async function finalizeAndSendInvoice(invoiceId: string): Promise<{
   try {
     const stripe = await getStripeClient();
 
+    const draft = await stripe.invoices.retrieve(invoiceId);
+    if ((draft.amount_due ?? 0) <= 0) {
+      logger.warn(`[Stripe Invoices] Skipping $0 invoice ${invoiceId} — voiding/deleting instead of sending`);
+      await voidInvoice(invoiceId);
+      return { success: false, error: 'Invoice has $0 total — voided instead of sending' };
+    }
+
     const finalized = await stripe.invoices.finalizeInvoice(invoiceId);
 
     await stripe.invoices.sendInvoice(invoiceId);

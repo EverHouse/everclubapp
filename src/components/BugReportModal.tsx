@@ -61,6 +61,7 @@ const BugReportModal: React.FC<BugReportModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (!description.trim()) {
       setError('Please describe the issue you encountered');
       return;

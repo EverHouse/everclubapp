@@ -254,6 +254,7 @@ const Login: React.FC = () => {
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
     
@@ -272,6 +273,7 @@ const Login: React.FC = () => {
 
   const handleRequestOTP = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError('');
     
