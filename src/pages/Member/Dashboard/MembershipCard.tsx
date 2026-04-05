@@ -240,12 +240,12 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
     ? '0 1px 3px rgba(0,0,0,0.15)'
     : isLightCard
       ? '-1px -1px 0px rgba(0,0,0,0.12), 1px 1px 0px rgba(255,255,255,0.7)'
-      : '-1px -1px 0px rgba(0,0,0,0.25), 1px 1px 0px rgba(255,255,255,0.3)';
+      : '0 1px 2px rgba(0,0,0,0.4)';
   const etchedShadowMuted = isExpired
     ? 'none'
     : isLightCard
       ? '-1px -1px 0px rgba(0,0,0,0.08), 1px 1px 0px rgba(255,255,255,0.55)'
-      : '-1px -1px 0px rgba(0,0,0,0.18), 1px 1px 0px rgba(255,255,255,0.22)';
+      : '0 1px 2px rgba(0,0,0,0.3)';
   const useDarkLogo = isExpired ? false : isLightCard;
 
   const {
