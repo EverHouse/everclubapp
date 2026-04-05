@@ -95,9 +95,9 @@ function useCardLightEffects() {
   const edgeGlimmerBackground = useTransform(
     [edgeAngle, tiltIntensity],
     ([a, intensity]: number[]) => {
-      const base = 0.3 + intensity * 0.5;
-      const peak = 0.4 + intensity * 0.6;
-      return `conic-gradient(from ${a}deg, transparent 0deg, rgba(200,200,205,${base}) 20deg, rgba(220,220,225,${peak}) 45deg, rgba(255,255,255,${peak + 0.15}) 60deg, rgba(210,210,215,${base}) 80deg, transparent 110deg, transparent 180deg, rgba(230,230,235,${base * 0.7}) 210deg, rgba(200,200,210,${base * 0.8}) 240deg, transparent 270deg, transparent 360deg)`;
+      const base = 0.45 + intensity * 0.55;
+      const peak = 0.6 + intensity * 0.4;
+      return `conic-gradient(from ${a}deg, transparent 0deg, rgba(220,220,225,${base}) 15deg, rgba(240,240,245,${peak}) 35deg, rgba(255,255,255,${Math.min(1, peak + 0.2)}) 55deg, rgba(255,255,255,${Math.min(1, peak + 0.25)}) 65deg, rgba(240,240,245,${peak}) 85deg, rgba(220,220,225,${base}) 105deg, transparent 130deg, transparent 180deg, rgba(230,230,235,${base * 0.6}) 200deg, rgba(240,240,245,${base * 0.7}) 225deg, rgba(220,220,230,${base * 0.5}) 250deg, transparent 280deg, transparent 360deg)`;
     }
   );
 
@@ -248,10 +248,10 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
         <div className="relative h-56 lg:h-full lg:min-h-56">
           {!prefersReducedMotion && (
             <motion.div
-              className="absolute -inset-[1.5px] rounded-xl pointer-events-none"
+              className="absolute -inset-[3px] rounded-xl pointer-events-none"
               style={{
                 background: edgeGlimmerBackground,
-                filter: 'blur(2px)',
+                filter: 'blur(3px)',
                 willChange: 'background',
               }}
               aria-hidden="true"
