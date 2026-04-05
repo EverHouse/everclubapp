@@ -153,7 +153,6 @@ export async function fixFunctionSearchPaths(): Promise<void> {
 
   try {
     await db.execute(sql`DROP INDEX IF EXISTS idx_availability_blocks_closure_id`);
-    await db.execute(sql`DROP INDEX IF EXISTS admin_audit_log_created_at_idx`);
     await db.execute(sql`DROP INDEX IF EXISTS booking_sessions_trackman_idx`);
     await db.execute(sql`DROP INDEX IF EXISTS booking_participants_user_idx`);
     await db.execute(sql`DROP INDEX IF EXISTS idx_booking_participants_session_id`);
@@ -1156,7 +1155,14 @@ export async function ensureDatabaseConstraints() {
       await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_tours_status ON tours (status)`);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_audit_log_resource_type_created_at_idx ON admin_audit_log (resource_type, created_at)`);
       await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_communication_logs_hubspot_engagement_id ON communication_logs (hubspot_engagement_id)`);
-      logger.info('[DB Init] Staff dashboard performance indexes created/verified');
+
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS admin_audit_log_created_at_idx ON admin_audit_log (created_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_tours_status_created_at ON tours (status, created_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_active_not_archived ON users (membership_status) WHERE archived_at IS NULL`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_staff_users_active_lower_email ON staff_users ((LOWER(email))) WHERE is_active = true`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_status_not_unmatched ON booking_requests (status, created_at DESC) WHERE is_unmatched = false OR is_unmatched IS NULL`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_booking_requests_date_not_unmatched ON booking_requests (request_date, start_time) WHERE is_unmatched = false OR is_unmatched IS NULL`);
+      logger.info('[DB Init] Staff dashboard performance indexes created/verified (includes command-center composite indexes)');
     } catch (err: unknown) {
       logger.warn(`[DB Init] Staff dashboard performance indexes: ${getErrorMessage(err)}`);
     }
