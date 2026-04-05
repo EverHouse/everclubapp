@@ -965,7 +965,7 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
 
 function normalizeActivityType(raw: string): string {
   if (['membership', 'membership_renewal', 'subscription'].includes(raw)) return 'subscription';
-  if (['pos', 'terminal', 'merch', 'merchandise', 'one_time_purchase', 'cafe'].includes(raw)) return 'pos';
+  if (['pos', 'terminal', 'pos_purchase', 'merch', 'merchandise', 'one_time_purchase', 'cafe'].includes(raw)) return 'pos';
   if (raw === 'invoice') return 'invoice';
   if (raw === 'charge') return 'payment';
   return 'payment';
@@ -1055,7 +1055,7 @@ router.get('/api/financials/activity', isStaffOrAdmin, async (req: Request, res:
           spi.created_at,
           CASE
             WHEN spi.purpose IN ('membership', 'membership_renewal', 'subscription') THEN 'subscription'
-            WHEN spi.purpose IN ('pos', 'terminal', 'merch', 'merchandise', 'one_time_purchase', 'cafe') THEN 'pos'
+            WHEN spi.purpose IN ('pos', 'terminal', 'pos_purchase', 'merch', 'merchandise', 'one_time_purchase', 'cafe') THEN 'pos'
             WHEN spi.purpose = 'invoice' THEN 'invoice'
             ELSE 'payment'
           END AS type,
@@ -1279,7 +1279,7 @@ router.get('/api/financials/activity/export', isStaffOrAdmin, async (req: Reques
           spi.created_at,
           CASE
             WHEN spi.purpose IN ('membership', 'membership_renewal', 'subscription') THEN 'subscription'
-            WHEN spi.purpose IN ('pos', 'terminal', 'merch', 'merchandise', 'one_time_purchase', 'cafe') THEN 'pos'
+            WHEN spi.purpose IN ('pos', 'terminal', 'pos_purchase', 'merch', 'merchandise', 'one_time_purchase', 'cafe') THEN 'pos'
             WHEN spi.purpose = 'invoice' THEN 'invoice'
             ELSE 'payment'
           END AS type,
