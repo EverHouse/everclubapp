@@ -81,8 +81,10 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       .catch(() => onErrorRef.current?.('Failed to load Google Sign-In'));
   }, [clientId]);
 
+  const initializedRef = useRef(false);
+
   useEffect(() => {
-    if (!loaded || !clientId) return;
+    if (!loaded || !clientId || initializedRef.current) return;
 
     const google = getGoogleApi();
     if (!google?.accounts?.id) return;
@@ -98,18 +100,24 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         }
       },
     });
+    initializedRef.current = true;
+  }, [loaded, clientId]);
 
-    if (buttonRef.current) {
-      google.accounts.id.renderButton(buttonRef.current, {
-        type: 'standard',
-        theme: 'outline',
-        size: compact ? 'medium' : 'large',
-        text: compact ? 'signin' : text,
-        shape: 'pill',
-        width: compact ? 80 : (width || buttonRef.current.offsetWidth),
-        logo_alignment: 'left',
-      });
-    }
+  useEffect(() => {
+    if (!loaded || !clientId) return;
+
+    const google = getGoogleApi();
+    if (!google?.accounts?.id || !buttonRef.current) return;
+
+    google.accounts.id.renderButton(buttonRef.current, {
+      type: 'standard',
+      theme: 'outline',
+      size: compact ? 'medium' : 'large',
+      text: compact ? 'signin' : text,
+      shape: 'pill',
+      width: compact ? 80 : (width || buttonRef.current.offsetWidth),
+      logo_alignment: 'left',
+    });
   }, [loaded, clientId, text, width, compact]);
 
   if (!clientId) return null;

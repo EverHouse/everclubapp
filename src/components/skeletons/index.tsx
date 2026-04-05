@@ -31,15 +31,17 @@ export const SkeletonCrossfade: React.FC<SkeletonCrossfadeProps> = ({
   const prefersReduced = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const [lockedHeight, setLockedHeight] = useState<number | null>(null);
+  const wasLoadingRef = useRef(loading);
 
   useEffect(() => {
-    if (!loading && lockedHeight === null && containerRef.current) {
+    if (wasLoadingRef.current && !loading && containerRef.current) {
       setLockedHeight(containerRef.current.offsetHeight);
     }
-    if (loading) {
+    if (loading && !wasLoadingRef.current) {
       setLockedHeight(null);
     }
-  }, [loading, lockedHeight]);
+    wasLoadingRef.current = loading;
+  }, [loading]);
 
   const handleExitComplete = () => {
     setLockedHeight(null);

@@ -155,7 +155,7 @@ export async function sanitizeAndResolveParticipants(
         WHERE LOWER(u.email) IN (${sql.join(emailsToLookup.map(e => sql`${e}`), sql`, `)})
            OR LOWER(ule.linked_email) IN (${sql.join(emailsToLookup.map(e => sql`${e}`), sql`, `)})
       `);
-      const emailUsers = (linkedEmailQuery as { rows: Array<{ id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }> }).rows;
+      const emailUsers = (linkedEmailQuery as unknown as { rows: Array<{ id: string; email: string | null; firstName: string | null; lastName: string | null; membershipStatus: string | null }> }).rows;
       const emailMap = new Map<string, typeof emailUsers[0]>();
       for (const u of emailUsers) {
         if (u.email) emailMap.set(u.email.toLowerCase(), u);
@@ -165,7 +165,7 @@ export async function sanitizeAndResolveParticipants(
         FROM user_linked_emails
         WHERE LOWER(linked_email) IN (${sql.join(emailsToLookup.map(e => sql`${e}`), sql`, `)})
       `);
-      for (const row of (linkedRows as { rows: Array<{ linked: string; primary_email: string }> }).rows) {
+      for (const row of (linkedRows as unknown as { rows: Array<{ linked: string; primary_email: string }> }).rows) {
         const primaryUser = emailMap.get(row.primary_email);
         if (primaryUser && !emailMap.has(row.linked)) {
           emailMap.set(row.linked, primaryUser);

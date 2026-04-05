@@ -44,7 +44,7 @@ async function reconcileCleanupAlerts(options: { isStartup: boolean }): Promise<
       ORDER BY br.request_date, br.end_time
     `);
 
-    const bookings = result.rows as MissingAlertBooking[];
+    const bookings = result.rows as unknown as MissingAlertBooking[];
 
     if (bookings.length === 0) {
       logger.info(`[CleanupAlert] ${label} reconciliation: no missing cleanup alert jobs found`);
