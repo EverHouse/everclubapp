@@ -49,6 +49,7 @@ const REST_Y = 0.5;
 function useCard3DTilt() {
   const cardRef = useRef<HTMLDivElement>(null);
   const gyroListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
+  const gyroPermissionAttempted = useRef(false);
 
   const mouseX = useMotionValue(REST_X);
   const mouseY = useMotionValue(REST_Y);
@@ -78,8 +79,6 @@ function useCard3DTilt() {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
-
-  const gyroPermissionAttempted = useRef(false);
 
   const startGyroListener = useCallback(() => {
     if (gyroListenerRef.current) return;
@@ -134,6 +133,30 @@ function useCard3DTilt() {
     };
   }, []);
 
+  const requestGyroPermission = useCallback(() => {
+    if (prefersReducedMotion || gyroListenerRef.current || gyroPermissionAttempted.current) return;
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
+
+    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+
+    if (typeof DOE.requestPermission === 'function') {
+      gyroPermissionAttempted.current = true;
+      DOE.requestPermission().then((state: string) => {
+        if (state === 'granted') startGyroListener();
+      }).catch(() => {});
+    }
+  }, [prefersReducedMotion, startGyroListener]);
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
+
+    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission !== 'function') {
+      startGyroListener();
+    }
+  }, [prefersReducedMotion, startGyroListener]);
+
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (prefersReducedMotion) return;
@@ -157,33 +180,6 @@ function useCard3DTilt() {
     });
   }, [mouseX, mouseY]);
 
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
-
-    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-
-    if (typeof DOE.requestPermission !== 'function') {
-      startGyroListener();
-      return;
-    }
-
-    const el = cardRef.current;
-    if (!el) return;
-
-    const onTouchStart = () => {
-      if (gyroListenerRef.current || gyroPermissionAttempted.current) return;
-      gyroPermissionAttempted.current = true;
-
-      DOE.requestPermission!().then((state: string) => {
-        if (state === 'granted') startGyroListener();
-      }).catch(() => {});
-    };
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    return () => el.removeEventListener('touchstart', onTouchStart);
-  }, [prefersReducedMotion, startGyroListener]);
-
   return {
     cardRef,
     rotateX: prefersReducedMotion ? undefined : rotateX,
@@ -195,6 +191,7 @@ function useCard3DTilt() {
     edgeGlowYHalf: prefersReducedMotion ? undefined : edgeGlowYHalf,
     handlePointerMove,
     handlePointerLeave,
+    requestGyroPermission,
     prefersReducedMotion,
   };
 }
@@ -216,7 +213,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const {
     cardRef, rotateX, rotateY, sheenBackground,
     edgeGlowX, edgeGlowY, edgeGlowXHalf, edgeGlowYHalf,
-    handlePointerMove, handlePointerLeave, prefersReducedMotion,
+    handlePointerMove, handlePointerLeave, requestGyroPermission, prefersReducedMotion,
   } = useCard3DTilt();
 
   return (
@@ -251,7 +248,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           )}
           <motion.div
             ref={cardRef}
-            onClick={() => setIsCardOpen(true)}
+            onClick={() => { requestGyroPermission(); setIsCardOpen(true); }}
             role="button"
             tabIndex={0}
             onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
