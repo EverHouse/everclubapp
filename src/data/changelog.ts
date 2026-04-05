@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.45",
+    date: "2026-04-05",
+    title: "Bug Fixes & Performance",
+    changes: [
+      "Fixed: Invoice cleanup now correctly finds stale draft invoices in Stripe.",
+      "Improved: Faster cleanup of expired rate limit records.",
+    ]
+  },
+  {
     version: "8.98.44",
     date: "2026-04-05",
     title: "Membership Card Motion Fix",

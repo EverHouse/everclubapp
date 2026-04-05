@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.45] - 2026-04-05
+
+### Bug Fixes & Performance
+- **Fixed Stripe invoice search query syntax.** The Stale Draft Cleanup scheduler (`staleDraftInvoiceScheduler.ts`) and manual cleanup script (`cleanup-stale-draft-invoices.ts`) used `metadata["bookingId"]:*` in Stripe search queries. Stripe requires quoted wildcard values: `metadata["bookingId"]:"*"`. This caused the orphaned draft invoice search to fail silently (caught by try/catch, logged as warning, returned empty results). Orphaned draft invoices with `bookingId` metadata older than 7 days were never cleaned up.
+- **Added composite index for rate_limit_hits cleanup.** The periodic `DELETE FROM rate_limit_hits WHERE key LIKE $1 AND window_start < $2` query was slow (360ms+) because it could only use one of two single-column indexes. Added composite index `idx_rate_limit_hits_key_window ON (key text_pattern_ops, window_start)` to cover both filter conditions in a single index scan.
+
+Files changed: `server/schedulers/staleDraftInvoiceScheduler.ts`, `scripts/cleanup-stale-draft-invoices.ts`, `server/middleware/pgRateLimitStore.ts`
+
 ## [8.98.44] - 2026-04-05
 
 ### Membership Card Gyroscope Auto-Resume on Navigation

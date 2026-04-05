@@ -164,7 +164,7 @@ async function cleanupStaleDraftInvoices(): Promise<void> {
     let orphanedDrafts: { data: Array<{ id: string; status: string | null; amount_due: number; metadata: Record<string, string> | null; created: number }> };
     try {
       orphanedDrafts = await stripe.invoices.search({
-        query: `status:"draft" metadata["bookingId"]:* -created>${Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60}`,
+        query: `status:"draft" metadata["bookingId"]:"*" -created>${Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60}`,
         limit: 50,
       });
     } catch (searchErr: unknown) {

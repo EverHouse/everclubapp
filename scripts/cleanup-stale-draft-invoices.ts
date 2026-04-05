@@ -152,7 +152,7 @@ async function findStaleInvoices(): Promise<StaleInvoice[]> {
   try {
     const sevenDaysAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
     const searchResult = await stripe.invoices.search({
-      query: `status:"draft" metadata["bookingId"]:* -created>${sevenDaysAgo}`,
+      query: `status:"draft" metadata["bookingId"]:"*" -created>${sevenDaysAgo}`,
       limit: 100,
     });
 

@@ -40,6 +40,9 @@ function ensureTable(): Promise<void> {
         await db.execute(sql`
           CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_key_prefix ON rate_limit_hits (key text_pattern_ops)
         `);
+        await db.execute(sql`
+          CREATE INDEX IF NOT EXISTS idx_rate_limit_hits_key_window ON rate_limit_hits (key text_pattern_ops, window_start)
+        `);
         tableReady = true;
       } catch (err) {
         const msg = getErrorMessage(err);
