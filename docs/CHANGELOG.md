@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.43] - 2026-04-05
+
+### Fix Deployment Cache Header Policy
+- **Reverted public API `Cache-Control` override.** In v8.98.39, `/api/public/*` GET requests were given `Cache-Control: public, s-maxage=60, stale-while-revalidate=120` to enable CDN caching. This violated the deployment health check which requires `no-store` on all non-static responses to prevent the iOS Safari stale cache bug. Removed the special-case branch so all non-static responses uniformly use `no-store, no-cache, must-revalidate, proxy-revalidate`. The server-side in-memory caching added in v8.98.42 already handles the performance concern without relying on browser/CDN cache headers.
+
+Files changed: `server/middleware/security.ts`
+
 ## [8.98.42] - 2026-04-05
 
 ### Performance — Server-Side Caching & Connection Pool Relief

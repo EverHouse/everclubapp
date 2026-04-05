@@ -144,12 +144,7 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
   if (!isStaticAsset) {
-    const isPublicGetRequest = req.method === 'GET' && req.path.startsWith('/api/public/');
-    if (isPublicGetRequest) {
-      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
-    } else {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
     const nonce = randomBytes(16).toString('base64');
     res.locals.cspNonce = nonce;

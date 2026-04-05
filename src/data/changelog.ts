@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.43",
+    date: "2026-04-05",
+    title: "Fix Deployment Cache Header Policy",
+    changes: [
+      "Fixed: Resolved a deployment failure caused by a cache header policy on public API responses that conflicted with iOS Safari stale cache prevention requirements.",
+    ]
+  },
+  {
     version: "8.98.42",
     date: "2026-04-05",
     title: "Performance — Server-Side Caching & Connection Pool Relief",
