@@ -7,6 +7,7 @@ import { updateHubSpotContactVisitCount } from './memberSync';
 import { sendFirstVisitConfirmationEmail } from '../emails/firstVisitEmail';
 import { getErrorMessage } from '../utils/errorUtils';
 import { invalidateCache } from './queryCache';
+import { getTodayPacific } from '../utils/dateUtils';
 
 interface MemberRow {
   id: string;
@@ -56,6 +57,18 @@ export interface WalkInCheckinResult {
 
 export async function processWalkInCheckin(params: WalkInCheckinParams): Promise<WalkInCheckinResult> {
   try {
+    const today = getTodayPacific();
+    const closureResult = await db.execute(sql`
+      SELECT title FROM facility_closures
+      WHERE is_active = true AND start_date <= ${today} AND end_date >= ${today}
+        AND start_time IS NULL AND end_time IS NULL
+      LIMIT 1
+    `);
+    if (closureResult.rows.length > 0) {
+      const closureTitle = (closureResult.rows[0] as { title?: string }).title || 'facility closure';
+      return { success: false, memberName: '', memberEmail: '', tier: null, lifetimeVisits: 0, pinnedNotes: [], membershipStatus: null, error: `Club is closed today: ${closureTitle}` };
+    }
+
     const memberResult = await db.execute(sql`
       SELECT u.id, u.email, u.first_name, u.last_name, u.membership_status, u.tier, u.hubspot_id, u.lifetime_visits, u.wellhub_status
       FROM users u

@@ -2,7 +2,7 @@ import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { isEmailCategoryEnabled } from '../core/settingsHelper';
-import { emailLayout, CLUB_COLORS, formatCurrency, formatDate } from './emailLayout';
+import { emailLayout, CLUB_COLORS, formatCurrency, formatDate, escapeHtml } from './emailLayout';
 
 interface PaymentReceiptParams {
   memberName: string;
@@ -29,7 +29,7 @@ export function getPaymentReceiptHtml(params: PaymentReceiptParams): string {
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Thank you for your payment, ${memberName}.
+                Thank you for your payment, ${escapeHtml(memberName)}.
               </p>
             </td>
           </tr>
@@ -112,7 +112,7 @@ export function getPaymentFailedHtml(params: PaymentFailedParams): string {
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${memberName}, we were unable to process your payment.
+                Hi ${escapeHtml(memberName)}, we were unable to process your payment.
               </p>
             </td>
           </tr>
@@ -189,7 +189,7 @@ export function getOutstandingBalanceHtml(params: OutstandingBalanceParams): str
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${memberName}, you have an outstanding balance on your account.
+                Hi ${escapeHtml(memberName)}, you have an outstanding balance on your account.
               </p>
             </td>
           </tr>
@@ -274,7 +274,7 @@ export function getFeeWaivedHtml(params: FeeWaivedParams): string {
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Good news, ${memberName}! A fee has been waived on your account.
+                Good news, ${escapeHtml(memberName)}! A fee has been waived on your account.
               </p>
             </td>
           </tr>
@@ -477,7 +477,7 @@ export function getPurchaseReceiptHtml(params: PurchaseReceiptParams): string {
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Thank you for your purchase, ${memberName}.
+                Thank you for your purchase, ${escapeHtml(memberName)}.
               </p>
             </td>
           </tr>

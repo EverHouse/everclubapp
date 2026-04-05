@@ -2,10 +2,11 @@ import { getResendClient } from '../utils/resend';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled } from '../core/settingsHelper';
-import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { emailLayout, CLUB_COLORS, escapeHtml } from './emailLayout';
 
 export function getNudge24hHtml(firstName?: string): string {
-  const greeting = firstName ? `Hi ${firstName},` : 'Hi there,';
+  const safeName = firstName ? escapeHtml(firstName) : '';
+  const greeting = safeName ? `Hi ${safeName},` : 'Hi there,';
 
   const content = `
           <!-- Headline -->
@@ -45,7 +46,8 @@ export function getNudge24hHtml(firstName?: string): string {
 }
 
 export function getNudge72hHtml(firstName?: string): string {
-  const greeting = firstName ? `Hi ${firstName},` : 'Hi there,';
+  const safeName = firstName ? escapeHtml(firstName) : '';
+  const greeting = safeName ? `Hi ${safeName},` : 'Hi there,';
 
   const content = `
           <!-- Headline -->
@@ -151,7 +153,8 @@ export function getNudge72hHtml(firstName?: string): string {
 }
 
 export function getNudge7dHtml(firstName?: string): string {
-  const greeting = firstName ? `Hi ${firstName},` : 'Hi there,';
+  const safeName = firstName ? escapeHtml(firstName) : '';
+  const greeting = safeName ? `Hi ${safeName},` : 'Hi there,';
 
   const content = `
           <!-- Headline -->

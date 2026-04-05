@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.57",
+    date: "2026-04-05",
+    title: "Email Safety & Access Controls",
+    changes: [
+      "Fixed: Email templates now properly sanitize member names to prevent display issues with special characters.",
+      "Fixed: Walk-in check-ins are now blocked when the club is closed for a full-day closure.",
+      "Fixed: Active members can no longer accidentally purchase day passes meant for non-members.",
+    ]
+  },
+  {
     version: "8.98.56",
     date: "2026-04-05",
     title: "Event Safety Improvements",

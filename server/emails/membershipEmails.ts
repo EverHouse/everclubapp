@@ -2,7 +2,7 @@ import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 import { isEmailCategoryEnabled } from '../core/settingsHelper';
-import { emailLayout, CLUB_COLORS, formatCurrency, formatDate } from './emailLayout';
+import { emailLayout, CLUB_COLORS, formatCurrency, formatDate, escapeHtml } from './emailLayout';
 
 interface MembershipRenewalParams {
   memberName: string;
@@ -28,7 +28,7 @@ export function getMembershipRenewalHtml(params: MembershipRenewalParams): strin
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Thank you for continuing your membership, ${memberName}.
+                Thank you for continuing your membership, ${escapeHtml(memberName)}.
               </p>
             </td>
           </tr>
@@ -111,7 +111,7 @@ export function getMembershipFailedHtml(params: MembershipFailedParams): string 
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${memberName}, we were unable to process your membership renewal.
+                Hi ${escapeHtml(memberName)}, we were unable to process your membership renewal.
               </p>
             </td>
           </tr>
@@ -190,7 +190,7 @@ export function getCardExpiringHtml(params: CardExpiringParams): string {
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${memberName}, your payment card is about to expire.
+                Hi ${escapeHtml(memberName)}, your payment card is about to expire.
               </p>
             </td>
           </tr>
@@ -366,7 +366,7 @@ export function getGracePeriodReminderHtml(params: GracePeriodReminderParams): s
           <tr>
             <td style="text-align: center; padding-bottom: 40px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${memberName}, your membership payment could not be processed.
+                Hi ${escapeHtml(memberName)}, your membership payment could not be processed.
               </p>
             </td>
           </tr>
@@ -475,10 +475,10 @@ export function getMembershipActivationHtml(params: MembershipActivationParams):
           <tr>
             <td style="padding-bottom: 24px;">
               <p style="margin: 0 0 16px 0; font-size: 16px; color: ${CLUB_COLORS.textDark}; line-height: 1.5;">
-                Hi ${memberName},
+                Hi ${escapeHtml(memberName)},
               </p>
               <p style="margin: 0 0 16px 0; font-size: 16px; color: ${CLUB_COLORS.textDark}; line-height: 1.5;">
-                You've been invited to join Ever Club as a <strong>${tierName}</strong> member. 
+                You've been invited to join Ever Club as a <strong>${escapeHtml(tierName)}</strong> member. 
                 Complete your membership setup by clicking the button below.
               </p>
             </td>

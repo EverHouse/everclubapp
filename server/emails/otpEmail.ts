@@ -1,10 +1,11 @@
-import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { emailLayout, CLUB_COLORS, escapeHtml } from './emailLayout';
 
 export function getOtpEmailHtml(params: { firstName: string; code: string; logoUrl: string }): string {
+  const safeName = escapeHtml(params.firstName);
   const content = `
                 <tr>
                   <td style="text-align: center; padding-bottom: 24px;">
-                    <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: ${CLUB_COLORS.deepGreen}; font-family: 'Georgia', serif;">Hi ${params.firstName},</h1>
+                    <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 600; color: ${CLUB_COLORS.deepGreen}; font-family: 'Georgia', serif;">Hi ${safeName},</h1>
                     <p style="margin: 0; font-size: 16px; color: #666666; line-height: 1.5;">
                       Enter this code in the Ever Club app to sign in:
                     </p>

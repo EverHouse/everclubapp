@@ -2,10 +2,11 @@ import { getResendClient } from '../utils/resend';
 import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled } from '../core/settingsHelper';
-import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { emailLayout, CLUB_COLORS, escapeHtml } from './emailLayout';
 
 export function getFirstVisitHtml(params: { firstName?: string }): string {
-  const greeting = params.firstName ? `Welcome, ${params.firstName}!` : 'Welcome to Ever Club!';
+  const safeName = params.firstName ? escapeHtml(params.firstName) : '';
+  const greeting = safeName ? `Welcome, ${safeName}!` : 'Welcome to Ever Club!';
 
   const content = `
           <tr>

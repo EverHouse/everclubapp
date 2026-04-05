@@ -1,7 +1,7 @@
 import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled, getSettingValue } from '../core/settingsHelper';
-import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { emailLayout, CLUB_COLORS, escapeHtml } from './emailLayout';
 import { getErrorMessage } from '../utils/errorUtils';
 
 interface BookingConfirmationData {
@@ -47,7 +47,7 @@ export function getBookingConfirmationHtml(data: BookingConfirmationData): strin
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${data.memberName}, your simulator booking is confirmed!
+                Hi ${escapeHtml(data.memberName)}, your simulator booking is confirmed!
               </p>
             </td>
           </tr>

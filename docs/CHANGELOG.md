@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.57] - 2026-04-05
+
+### Email Template XSS Prevention
+- **Added HTML escaping to user-provided names across all email templates.** Multiple email templates interpolated `firstName`, `memberName`, or `guestName` directly into HTML without escaping. A malicious name like `<script>alert('x')</script>` would be rendered as raw HTML in email clients that support it. Added shared `escapeHtml()` in `emailLayout.ts` and applied it to all affected interpolation points across 8 template files (welcomeEmail, bookingEmails, onboardingNudgeEmails, firstVisitEmail, trialWelcomeEmail, tourEmails, otpEmail, paymentEmails, membershipEmails).
+
+Files changed: `server/emails/emailLayout.ts`, `server/emails/welcomeEmail.ts`, `server/emails/bookingEmails.ts`, `server/emails/onboardingNudgeEmails.ts`, `server/emails/firstVisitEmail.ts`, `server/emails/trialWelcomeEmail.ts`, `server/emails/tourEmails.ts`, `server/emails/otpEmail.ts`, `server/emails/paymentEmails.ts`, `server/emails/membershipEmails.ts`
+
+### Walk-In Closure Check
+- **Added facility closure check to walk-in check-in flow.** `walkInCheckinService.ts` processed walk-in check-ins (NFC, QR, kiosk) without checking if the club was closed. Members could check in during full-day closures (maintenance, private events). Now queries `facility_closures` for active full-day closures on the current Pacific date and rejects the check-in with the closure title.
+
+Files changed: `server/core/walkInCheckinService.ts`
+
+### Block Active Members from Day Pass Purchase
+- **Changed day pass checkout from warning to blocking for active members.** `dayPasses.ts` only logged a warning when an active member attempted to purchase a day pass, allowing the transaction to proceed. This led to redundant charges. Now returns a 400 error explaining that day passes are for non-members.
+
+Files changed: `server/routes/dayPasses.ts`
+
 ## [8.98.56] - 2026-04-05
 
 ### Staff Manual RSVP Capacity Check

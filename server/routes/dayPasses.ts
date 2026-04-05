@@ -86,7 +86,8 @@ router.post('/api/day-passes/checkout', checkoutRateLimiter, async (req: Request
       : firstName || email.split('@')[0];
 
     if (resolved && ['active', 'trialing', 'past_due'].includes(resolved.membershipStatus || '')) {
-      logger.info('[DayPasses] Warning: active member purchasing day pass with email', { extra: { resolvedPrimaryEmail: resolved.primaryEmail, email } });
+      logger.warn('[DayPasses] Blocked active member from purchasing day pass', { extra: { resolvedPrimaryEmail: resolved.primaryEmail, email } });
+      return res.status(400).json({ error: 'You already have an active membership. Day passes are for non-members or guests.' });
     }
 
     const stripe = await getStripeClient();

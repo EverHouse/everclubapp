@@ -1,4 +1,4 @@
-import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { emailLayout, CLUB_COLORS, escapeHtml } from './emailLayout';
 
 export interface TourConfirmationData {
   guestName: string;
@@ -39,7 +39,7 @@ export function getTourConfirmationHtml(data: TourConfirmationData): string {
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${data.guestName}, your tour at Ever Club is confirmed!
+                Hi ${escapeHtml(data.guestName)}, your tour at Ever Club is confirmed!
               </p>
             </td>
           </tr>

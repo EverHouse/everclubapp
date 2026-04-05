@@ -3,7 +3,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled, getSettingValue } from '../core/settingsHelper';
 import QRCode from 'qrcode';
-import { emailLayout, CLUB_COLORS, formatDate } from './emailLayout';
+import { emailLayout, CLUB_COLORS, formatDate, escapeHtml } from './emailLayout';
 
 async function generateQrDataUri(data: string): Promise<string> {
   return await QRCode.toDataURL(data, {
@@ -14,7 +14,8 @@ async function generateQrDataUri(data: string): Promise<string> {
 }
 
 export async function getTrialWelcomeHtml(params: { firstName?: string; userId: number; trialEndDate: Date; couponCode?: string }): Promise<string> {
-  const greeting = params.firstName ? `Welcome, ${params.firstName}!` : 'Welcome to Ever Club!';
+  const safeName = params.firstName ? escapeHtml(params.firstName) : '';
+  const greeting = safeName ? `Welcome, ${safeName}!` : 'Welcome to Ever Club!';
   const qrCodeUrl = await generateQrDataUri(`MEMBER:${params.userId}`);
   const coupon = params.couponCode || await getSettingValue('scheduling.trial_coupon_code', 'ASTORIA7');
   const trialDays = Math.max(1, Math.round((params.trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));

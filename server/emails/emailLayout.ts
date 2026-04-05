@@ -1,5 +1,15 @@
 import { getSettingValue } from '../core/settingsHelper';
 
+export function escapeHtml(str: string): string {
+  return str.replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  }[c] || c));
+}
+
 export const CLUB_COLORS = {
   deepGreen: '#293515',
   lavender: '#CCB8E4',
