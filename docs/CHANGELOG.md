@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.66] - 2026-04-05
+
+### XSS Fix in Member Invite, Win-Back, and Account Deletion Emails
+- **Added `escapeHtml` to `firstName`, `tierName`, and `priceFormatted` in `memberInviteEmail.ts`.** Three email template functions (`getMembershipInviteHtml`, `getWinBackHtml`, `getAccountDeletionHtml`) interpolated user-supplied `firstName` and `tierName` directly into HTML without escaping. A member whose first name contained `<script>` tags could inject HTML/JS into emails sent to them or about them. Now all user-supplied values are escaped.
+
+Files changed: `server/emails/memberInviteEmail.ts`
+
+### XSS Fix in CCPA Data Export Email
+- **Added `escapeHtml` to `memberName` and `member.email` in the CCPA data export notification email.** The email sent to admins when a member requests a data export interpolated the member's name and email directly into the HTML body. A member with a malicious name could inject content into the admin notification. Now both fields are escaped.
+
+Files changed: `server/routes/members/communications.ts`
+
+### Audit Log for Subscription Cancellation
+- **Added `logFromRequest` call to `DELETE /api/stripe/subscriptions/:subscriptionId`.** When staff cancelled a member's subscription, no audit log entry was created — only a WebSocket notification was sent. This made it impossible to track who cancelled which subscription and when. Now records the subscription ID, member email, and the staff member who performed the action.
+
+Files changed: `server/routes/stripe/subscriptions.ts`
+
 ## [8.98.65] - 2026-04-05
 
 ### Day Pass Expiration Check on Redemption

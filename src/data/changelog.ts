@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.66",
+    date: "2026-04-05",
+    title: "Email XSS Fixes & Subscription Audit Trail",
+    changes: [
+      "Fixed: Member names and tier names are now HTML-escaped in membership invite, win-back, and account deletion emails.",
+      "Fixed: CCPA data export request email now HTML-escapes the member name and email address.",
+      "Fixed: Subscription cancellation by staff now creates an audit log entry with the subscription ID and member email.",
+    ]
+  },
+  {
     version: "8.98.65",
     date: "2026-04-05",
     title: "Day Pass Expiration, Tier Sync Safety & Financial Reports",

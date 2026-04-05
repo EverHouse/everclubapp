@@ -12,6 +12,7 @@ import { logFromRequest } from '../../core/auditLog';
 import { validateQuery } from '../../middleware/validate';
 import { z } from 'zod';
 import { getErrorMessage } from '../../utils/errorUtils';
+import { escapeHtml } from '../../emails/emailLayout';
 import { numericIdParam, requiredStringParam } from '../../middleware/paramSchemas';
 import { recordEmailConsentChange, getClientIpFromRequest, resolveUserIdByEmail } from '../../core/consentService';
 
@@ -413,8 +414,8 @@ router.post('/api/members/me/data-export-request', isAuthenticated, async (req, 
           html: `
             <h2>Data Export Request</h2>
             <p>A member has requested a copy of their personal data under CCPA/CPRA.</p>
-            <p><strong>Member:</strong> ${memberName}</p>
-            <p><strong>Email:</strong> ${member.email}</p>
+            <p><strong>Member:</strong> ${escapeHtml(memberName)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(member.email)}</p>
             <p><strong>Requested At:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}</p>
             <hr/>
             <p><em>Under California law, you must respond within 45 days.</em></p>

@@ -1,11 +1,11 @@
-import { emailLayout, CLUB_COLORS } from './emailLayout';
+import { emailLayout, CLUB_COLORS, escapeHtml } from './emailLayout';
 
 export function getMembershipInviteHtml(params: { firstName: string; tierName: string; priceFormatted: string; checkoutUrl: string }): string {
   const content = `
           <tr>
             <td>
-              <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: ${CLUB_COLORS.textDark};">Welcome to Ever Club, ${params.firstName}!</h1>
-              <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">You've been invited to join Ever Club as a <strong>${params.tierName}</strong> member at ${params.priceFormatted}.</p>
+              <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: ${CLUB_COLORS.textDark};">Welcome to Ever Club, ${escapeHtml(params.firstName)}!</h1>
+              <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">You've been invited to join Ever Club as a <strong>${escapeHtml(params.tierName)}</strong> member at ${escapeHtml(params.priceFormatted)}.</p>
               <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">Click below to complete your membership signup:</p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
@@ -26,7 +26,7 @@ export function getWinBackHtml(params: { firstName: string; reactivationLink: st
   const content = `
           <tr>
             <td>
-              <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: ${CLUB_COLORS.textDark};">We Miss You, ${params.firstName}!</h1>
+              <h1 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: ${CLUB_COLORS.textDark};">We Miss You, ${escapeHtml(params.firstName)}!</h1>
               <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">We'd love to welcome you back to Ever Club. Your spot is waiting for you.</p>
               <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">Click below to rejoin and pick up right where you left off:</p>
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
@@ -48,7 +48,7 @@ export function getAccountDeletionHtml(params: { firstName: string }): string {
   const content = `
           <tr>
             <td>
-              <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">Hello ${params.firstName},</p>
+              <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">Hello ${escapeHtml(params.firstName)},</p>
               <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">We've received your request to delete your Ever Club account.</p>
               <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">Our team will process this request within 7 business days. You will receive a confirmation email once your account has been deleted.</p>
               <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.6; color: ${CLUB_COLORS.textMuted};">If you did not make this request or have changed your mind, please contact us immediately at <a href="mailto:info@everclub.app" style="color: ${CLUB_COLORS.deepGreen};">info@everclub.app</a>.</p>
