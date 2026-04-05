@@ -2,6 +2,16 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.42] - 2026-04-05
+
+### Performance — Server-Side Caching & Connection Pool Relief
+- **Staff auth middleware caching (60s TTL).** `isAdminEmail` and `isStaffOrAdmin` previously ran a `SELECT` against `staff_users` on every single authenticated staff request — two separate queries for `isStaffOrAdmin` (one for admin check, one for staff check). Consolidated into a single `getStaffRole()` function with a 60-second in-memory cache per email. Staff users barely change; this eliminates thousands of redundant DB round-trips per hour and significantly reduces connection pool pressure.
+- **Command Center caching (15s TTL).** `/api/admin/command-center` fires 6+ parallel DB queries (pending bookings, today's bookings, active members, pending tours, recent activity, financials). When multiple staff load the dashboard simultaneously, this multiplied into dozens of concurrent queries. Now caches the full response for 15 seconds.
+- **Analytics extended-stats caching (5min TTL).** `/api/analytics/extended-stats` runs 6 heavy aggregate queries (active members, booking frequency, revenue over time, bookings over time, day-of-week breakdown, utilization by hour) averaging 7.5 seconds. Cached for 5 minutes since this data changes slowly.
+- **Membership insights caching (5min TTL).** `/api/analytics/membership-insights` runs 4 aggregate queries (tier distribution, at-risk members, growth, churn). Cached for 5 minutes.
+
+Files changed: `server/replit_integrations/auth/replitAuth.ts`, `server/routes/staff/index.ts`, `server/routes/analytics.ts`
+
 ## [8.98.41] - 2026-04-05
 
 ### Performance — Remove redundant Google Calendar fetch from approved-bookings endpoint

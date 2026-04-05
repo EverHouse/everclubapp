@@ -8,6 +8,17 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.42",
+    date: "2026-04-05",
+    title: "Performance — Server-Side Caching & Connection Pool Relief",
+    changes: [
+      "Improved: Staff authentication checks are now cached for 60 seconds, eliminating a database query on every single staff page load.",
+      "Improved: The Command Center dashboard now caches its data for 15 seconds, preventing duplicate heavy queries when multiple staff members load the page simultaneously.",
+      "Improved: Analytics and Membership Insights pages now cache results for 5 minutes, reducing the heaviest queries (7+ seconds each) to instant responses on repeat visits.",
+      "Improved: The staff auth middleware now uses a single optimized query instead of two separate queries for admin and staff checks.",
+    ]
+  },
+  {
     version: "8.98.41",
     date: "2026-04-05",
     title: "Booking Calendar Speed Improvement",

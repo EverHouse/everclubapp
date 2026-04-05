@@ -153,23 +153,53 @@ export async function queryWithRetry(pool: Pool, query: string, params: unknown[
   }
 }
 
-export async function isAdminEmail(email: string): Promise<boolean> {
-  const pool = getAuthPool();
-  if (!pool) return false;
-  
+const staffRoleCache = new Map<string, { role: 'admin' | 'staff' | null; fetchedAt: number }>();
+const STAFF_ROLE_CACHE_TTL_MS = 60_000;
+
+export function clearStaffRoleCache(email?: string) {
+  if (email) {
+    staffRoleCache.delete(email.toLowerCase());
+  } else {
+    staffRoleCache.clear();
+  }
+}
+
+async function getStaffRole(email: string): Promise<'admin' | 'staff' | null> {
+  const cacheKey = email.toLowerCase();
+  const cached = staffRoleCache.get(cacheKey);
+  if (cached && (Date.now() - cached.fetchedAt) < STAFF_ROLE_CACHE_TTL_MS) {
+    return cached.role;
+  }
+
+  const authPool = getAuthPool();
+  if (!authPool) return null;
+
   try {
     const alternateEmail = getAlternateDomainEmail(email);
     const emailsToCheck = alternateEmail ? [email, alternateEmail] : [email];
     const result = await queryWithRetry(
-      pool,
-      `SELECT id FROM staff_users WHERE LOWER(email) = ANY($1::text[]) AND role = $2 AND is_active = true`,
-      [emailsToCheck.map(e => e.toLowerCase()), 'admin']
+      authPool,
+      `SELECT role FROM staff_users WHERE LOWER(email) = ANY($1::text[]) AND is_active = true ORDER BY CASE WHEN role = 'admin' THEN 0 ELSE 1 END LIMIT 1`,
+      [emailsToCheck.map(e => e.toLowerCase())]
     );
-    return (result as unknown as { rows: unknown[] }).rows.length > 0;
+    const rows = (result as unknown as { rows: { role: string }[] }).rows;
+    let role: 'admin' | 'staff' | null = null;
+    if (rows.length > 0) {
+      const dbRole = rows[0].role;
+      if (dbRole === 'admin') role = 'admin';
+      else if (dbRole === 'staff') role = 'staff';
+    }
+    staffRoleCache.set(cacheKey, { role, fetchedAt: Date.now() });
+    return role;
   } catch (error: unknown) {
-    logger.error('Error checking admin status:', { extra: { errorMessage: getErrorMessage(error) } });
-    return false;
+    logger.error('Error checking staff role:', { extra: { errorMessage: getErrorMessage(error) } });
+    return null;
   }
+}
+
+export async function isAdminEmail(email: string): Promise<boolean> {
+  const role = await getStaffRole(email);
+  return role === 'admin';
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
@@ -207,30 +237,10 @@ export const isStaffOrAdmin: RequestHandler = async (req, res, next) => {
   }
 
   const email = user.email?.toLowerCase() || '';
-  
-  const adminStatus = await isAdminEmail(email);
-  if (adminStatus) {
+  const role = await getStaffRole(email);
+
+  if (role === 'admin' || role === 'staff') {
     return next();
-  }
-
-  const pool = getAuthPool();
-  if (!pool) {
-    return res.status(403).json({ message: "Forbidden: Staff access required" });
-  }
-
-  try {
-    const alternateEmail = getAlternateDomainEmail(email);
-    const emailsToCheck = alternateEmail ? [email, alternateEmail] : [email];
-    const result = await queryWithRetry(
-      pool,
-      `SELECT id FROM staff_users WHERE LOWER(email) = ANY($1::text[]) AND is_active = true`,
-      [emailsToCheck.map(e => e.toLowerCase())]
-    );
-    if ((result as unknown as { rows: unknown[] }).rows.length > 0) {
-      return next();
-    }
-  } catch (error: unknown) {
-    logger.error('Error checking staff status:', { extra: { errorMessage: getErrorMessage(error) } });
   }
 
   return res.status(403).json({ message: "Forbidden: Staff access required" });

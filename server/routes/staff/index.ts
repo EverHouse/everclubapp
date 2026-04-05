@@ -9,14 +9,15 @@ import { getErrorMessage } from '../../utils/errorUtils';
 
 const router = Router();
 
-/**
- * GET /api/admin/command-center
- * Returns ALL data needed for the staff command center in a single call
- * Consolidates 8+ individual API calls into one efficient request
- * Uses Drizzle ORM for consistent camelCase field naming
- */
+let commandCenterCache: { data: unknown; fetchedAt: number } | null = null;
+const COMMAND_CENTER_CACHE_TTL_MS = 15_000;
+
 router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
   try {
+    const now = Date.now();
+    if (commandCenterCache && (now - commandCenterCache.fetchedAt) < COMMAND_CENTER_CACHE_TTL_MS) {
+      return res.json(commandCenterCache.data);
+    }
     const today = getTodayPacific();
     const startOfDayUnix = Math.floor(getPacificMidnightUTC(today).getTime() / 1000);
     const tomorrow = addDaysToPacificDate(today, 1);
@@ -163,7 +164,7 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
       financials.todayRevenueCents = parseInt(String(todayRevenue.rows[0]?.total_cents || '0'), 10);
     } catch (err) { logger.debug('[Command Center] Failed to query today revenue — table may not have expected structure', { extra: { error: getErrorMessage(err) } }); }
     
-    res.json({
+    const responseData = {
       counts: {
         pendingBookings: pendingBookingsCount[0]?.count || 0,
         todaysBookings: todaysBookingsData.length,
@@ -177,7 +178,9 @@ router.get('/api/admin/command-center', isStaffOrAdmin, async (req, res) => {
       financials,
       date: today,
       timestamp: new Date().toISOString()
-    });
+    };
+    commandCenterCache = { data: responseData, fetchedAt: Date.now() };
+    res.json(responseData);
   } catch (error: unknown) {
     logger.error('Error fetching command center data', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch command center data' });

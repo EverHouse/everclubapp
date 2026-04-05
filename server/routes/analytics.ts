@@ -241,8 +241,16 @@ router.get('/api/analytics/booking-stats', isStaffOrAdmin, async (_req: Request,
   }
 });
 
+let extendedStatsCache: { data: unknown; fetchedAt: number } | null = null;
+const EXTENDED_STATS_CACHE_TTL_MS = 5 * 60 * 1000;
+
 router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request, res: Response) => {
   try {
+    const now = Date.now();
+    if (extendedStatsCache && (now - extendedStatsCache.fetchedAt) < EXTENDED_STATS_CACHE_TTL_MS) {
+      return res.json(extendedStatsCache.data);
+    }
+
     const [
       activeMembersResult,
       bookingFrequencyResult,
@@ -371,7 +379,7 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
       total_active_members: number; active_30: number; active_60: number; active_90: number;
     };
 
-    res.json({
+    const responseData = {
       activeMembers: {
         totalActiveMembers: activeRow.total_active_members,
         active30: activeRow.active_30,
@@ -406,15 +414,25 @@ router.get('/api/analytics/extended-stats', isStaffOrAdmin, async (_req: Request
         bookedCount: r.booked_count,
         utilizationPct: parseFloat(String(r.utilization_pct)),
       })),
-    });
+    };
+    extendedStatsCache = { data: responseData, fetchedAt: Date.now() };
+    res.json(responseData);
   } catch (error) {
     logger.error('Failed to fetch extended analytics', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch extended analytics' });
   }
 });
 
+let membershipInsightsCache: { data: unknown; fetchedAt: number } | null = null;
+const MEMBERSHIP_INSIGHTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
 router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Request, res: Response) => {
   try {
+    const now = Date.now();
+    if (membershipInsightsCache && (now - membershipInsightsCache.fetchedAt) < MEMBERSHIP_INSIGHTS_CACHE_TTL_MS) {
+      return res.json(membershipInsightsCache.data);
+    }
+
     const [tierResult, atRiskResult, growthResult, churnResult] = await Promise.all([
       db.execute(sql`
         SELECT
@@ -507,7 +525,7 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
     const churnRows = churnResult.rows as { month: string; lost_members: number }[];
     const churnByMonth = new Map(churnRows.map(r => [r.month, r.lost_members]));
 
-    res.json({
+    const insightsData = {
       tierDistribution: (tierResult.rows as { tier: string; member_count: number }[]).map(r => ({
         tier: r.tier,
         memberCount: r.member_count,
@@ -524,7 +542,9 @@ router.get('/api/analytics/membership-insights', isStaffOrAdmin, async (_req: Re
         newMembers: r.new_members,
         lostMembers: churnByMonth.get(r.month) || 0,
       })),
-    });
+    };
+    membershipInsightsCache = { data: insightsData, fetchedAt: Date.now() };
+    res.json(insightsData);
   } catch (error) {
     logger.error('Failed to fetch membership insights', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to fetch membership insights' });

@@ -3,6 +3,7 @@ import { eq, desc, sql, and, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { staffUsers, users } from '../../shared/schema';
 import { isAdmin, isStaffOrAdmin } from '../core/middleware';
+import { clearStaffRoleCache } from '../replit_integrations/auth/replitAuth';
 import { normalizeEmail, getAlternateDomainEmail } from '../core/utils/emailNormalization';
 import { getErrorCode } from '../utils/errorUtils';
 import { logFromRequest } from '../core/auditLog';
@@ -102,6 +103,7 @@ router.post('/api/staff-users', isAdmin, async (req, res) => {
       })
       .returning();
     
+    clearStaffRoleCache(result[0].email || undefined);
     logFromRequest(req, 'create_staff_user', 'staff_user', String(result[0].id), result[0].email || '', { role: result[0].role });
     res.status(201).json({
       id: result[0].id,
@@ -167,6 +169,8 @@ router.put('/api/staff-users/:id', isAdmin, async (req, res) => {
     if (result.length === 0) {
       return res.status(404).json({ error: 'Staff user not found' });
     }
+
+    clearStaffRoleCache(result[0].email || undefined);
     
     if (is_active === false && result[0].email) {
       const staffEmail = result[0].email.toLowerCase();
@@ -345,6 +349,7 @@ router.post('/api/admin-users', isAdmin, async (req, res) => {
       })
       .returning();
     
+    clearStaffRoleCache(result[0].email || undefined);
     logFromRequest(req, 'create_admin_user', 'staff_user', String(result[0].id), result[0].email || '', { role: 'admin' });
     res.status(201).json({
       id: result[0].id,
@@ -404,6 +409,8 @@ router.put('/api/admin-users/:id', isAdmin, async (req, res) => {
     if (result.length === 0) {
       return res.status(404).json({ error: 'Admin user not found' });
     }
+
+    clearStaffRoleCache(result[0].email || undefined);
 
     if (is_active === false && result[0].email) {
       const adminEmail = result[0].email.toLowerCase();

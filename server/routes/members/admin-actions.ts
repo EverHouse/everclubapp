@@ -5,6 +5,7 @@ import { db } from '../../db';
 import { users, membershipTiers } from '../../../shared/schema';
 import { pool, safeRelease } from '../../core/db';
 import { isStaffOrAdmin, isAdmin } from '../../core/middleware';
+import { clearStaffRoleCache } from '../../replit_integrations/auth/replitAuth';
 import { getSessionUser } from '../../types/session';
 import { getTierRank } from './helpers';
 import { createMemberLocally, getAllDiscountRules, queueTierSync, syncTierToHubSpot } from '../../core/hubspot';
@@ -534,6 +535,7 @@ router.delete('/api/members/:email', isAdmin, async (req, res) => {
         `UPDATE staff_users SET is_active = false WHERE LOWER(email) = $1`,
         [normalizedEmail]
       );
+      clearStaffRoleCache(normalizedEmail);
 
       await client.query('COMMIT');
     } catch (txError) {
@@ -855,6 +857,7 @@ router.delete('/api/members/:email/permanent', isAdmin, async (req, res) => {
     deletionLog.push('notifications');
 
     await db.execute(sql`UPDATE staff_users SET is_active = false WHERE LOWER(email) = ${normalizedEmail}`);
+    clearStaffRoleCache(normalizedEmail);
     deletionLog.push('staff_users_deactivated');
     
     await db.execute(sql`DELETE FROM magic_links WHERE LOWER(email) = ${normalizedEmail}`);
