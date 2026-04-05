@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.60",
+    date: "2026-04-05",
+    title: "Scheduling, Billing & Webhook Reliability",
+    changes: [
+      "Fixed: Availability blocks with invalid time ranges (end before start) are now rejected instead of creating broken schedule entries.",
+      "Fixed: Payment notifications now match members by Stripe customer ID first, preventing mismatches when email addresses change.",
+      "Fixed: Staff can no longer accidentally create duplicate subscriptions for a member who already has an active one.",
+    ]
+  },
+  {
     version: "8.98.59",
     date: "2026-04-05",
     title: "Refund Safety & Event/Tour Guardrails",

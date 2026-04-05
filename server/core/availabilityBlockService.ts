@@ -44,6 +44,13 @@ export async function createStandaloneBlock(params: {
   createdBy: string;
   source: string;
 }): Promise<{ created: boolean; absorbed: boolean; existingBlock?: ExistingBlock }> {
+  if (params.startTime >= params.endTime) {
+    logger.warn(`[AvailabilityBlocks] ${params.source}: Rejected block with start_time >= end_time`, {
+      extra: { resourceId: params.resourceId, blockDate: params.blockDate, startTime: params.startTime, endTime: params.endTime }
+    });
+    return { created: false, absorbed: false };
+  }
+
   const existing = await findCoveringBlock(
     params.resourceId,
     params.blockDate,

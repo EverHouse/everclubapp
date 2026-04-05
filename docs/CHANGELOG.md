@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.60] - 2026-04-05
+
+### Availability Block Time Validation
+- **Added start < end time validation to `createStandaloneBlock`.** The availability block creation function accepted any start and end time values without checking that start precedes end. An inverted block (e.g., 18:00–09:00 for a same-day block) would be stored in the database and could break overlap detection, potentially allowing bookings during times that should be blocked. Now rejects such blocks with a warning log.
+
+Files changed: `server/core/availabilityBlockService.ts`
+
+### Invoice Webhook Member Lookup by Stripe Customer ID
+- **Added `stripe_customer_id` lookup before email fallback in `invoice.payment_succeeded` handler.** The invoice webhook handler matched members exclusively by email. If a member changed their email in the app but not in Stripe (or vice versa), the webhook would fail to find the member and skip billing updates. Now first attempts to match by `stripe_customer_id` (which never changes), falling back to email if no match is found.
+
+Files changed: `server/core/stripe/webhooks/handlers/invoices.ts`
+
+### Duplicate Subscription Prevention
+- **Added active subscription check before creating new subscriptions.** The generic `/api/stripe/subscriptions` endpoint allowed creating subscriptions without checking if the customer already had one. This could result in double-billing a member. Now queries Stripe for active subscriptions on the customer before proceeding, and returns a clear error if one already exists.
+
+Files changed: `server/routes/stripe/subscriptions.ts`
+
 ## [8.98.59] - 2026-04-05
 
 ### Refund Over-Charge Prevention

@@ -75,34 +75,46 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
   const currentPeriodEnd = invoice.lines?.data?.[0]?.period?.end;
   const nextBillingDate = currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : new Date();
 
-  if (!email) {
-    logger.warn(`[Stripe Webhook] No customer email on invoice ${invoice.id}`);
+  if (!email && !invoiceCustomerId) {
+    logger.warn(`[Stripe Webhook] No customer email or customer ID on invoice ${invoice.id}`);
     return deferredActions;
   }
 
-  const userResult = await client.query(
-    'SELECT id, first_name, last_name, billing_provider FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
-    [email]
-  );
+  let userResult = { rows: [] as Record<string, unknown>[] };
+  if (invoiceCustomerId) {
+    userResult = await client.query(
+      'SELECT id, first_name, last_name, billing_provider, email FROM users WHERE stripe_customer_id = $1 LIMIT 1',
+      [invoiceCustomerId]
+    );
+  }
+  if (userResult.rows.length === 0 && email) {
+    userResult = await client.query(
+      'SELECT id, first_name, last_name, billing_provider, email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [email]
+    );
+  }
 
   if (userResult.rows.length === 0 && invoice.subscription) {
     logger.warn(`[Stripe Webhook] Payment succeeded for customer ${invoiceCustomerId} but no matching user found in database. Subscription may need manual cancellation.`);
   }
 
+  const resolvedEmail = (userResult.rows[0]?.email as string) || email;
   const memberName = userResult.rows[0]
-    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || email
-    : email;
+    ? `${userResult.rows[0].first_name || ''} ${userResult.rows[0].last_name || ''}`.trim() || resolvedEmail
+    : resolvedEmail || 'Unknown';
   const userId = userResult.rows[0]?.id;
 
   const invoiceUserBillingProvider = userResult.rows[0]?.billing_provider;
   if (invoiceUserBillingProvider && invoiceUserBillingProvider !== 'stripe') {
-    logger.info(`[Stripe Webhook] Skipping billing_provider/grace-period update for ${email} — billing_provider is '${invoiceUserBillingProvider}', not 'stripe' (invoice.payment_succeeded)`);
+    logger.info(`[Stripe Webhook] Skipping billing_provider/grace-period update for ${resolvedEmail} — billing_provider is '${invoiceUserBillingProvider}', not 'stripe' (invoice.payment_succeeded)`);
     return deferredActions;
   }
 
   const priceId = (invoice.lines?.data?.[0] as unknown as { price?: { id: string } })?.price?.id;
   let restoreTierClause = '';
-  let queryParams: (string | number | null)[] = [email];
+  const userWhereClause = userId ? 'id = $1' : 'LOWER(email) = LOWER($1)';
+  const userWhereParam = userId || resolvedEmail;
+  let queryParams: (string | number | null)[] = [userWhereParam as string | number];
   
   if (priceId) {
     const tierResult = await client.query(
@@ -111,7 +123,7 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
     );
     if (tierResult.rows.length > 0) {
       restoreTierClause = ', tier = $2';
-      queryParams = [email, tierResult.rows[0].name];
+      queryParams = [userWhereParam as string | number, tierResult.rows[0].name];
     }
   }
   
@@ -121,10 +133,10 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
       grace_period_email_count = 0,
       billing_provider = CASE WHEN billing_provider IS NULL OR billing_provider = '' OR billing_provider = 'stripe' THEN 'stripe' ELSE billing_provider END${restoreTierClause},
       updated_at = NOW()
-    WHERE LOWER(email) = LOWER($1)`,
+    WHERE ${userWhereClause}`,
     queryParams
   );
-  logger.info(`[Stripe Webhook] Cleared grace period and set billing_provider for ${email}`);
+  logger.info(`[Stripe Webhook] Cleared grace period and set billing_provider for ${resolvedEmail}`);
 
   await client.query(
     `UPDATE hubspot_deals 
@@ -133,27 +145,33 @@ export async function handleInvoicePaymentSucceeded(client: PoolClient, invoice:
          last_sync_error = NULL,
          updated_at = NOW()
      WHERE LOWER(member_email) = LOWER($1)`,
-    [email]
+    [resolvedEmail]
   );
 
   if (currentPeriodEnd) {
     const invoiceSubscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
-    if (invoiceSubscriptionId) {
+    if (userId) {
+      await client.query(
+        `UPDATE users SET stripe_current_period_end = $1, updated_at = NOW()
+         WHERE id = $2`,
+        [nextBillingDate, userId]
+      );
+    } else if (invoiceSubscriptionId) {
       await client.query(
         `UPDATE users SET stripe_current_period_end = $1, updated_at = NOW()
          WHERE LOWER(email) = LOWER($2) AND (stripe_subscription_id IS NULL OR stripe_subscription_id = $3)`,
-        [nextBillingDate, email, invoiceSubscriptionId]
+        [nextBillingDate, resolvedEmail, invoiceSubscriptionId]
       );
     } else {
       await client.query(
         `UPDATE users SET stripe_current_period_end = $1, updated_at = NOW()
          WHERE LOWER(email) = LOWER($2)`,
-        [nextBillingDate, email]
+        [nextBillingDate, resolvedEmail]
       );
     }
   }
 
-  const localEmail = email;
+  const localEmail = resolvedEmail;
   const localMemberName = memberName;
   const localAmountPaid = amountPaid;
   const localPlanName = planName;

@@ -69,7 +69,20 @@ router.post('/api/stripe/subscriptions', isStaffOrAdmin, validateBody(createSubs
   try {
     const { customerId, priceId, memberEmail: rawMemberEmail } = req.body;
     const memberEmail = rawMemberEmail?.trim()?.toLowerCase();
-    
+
+    const stripe = await getStripeClient();
+    const blockingStatuses = ['active', 'trialing', 'past_due', 'incomplete'] as const;
+    for (const checkStatus of blockingStatuses) {
+      const existing = await stripe.subscriptions.list({
+        customer: customerId,
+        status: checkStatus,
+        limit: 1
+      });
+      if (existing.data.length > 0) {
+        return res.status(400).json({ error: `This customer already has a subscription (status: ${checkStatus}). Please cancel or modify the existing one first.` });
+      }
+    }
+
     const result = await createSubscription({
       customerId,
       priceId,
