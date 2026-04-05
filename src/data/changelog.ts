@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.50",
+    date: "2026-04-05",
+    title: "Billing Fix",
+    changes: [
+      "Fixed: New member checkout now correctly detects if you already have a billing account, preventing duplicate records in the payment system.",
+    ]
+  },
+  {
     version: "8.98.49",
     date: "2026-04-05",
     title: "Session Handling",

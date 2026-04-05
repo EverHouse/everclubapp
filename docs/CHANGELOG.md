@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.50] - 2026-04-05
+
+### Checkout Duplicate Stripe Customer Fix
+- **Fixed duplicate Stripe customer creation in public checkout.** When a member existed in the local database but lacked a `stripeCustomerId` (e.g., imported from MindBody), the checkout route created a new Stripe customer via `stripe.customers.create` without first searching Stripe for an existing customer with that email. If the member already had a Stripe customer (from a previous checkout attempt, direct Stripe creation, or other integration), this created a duplicate. Now searches Stripe with `stripe.customers.list({ email, limit: 1 })` first and reuses the existing customer if found.
+
+Files changed: `server/routes/checkout.ts`
+
 ## [8.98.49] - 2026-04-05
 
 ### Global 401 Session Expiry Handler

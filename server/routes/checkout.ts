@@ -179,20 +179,35 @@ router.post('/api/checkout/sessions', checkoutRateLimiter, async (req, res) => {
 
       if (existingUser) {
         const memberName = `${firstName || ''} ${lastName || ''}`.trim() || undefined;
-        const newCustomer = await stripe.customers.create({
-          email: email.toLowerCase(),
-          name: memberName,
-          metadata: { source: 'public_checkout', tier_slug: tierSlug },
-        });
+        const normalizedEmail = email.toLowerCase();
+
+        const existingStripeCustomers = await stripe.customers.list({ email: normalizedEmail, limit: 1 });
+        let customerId: string;
+        if (existingStripeCustomers.data.length > 0 && !existingStripeCustomers.data[0].deleted) {
+          customerId = existingStripeCustomers.data[0].id;
+          logger.info(`[Checkout] Reusing existing Stripe customer ${customerId} for ${normalizedEmail}`);
+          await stripe.customers.update(customerId, {
+            name: memberName || existingStripeCustomers.data[0].name || undefined,
+            metadata: { source: 'public_checkout', tier_slug: tierSlug, userId: String(existingUser.id) },
+          });
+        } else {
+          const newCustomer = await stripe.customers.create({
+            email: normalizedEmail,
+            name: memberName,
+            metadata: { source: 'public_checkout', tier_slug: tierSlug },
+          });
+          customerId = newCustomer.id;
+        }
+
         await db.update(users)
-          .set({ stripeCustomerId: newCustomer.id })
+          .set({ stripeCustomerId: customerId })
           .where(
             and(
               eq(users.id, existingUser.id),
               isNull(users.stripeCustomerId)
             )
           );
-        sessionParams.customer = newCustomer.id;
+        sessionParams.customer = customerId;
       } else {
         sessionParams.customer_email = email;
       }
