@@ -282,6 +282,7 @@ describe('OTP Route — POST /api/auth/verify-otp', () => {
 
   it('verifies valid code, clears rate limits, creates session, returns member', async () => {
     mockDbExecute
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, email: 'member@example.com', token: '123456', used: true }] })
       .mockResolvedValueOnce({ rows: [] });
 
@@ -309,6 +310,7 @@ describe('OTP Route — POST /api/auth/verify-otp', () => {
 
   it('returns 404 for staff user not found after valid OTP', async () => {
     mockDbExecute
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, email: 'staff@everclub.co', token: '123456', used: true }] });
     mockGetUserRole.mockResolvedValueOnce('admin');
     mockGetStaffUserByEmail.mockResolvedValueOnce(null);
@@ -320,6 +322,7 @@ describe('OTP Route — POST /api/auth/verify-otp', () => {
 
   it('creates staff session for admin/staff with valid OTP', async () => {
     mockDbExecute
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, email: 'admin@everclub.co', token: '123456', used: true }] })
       .mockResolvedValueOnce({ rows: [] });
     mockGetUserRole.mockResolvedValueOnce('admin');
@@ -377,6 +380,7 @@ describe('OTP Route — Replay Protection and Expiry', () => {
 
   it('valid OTP marks code as used and clears rate limits (successful path)', async () => {
     mockDbExecute
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, email: 'user@example.com', token: '123456', used: true }] })
       .mockResolvedValueOnce({ rows: [] });
     mockGetUserRole.mockResolvedValueOnce('member');
@@ -397,6 +401,7 @@ describe('OTP Route — Replay Protection and Expiry', () => {
 
   it('second use of same code after successful verify returns 400 (replay blocked)', async () => {
     mockDbExecute
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 1, email: 'user@example.com', token: '123456', used: true }] })
       .mockResolvedValueOnce({ rows: [] });
     mockGetUserRole.mockResolvedValueOnce('member');
