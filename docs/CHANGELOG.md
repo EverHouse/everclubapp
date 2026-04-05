@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.46] - 2026-04-05
+
+### Crash Prevention — Staff Command Center & ID Scanner
+- **Wrapped Trackman webhook payload parsing in try-catch.** `TrackmanWebhookEventsSection.tsx` line 427 called `JSON.parse(event.payload)` without a try-catch inside a `.map()` render loop. If any Trackman webhook event contained malformed JSON, the entire webhook events section would crash (React error boundary catch). Now gracefully falls back to `{ _parseError: true, _raw: <first 200 chars> }` so the event still renders with an error indicator.
+- **Replaced non-null assertion on PaymentSection time allocations.** `PaymentSection.tsx` line 61 used `fs.timeAllocation!.allocations.map(...)` — a non-null assertion that would crash if `allocations` was undefined despite the parent `hasDetailedBreakdown` guard. Replaced with `fs.timeAllocation?.allocations ?? []`.
+- **Added nullish coalescing on IdScannerModal quality issues.** `IdScannerModal.tsx` line 456 called `.map()` on `scanResult.quality.qualityIssues` without guarding against `qualityIssues` being undefined. Added `?? []` fallback.
+
+Files changed: `src/components/staff-command-center/sections/TrackmanWebhookEventsSection.tsx`, `src/components/staff-command-center/modals/PaymentSection.tsx`, `src/components/staff-command-center/modals/IdScannerModal.tsx`
+
 ## [8.98.45] - 2026-04-05
 
 ### Bug Fixes & Performance

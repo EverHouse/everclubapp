@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.46",
+    date: "2026-04-05",
+    title: "Stability Improvements",
+    changes: [
+      "Fixed: The Trackman webhook viewer in the Staff Command Center no longer crashes if a webhook event has malformed data.",
+      "Fixed: The booking payment details section no longer risks a crash when financial data is partially loaded.",
+      "Fixed: The ID scanner quality issues display no longer risks a crash if the scan response is incomplete.",
+    ]
+  },
+  {
     version: "8.98.45",
     date: "2026-04-05",
     title: "Bug Fixes & Performance",

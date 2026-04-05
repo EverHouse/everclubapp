@@ -424,7 +424,12 @@ export const TrackmanWebhookEventsSection: React.FC<TrackmanWebhookEventsSection
                   const hasError = !!event.processing_error;
                   const isExpanded = expandedEventId === event.id;
                   
-                  const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+                  let payload: Record<string, unknown> = {};
+                  try {
+                    payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : (event.payload ?? {});
+                  } catch {
+                    payload = { _parseError: true, _raw: String(event.payload).slice(0, 200) };
+                  }
                   const eventType = getEventTypeFromPayload(payload, event.event_type ?? '') ?? '';
                   const isUserUpdate = eventType === 'user_update' || eventType === 'user.updated' || eventType === 'user.created';
                   const isPurchaseUpdate = eventType === 'purchase_update' || eventType === 'purchase_paid' || eventType.includes('purchase');

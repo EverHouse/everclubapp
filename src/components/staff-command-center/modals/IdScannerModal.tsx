@@ -453,7 +453,7 @@ const IdScannerModal: React.FC<IdScannerModalProps> = ({ isOpen, onClose, onScan
                         <span className={`font-medium text-sm ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>Quality Issues Detected</span>
                       </div>
                       <ul className={`text-sm space-y-1 ml-7 ${isDark ? 'text-amber-300/80' : 'text-amber-600'}`}>
-                        {scanResult.quality.qualityIssues.map((issue) => (
+                        {(scanResult.quality.qualityIssues ?? []).map((issue) => (
                           <li key={issue}>{QUALITY_ISSUE_LABELS[issue] || issue}</li>
                         ))}
                       </ul>

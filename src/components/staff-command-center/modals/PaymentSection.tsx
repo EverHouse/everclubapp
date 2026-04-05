@@ -58,7 +58,7 @@ export function PaymentSummaryBody({
             <div className="text-[10px] font-semibold uppercase tracking-widest text-primary/50 dark:text-white/50">
               Time Allocation
             </div>
-            {fs.timeAllocation!.allocations.map((alloc, idx) => {
+            {(fs.timeAllocation?.allocations ?? []).map((alloc, idx) => {
               const isGuest = alloc.type === 'guest';
               const isGuestWithPass = isGuest && alloc.guestPassUsed;
               const isGuestWithFee = isGuest && !alloc.guestPassUsed && (alloc.feeCents ?? 0) > 0;
