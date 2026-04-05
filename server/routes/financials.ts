@@ -15,7 +15,8 @@ interface StripeInvoiceExpanded extends Stripe.Invoice {
 }
 
 import { getErrorMessage } from '../utils/errorUtils';
-import { logFromRequest } from '../core/auditLog';
+import { logFromRequest, logBillingAudit } from '../core/auditLog';
+import { getStaffInfo } from './stripe/helpers';
 
 const router = Router();
 
@@ -1806,6 +1807,261 @@ router.post('/api/financials/sync-stripe', isStaffOrAdmin, async (req: Request, 
   } catch (error: unknown) {
     logger.error('[Activity] Error syncing from Stripe', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ success: false, error: 'Failed to sync from Stripe' });
+  }
+});
+
+router.post('/api/financials/invoices/:id/finalize', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = req.params.id;
+    if (!invoiceId.startsWith('in_')) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    const { staffEmail, staffName } = getStaffInfo(req);
+    const stripe = await getStripeClient();
+
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status !== 'draft') {
+      return res.status(400).json({ error: `Cannot finalize invoice with status: ${invoice.status}` });
+    }
+
+    const finalized = await stripe.invoices.finalizeInvoice(invoiceId);
+
+    const customerEmail = typeof invoice.customer === 'string'
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | null)?.email || 'unknown';
+
+    await logBillingAudit({
+      memberEmail: invoice.customer_email || customerEmail,
+      actionType: 'invoice_finalized',
+      actionDetails: {
+        invoiceId,
+        amountDue: finalized.amount_due,
+        description: invoice.description,
+      },
+      previousValue: 'draft',
+      newValue: 'open',
+      performedBy: staffEmail,
+      performedByName: staffName,
+    });
+
+    await logFromRequest(req, {
+      action: 'invoice_finalized',
+      resourceType: 'invoices',
+      resourceId: invoiceId,
+      resourceName: `$${(finalized.amount_due / 100).toFixed(2)} - ${invoice.description || 'Invoice'}`,
+      details: { memberEmail: invoice.customer_email || customerEmail },
+    });
+
+    logger.info('[Invoices] Invoice finalized by staff', { extra: { invoiceId, staffEmail } });
+
+    res.json({ success: true, status: finalized.status });
+  } catch (error: unknown) {
+    logger.error('[Invoices] Error finalizing invoice', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to finalize invoice' });
+  }
+});
+
+router.post('/api/financials/invoices/:id/void', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = req.params.id;
+    if (!invoiceId.startsWith('in_')) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    const { staffEmail, staffName } = getStaffInfo(req);
+    const stripe = await getStripeClient();
+
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status !== 'open') {
+      return res.status(400).json({ error: `Cannot void invoice with status: ${invoice.status}` });
+    }
+
+    const voided = await stripe.invoices.voidInvoice(invoiceId);
+
+    const customerEmail = typeof invoice.customer === 'string'
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | null)?.email || 'unknown';
+
+    await logBillingAudit({
+      memberEmail: invoice.customer_email || customerEmail,
+      actionType: 'invoice_voided',
+      actionDetails: {
+        invoiceId,
+        amountDue: invoice.amount_due,
+        description: invoice.description,
+      },
+      previousValue: 'open',
+      newValue: 'void',
+      performedBy: staffEmail,
+      performedByName: staffName,
+    });
+
+    await logFromRequest(req, {
+      action: 'invoice_voided',
+      resourceType: 'invoices',
+      resourceId: invoiceId,
+      resourceName: `$${(invoice.amount_due / 100).toFixed(2)} - ${invoice.description || 'Invoice'}`,
+      details: { memberEmail: invoice.customer_email || customerEmail },
+    });
+
+    logger.info('[Invoices] Invoice voided by staff', { extra: { invoiceId, staffEmail } });
+
+    res.json({ success: true, status: voided.status });
+  } catch (error: unknown) {
+    logger.error('[Invoices] Error voiding invoice', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to void invoice' });
+  }
+});
+
+router.post('/api/financials/invoices/:id/send', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = req.params.id;
+    if (!invoiceId.startsWith('in_')) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    const { staffEmail, staffName } = getStaffInfo(req);
+    const stripe = await getStripeClient();
+
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status !== 'open') {
+      return res.status(400).json({ error: `Cannot send invoice with status: ${invoice.status}. Invoice must be open.` });
+    }
+
+    await stripe.invoices.sendInvoice(invoiceId);
+
+    const customerEmail = typeof invoice.customer === 'string'
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | null)?.email || 'unknown';
+
+    await logBillingAudit({
+      memberEmail: invoice.customer_email || customerEmail,
+      actionType: 'invoice_sent',
+      actionDetails: {
+        invoiceId,
+        amountDue: invoice.amount_due,
+        description: invoice.description,
+        hostedInvoiceUrl: invoice.hosted_invoice_url,
+      },
+      newValue: `Sent invoice for $${(invoice.amount_due / 100).toFixed(2)}`,
+      performedBy: staffEmail,
+      performedByName: staffName,
+    });
+
+    await logFromRequest(req, {
+      action: 'invoice_sent',
+      resourceType: 'invoices',
+      resourceId: invoiceId,
+      resourceName: `$${(invoice.amount_due / 100).toFixed(2)} - ${invoice.description || 'Invoice'}`,
+      details: { memberEmail: invoice.customer_email || customerEmail },
+    });
+
+    logger.info('[Invoices] Invoice sent to member by staff', { extra: { invoiceId, staffEmail, memberEmail: invoice.customer_email } });
+
+    res.json({ success: true });
+  } catch (error: unknown) {
+    logger.error('[Invoices] Error sending invoice', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to send invoice' });
+  }
+});
+
+router.post('/api/financials/invoices/:id/mark-uncollectible', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = req.params.id;
+    if (!invoiceId.startsWith('in_')) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    const { staffEmail, staffName } = getStaffInfo(req);
+    const stripe = await getStripeClient();
+
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status !== 'open') {
+      return res.status(400).json({ error: `Cannot mark uncollectible an invoice with status: ${invoice.status}` });
+    }
+
+    const updated = await stripe.invoices.markUncollectible(invoiceId);
+
+    const customerEmail = typeof invoice.customer === 'string'
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | null)?.email || 'unknown';
+
+    await logBillingAudit({
+      memberEmail: invoice.customer_email || customerEmail,
+      actionType: 'invoice_marked_uncollectible',
+      actionDetails: {
+        invoiceId,
+        amountDue: invoice.amount_due,
+        description: invoice.description,
+      },
+      previousValue: 'open',
+      newValue: 'uncollectible',
+      performedBy: staffEmail,
+      performedByName: staffName,
+    });
+
+    await logFromRequest(req, {
+      action: 'invoice_marked_uncollectible',
+      resourceType: 'invoices',
+      resourceId: invoiceId,
+      resourceName: `$${(invoice.amount_due / 100).toFixed(2)} - ${invoice.description || 'Invoice'}`,
+      details: { memberEmail: invoice.customer_email || customerEmail },
+    });
+
+    logger.info('[Invoices] Invoice marked uncollectible by staff', { extra: { invoiceId, staffEmail } });
+
+    res.json({ success: true, status: updated.status });
+  } catch (error: unknown) {
+    logger.error('[Invoices] Error marking invoice uncollectible', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to mark invoice as uncollectible' });
+  }
+});
+
+router.delete('/api/financials/invoices/:id', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const invoiceId = req.params.id;
+    if (!invoiceId.startsWith('in_')) {
+      return res.status(400).json({ error: 'Invalid invoice ID' });
+    }
+    const { staffEmail, staffName } = getStaffInfo(req);
+    const stripe = await getStripeClient();
+
+    const invoice = await stripe.invoices.retrieve(invoiceId);
+    if (invoice.status !== 'draft') {
+      return res.status(400).json({ error: `Cannot delete invoice with status: ${invoice.status}. Only draft invoices can be deleted.` });
+    }
+
+    const customerEmail = typeof invoice.customer === 'string'
+      ? invoice.customer
+      : (invoice.customer as Stripe.Customer | null)?.email || 'unknown';
+
+    await stripe.invoices.del(invoiceId);
+
+    await logBillingAudit({
+      memberEmail: invoice.customer_email || customerEmail,
+      actionType: 'invoice_draft_deleted',
+      actionDetails: {
+        invoiceId,
+        amountDue: invoice.amount_due,
+        description: invoice.description,
+      },
+      previousValue: 'draft',
+      newValue: 'deleted',
+      performedBy: staffEmail,
+      performedByName: staffName,
+    });
+
+    await logFromRequest(req, {
+      action: 'invoice_draft_deleted',
+      resourceType: 'invoices',
+      resourceId: invoiceId,
+      resourceName: `$${(invoice.amount_due / 100).toFixed(2)} - ${invoice.description || 'Invoice'}`,
+      details: { memberEmail: invoice.customer_email || customerEmail },
+    });
+
+    logger.info('[Invoices] Draft invoice deleted by staff', { extra: { invoiceId, staffEmail } });
+
+    res.json({ success: true });
+  } catch (error: unknown) {
+    logger.error('[Invoices] Error deleting draft invoice', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ error: 'Failed to delete draft invoice' });
   }
 });
 

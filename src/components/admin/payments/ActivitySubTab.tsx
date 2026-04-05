@@ -12,6 +12,11 @@ import {
   useActivityCounts,
   useSyncStripe,
   useExportActivity,
+  useFinalizeInvoice,
+  useVoidInvoice,
+  useSendInvoice,
+  useMarkInvoiceUncollectible,
+  useDeleteDraftInvoice,
   type ActivityItem,
 } from '../../../hooks/queries/useFinancialsQueries';
 
@@ -22,6 +27,9 @@ const STATUS_FILTERS = [
   { key: 'failed', label: 'Failed' },
   { key: 'disputed', label: 'Disputed' },
   { key: 'draft', label: 'Draft' },
+  { key: 'open', label: 'Open' },
+  { key: 'void', label: 'Void' },
+  { key: 'uncollectible', label: 'Uncollectible' },
 ] as const;
 
 const TYPE_FILTERS = [
@@ -100,6 +108,165 @@ const formatCurrency = (cents: number) => {
   }).format(cents / 100);
 };
 
+interface InvoiceActionConfirmProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  confirmVariant: 'danger' | 'primary' | 'warning';
+  isPending: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const InvoiceActionConfirmDialog: React.FC<InvoiceActionConfirmProps> = ({
+  isOpen, title, message, confirmLabel, confirmVariant, isPending, onConfirm, onCancel,
+}) => {
+  if (!isOpen) return null;
+
+  const variantClasses = {
+    danger: 'bg-red-600 hover:bg-red-700 text-white',
+    primary: 'bg-primary dark:bg-accent hover:bg-primary/90 dark:hover:bg-accent/90 text-white dark:text-primary',
+    warning: 'bg-amber-600 hover:bg-amber-700 text-white',
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-primary dark:text-white mb-2">{title}</h3>
+        <p className="text-sm text-primary/70 dark:text-white/70 mb-6">{message}</p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={isPending}
+            className="px-4 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-800 text-primary dark:text-white rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isPending}
+            className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors disabled:opacity-50 ${variantClasses[confirmVariant]}`}
+          >
+            {isPending ? 'Processing...' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type InvoiceActionType = 'finalize' | 'void' | 'send' | 'mark-uncollectible' | 'delete';
+
+interface InvoiceActionState {
+  isOpen: boolean;
+  action: InvoiceActionType | null;
+  item: ActivityItem | null;
+}
+
+const getInvoiceActionConfig = (action: InvoiceActionType, item: ActivityItem): Omit<InvoiceActionConfirmProps, 'isOpen' | 'isPending' | 'onConfirm' | 'onCancel'> => {
+  const amount = formatCurrency(item.amountCents);
+  const member = item.memberName || item.memberEmail;
+
+  switch (action) {
+    case 'finalize':
+      return {
+        title: 'Finalize Invoice',
+        message: `Finalize this ${amount} draft invoice for ${member}? This will lock the invoice and allow payment collection.`,
+        confirmLabel: 'Finalize',
+        confirmVariant: 'primary',
+      };
+    case 'void':
+      return {
+        title: 'Void Invoice',
+        message: `Void this ${amount} open invoice for ${member}? The member will no longer be able to pay it.`,
+        confirmLabel: 'Void Invoice',
+        confirmVariant: 'danger',
+      };
+    case 'send':
+      return {
+        title: 'Send Invoice to Member',
+        message: `Send the payment link for this ${amount} invoice to ${member}? They will receive an email with a link to pay.`,
+        confirmLabel: 'Send to Member',
+        confirmVariant: 'primary',
+      };
+    case 'mark-uncollectible':
+      return {
+        title: 'Mark as Uncollectible',
+        message: `Mark this ${amount} invoice for ${member} as uncollectible? This indicates the payment is unlikely to be collected.`,
+        confirmLabel: 'Mark Uncollectible',
+        confirmVariant: 'warning',
+      };
+    case 'delete':
+      return {
+        title: 'Delete Draft Invoice',
+        message: `Delete this ${amount} draft invoice for ${member}? This action cannot be undone.`,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      };
+  }
+};
+
+interface InvoiceActionsProps {
+  item: ActivityItem;
+  onAction: (action: InvoiceActionType, item: ActivityItem) => void;
+  compact?: boolean;
+}
+
+const InvoiceActionButtons: React.FC<InvoiceActionsProps> = ({ item, onAction, compact = false }) => {
+  if (item.type !== 'invoice') return null;
+
+  const btnBase = compact
+    ? 'px-2 py-0.5 text-[10px] font-medium rounded-lg transition-colors'
+    : 'px-2.5 py-1 text-xs font-medium rounded-lg transition-colors';
+
+  if (item.status === 'draft') {
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction('finalize', item); }}
+          className={`tactile-btn ${btnBase} bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50`}
+        >
+          Finalize
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction('delete', item); }}
+          className={`tactile-btn ${btnBase} bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50`}
+        >
+          Delete
+        </button>
+      </div>
+    );
+  }
+
+  if (item.status === 'open') {
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction('send', item); }}
+          className={`tactile-btn ${btnBase} bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50`}
+        >
+          Send to Member
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction('void', item); }}
+          className={`tactile-btn ${btnBase} bg-gray-100 dark:bg-gray-800/40 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700`}
+        >
+          Void
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAction('mark-uncollectible', item); }}
+          className={`tactile-btn ${btnBase} bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50`}
+        >
+          Uncollectible
+        </button>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 const formatDate = (isoString: string) => {
   return new Date(isoString).toLocaleDateString('en-US', {
     month: 'short',
@@ -119,7 +286,7 @@ const formatDateTime = (isoString: string) => {
   });
 };
 
-const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void; onViewTransaction?: (id: string) => void }> = ({ item, onViewBooking, onViewTransaction }) => {
+const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void; onViewTransaction?: (id: string) => void; onInvoiceAction?: (action: InvoiceActionType, item: ActivityItem) => void }> = ({ item, onViewBooking, onViewTransaction, onInvoiceAction }) => {
   const typeInfo = TYPE_ICONS[item.type] || { icon: 'receipt_long', label: item.type };
   const isClickable = !!onViewTransaction;
 
@@ -154,7 +321,7 @@ const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
       </div>
 
       <div className="text-right flex-shrink-0 flex items-center gap-2">
-        <div>
+        <div className="space-y-1.5">
           <p className={`font-bold text-sm ${
             item.status === 'refunded' || item.status === 'partially_refunded' ? 'text-purple-600 dark:text-purple-400' :
             item.status === 'failed' ? 'text-red-600 dark:text-red-400' :
@@ -162,13 +329,16 @@ const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
           }`}>
             {item.status === 'refunded' || item.status === 'partially_refunded' ? '-' : ''}{formatCurrency(item.amountCents)}
           </p>
-          {item.type === 'invoice' && item.status === 'draft' && item.bookingId && (
+          {item.type === 'invoice' && item.bookingId && (
             <button
               onClick={(e) => { e.stopPropagation(); onViewBooking?.(item.bookingId!); }}
-              className="tactile-btn mt-1 px-2 py-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+              className="tactile-btn px-2 py-0.5 text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
             >
               View Booking
             </button>
+          )}
+          {onInvoiceAction && (
+            <InvoiceActionButtons item={item} onAction={onInvoiceAction} compact />
           )}
         </div>
         {isClickable && (
@@ -197,7 +367,7 @@ const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
   );
 };
 
-const ActivityTableRow: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void; onViewTransaction?: (id: string) => void }> = ({ item, onViewBooking, onViewTransaction }) => {
+const ActivityTableRow: React.FC<{ item: ActivityItem; onViewBooking?: (bookingId: number) => void; onViewTransaction?: (id: string) => void; onInvoiceAction?: (action: InvoiceActionType, item: ActivityItem) => void }> = ({ item, onViewBooking, onViewTransaction, onInvoiceAction }) => {
   const typeInfo = TYPE_ICONS[item.type] || { icon: 'receipt_long', label: item.type };
   const isClickable = !!onViewTransaction;
 
@@ -244,14 +414,19 @@ const ActivityTableRow: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
         <p className="text-primary dark:text-white text-sm">{formatDate(item.createdAt)}</p>
       </td>
       <td className="px-4 py-3 text-right">
-        {item.type === 'invoice' && item.status === 'draft' && item.bookingId && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onViewBooking?.(item.bookingId!); }}
-            className="tactile-btn px-2.5 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-          >
-            View Booking
-          </button>
-        )}
+        <div className="flex items-center gap-1.5 justify-end">
+          {item.type === 'invoice' && item.bookingId && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onViewBooking?.(item.bookingId!); }}
+              className="tactile-btn px-2.5 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+            >
+              View Booking
+            </button>
+          )}
+          {onInvoiceAction && (
+            <InvoiceActionButtons item={item} onAction={onInvoiceAction} />
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -270,6 +445,7 @@ const ActivitySubTab: React.FC = () => {
   const [appliedEndDate, setAppliedEndDate] = useState('');
   const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
   const [detailTxId, setDetailTxId] = useState<string | null>(null);
+  const [invoiceAction, setInvoiceAction] = useState<InvoiceActionState>({ isOpen: false, action: null, item: null });
   const [listParent] = useAutoAnimate();
   const [tbodyParent] = useAutoAnimate();
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -304,6 +480,11 @@ const ActivitySubTab: React.FC = () => {
   const { data: counts } = useActivityCounts();
   const syncStripe = useSyncStripe();
   const exportActivity = useExportActivity();
+  const finalizeInvoice = useFinalizeInvoice();
+  const voidInvoice = useVoidInvoice();
+  const sendInvoice = useSendInvoice();
+  const markUncollectible = useMarkInvoiceUncollectible();
+  const deleteDraftInvoice = useDeleteDraftInvoice();
 
   const items = data?.pages.flatMap((page) => page.items) || [];
   const totalCount = data?.pages[0]?.count ?? 0;
@@ -360,6 +541,36 @@ const ActivitySubTab: React.FC = () => {
   const handleViewTransaction = (id: string) => {
     setDetailTxId(id);
   };
+
+  const handleInvoiceAction = (action: InvoiceActionType, item: ActivityItem) => {
+    setInvoiceAction({ isOpen: true, action, item });
+  };
+
+  const handleInvoiceActionConfirm = () => {
+    if (!invoiceAction.action || !invoiceAction.item) return;
+    const invoiceId = invoiceAction.item.id;
+    const closeDialog = () => setInvoiceAction({ isOpen: false, action: null, item: null });
+
+    switch (invoiceAction.action) {
+      case 'finalize':
+        finalizeInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        break;
+      case 'void':
+        voidInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        break;
+      case 'send':
+        sendInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        break;
+      case 'mark-uncollectible':
+        markUncollectible.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        break;
+      case 'delete':
+        deleteDraftInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        break;
+    }
+  };
+
+  const isInvoiceActionPending = finalizeInvoice.isPending || voidInvoice.isPending || sendInvoice.isPending || markUncollectible.isPending || deleteDraftInvoice.isPending;
 
   if (isLoading) {
     return <FinancialsSubTabSkeleton />;
@@ -498,7 +709,7 @@ const ActivitySubTab: React.FC = () => {
         <>
           <div ref={listParent} className="md:hidden space-y-3">
             {items.map((item) => (
-              <ActivityListItem key={item.id} item={item} onViewBooking={handleViewBooking} onViewTransaction={handleViewTransaction} />
+              <ActivityListItem key={item.id} item={item} onViewBooking={handleViewBooking} onViewTransaction={handleViewTransaction} onInvoiceAction={handleInvoiceAction} />
             ))}
           </div>
 
@@ -518,7 +729,7 @@ const ActivitySubTab: React.FC = () => {
                 </thead>
                 <tbody ref={tbodyParent} className="divide-y divide-primary/5 dark:divide-white/5">
                   {items.map((item) => (
-                    <ActivityTableRow key={item.id} item={item} onViewBooking={handleViewBooking} onViewTransaction={handleViewTransaction} />
+                    <ActivityTableRow key={item.id} item={item} onViewBooking={handleViewBooking} onViewTransaction={handleViewTransaction} onInvoiceAction={handleInvoiceAction} />
                   ))}
                 </tbody>
               </table>
@@ -571,6 +782,16 @@ const ActivitySubTab: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: ['financials'] });
         }}
       />
+
+      {invoiceAction.isOpen && invoiceAction.action && invoiceAction.item && (
+        <InvoiceActionConfirmDialog
+          isOpen
+          {...getInvoiceActionConfig(invoiceAction.action, invoiceAction.item)}
+          isPending={isInvoiceActionPending}
+          onConfirm={handleInvoiceActionConfirm}
+          onCancel={() => setInvoiceAction({ isOpen: false, action: null, item: null })}
+        />
+      )}
     </div>
   );
 };

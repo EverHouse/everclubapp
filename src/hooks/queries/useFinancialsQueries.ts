@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchWithCredentials, postWithCredentials } from './useFetch';
+import { fetchWithCredentials, postWithCredentials, deleteWithCredentials } from './useFetch';
 import { financialsKeys } from './adminKeys';
 
 interface DailySummary {
@@ -402,6 +402,61 @@ export function useRefundPayment() {
       queryClient.invalidateQueries({ queryKey: financialsKeys.refundablePayments() });
       queryClient.invalidateQueries({ queryKey: financialsKeys.refundedPayments() });
       queryClient.invalidateQueries({ queryKey: financialsKeys.dailySummary() });
+    },
+  });
+}
+
+export function useFinalizeInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      postWithCredentials<{ success: boolean; status: string }>(`/api/financials/invoices/${invoiceId}/finalize`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+    },
+  });
+}
+
+export function useVoidInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      postWithCredentials<{ success: boolean; status: string }>(`/api/financials/invoices/${invoiceId}/void`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+    },
+  });
+}
+
+export function useSendInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      postWithCredentials<{ success: boolean }>(`/api/financials/invoices/${invoiceId}/send`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+    },
+  });
+}
+
+export function useMarkInvoiceUncollectible() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      postWithCredentials<{ success: boolean; status: string }>(`/api/financials/invoices/${invoiceId}/mark-uncollectible`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+    },
+  });
+}
+
+export function useDeleteDraftInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) =>
+      deleteWithCredentials<{ success: boolean }>(`/api/financials/invoices/${invoiceId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
     },
   });
 }

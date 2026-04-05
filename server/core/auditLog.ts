@@ -346,7 +346,12 @@ export type AuditAction =
   | 'create_promotion_code'
   | 'seed_promo_code'
   | 'clear_stale_subscription'
-  | 'bulk_clear_stale_subscriptions';
+  | 'bulk_clear_stale_subscriptions'
+  | 'invoice_finalized'
+  | 'invoice_voided'
+  | 'invoice_sent'
+  | 'invoice_marked_uncollectible'
+  | 'invoice_draft_deleted';
 
 export type ActorType = 'staff' | 'member' | 'system';
 
