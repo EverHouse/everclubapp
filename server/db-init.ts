@@ -1174,6 +1174,23 @@ export async function ensureDatabaseConstraints() {
     }
 
     try {
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellness_classes_is_active_idx ON wellness_classes (is_active) WHERE archived_at IS NULL`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS tours_created_at_idx ON tours (created_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS trackman_unmatched_bookings_booking_date_idx ON trackman_unmatched_bookings (booking_date)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS booking_requests_origin_idx ON booking_requests (origin)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS background_jobs_started_at_idx ON background_jobs (started_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS membership_tiers_is_active_idx ON membership_tiers (is_active)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS walk_in_visits_created_at_idx ON walk_in_visits (created_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS trackman_bay_slots_slot_date_idx ON trackman_bay_slots (slot_date)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS membership_tiers_product_type_idx ON membership_tiers (product_type)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS integrity_check_history_run_at_idx ON integrity_check_history (run_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS stripe_transaction_cache_payment_intent_id_idx ON stripe_transaction_cache (payment_intent_id) WHERE payment_intent_id IS NOT NULL`);
+      logger.info('[DB Init] Index advisor performance indexes created/verified (11 indexes across 10 tables)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Index advisor performance indexes: ${getErrorMessage(err)}`);
+    }
+
+    try {
       const needsFix = await db.execute(sql`
         SELECT id, stripe_customer_id FROM users 
         WHERE LOWER(email) IN ('nick@evenhouse.club', 'nick@everclub.co') 
