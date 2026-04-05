@@ -69,6 +69,25 @@ function useCardLightEffects() {
       `${sx}px ${sy + 12}px 24px rgba(0,0,0,0.25), ${sx * 0.5}px ${sy * 0.5 + 6}px 10px rgba(0,0,0,0.18), 0px 2px 4px rgba(0,0,0,0.12)`
   );
 
+  const lightX = useSpring(
+    useTransform(mouseX, [0, 0.5, 1], [-1.2, 0, 1.2]),
+    SPRING_CONFIG
+  );
+  const lightY = useSpring(
+    useTransform(mouseY, [0, 0.5, 1], [-1.2, 0, 1.2]),
+    SPRING_CONFIG
+  );
+  const debossTextShadow = useTransform(
+    [lightX, lightY],
+    ([lx, ly]: number[]) =>
+      `${lx}px ${ly}px 1px rgba(255,255,255,0.2), ${-lx}px ${-ly}px 1px rgba(0,0,0,0.4)`
+  );
+  const debossDropShadow = useTransform(
+    [lightX, lightY],
+    ([lx, ly]: number[]) =>
+      `drop-shadow(${lx}px ${ly}px 1px rgba(255,255,255,0.2)) drop-shadow(${-lx}px ${-ly}px 1px rgba(0,0,0,0.4))`
+  );
+
   const sheenPosition = useSpring(
     useTransform(mouseX, [0, 1], [0, 100]),
     SPRING_CONFIG
@@ -231,6 +250,8 @@ function useCardLightEffects() {
     clearCoatBackground: prefersReducedMotion ? undefined : clearCoatBackground,
     edgeGlimmerBackground: prefersReducedMotion ? undefined : edgeGlimmerBackground,
     hoverShadow: prefersReducedMotion ? undefined : hoverShadow,
+    debossTextShadow: prefersReducedMotion ? undefined : debossTextShadow,
+    debossDropShadow: prefersReducedMotion ? undefined : debossDropShadow,
     handlePointerMove,
     handlePointerLeave,
     requestGyroPermission,
@@ -252,10 +273,12 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const isLightCard = !isExpired && isLightTierBackground(cardBgColor);
   const cardTextColor = isExpired ? '#F9FAFB' : tierColors.text;
   const debossShadow = '0px 1px 1px rgba(255,255,255,0.2), 0px -1px 1px rgba(0,0,0,0.4)';
+  const debossShadowFilter = 'drop-shadow(0px 1px 1px rgba(255,255,255,0.2)) drop-shadow(0px -1px 1px rgba(0,0,0,0.4))';
   const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
   const {
     cardRef, iridescentBackground, clearCoatBackground, edgeGlimmerBackground, hoverShadow,
+    debossTextShadow, debossDropShadow,
     handlePointerMove, handlePointerLeave, requestGyroPermission, prefersReducedMotion,
   } = useCardLightEffects();
 
@@ -305,9 +328,9 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           )}
           <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
             <div className="flex justify-between items-start">
-              <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" width={100} height={40} style={isExpired ? undefined : { filter: 'drop-shadow(0px 1px 1px rgba(255,255,255,0.2)) drop-shadow(0px -1px 1px rgba(0,0,0,0.4))' }} />
+              <motion.img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" width={100} height={40} style={isExpired ? undefined : { filter: debossDropShadow || debossShadowFilter }} />
               <div className="flex flex-col items-end gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${cardTextColor}99`, textShadow: debossShadow }}>Ever Club</span>
+                <motion.span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${cardTextColor}99`, textShadow: debossTextShadow || debossShadow }}>Ever Club</motion.span>
                 {isExpired && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white">
                     Expired
@@ -319,18 +342,18 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <TierBadge tier={user.tier} size="sm" role={user.role} membershipStatus={user.status} />
               </div>
-              <h3 className="text-xl font-display font-bold tracking-wide" style={{ color: cardTextColor, textShadow: debossShadow }}>{user.name}</h3>
+              <motion.h3 className="text-xl font-display font-bold tracking-wide" style={{ color: cardTextColor, textShadow: debossTextShadow || debossShadow }}>{user.name}</motion.h3>
               {isExpired ? (
                 <p className="text-xs mt-2 text-red-200">Membership expired - Contact us to renew</p>
               ) : (
                 <>
                   {user.joinDate && (
-                    <p className="text-xs mt-2" style={{ color: `${cardTextColor}80`, textShadow: debossShadow }}>Joined {formatMemberSince(user.joinDate)}</p>
+                    <motion.p className="text-xs mt-2" style={{ color: `${cardTextColor}80`, textShadow: debossTextShadow || debossShadow }}>Joined {formatMemberSince(user.joinDate)}</motion.p>
                   )}
                   {(() => {
                     const visitCount = statsData?.lifetimeVisitCount ?? user.lifetimeVisits;
                     return visitCount !== undefined ? (
-                      <p className="text-xs" style={{ color: `${cardTextColor}80`, textShadow: debossShadow }}>{visitCount} {visitCount === 1 ? 'lifetime visit' : 'lifetime visits'}</p>
+                      <motion.p className="text-xs" style={{ color: `${cardTextColor}80`, textShadow: debossTextShadow || debossShadow }}>{visitCount} {visitCount === 1 ? 'lifetime visit' : 'lifetime visits'}</motion.p>
                     ) : null;
                   })()}
                 </>
