@@ -1162,6 +1162,18 @@ export async function ensureDatabaseConstraints() {
     }
 
     try {
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS booking_requests_created_at_idx ON booking_requests (created_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS booking_requests_updated_at_idx ON booking_requests (updated_at DESC)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS wellness_classes_date_idx ON wellness_classes (date)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS events_google_calendar_id_idx ON events (google_calendar_id) WHERE google_calendar_id IS NOT NULL`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS integrity_issues_tracking_resolved_at_idx ON integrity_issues_tracking (resolved_at) WHERE resolved_at IS NOT NULL`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS form_submissions_hubspot_submission_id_idx ON form_submissions (hubspot_submission_id) WHERE hubspot_submission_id IS NOT NULL`);
+      logger.info('[DB Init] Query performance indexes created/verified (booking timestamps, wellness dates, calendar sync, integrity tracking)');
+    } catch (err: unknown) {
+      logger.warn(`[DB Init] Query performance indexes: ${getErrorMessage(err)}`);
+    }
+
+    try {
       const needsFix = await db.execute(sql`
         SELECT id, stripe_customer_id FROM users 
         WHERE LOWER(email) IN ('nick@evenhouse.club', 'nick@everclub.co') 
