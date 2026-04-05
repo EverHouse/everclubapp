@@ -13,16 +13,25 @@ const MAX_PASSWORD_LENGTH = 256;
 const MAX_TOKEN_LENGTH = 8192;
 
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
-  promise.catch((err) => logger.debug(`[Supabase] ${label} settled after timeout race`, { extra: { error: getErrorMessage(err) } }));
-
+  let timedOut = false;
   let timer: ReturnType<typeof setTimeout>;
+
+  promise.catch((err) => {
+    if (timedOut) {
+      logger.debug(`[Supabase] ${label} settled after timeout race`, { extra: { error: getErrorMessage(err) } });
+    }
+  });
+
   return Promise.race([
     promise.then(
       (val) => { clearTimeout(timer); return val; },
       (err) => { clearTimeout(timer); throw err; },
     ),
     new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${SUPABASE_ROUTE_TIMEOUT / 1000}s`)), SUPABASE_ROUTE_TIMEOUT);
+      timer = setTimeout(() => {
+        timedOut = true;
+        reject(new Error(`${label} timed out after ${SUPABASE_ROUTE_TIMEOUT / 1000}s`));
+      }, SUPABASE_ROUTE_TIMEOUT);
     })
   ]);
 }
@@ -310,8 +319,24 @@ export function setupSupabaseAuthRoutes(app: Express) {
         return res.status(401).json({ error: 'Invalid token' });
       }
 
-      const dbUser = await authStorage.getUser(user.id);
-      
+      let dbUser = await authStorage.getUser(user.id);
+
+      if (!dbUser) {
+        try {
+          await authStorage.upsertUser({
+            id: user.id,
+            email: user.email || '',
+            firstName: String(user.user_metadata?.first_name || '').slice(0, 100),
+            lastName: String(user.user_metadata?.last_name || '').slice(0, 100),
+          });
+          dbUser = await authStorage.getUser(user.id);
+        } catch (syncError: unknown) {
+          logger.error('[Supabase Auth] OAuth user local DB sync failed', {
+            extra: { userId: user.id, error: getErrorMessage(syncError) }
+          });
+        }
+      }
+
       res.json({
         id: user.id,
         email: user.email,

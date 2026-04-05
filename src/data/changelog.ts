@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.39",
+    date: "2026-04-05",
+    title: "Auth & Security Hardening",
+    changes: [
+      "Improved: Public API pages (membership tiers, day passes) now load faster thanks to restored CDN caching.",
+      "Fixed: Members who signed up via Google or Apple login now sync correctly to the local database on first access, preventing potential booking or purchase errors.",
+      "Fixed: Reduced misleading server log noise — normal login failures no longer produce false timeout warnings.",
+    ]
+  },
+  {
     version: "8.98.38",
     date: "2026-04-05",
     title: "Performance & Security Improvements",

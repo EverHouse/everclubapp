@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.39] - 2026-04-05
+
+### Auth & Security Hardening — Cache Headers, OAuth Sync, Log Noise
+- **Fixed: Public API cache headers restored.** GET requests to `/api/public/*` now receive `Cache-Control: public, s-maxage=60, stale-while-revalidate=120` instead of the blanket `no-store` applied to all non-static-asset requests. This was a performance regression — public endpoints like membership tiers and day pass checkout don't require auth and should be CDN-cacheable.
+- **Fixed: OAuth users synced to local DB on first access.** The `/api/supabase/user` endpoint now upserts users into `authStorage` when the user exists in Supabase but not locally. Previously, OAuth-only users (Google, Apple) who never went through the signup/login flow had no local DB record, risking foreign key constraint violations on bookings or purchases.
+- **Fixed: `withTimeout` log pollution.** The debug log `"settled after timeout race"` previously fired on every normal auth failure (wrong password, invalid signup) because the `.catch` handler ran unconditionally. Now uses a `timedOut` flag so the log only fires when the promise settles *after* the timeout has already triggered — the only case where the message is informative.
+
+Files changed: `server/middleware/security.ts`, `server/supabase/auth.ts`, `src/data/changelog.ts`, `src/data/changelog-version.ts`, `docs/CHANGELOG.md`
+
 ## [8.98.38] - 2026-04-05
 
 ### Performance & Security — Supabase Client Caching, Rate Limit Hardening
