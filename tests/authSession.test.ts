@@ -58,6 +58,7 @@ vi.mock('../server/utils/errorUtils', () => ({
 vi.mock('../server/middleware/rateLimiting', () => ({
   authRateLimiterByIp: (_req: unknown, _res: unknown, next: () => void) => next(),
   authRateLimiter: [],
+  wsTokenRateLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 vi.mock('../server/core/integrations', () => ({
   getHubSpotClient: vi.fn().mockResolvedValue({
