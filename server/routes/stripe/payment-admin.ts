@@ -632,7 +632,9 @@ router.get('/api/payments/:paymentIntentId/details', isStaffOrAdmin, async (req:
         paymentMethodLast4,
         chargeSource,
         receiptUrl,
-        stripeUrl: `https://dashboard.stripe.com/payments/${resolvedPiId}`,
+        stripeUrl: resolvedPiId.startsWith('in_')
+          ? `https://dashboard.stripe.com/invoices/${resolvedPiId}`
+          : `https://dashboard.stripe.com/payments/${resolvedPiId}`,
         bookingInfo: null,
         refundHistory,
         totalRefunded,
