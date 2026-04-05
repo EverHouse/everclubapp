@@ -53,12 +53,20 @@ function useCardLightEffects() {
   const mouseX = useMotionValue(REST_X);
   const mouseY = useMotionValue(REST_Y);
 
-  const sheenX = useSpring(useTransform(mouseX, [0, 1], [0, 100]), SPRING_CONFIG);
-  const sheenY = useSpring(useTransform(mouseY, [0, 1], [0, 100]), SPRING_CONFIG);
+  const sheenAngle = useSpring(
+    useTransform([mouseX, mouseY], ([mx, my]: number[]) => {
+      return Math.atan2(my - 0.5, mx - 0.5) * (180 / Math.PI) + 90;
+    }),
+    SPRING_CONFIG
+  );
+  const sheenPosition = useSpring(
+    useTransform([mouseX, mouseY], ([mx, my]: number[]) => (mx + my) / 2 * 100),
+    SPRING_CONFIG
+  );
   const iridescentBackground = useTransform(
-    [sheenX, sheenY],
-    ([x, y]: number[]) =>
-      `radial-gradient(ellipse 80% 60% at ${x}% ${y}%, rgba(255,180,230,0.22) 0%, rgba(160,210,255,0.18) 20%, rgba(180,255,200,0.12) 40%, rgba(255,220,150,0.08) 55%, transparent 75%)`
+    [sheenAngle, sheenPosition],
+    ([angle, pos]: number[]) =>
+      `linear-gradient(${angle}deg, transparent ${pos - 28}%, rgba(255,190,230,0.09) ${pos - 14}%, rgba(255,255,255,0.16) ${pos - 4}%, rgba(255,255,255,0.20) ${pos}%, rgba(255,255,255,0.16) ${pos + 4}%, rgba(170,210,255,0.09) ${pos + 14}%, transparent ${pos + 28}%)`
   );
 
   const edgeAngle = useSpring(
