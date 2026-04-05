@@ -85,15 +85,15 @@ router.get('/api/financials/recent-transactions', isStaffOrAdmin, async (req: Re
           COALESCE(stc.customer_email, 'Unknown') as member_email,
           COALESCE(stc.customer_name, u.first_name || ' ' || u.last_name, stc.customer_email, 'Unknown') as member_name,
           stc.created_at,
-          stc.status
+          CASE stc.status WHEN 'paid' THEN 'succeeded' ELSE stc.status END as status
         FROM stripe_transaction_cache stc
         LEFT JOIN users u ON LOWER(u.email) = LOWER(stc.customer_email)
-        LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = stc.stripe_id
+        LEFT JOIN stripe_payment_intents spi ON spi.stripe_payment_intent_id = COALESCE(stc.payment_intent_id, stc.stripe_id)
         WHERE stc.status IN ('succeeded', 'paid')
           AND (spi.status IS NULL OR spi.status NOT IN ('refunded', 'refunding'))
           AND NOT EXISTS (
             SELECT 1 FROM stripe_transaction_cache ref_ch
-            WHERE ref_ch.payment_intent_id = stc.stripe_id
+            WHERE ref_ch.payment_intent_id = COALESCE(stc.payment_intent_id, stc.stripe_id)
             AND ref_ch.object_type = 'charge'
             AND ref_ch.status IN ('refunded', 'partially_refunded')
           )

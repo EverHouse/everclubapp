@@ -618,10 +618,12 @@ router.get('/api/payments/:paymentIntentId/details', isStaffOrAdmin, async (req:
       totalRefunded = refundHistory.reduce((sum, r) => sum + r.amount, 0);
       const refundableAmount = Math.max(0, cached.amount_cents - totalRefunded);
 
+      const normalizedCacheStatus = cached.status === 'payment_failed' ? 'failed' : cached.status === 'paid' ? 'succeeded' : cached.status;
+
       return res.json({
         id: cached.stripe_id,
         amount: cached.amount_cents,
-        status: cached.status,
+        status: normalizedCacheStatus,
         description: cached.description,
         purpose: cached.object_type,
         createdAt: cached.created_at,
@@ -832,7 +834,7 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
         status: string; customer_email: string; customer_name: string; object_type: string;
       };
 
-      if (cached.status !== 'succeeded' && cached.status !== 'partially_refunded') {
+      if (cached.status !== 'succeeded' && cached.status !== 'paid' && cached.status !== 'partially_refunded') {
         return res.status(400).json({ error: `Cannot refund payment with status: ${cached.status}` });
       }
 

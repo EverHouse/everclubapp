@@ -457,6 +457,7 @@ export async function handleInvoiceVoided(client: PoolClient, invoice: InvoiceWi
   const invoiceEmail = invoice.customer_email;
   const amountDue = invoice.amount_due || 0;
   const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id;
+  const customerName = typeof invoice.customer === 'object' ? (invoice.customer as Stripe.Customer)?.name : undefined;
   
   const status = eventType === 'invoice.voided' ? 'void' : 'uncollectible';
   logger.info(`[Stripe Webhook] Invoice ${status}: ${invoice.id}, removing from active invoices`);
@@ -471,6 +472,7 @@ export async function handleInvoiceVoided(client: PoolClient, invoice: InvoiceWi
       createdAt: new Date(invoice.created * 1000),
       customerId,
       customerEmail: invoiceEmail,
+      customerName,
       description: invoice.lines?.data?.[0]?.description || `Invoice ${invoice.number || invoice.id}`,
       metadata: invoice.metadata,
       source: 'webhook',
