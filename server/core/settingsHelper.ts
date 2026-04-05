@@ -52,11 +52,11 @@ export async function isPushEnabled(): Promise<boolean> {
 }
 
 export async function isAutoApproveEnabled(type: 'conference_rooms' | 'trackman_imports'): Promise<boolean> {
-  return getSettingBoolean(`booking.auto_approve.${type}`, true);
+  return getSettingBoolean(`booking.auto_approve.${type}`, false);
 }
 
 export async function isSchedulerEnabled(schedulerName: string): Promise<boolean> {
   const normalizedName = schedulerName.replace(/\s+/g, '_');
   const key = `scheduler.${normalizedName}.enabled`;
-  return getSettingBoolean(key, true);
+  return getSettingBoolean(key, false);
 }

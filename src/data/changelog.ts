@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.64",
+    date: "2026-04-05",
+    title: "Settings Security & Feature Flag Safety",
+    changes: [
+      "Fixed: System settings (including kiosk passcode) are now restricted to staff and admin users only.",
+      "Fixed: Bulk settings updates now log the actual values changed, not just the setting names.",
+      "Fixed: Auto-approve and scheduler feature flags now default to off when the setting is missing, preventing unintended automatic behavior.",
+    ]
+  },
+  {
     version: "8.98.63",
     date: "2026-04-05",
     title: "Event Notifications, Booking Safety & Roster Overlap",

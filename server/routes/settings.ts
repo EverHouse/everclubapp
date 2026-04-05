@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated, isAdmin } from '../core/middleware';
+import { isAuthenticated, isAdmin, isStaffOrAdmin } from '../core/middleware';
 import { db } from '../db';
 import { systemSettings } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
@@ -166,7 +166,7 @@ router.get('/api/settings/public', async (req, res) => {
   }
 });
 
-router.get('/api/settings', isAuthenticated, async (req, res) => {
+router.get('/api/settings', isStaffOrAdmin, async (req, res) => {
   try {
     const settings = await db.select().from(systemSettings);
     
@@ -195,7 +195,7 @@ router.get('/api/settings', isAuthenticated, async (req, res) => {
   }
 });
 
-router.get('/api/settings/:key', isAuthenticated, async (req, res) => {
+router.get('/api/settings/:key', isStaffOrAdmin, async (req, res) => {
   try {
     const keyParse = requiredStringParam.safeParse(req.params.key);
     if (!keyParse.success) return res.status(400).json({ error: 'Invalid setting key' });
@@ -301,7 +301,7 @@ router.put('/api/admin/settings', isAdmin, async (req, res) => {
     
     invalidateSettingsCache();
     invalidateQueryCache(PUBLIC_SETTINGS_CACHE_KEY);
-    logFromRequest(req, 'update_settings_bulk', 'settings', '', 'bulk_update', { keys: Object.keys(settings) });
+    logFromRequest(req, 'update_settings_bulk', 'settings', '', 'bulk_update', { changes: Object.fromEntries(Object.entries(settings).map(([k, v]) => [k, String(v)])) });
     res.json({ success: true, updated: results.length });
   } catch (error: unknown) {
     logAndRespond(req, res, 500, 'Failed to update settings', error, 'SETTINGS_BULK_UPDATE_ERROR');

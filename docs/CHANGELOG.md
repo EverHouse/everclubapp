@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.64] - 2026-04-05
+
+### Settings Endpoint Access Control Hardening
+- **Upgraded `GET /api/settings` and `GET /api/settings/:key` from `isAuthenticated` to `isStaffOrAdmin`.** These endpoints returned all system settings including `kiosk.exit_passcode`, HubSpot form IDs, Apple Wallet configuration, and scheduler statuses. Any logged-in member could read them. Now only staff and admins can access the full settings. Members still have access to the public settings endpoint (`/api/settings/public`) which only returns contact, social, and hours data.
+
+Files changed: `server/routes/settings.ts`
+
+### Bulk Settings Audit Log Now Includes Values
+- **Changed bulk settings audit log to record the actual key-value pairs changed, not just the key names.** The `PUT /api/admin/settings` endpoint logged `{ keys: ['push.enabled', ...] }` — making it impossible to audit what was actually changed. Now logs `{ changes: { 'push.enabled': 'true', ... } }` so the full before/after is captured.
+
+Files changed: `server/routes/settings.ts`
+
+### Feature Flag Safe Defaults
+- **Changed `isAutoApproveEnabled` and `isSchedulerEnabled` defaults from `true` to `false`.** When the corresponding setting row was missing from the database (e.g., on a fresh install or after a migration), these functions returned `true` — meaning auto-approval and all schedulers would silently activate without explicit configuration. Now defaults to `false`, requiring explicit opt-in.
+
+Files changed: `server/core/settingsHelper.ts`
+
 ## [8.98.63] - 2026-04-05
 
 ### Event Update Notifications for RSVPed Members
