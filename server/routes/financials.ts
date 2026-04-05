@@ -1069,7 +1069,11 @@ router.get('/api/financials/activity', isStaffOrAdmin, async (req: Request, res:
         SELECT
           stc.stripe_id AS id,
           stc.amount_cents,
-          stc.status,
+          CASE stc.status
+            WHEN 'payment_failed' THEN 'failed'
+            WHEN 'paid' THEN 'succeeded'
+            ELSE stc.status
+          END AS status,
           COALESCE(stc.description, 'Stripe payment') AS description,
           COALESCE(stc.customer_email, 'Unknown') AS member_email,
           COALESCE(
@@ -1162,7 +1166,11 @@ router.get('/api/financials/activity/counts', isStaffOrAdmin, async (req: Reques
 
         SELECT
           stc.stripe_id AS id,
-          stc.status,
+          CASE stc.status
+            WHEN 'payment_failed' THEN 'failed'
+            WHEN 'paid' THEN 'succeeded'
+            ELSE stc.status
+          END AS status,
           stc.created_at
         FROM stripe_transaction_cache stc
         WHERE NOT EXISTS (
@@ -1299,7 +1307,11 @@ router.get('/api/financials/activity/export', isStaffOrAdmin, async (req: Reques
         SELECT
           stc.stripe_id AS id,
           stc.amount_cents,
-          stc.status,
+          CASE stc.status
+            WHEN 'payment_failed' THEN 'failed'
+            WHEN 'paid' THEN 'succeeded'
+            ELSE stc.status
+          END AS status,
           COALESCE(stc.description, 'Stripe payment') AS description,
           COALESCE(stc.customer_email, 'Unknown') AS member_email,
           COALESCE(
@@ -1431,10 +1443,13 @@ router.get('/api/financials/activity/:id', isStaffOrAdmin, async (req: Request, 
       return res.status(404).json({ success: false, error: 'Transaction not found' });
     }
 
+    const rawStatus = (localRow?.status ?? cacheRow?.status ?? 'unknown') as string;
+    const normalizedStatus = rawStatus === 'payment_failed' ? 'failed' : rawStatus === 'paid' ? 'succeeded' : rawStatus;
+
     const detail: Record<string, unknown> = {
       id,
       amountCents: Number(localRow?.amount_cents ?? cacheRow?.amount_cents ?? 0),
-      status: (localRow?.status ?? cacheRow?.status ?? 'unknown') as string,
+      status: normalizedStatus,
       description: (localRow?.description ?? cacheRow?.description ?? '') as string,
       memberEmail: (localRow?.member_email ?? cacheRow?.customer_email ?? '') as string,
       memberName: '',
@@ -1566,7 +1581,8 @@ router.get('/api/financials/activity/:id', isStaffOrAdmin, async (req: Request, 
         }
 
         detail.amountCents = invoice.amount_paid || invoice.amount_due || 0;
-        detail.status = invoice.status || 'unknown';
+        const invoiceStatus = invoice.status || 'unknown';
+        detail.status = invoiceStatus === 'paid' ? 'succeeded' : invoiceStatus;
         detail.description = invoice.lines?.data?.[0]?.description || detail.description;
         detail.invoiceNumber = invoice.number;
         detail.invoicePdf = invoice.invoice_pdf;

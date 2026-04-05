@@ -924,6 +924,7 @@ export async function handleCheckoutSessionAsyncPaymentSucceeded(client: PoolCli
           description: `Async payment: ${purpose}`,
           metadata,
           source: 'webhook',
+          paymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id,
         });
       } catch (err: unknown) {
         logger.error('[Stripe Webhook] Failed to cache async payment transaction:', { extra: { error: getErrorMessage(err) } });
