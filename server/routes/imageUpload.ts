@@ -7,9 +7,18 @@ import { logger } from '../core/logger';
 import { getErrorMessage } from '../utils/errorUtils';
 
 const router = Router();
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type: ${file.mimetype}. Only JPEG, PNG, WebP, GIF, and AVIF are allowed.`));
+    }
+  }
 });
 
 const objectStorageService = new ObjectStorageService();
@@ -53,7 +62,14 @@ router.post('/api/admin/upload-image', isStaffOrAdmin, upload.single('image'), a
       optimizedSize: webpBuffer.length
     });
   } catch (error: unknown) {
-    logger.error('Image upload error', { extra: { error: getErrorMessage(error) } });
+    if (error instanceof multer.MulterError) {
+      return res.status(400).json({ error: error.message });
+    }
+    const msg = getErrorMessage(error);
+    if (msg.includes('Invalid file type')) {
+      return res.status(400).json({ error: msg });
+    }
+    logger.error('Image upload error', { extra: { error: msg } });
     res.status(500).json({ error: 'Failed to upload and convert image' });
   }
 });

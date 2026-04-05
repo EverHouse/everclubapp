@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.48",
+    date: "2026-04-05",
+    title: "Email & Upload Safety",
+    changes: [
+      "Fixed: Onboarding reminder emails no longer greet members as \"Hi null\" when their first name isn't on file.",
+      "Fixed: Email delivery now validates recipients before sending, preventing errors from invalid or missing email addresses.",
+      "Improved: Image uploads now validate file types before processing, rejecting non-image files immediately.",
+    ]
+  },
+  {
     version: "8.98.47",
     date: "2026-04-05",
     title: "Stability & Reliability",

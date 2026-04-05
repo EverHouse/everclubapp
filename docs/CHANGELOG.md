@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.48] - 2026-04-05
+
+### Email & Upload Hardening
+- **Fixed "Hi null" in onboarding nudge emails.** `onboardingNudgeScheduler.ts` called `String(member.first_name)` which converts a DB null to the literal string `"null"`. The nudge email functions check `firstName ? \`Hi ${firstName},\` : 'Hi there,'`, but `"null"` is truthy so emails would say "Hi null,". Fixed by using `member.first_name || undefined` to properly trigger the fallback greeting.
+- **Added recipient validation to safeSendEmail.** `resend.ts` `safeSendEmail` accepted any value in `options.to` and passed it to the Resend API. If a caller passed an empty string, `null`, or a non-email value, it would cause a Resend API error or send to an invalid address. Now filters recipients to only valid email addresses (must be truthy, string type, and contain `@`) before sending. Logs a warning and returns `{ success: false }` if no valid recipients remain.
+- **Added MIME type validation to image upload.** `imageUpload.ts` used `multer` with a size limit but no file type filter. Non-image files were only rejected when `sharp` tried to process them, which wastes CPU and could process unexpected payloads. Added `fileFilter` that accepts only JPEG, PNG, WebP, GIF, and AVIF MIME types.
+
+Files changed: `server/schedulers/onboardingNudgeScheduler.ts`, `server/utils/resend.ts`, `server/routes/imageUpload.ts`
+
 ## [8.98.47] - 2026-04-05
 
 ### Memory Leak Fix & Race Condition Fix

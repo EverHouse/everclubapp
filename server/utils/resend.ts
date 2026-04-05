@@ -122,7 +122,14 @@ export interface SafeSendOptions {
 }
 
 export async function safeSendEmail(options: SafeSendOptions): Promise<{ success: boolean; blocked?: boolean; suppressed?: boolean; id?: string }> {
-  const recipients = Array.isArray(options.to) ? options.to : [options.to];
+  const rawRecipients = Array.isArray(options.to) ? options.to : [options.to];
+  const recipients = rawRecipients.filter(email => email && typeof email === 'string' && email.includes('@'));
+
+  if (recipients.length === 0) {
+    logger.warn('[Email] No valid recipients — skipping send', { extra: { original: rawRecipients, subject: options.subject } });
+    return { success: false };
+  }
+  options.to = recipients;
   
   if (isDevelopment) {
     const blockedRecipients = recipients.filter(email => !isAllowedInDev(email));

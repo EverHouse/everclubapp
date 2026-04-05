@@ -51,12 +51,13 @@ async function processOnboardingNudges(): Promise<void> {
 
       let sendResult: { success: boolean; error?: string } = { success: false };
 
+      const firstName = member.first_name || undefined;
       if (currentNudgeCount === 0 && hoursSinceSignup >= 24) {
-        sendResult = await sendOnboardingNudge24h(String(member.email), String(member.first_name));
+        sendResult = await sendOnboardingNudge24h(String(member.email), firstName);
       } else if (currentNudgeCount === 1 && hoursSinceSignup >= 72) {
-        sendResult = await sendOnboardingNudge72h(String(member.email), String(member.first_name));
+        sendResult = await sendOnboardingNudge72h(String(member.email), firstName);
       } else if (currentNudgeCount === 2 && hoursSinceSignup >= 168) {
-        sendResult = await sendOnboardingNudge7d(String(member.email), String(member.first_name));
+        sendResult = await sendOnboardingNudge7d(String(member.email), firstName);
       } else {
         continue;
       }
