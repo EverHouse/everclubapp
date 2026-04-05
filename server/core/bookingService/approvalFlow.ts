@@ -46,14 +46,16 @@ const CALENDAR_FAIL_NOTE = '[CALENDAR_SYNC_FAILED] Google Calendar invite could 
 
 async function appendCalendarFailureNote(bookingId: number): Promise<void> {
   try {
-    const [existing] = await db.select({ staffNotes: bookingRequests.staffNotes }).from(bookingRequests).where(eq(bookingRequests.id, bookingId));
-    if (existing?.staffNotes?.includes('[CALENDAR_SYNC_FAILED]')) {
-      return;
-    }
-    const updatedNotes = existing?.staffNotes ? `${existing.staffNotes} ${CALENDAR_FAIL_NOTE}` : CALENDAR_FAIL_NOTE;
-    await db.update(bookingRequests)
-      .set({ staffNotes: updatedNotes })
-      .where(eq(bookingRequests.id, bookingId));
+    await db.execute(sql`
+      UPDATE booking_requests
+      SET staff_notes = CASE
+        WHEN staff_notes IS NULL THEN ${CALENDAR_FAIL_NOTE}
+        WHEN staff_notes LIKE '%[CALENDAR_SYNC_FAILED]%' THEN staff_notes
+        ELSE staff_notes || ' ' || ${CALENDAR_FAIL_NOTE}
+      END,
+      updated_at = NOW()
+      WHERE id = ${bookingId}
+    `);
   } catch (noteErr: unknown) {
     logger.error('[Booking Approval] Failed to add calendar failure staff note', { extra: { error: getErrorMessage(noteErr) } });
   }

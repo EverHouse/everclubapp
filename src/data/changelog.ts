@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.47",
+    date: "2026-04-05",
+    title: "Stability & Reliability",
+    changes: [
+      "Fixed: Staff role cache now properly cleans up expired entries instead of growing indefinitely.",
+      "Fixed: Calendar sync failure notes on bookings are now saved atomically, preventing potential data conflicts.",
+    ]
+  },
+  {
     version: "8.98.46",
     date: "2026-04-05",
     title: "Stability Improvements",

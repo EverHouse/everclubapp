@@ -155,6 +155,16 @@ export async function queryWithRetry(pool: Pool, query: string, params: unknown[
 
 const staffRoleCache = new Map<string, { role: 'admin' | 'staff' | null; fetchedAt: number }>();
 const STAFF_ROLE_CACHE_TTL_MS = 60_000;
+const STAFF_ROLE_CACHE_MAX_SIZE = 100;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of staffRoleCache) {
+    if (now - entry.fetchedAt >= STAFF_ROLE_CACHE_TTL_MS) {
+      staffRoleCache.delete(key);
+    }
+  }
+}, STAFF_ROLE_CACHE_TTL_MS);
 
 export function clearStaffRoleCache(email?: string) {
   if (email) {
@@ -188,6 +198,10 @@ async function getStaffRole(email: string): Promise<'admin' | 'staff' | null> {
       const dbRole = rows[0].role;
       if (dbRole === 'admin') role = 'admin';
       else if (dbRole === 'staff') role = 'staff';
+    }
+    if (staffRoleCache.size >= STAFF_ROLE_CACHE_MAX_SIZE) {
+      const oldestKey = staffRoleCache.keys().next().value;
+      if (oldestKey) staffRoleCache.delete(oldestKey);
     }
     staffRoleCache.set(cacheKey, { role, fetchedAt: Date.now() });
     return role;

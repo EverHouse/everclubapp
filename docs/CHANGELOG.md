@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.47] - 2026-04-05
+
+### Memory Leak Fix & Race Condition Fix
+- **Added periodic eviction and size cap to staffRoleCache.** The `staffRoleCache` Map in `replitAuth.ts` stored entries for every unique email that hit staff-protected routes, but expired entries were never removed from the Map (only ignored on TTL check). Over time this leaked memory. Added: (1) a `setInterval` that prunes expired entries every 60s, and (2) a `STAFF_ROLE_CACHE_MAX_SIZE = 100` cap that evicts the oldest entry when full.
+- **Made calendar failure note append atomic.** `appendCalendarFailureNote` in `approvalFlow.ts` used a read-then-write pattern: `SELECT staffNotes → concat → UPDATE`. If two processes (e.g., manual staff update + calendar sync failure) ran concurrently, one could overwrite the other's note. Replaced with a single atomic `UPDATE ... SET staff_notes = CASE ...` query that handles null, duplicate detection, and concatenation in one statement.
+
+Files changed: `server/replit_integrations/auth/replitAuth.ts`, `server/core/bookingService/approvalFlow.ts`
+
 ## [8.98.46] - 2026-04-05
 
 ### Crash Prevention — Staff Command Center & ID Scanner
