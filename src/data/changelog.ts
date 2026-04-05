@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.53",
+    date: "2026-04-05",
+    title: "Directory & Sync Fixes",
+    changes: [
+      "Fixed: Member directory pagination now produces stable, consistent results — no more duplicates or missing members when scrolling between pages.",
+      "Fixed: HubSpot email updates now properly retry on rate limits instead of failing immediately.",
+    ]
+  },
+  {
     version: "8.98.52",
     date: "2026-04-05",
     title: "System Hardening",

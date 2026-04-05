@@ -2,6 +2,19 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.53] - 2026-04-05
+
+### Member Directory Pagination Stability
+- **Fixed unstable pagination sort order.** `search.ts` `/api/members/directory` ordered results by `COALESCE(first_name, email) ASC`, which is not deterministic when multiple members share the same name. Members could appear on two pages or be skipped entirely when paginating. Added `users.id ASC` as a tiebreaker to guarantee stable ordering across pages.
+- **Removed dead cache code in paginated branch.** Lines 502-504 contained `if (!searchQuery && !isPaginated)` inside an `if (isPaginated)` block — an impossible condition that could never execute. Removed the dead code.
+
+Files changed: `server/routes/members/search.ts`
+
+### HubSpot Email Update Rate Limit Handling
+- **Wrapped `update_contact_email` queue job in `retryableHubSpotRequest`.** The `update_contact_email` case in `executeHubSpotOperation` called `hubspot.crm.contacts.basicApi.update` directly without the retry/rate-limit wrapper used by all other HubSpot operations. If HubSpot returned a 429 rate limit response, the job would fail immediately instead of backing off and retrying. Now uses `retryableHubSpotRequest` with exponential backoff (3 retries, 5s–30s delays).
+
+Files changed: `server/core/hubspot/queue.ts`
+
 ## [8.98.52] - 2026-04-05
 
 ### Scheduler Unbounded Query Safety

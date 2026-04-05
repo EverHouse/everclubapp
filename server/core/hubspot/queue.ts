@@ -326,10 +326,13 @@ async function executeHubSpotOperation(operation: string, payload: Record<string
       
     case 'update_contact_email': {
       const { getHubSpotClient } = await import('../integrations');
+      const { retryableHubSpotRequest } = await import('./request');
       const hubspot = await getHubSpotClient();
-      await hubspot.crm.contacts.basicApi.update(String(payload.hubspotId), {
-        properties: { email: payload.email as string },
-      });
+      await retryableHubSpotRequest(() =>
+        hubspot.crm.contacts.basicApi.update(String(payload.hubspotId), {
+          properties: { email: payload.email as string },
+        })
+      );
       break;
     }
 

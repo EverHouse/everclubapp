@@ -261,7 +261,7 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
     })
       .from(users)
       .where(whereClause)
-      .orderBy(sql`COALESCE(${users.firstName}, ${users.email}) ASC`);
+      .orderBy(sql`COALESCE(${users.firstName}, ${users.email}) ASC, ${users.id} ASC`);
 
     const allMembers = isPaginated
       ? await baseQuery.limit(limit).offset(offset)
@@ -499,9 +499,6 @@ router.get('/api/members/directory', isStaffOrAdmin, validateQuery(directoryQuer
         stale: false,
         refreshing: false,
       };
-      if (!searchQuery && !isPaginated) {
-        setCache(`${DIRECTORY_CACHE_KEY}_${statusFilter}`, paginatedResponse, DIRECTORY_CACHE_TTL);
-      }
       return res.json(paginatedResponse);
     }
     
