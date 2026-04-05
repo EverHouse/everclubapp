@@ -10,6 +10,7 @@ vi.mock('../server/core/schedulerTracker', () => ({
     refreshEnabledStates: vi.fn(),
     setEnabled: vi.fn(),
   },
+  withLeaderLock: vi.fn(async (_name: string, fn: Function) => fn()),
 }));
 
 vi.mock('../server/core/logger', () => ({

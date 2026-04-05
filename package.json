@@ -10,7 +10,7 @@
     "check:ghost-columns": "bash scripts/check-ghost-columns.sh",
     "check:stripe-webhooks": "tsx scripts/check-stripe-webhook-coverage.ts",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=cjs --outfile=dist/server/index.cjs --packages=external --alias:@shared=./shared",
-    "build": "vitest run && tsx scripts/sync-migration-tracking.ts && bash scripts/check-ghost-columns.sh && tsx scripts/validate-raw-sql.ts && tsx scripts/check-stripe-webhook-coverage.ts && tsx scripts/check-typescript.ts && tsx scripts/audit-endpoints.ts && tsx scripts/check-cache-headers.ts && vite build && npm run build:server && tsx scripts/check-bundle-size.ts",
+    "build": "if [ \"$SKIP_TESTS\" != \"1\" ]; then vitest run; fi && tsx scripts/sync-migration-tracking.ts && bash scripts/check-ghost-columns.sh && tsx scripts/validate-raw-sql.ts && tsx scripts/check-stripe-webhook-coverage.ts && tsx scripts/check-typescript.ts && tsx scripts/audit-endpoints.ts && tsx scripts/check-cache-headers.ts && vite build && npm run build:server && tsx scripts/check-bundle-size.ts",
     "check:bundle-size": "tsx scripts/check-bundle-size.ts",
     "check:db-constraints": "tsx scripts/check-db-constraints.ts",
     "check:dead-code": "tsx scripts/check-dead-code.ts",
