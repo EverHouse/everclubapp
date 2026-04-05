@@ -3,6 +3,31 @@ import crypto from 'crypto';
 import { getSessionUser } from '../types/session';
 import { isPerformanceEnabled, getApiSlowThreshold, recordEndpoint } from './performanceCollector';
 
+function safeStringify(obj: unknown): string {
+  try {
+    return JSON.stringify(obj, (_key, value) => {
+      if (typeof value === 'bigint') return value.toString();
+      return value;
+    });
+  } catch {
+    try {
+      const ancestors: object[] = [];
+      return JSON.stringify(obj, function (_key, value) {
+        if (typeof value === 'bigint') return value.toString();
+        if (typeof value !== 'object' || value === null) return value;
+        while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) {
+          ancestors.pop();
+        }
+        if (ancestors.includes(value)) return '[Circular]';
+        ancestors.push(value);
+        return value;
+      });
+    } catch {
+      return '{"level":"ERROR","message":"[Logger] Failed to serialize log entry"}';
+    }
+  }
+}
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
@@ -79,7 +104,7 @@ export const logger = {
       query: sanitize(context?.query),
     };
     // eslint-disable-next-line no-console
-    console.log(JSON.stringify(log));
+    console.log(safeStringify(log));
   },
 
   info(message: string, context?: LogContext) {
@@ -92,7 +117,7 @@ export const logger = {
       query: sanitize(context?.query),
     };
     // eslint-disable-next-line no-console
-    console.log(JSON.stringify(log));
+    console.log(safeStringify(log));
   },
 
   warn(message: string, context?: LogContext) {
@@ -104,7 +129,7 @@ export const logger = {
       params: sanitize(context?.params),
       query: sanitize(context?.query),
     };
-    console.warn(JSON.stringify(log));
+    console.warn(safeStringify(log));
   },
 
   error(message: string, context?: LogContext) {
@@ -125,7 +150,7 @@ export const logger = {
       params: sanitize(context?.params),
       query: sanitize(context?.query),
     };
-    console.error(JSON.stringify(log));
+    console.error(safeStringify(log));
   },
 };
 

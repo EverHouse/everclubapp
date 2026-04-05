@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.55",
+    date: "2026-04-05",
+    title: "POS & System Stability",
+    changes: [
+      "Fixed: POS cart charges now store the correct server-computed total in records, preventing mismatches between what Stripe charges and what the system logs.",
+      "Improved: System logging is now resilient to complex data structures that could previously cause silent crashes.",
+    ]
+  },
+  {
     version: "8.98.54",
     date: "2026-04-05",
     title: "Login & Billing Safety",

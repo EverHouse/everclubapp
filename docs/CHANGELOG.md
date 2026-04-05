@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.55] - 2026-04-05
+
+### POS Cart Total Mismatch Fix
+- **Fixed DB record amount for invoice-based POS charges.** In `quick-charge.ts`, when a cart with line items was charged via Stripe invoice, the local `stripe_payment_intents` record stored the frontend-provided `amountCents` instead of the server-computed cart total. If the frontend total drifted (rounding, stale prices), the DB would show a different amount than what Stripe actually charged. Now computes the total server-side from `cartItems[].priceCents * quantity` and stores that. Logs a warning if the frontend and server totals don't match.
+
+Files changed: `server/routes/stripe/quick-charge.ts`
+
+### Logger Circular Reference Protection
+- **Replaced `JSON.stringify` with `safeStringify` in all logger methods.** If any logged context object contained a circular reference (e.g., a request object passed accidentally), `JSON.stringify` would throw a `TypeError`, crashing the log call and potentially the request handler. Now uses a two-pass approach: fast path for normal objects, fallback with `WeakSet` cycle detection that replaces circular refs with `[Circular]`.
+
+Files changed: `server/core/logger.ts`
+
+### Silent DB Init Error Fix
+- **Added logging to empty catch block in `db-init.ts`.** The `ALTER TABLE booking_participants DROP CONSTRAINT` migration had an empty `catch (_err)` block that silently swallowed all errors, including unexpected failures beyond "constraint doesn't exist". Now logs a warning with the error message.
+
+Files changed: `server/db-init.ts`
+
 ## [8.98.54] - 2026-04-05
 
 ### Login & Bug Report Double-Submit Prevention

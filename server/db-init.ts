@@ -981,6 +981,7 @@ export async function ensureDatabaseConstraints() {
         ALTER TABLE booking_participants DROP CONSTRAINT IF EXISTS chk_participant_owner_member_user_id
       `);
     } catch (_err: unknown) {
+      logger.warn(`[DB Init] Skipping booking_participants constraint drop: ${getErrorMessage(_err)}`);
     }
 
     if (process.env.NODE_ENV === 'production') {

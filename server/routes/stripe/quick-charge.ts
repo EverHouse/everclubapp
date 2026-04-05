@@ -283,11 +283,17 @@ router.post('/api/stripe/staff/quick-charge', isStaffOrAdmin, validateBody(quick
           receiptEmail: customerEmail
         });
 
+        const serverCartTotal = (cartItems as CartLineItem[]).reduce((sum: number, item: CartLineItem) => sum + Math.round(item.priceCents * item.quantity), 0);
+        if (serverCartTotal !== Math.round(numericAmount)) {
+          logger.warn('[QuickCharge] Cart total mismatch — using server-computed total', {
+            extra: { frontendAmount: Math.round(numericAmount), serverCartTotal, diff: Math.abs(serverCartTotal - Math.round(numericAmount)) }
+          });
+        }
         const dbUserId = member?.id?.toString() || `guest-${stripeCustomerId}`;
         try {
           await db.execute(sql`INSERT INTO stripe_payment_intents 
              (user_id, stripe_payment_intent_id, stripe_customer_id, amount_cents, purpose, description, status, product_id, product_name)
-             VALUES (${dbUserId}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${Math.round(numericAmount)}, 'one_time_purchase', ${finalDescription}, 'pending', ${productId || null}, ${finalProductName || null})
+             VALUES (${dbUserId}, ${invoiceResult.paymentIntentId}, ${stripeCustomerId}, ${serverCartTotal}, 'one_time_purchase', ${finalDescription}, 'pending', ${productId || null}, ${finalProductName || null})
              ON CONFLICT (stripe_payment_intent_id) DO NOTHING`);
         } catch (dbErr: unknown) {
           logger.error('[QuickCharge] CRITICAL: Payment record insert failed — Stripe charge exists without local record', {
