@@ -234,9 +234,18 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const isVisitor = user.role === 'visitor';
   const tierColors = isVisitor ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' } : getTierColor(user.tier || '');
   const cardBgColor = isExpired ? '#6B7280' : tierColors.bg;
+  const isLightCard = !isExpired && isLightTierBackground(cardBgColor);
   const cardTextColor = isExpired ? '#F9FAFB' : '#2D2D2D';
-  const etchedShadow = isExpired ? '0 1px 3px rgba(0,0,0,0.15)' : '1px 1px 0px rgba(255,255,255,0.45)';
-  const etchedShadowMuted = isExpired ? 'none' : '1px 1px 0px rgba(255,255,255,0.35)';
+  const etchedShadow = isExpired
+    ? '0 1px 3px rgba(0,0,0,0.15)'
+    : isLightCard
+      ? '-1px -1px 0px rgba(0,0,0,0.12), 1px 1px 0px rgba(255,255,255,0.7)'
+      : '1px 1px 0px rgba(255,255,255,0.45)';
+  const etchedShadowMuted = isExpired
+    ? 'none'
+    : isLightCard
+      ? '-1px -1px 0px rgba(0,0,0,0.08), 1px 1px 0px rgba(255,255,255,0.55)'
+      : '1px 1px 0px rgba(255,255,255,0.35)';
   const useDarkLogo = isExpired ? false : true;
 
   const {
