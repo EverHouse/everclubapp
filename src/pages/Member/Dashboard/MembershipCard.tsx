@@ -66,7 +66,7 @@ function useCardLightEffects() {
   const iridescentBackground = useTransform(
     [sheenAngle, sheenPosition],
     ([angle, pos]: number[]) =>
-      `linear-gradient(${angle}deg, transparent ${pos - 28}%, rgba(255,190,230,0.09) ${pos - 14}%, rgba(255,255,255,0.16) ${pos - 4}%, rgba(255,255,255,0.20) ${pos}%, rgba(255,255,255,0.16) ${pos + 4}%, rgba(170,210,255,0.09) ${pos + 14}%, transparent ${pos + 28}%)`
+      `linear-gradient(${angle}deg, transparent ${pos - 20}%, rgba(255,190,230,0.09) ${pos - 10}%, rgba(255,255,255,0.16) ${pos - 3}%, rgba(255,255,255,0.20) ${pos}%, rgba(255,255,255,0.16) ${pos + 3}%, rgba(170,210,255,0.09) ${pos + 10}%, transparent ${pos + 20}%)`
   );
 
   const edgeAngle = useSpring(
