@@ -25,6 +25,10 @@ const statusConfig: Record<string, { label: string; color: string; icon: string 
   pending: { label: 'Pending', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300', icon: 'schedule' },
   canceled: { label: 'Canceled', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-300', icon: 'cancel' },
   requires_capture: { label: 'Authorized', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300', icon: 'hourglass_top' },
+  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-300', icon: 'edit_note' },
+  open: { label: 'Open', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300', icon: 'mail' },
+  void: { label: 'Void', color: 'bg-gray-100 text-gray-500 dark:bg-gray-700/30 dark:text-gray-400', icon: 'block' },
+  uncollectible: { label: 'Uncollectible', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300', icon: 'money_off' },
 };
 
 const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;

@@ -1771,6 +1771,9 @@ router.post('/api/financials/sync-stripe', isStaffOrAdmin, async (req: Request, 
 
         for (const inv of page.data) {
           const customer = inv.customer as Stripe.Customer | null;
+          const linkedPiId = typeof inv.payment_intent === 'string'
+            ? inv.payment_intent
+            : (inv.payment_intent as Stripe.PaymentIntent | null)?.id ?? undefined;
           await upsertTransactionCache({
             stripeId: inv.id,
             objectType: 'invoice',
@@ -1785,6 +1788,7 @@ router.post('/api/financials/sync-stripe', isStaffOrAdmin, async (req: Request, 
             metadata: inv.metadata,
             source: 'sync',
             invoiceId: inv.id,
+            paymentIntentId: linkedPiId,
           });
           invoicesProcessed++;
         }

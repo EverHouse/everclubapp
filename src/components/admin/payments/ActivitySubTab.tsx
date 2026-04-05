@@ -71,6 +71,8 @@ const getStatusBadgeClasses = (status: string): string => {
     case 'void':
     case 'canceled':
       return 'bg-gray-100 dark:bg-gray-800/40 text-gray-500 dark:text-gray-500';
+    case 'uncollectible':
+      return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400';
     default:
       return 'bg-gray-100 dark:bg-gray-800/40 text-gray-600 dark:text-gray-400';
   }
@@ -88,6 +90,9 @@ const getStatusIcon = (status: string): string => {
     case 'requires_capture':
     case 'requires_action': return 'schedule';
     case 'open': return 'mail';
+    case 'void':
+    case 'canceled': return 'block';
+    case 'uncollectible': return 'money_off';
     default: return 'circle';
   }
 };
@@ -115,12 +120,13 @@ interface InvoiceActionConfirmProps {
   confirmLabel: string;
   confirmVariant: 'danger' | 'primary' | 'warning';
   isPending: boolean;
+  error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
 const InvoiceActionConfirmDialog: React.FC<InvoiceActionConfirmProps> = ({
-  isOpen, title, message, confirmLabel, confirmVariant, isPending, onConfirm, onCancel,
+  isOpen, title, message, confirmLabel, confirmVariant, isPending, error, onConfirm, onCancel,
 }) => {
   if (!isOpen) return null;
 
@@ -134,7 +140,12 @@ const InvoiceActionConfirmDialog: React.FC<InvoiceActionConfirmProps> = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onCancel}>
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-primary dark:text-white mb-2">{title}</h3>
-        <p className="text-sm text-primary/70 dark:text-white/70 mb-6">{message}</p>
+        <p className="text-sm text-primary/70 dark:text-white/70 mb-4">{message}</p>
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30">
+            <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+          </div>
+        )}
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
@@ -446,6 +457,7 @@ const ActivitySubTab: React.FC = () => {
   const [bookingSheet, setBookingSheet] = useState<{ isOpen: boolean; bookingId: number | null }>({ isOpen: false, bookingId: null });
   const [detailTxId, setDetailTxId] = useState<string | null>(null);
   const [invoiceAction, setInvoiceAction] = useState<InvoiceActionState>({ isOpen: false, action: null, item: null });
+  const [invoiceActionError, setInvoiceActionError] = useState<string | null>(null);
   const [listParent] = useAutoAnimate();
   const [tbodyParent] = useAutoAnimate();
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -543,29 +555,34 @@ const ActivitySubTab: React.FC = () => {
   };
 
   const handleInvoiceAction = (action: InvoiceActionType, item: ActivityItem) => {
+    setInvoiceActionError(null);
     setInvoiceAction({ isOpen: true, action, item });
   };
 
   const handleInvoiceActionConfirm = () => {
     if (!invoiceAction.action || !invoiceAction.item) return;
     const invoiceId = invoiceAction.item.id;
-    const closeDialog = () => setInvoiceAction({ isOpen: false, action: null, item: null });
+    const closeDialog = () => { setInvoiceAction({ isOpen: false, action: null, item: null }); setInvoiceActionError(null); };
+    const onError = (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Action failed. Please try again.';
+      setInvoiceActionError(msg);
+    };
 
     switch (invoiceAction.action) {
       case 'finalize':
-        finalizeInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        finalizeInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError });
         break;
       case 'void':
-        voidInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        voidInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError });
         break;
       case 'send':
-        sendInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        sendInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError });
         break;
       case 'mark-uncollectible':
-        markUncollectible.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        markUncollectible.mutate(invoiceId, { onSuccess: closeDialog, onError });
         break;
       case 'delete':
-        deleteDraftInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError: closeDialog });
+        deleteDraftInvoice.mutate(invoiceId, { onSuccess: closeDialog, onError });
         break;
     }
   };
@@ -747,7 +764,7 @@ const ActivitySubTab: React.FC = () => {
       )}
 
       <div className="flex items-center justify-between text-sm text-primary/60 dark:text-white/60">
-        <p>Showing {items.length}{totalCount > 0 ? ` of ${totalCount}` : ''} items</p>
+        <p>Showing {items.length}{statusFilter === 'all' && typeFilter === 'all' && !debouncedSearch && !appliedStartDate && !appliedEndDate && totalCount > 0 ? ` of ${totalCount}` : ''} items</p>
         {syncStripe.isSuccess && (
           <span className="text-green-600 dark:text-green-400 text-xs font-medium">
             Stripe sync complete
@@ -788,8 +805,9 @@ const ActivitySubTab: React.FC = () => {
           isOpen
           {...getInvoiceActionConfig(invoiceAction.action, invoiceAction.item)}
           isPending={isInvoiceActionPending}
+          error={invoiceActionError}
           onConfirm={handleInvoiceActionConfirm}
-          onCancel={() => setInvoiceAction({ isOpen: false, action: null, item: null })}
+          onCancel={() => { setInvoiceAction({ isOpen: false, action: null, item: null }); setInvoiceActionError(null); }}
         />
       )}
     </div>

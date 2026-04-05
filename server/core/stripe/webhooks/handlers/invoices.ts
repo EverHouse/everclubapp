@@ -475,6 +475,7 @@ export async function handleInvoiceVoided(client: PoolClient, invoice: InvoiceWi
       metadata: invoice.metadata,
       source: 'webhook',
       invoiceId: invoice.id,
+      paymentIntentId: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : invoice.payment_intent?.id,
     });
   });
   
