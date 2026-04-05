@@ -1,11 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 function resolveDispatcherPath(): string {
   const candidates = [
     path.resolve(process.cwd(), 'server/core/stripe/webhooks/index.ts'),
-    path.resolve(__dirname, './index.ts'),
   ];
+  try {
+    const currentDir = path.dirname(fileURLToPath(import.meta.url));
+    candidates.push(path.resolve(currentDir, './index.ts'));
+  } catch {}
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }

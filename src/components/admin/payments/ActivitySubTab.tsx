@@ -37,14 +37,14 @@ const TYPE_FILTERS = [
   { key: 'payment', label: 'Payments', icon: 'credit_card' },
   { key: 'invoice', label: 'Invoices', icon: 'receipt' },
   { key: 'pos', label: 'POS/Terminal', icon: 'point_of_sale' },
-  { key: 'subscription', label: 'Subscriptions', icon: 'autorenew' },
+  { key: 'subscription', label: 'Subscriptions', icon: 'sync' },
 ] as const;
 
 const TYPE_ICONS: Record<string, { icon: string; label: string }> = {
   payment: { icon: 'credit_card', label: 'Payment' },
   invoice: { icon: 'receipt', label: 'Invoice' },
   pos: { icon: 'point_of_sale', label: 'POS' },
-  subscription: { icon: 'autorenew', label: 'Subscription' },
+  subscription: { icon: 'sync', label: 'Subscription' },
   refund: { icon: 'undo', label: 'Refund' },
   dispute: { icon: 'gavel', label: 'Dispute' },
 };
@@ -487,7 +487,7 @@ const ActivitySubTab: React.FC = () => {
   const deleteDraftInvoice = useDeleteDraftInvoice();
 
   const items = data?.pages.flatMap((page) => page.items) || [];
-  const totalCount = data?.pages[0]?.count ?? 0;
+  const totalCount = counts?.all ?? 0;
   const error = queryError instanceof Error ? queryError.message : null;
 
   const handleInfiniteScroll = useCallback(

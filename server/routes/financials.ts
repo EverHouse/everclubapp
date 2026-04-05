@@ -963,6 +963,14 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
   }
 });
 
+function normalizeActivityType(raw: string): string {
+  if (['membership', 'membership_renewal', 'subscription'].includes(raw)) return 'subscription';
+  if (['pos', 'terminal', 'merch', 'merchandise', 'one_time_purchase', 'cafe'].includes(raw)) return 'pos';
+  if (raw === 'invoice') return 'invoice';
+  if (raw === 'charge') return 'payment';
+  return 'payment';
+}
+
 const activityRateLimits = new Map<string, number>();
 
 router.get('/api/financials/activity', isStaffOrAdmin, async (req: Request, res: Response) => {
@@ -1045,7 +1053,12 @@ router.get('/api/financials/activity', isStaffOrAdmin, async (req: Request, res:
             spi.user_id
           ) AS member_name,
           spi.created_at,
-          COALESCE(spi.purpose, 'payment') AS type,
+          CASE
+            WHEN spi.purpose IN ('membership', 'membership_renewal', 'subscription') THEN 'subscription'
+            WHEN spi.purpose IN ('pos', 'terminal', 'merch', 'merchandise', 'one_time_purchase', 'cafe') THEN 'pos'
+            WHEN spi.purpose = 'invoice' THEN 'invoice'
+            ELSE 'payment'
+          END AS type,
           spi.booking_id
         FROM stripe_payment_intents spi
         LEFT JOIN users u ON (u.id::text = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id)
@@ -1167,7 +1180,10 @@ router.get('/api/financials/activity/counts', isStaffOrAdmin, async (req: Reques
         COUNT(*) FILTER (WHERE status IN ('refunded', 'partially_refunded')) AS refunded,
         COUNT(*) FILTER (WHERE status = 'failed') AS failed,
         COUNT(*) FILTER (WHERE status = 'disputed') AS disputed,
-        COUNT(*) FILTER (WHERE status = 'draft') AS draft
+        COUNT(*) FILTER (WHERE status = 'draft') AS draft,
+        COUNT(*) FILTER (WHERE status = 'open') AS open,
+        COUNT(*) FILTER (WHERE status = 'void') AS void,
+        COUNT(*) FILTER (WHERE status = 'uncollectible') AS uncollectible
       FROM deduped
     `);
 
@@ -1182,6 +1198,9 @@ router.get('/api/financials/activity/counts', isStaffOrAdmin, async (req: Reques
         failed: parseInt(row?.failed ?? '0', 10),
         disputed: parseInt(row?.disputed ?? '0', 10),
         draft: parseInt(row?.draft ?? '0', 10),
+        open: parseInt(row?.open ?? '0', 10),
+        void: parseInt(row?.void ?? '0', 10),
+        uncollectible: parseInt(row?.uncollectible ?? '0', 10),
       },
     });
   } catch (error: unknown) {
@@ -1258,7 +1277,12 @@ router.get('/api/financials/activity/export', isStaffOrAdmin, async (req: Reques
             spi.user_id
           ) AS member_name,
           spi.created_at,
-          COALESCE(spi.purpose, 'payment') AS type,
+          CASE
+            WHEN spi.purpose IN ('membership', 'membership_renewal', 'subscription') THEN 'subscription'
+            WHEN spi.purpose IN ('pos', 'terminal', 'merch', 'merchandise', 'one_time_purchase', 'cafe') THEN 'pos'
+            WHEN spi.purpose = 'invoice' THEN 'invoice'
+            ELSE 'payment'
+          END AS type,
           COALESCE(
             stc_pm.metadata->>'paymentMethodType',
             stc_pm.metadata->>'payment_method_type',
@@ -1415,7 +1439,7 @@ router.get('/api/financials/activity/:id', isStaffOrAdmin, async (req: Request, 
       memberEmail: (localRow?.member_email ?? cacheRow?.customer_email ?? '') as string,
       memberName: '',
       createdAt: localRow?.created_at ?? cacheRow?.created_at ?? null,
-      type: (localRow?.purpose ?? cacheRow?.object_type ?? 'payment') as string,
+      type: normalizeActivityType((localRow?.purpose ?? cacheRow?.object_type ?? 'payment') as string),
       bookingId: localRow?.booking_id ?? null,
       sessionId: localRow?.session_id ?? null,
     };
