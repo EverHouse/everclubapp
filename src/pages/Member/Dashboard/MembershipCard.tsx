@@ -66,12 +66,11 @@ function useCardLightEffects() {
   const iridescentBackground = useTransform(
     [sheenPosition, tiltIntensity],
     ([pos, intensity]: number[]) => {
-      const halfWidth = 20 - intensity * 14;
-      const fringeWidth = halfWidth * 2;
-      const coreWidth = Math.max(1, halfWidth * 0.15);
-      const peakAlpha = 0.12 + intensity * 0.28;
-      const fringeAlpha = 0.06 + intensity * 0.10;
-      return `linear-gradient(${SHEEN_ANGLE}deg, transparent ${pos - fringeWidth}%, rgba(255,190,230,${fringeAlpha}) ${pos - halfWidth}%, rgba(255,255,255,${peakAlpha}) ${pos - coreWidth}%, rgba(255,255,255,${peakAlpha + 0.04}) ${pos}%, rgba(255,255,255,${peakAlpha}) ${pos + coreWidth}%, rgba(170,210,255,${fringeAlpha}) ${pos + halfWidth}%, transparent ${pos + fringeWidth}%)`;
+      const bandWidth = 35 - intensity * 12;
+      const falloff = bandWidth * 1.6;
+      const peakAlpha = 0.10 + intensity * 0.25;
+      const midAlpha = peakAlpha * 0.5;
+      return `linear-gradient(${SHEEN_ANGLE}deg, transparent ${pos - falloff}%, rgba(220,220,225,${midAlpha * 0.4}) ${pos - bandWidth}%, rgba(240,240,245,${midAlpha}) ${pos - bandWidth * 0.5}%, rgba(255,255,255,${peakAlpha}) ${pos}%, rgba(240,240,245,${midAlpha}) ${pos + bandWidth * 0.5}%, rgba(220,220,225,${midAlpha * 0.4}) ${pos + bandWidth}%, transparent ${pos + falloff}%)`;
     }
   );
 
@@ -98,7 +97,7 @@ function useCardLightEffects() {
     ([a, intensity]: number[]) => {
       const base = 0.3 + intensity * 0.5;
       const peak = 0.4 + intensity * 0.6;
-      return `conic-gradient(from ${a}deg, transparent 0deg, rgba(255,200,240,${base}) 20deg, rgba(180,220,255,${peak}) 45deg, rgba(255,255,255,${peak + 0.15}) 60deg, rgba(200,255,220,${base}) 80deg, transparent 110deg, transparent 180deg, rgba(255,220,180,${base * 0.7}) 210deg, rgba(200,180,255,${base * 0.8}) 240deg, transparent 270deg, transparent 360deg)`;
+      return `conic-gradient(from ${a}deg, transparent 0deg, rgba(200,200,205,${base}) 20deg, rgba(220,220,225,${peak}) 45deg, rgba(255,255,255,${peak + 0.15}) 60deg, rgba(210,210,215,${base}) 80deg, transparent 110deg, transparent 180deg, rgba(230,230,235,${base * 0.7}) 210deg, rgba(200,200,210,${base * 0.8}) 240deg, transparent 270deg, transparent 360deg)`;
     }
   );
 
@@ -271,7 +270,8 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
-          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")` }}></div>
+          <div className="absolute inset-0" style={{ background: `linear-gradient(170deg, rgba(255,255,255,0.18) 0%, rgba(200,200,205,0.12) 20%, rgba(180,180,185,0.08) 40%, rgba(220,220,225,0.15) 60%, rgba(200,200,205,0.10) 80%, rgba(240,240,245,0.12) 100%)` }}></div>
+          <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'repeating-linear-gradient(105deg, transparent, transparent 1px, rgba(255,255,255,0.4) 1px, rgba(255,255,255,0.4) 2px)' }}></div>
           <div className="absolute inset-0 border border-white/20 rounded-xl" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.2)' }}></div>
           {!prefersReducedMotion && (
             <motion.div
