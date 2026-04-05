@@ -361,13 +361,15 @@ const ActivityListItem: React.FC<{ item: ActivityItem; onViewBooking?: (bookingI
 
   if (isClickable) {
     return (
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onViewTransaction(item.id)}
+        onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onViewTransaction(item.id); } }}
         className="w-full text-left bg-white/60 dark:bg-white/5 backdrop-blur-lg border border-primary/10 dark:border-white/20 rounded-xl p-4 tactile-row hover:bg-white/80 dark:hover:bg-white/10 transition-colors cursor-pointer"
       >
         {content}
-      </button>
+      </div>
     );
   }
 
