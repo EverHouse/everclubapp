@@ -95,9 +95,9 @@ function useCardLightEffects() {
   const edgeGlimmerBackground = useTransform(
     [edgeAngle, tiltIntensity],
     ([a, intensity]: number[]) => {
-      const base = 0.45 + intensity * 0.55;
-      const peak = 0.6 + intensity * 0.4;
-      return `conic-gradient(from ${a}deg, transparent 0deg, rgba(220,220,225,${base}) 15deg, rgba(240,240,245,${peak}) 35deg, rgba(255,255,255,${Math.min(1, peak + 0.2)}) 55deg, rgba(255,255,255,${Math.min(1, peak + 0.25)}) 65deg, rgba(240,240,245,${peak}) 85deg, rgba(220,220,225,${base}) 105deg, transparent 130deg, transparent 180deg, rgba(230,230,235,${base * 0.6}) 200deg, rgba(240,240,245,${base * 0.7}) 225deg, rgba(220,220,230,${base * 0.5}) 250deg, transparent 280deg, transparent 360deg)`;
+      const base = 0.6 + intensity * 0.4;
+      const peak = Math.min(1, 0.85 + intensity * 0.15);
+      return `conic-gradient(from ${a}deg, rgba(180,180,185,${base * 0.3}) 0deg, rgba(220,220,225,${base}) 10deg, rgba(245,245,250,${peak}) 30deg, rgba(255,255,255,${peak}) 45deg, rgba(255,255,255,${peak}) 70deg, rgba(245,245,250,${peak}) 90deg, rgba(220,220,225,${base}) 110deg, rgba(180,180,185,${base * 0.3}) 135deg, transparent 160deg, transparent 180deg, rgba(210,210,215,${base * 0.5}) 195deg, rgba(235,235,240,${base * 0.65}) 220deg, rgba(245,245,250,${base * 0.7}) 240deg, rgba(235,235,240,${base * 0.65}) 260deg, rgba(210,210,215,${base * 0.5}) 280deg, transparent 310deg, transparent 360deg)`;
     }
   );
 
@@ -248,10 +248,10 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
         <div className="relative h-56 lg:h-full lg:min-h-56">
           {!prefersReducedMotion && (
             <motion.div
-              className="absolute -inset-[3px] rounded-xl pointer-events-none"
+              className="absolute -inset-[5px] rounded-2xl pointer-events-none"
               style={{
                 background: edgeGlimmerBackground,
-                filter: 'blur(3px)',
+                filter: 'blur(4px)',
                 willChange: 'background',
               }}
               aria-hidden="true"
