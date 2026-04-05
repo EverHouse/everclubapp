@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.41] - 2026-04-05
+
+### Performance — Remove redundant Google Calendar fetch from approved-bookings endpoint
+- **Fixed: `/api/approved-bookings` no longer makes a live Google Calendar API call on every request.** The endpoint previously fetched conference room events from both the database (already synced by background `syncConferenceRoomCalendarToBookings`) AND a live Google Calendar API call, then merged/deduped them. The live fetch added 200-500ms+ of latency on every page load and consumed a database connection while waiting. Since the background sync already mirrors calendar events into `booking_requests`, the live fetch was redundant. Removed `calendarPromise`, `dbCalendarEventIds`, and the calendar event merge/filter logic. The endpoint now serves exclusively from the database. This also reduces connection pool pressure, helping address the production pool exhaustion issue (20/20 connections at 100% utilization).
+
+Files changed: `server/routes/bays/calendar.ts`
+
 ## [8.98.40] - 2026-04-05
 
 ### Rate Limiting & JWT Security — Supabase User Recognition, Registration Protection, Audience Validation

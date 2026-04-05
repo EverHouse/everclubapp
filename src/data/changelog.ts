@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.41",
+    date: "2026-04-05",
+    title: "Booking Calendar Speed Improvement",
+    changes: [
+      "Improved: The staff booking calendar now loads significantly faster by removing a redundant external calendar lookup on every page load.",
+    ]
+  },
+  {
     version: "8.98.40",
     date: "2026-04-05",
     title: "Rate Limiting & JWT Security",

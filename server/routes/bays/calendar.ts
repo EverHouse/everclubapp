@@ -74,19 +74,6 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
     conditions.push(gte(bookingRequests.requestDate, defaultStartDate as string));
     conditions.push(lte(bookingRequests.requestDate, defaultEndDate as string));
     
-    const calendarPromise = (async () => {
-      try {
-        const [calendarEvents, confRoomId] = await Promise.all([
-          getConferenceRoomBookingsFromCalendar(),
-          getConferenceRoomId(),
-        ]);
-        return { calendarEvents, confRoomId };
-      } catch (calError) {
-        logger.error('Failed to fetch calendar conference bookings (non-blocking)', { extra: { error: getErrorMessage(calError) } });
-        return { calendarEvents: [] as Array<{ id: string; date: string; startTime: string; endTime: string; memberName?: string; description?: string }>, confRoomId: null as number | null };
-      }
-    })();
-
     const dbResult = await db.select({
       id: bookingRequests.id,
       user_email: bookingRequests.userEmail,
@@ -194,12 +181,6 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
 
     await Promise.all(parallelQueries);
 
-    const dbCalendarEventIds = new Set(
-      dbResult
-        .filter(r => r.calendar_event_id)
-        .map(r => r.calendar_event_id)
-    );
-
     const enrichedDbResult = dbResult.map(b => {
       const emailLower = b.user_email?.toLowerCase();
       const resolvedUserName = (emailLower && userNameMap.get(emailLower)) || b.user_name;
@@ -221,39 +202,7 @@ router.get('/api/approved-bookings', isStaffOrAdmin, async (req, res) => {
       };
     });
     
-    const { calendarEvents, confRoomId } = await calendarPromise;
-    const calendarBookings = calendarEvents
-      .filter(event => {
-        if (dbCalendarEventIds.has(event.id)) return false;
-        if (event.date < (defaultStartDate as string)) return false;
-        if (event.date > (defaultEndDate as string)) return false;
-        return true;
-      })
-      .map(event => ({
-        id: `cal_${event.id}`,
-        user_email: null,
-        user_name: event.memberName ?? '',
-        resource_id: confRoomId,
-        resource_preference: null,
-        request_date: event.date,
-        start_time: event.startTime + ':00',
-        duration_minutes: null,
-        end_time: event.endTime + ':00',
-        notes: event.description,
-        status: 'approved',
-        staff_notes: null,
-        suggested_time: null,
-        reviewed_by: null,
-        reviewed_at: null,
-        created_at: null,
-        updated_at: null,
-        calendar_event_id: event.id,
-        resource_name: 'Conference Room',
-        resource_type: 'conference_room',
-        source: 'calendar'
-      }));
-
-    const allBookings = ([...enrichedDbResult, ...calendarBookings] as Array<Record<string, unknown>>)
+    const allBookings = (enrichedDbResult as Array<Record<string, unknown>>)
       .sort((a, b) => {
         const dateCompare = (String(a.request_date || '')).localeCompare(String(b.request_date || ''));
         if (dateCompare !== 0) return dateCompare;
