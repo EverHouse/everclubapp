@@ -248,7 +248,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
-            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group ${isExpired ? 'grayscale-[30%]' : ''}`}
+            className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group transition-transform duration-150 motion-safe:active:scale-[0.98] ${isExpired ? 'grayscale-[30%]' : ''}`}
             style={{ touchAction: 'none' }}
           >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
