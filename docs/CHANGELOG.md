@@ -2,6 +2,18 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.56] - 2026-04-05
+
+### Staff Manual RSVP Capacity Check
+- **Added capacity enforcement to manual RSVP endpoint.** The `POST /api/events/:id/rsvps/manual` staff endpoint bypassed the `maxAttendees` limit — staff could add unlimited attendees past capacity. Now queries the event's `maxAttendees`, counts current confirmed RSVPs, and rejects with a clear error if the event is full.
+
+Files changed: `server/routes/events/rsvp.ts`
+
+### Event Deletion Cancels RSVPs and Notifies Attendees
+- **Added RSVP cancellation and member notification on event archival.** When staff deleted (archived) an event, confirmed RSVPs remained in `confirmed` status in the database and attendees received no notification. Now cancels all confirmed RSVPs within the deletion transaction and sends each attendee an "Event Cancelled" notification with the event title and date.
+
+Files changed: `server/routes/events/crud.ts`
+
 ## [8.98.55] - 2026-04-05
 
 ### POS Cart Total Mismatch Fix

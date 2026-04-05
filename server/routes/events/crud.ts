@@ -9,6 +9,7 @@ import { getSessionUser } from '../../types/session';
 import { logFromRequest } from '../../core/auditLog';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { logger, logAndRespond } from '../../core/logger';
+import { notifyMember } from '../../core/notificationService';
 import { createEventAvailabilityBlocks, removeEventAvailabilityBlocks, updateEventAvailabilityBlocks } from './shared';
 import { numericIdParam } from '../../middleware/paramSchemas';
 
@@ -501,7 +502,7 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Event is already archived' });
     }
     
-    const deletedEvent = await db.transaction(async (tx) => {
+    const { event: deletedEvent, cancelledEmails } = await db.transaction(async (tx) => {
       await removeEventAvailabilityBlocks(eventId, tx);
 
       const eventBeforeDelete = await tx.select({
@@ -511,6 +512,11 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
         location: events.location
       }).from(events).where(eq(events.id, eventId));
 
+      const cancelledRsvps = await tx.update(eventRsvps)
+        .set({ status: 'cancelled' })
+        .where(and(eq(eventRsvps.eventId, eventId), eq(eventRsvps.status, 'confirmed')))
+        .returning({ userEmail: eventRsvps.userEmail });
+
       await tx.update(events)
         .set({
           archivedAt: new Date(),
@@ -518,8 +524,21 @@ router.delete('/api/events/:id', isStaffOrAdmin, async (req, res) => {
         })
         .where(eq(events.id, eventId));
 
-      return eventBeforeDelete[0] || { title: 'Unknown', eventDate: '', startTime: '', location: '' };
+      return {
+        event: eventBeforeDelete[0] || { title: 'Unknown', eventDate: '', startTime: '', location: '' },
+        cancelledEmails: cancelledRsvps.map(r => r.userEmail),
+      };
     });
+
+    for (const email of cancelledEmails) {
+      notifyMember({
+        userEmail: email,
+        title: 'Event Cancelled',
+        message: `${deletedEvent.title} on ${deletedEvent.eventDate} has been cancelled.`,
+        type: 'event_cancelled',
+        url: '/events'
+      }).catch(err => logger.warn('[Events] Failed to notify RSVP about cancellation', { extra: { email, error: getErrorMessage(err) } }));
+    }
 
     if (existing[0].googleCalendarId) {
       try {

@@ -353,6 +353,25 @@ router.post('/api/events/:id/rsvps/manual', isStaffOrAdmin, async (req, res) => 
       return res.status(400).json({ error: 'This email is already registered for this event' });
     }
 
+    const eventInfo = await db.select({
+      maxAttendees: events.maxAttendees,
+    }).from(events).where(eq(events.id, parsedEventId));
+
+    if (eventInfo.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const maxCap = eventInfo[0].maxAttendees;
+    if (maxCap && maxCap > 0) {
+      const countResult = await db.select({ count: sql<number>`count(*)::int` })
+        .from(eventRsvps)
+        .where(and(eq(eventRsvps.eventId, parsedEventId), eq(eventRsvps.status, 'confirmed')));
+      const currentCount = countResult[0]?.count || 0;
+      if (currentCount >= maxCap) {
+        return res.status(400).json({ error: `Event is at capacity (${maxCap} attendees)` });
+      }
+    }
+
     await db.insert(eventRsvps).values({
       eventId: parsedEventId,
       userEmail: email,

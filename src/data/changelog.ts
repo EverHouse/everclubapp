@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.56",
+    date: "2026-04-05",
+    title: "Event Safety Improvements",
+    changes: [
+      "Fixed: Staff can no longer manually add RSVPs beyond an event's capacity limit.",
+      "Improved: When an event is cancelled, all confirmed RSVPs are now automatically cancelled and attendees are notified.",
+    ]
+  },
+  {
     version: "8.98.55",
     date: "2026-04-05",
     title: "POS & System Stability",
