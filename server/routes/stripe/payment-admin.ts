@@ -842,19 +842,40 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
       const resolvedPiId = cached.payment_intent_id || cached.stripe_id;
 
       const refundParams: Stripe.RefundCreateParams = {};
+      let resolvedChargeId: string | null = null;
       if (resolvedPiId.startsWith('pi_')) {
         refundParams.payment_intent = resolvedPiId;
+        try {
+          const pi = await stripe.paymentIntents.retrieve(resolvedPiId, { expand: ['latest_charge'] });
+          const lc = pi.latest_charge;
+          if (lc && typeof lc === 'object' && 'id' in lc) resolvedChargeId = lc.id;
+        } catch {}
       } else if (resolvedPiId.startsWith('ch_')) {
         refundParams.charge = resolvedPiId;
+        resolvedChargeId = resolvedPiId;
       } else if (resolvedPiId.startsWith('in_')) {
         const invoice = await stripe.invoices.retrieve(resolvedPiId);
         if (invoice.charge && typeof invoice.charge === 'string') {
           refundParams.charge = invoice.charge;
+          resolvedChargeId = invoice.charge;
         } else {
           return res.status(400).json({ error: 'This invoice has no associated charge and cannot be refunded.' });
         }
       } else {
         return res.status(400).json({ error: 'This transaction type cannot be refunded from this interface. Please use the Stripe dashboard.' });
+      }
+
+      if (resolvedChargeId) {
+        try {
+          const charge = await stripe.charges.retrieve(resolvedChargeId);
+          const remaining = charge.amount - charge.amount_refunded;
+          if (remaining <= 0) {
+            return res.status(400).json({ error: 'This payment has already been fully refunded.' });
+          }
+          if (amountCents && amountCents > 0 && amountCents > remaining) {
+            return res.status(400).json({ error: `Refund amount ($${(amountCents / 100).toFixed(2)}) exceeds the remaining refundable balance ($${(remaining / 100).toFixed(2)}).` });
+          }
+        } catch {}
       }
 
       if (amountCents && amountCents > 0 && amountCents < cached.amount_cents) {
@@ -926,12 +947,28 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
 
     const stripe = await getStripeClient();
 
+    const stripePI = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['latest_charge'] });
+    const latestCharge = stripePI.latest_charge;
+    let remainingRefundable = payment.amountCents;
+    if (latestCharge && typeof latestCharge === 'object' && 'amount_refunded' in latestCharge) {
+      remainingRefundable = (latestCharge.amount || 0) - (latestCharge.amount_refunded || 0);
+    }
+
+    if (remainingRefundable <= 0) {
+      return res.status(400).json({ error: 'This payment has already been fully refunded.' });
+    }
+
     const refundParams: Stripe.RefundCreateParams = {
       payment_intent: paymentIntentId
     };
 
-    if (amountCents && amountCents > 0 && amountCents < payment.amountCents) {
-      refundParams.amount = amountCents;
+    if (amountCents && amountCents > 0) {
+      if (amountCents > remainingRefundable) {
+        return res.status(400).json({ error: `Refund amount ($${(amountCents / 100).toFixed(2)}) exceeds the remaining refundable balance ($${(remainingRefundable / 100).toFixed(2)}).` });
+      }
+      if (amountCents < remainingRefundable) {
+        refundParams.amount = amountCents;
+      }
     }
 
     const refund = await stripe.refunds.create(refundParams, {
@@ -939,8 +976,8 @@ router.post('/api/payments/refund', isStaffOrAdmin, validateBody(refundPaymentSc
     });
 
     const refundedAmount = refund.amount;
-    const isPartialRefund = refundedAmount < payment.amountCents;
-    const newStatus = isPartialRefund ? 'partially_refunded' : 'refunded';
+    const isFullyRefunded = refundedAmount >= remainingRefundable;
+    const newStatus = isFullyRefunded ? 'refunded' : 'partially_refunded';
 
     try {
     await db.transaction(async (tx) => {

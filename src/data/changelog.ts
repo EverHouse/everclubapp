@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.59",
+    date: "2026-04-05",
+    title: "Refund Safety & Event/Tour Guardrails",
+    changes: [
+      "Fixed: Refunds now check the actual remaining balance, preventing staff from accidentally refunding more than what's left on a payment.",
+      "Fixed: Event capacity can no longer be reduced below the number of confirmed RSVPs.",
+      "Fixed: Tour status changes now follow a logical flow — cancelled or completed tours can no longer be reactivated.",
+    ]
+  },
+  {
     version: "8.98.58",
     date: "2026-04-05",
     title: "Session Security & Stability Improvements",

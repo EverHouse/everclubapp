@@ -193,7 +193,15 @@ router.post('/api/tours/:id/checkin', isStaffOrAdmin, async (req, res) => {
     const tourId = parseInt(idParse.data, 10);
     if (isNaN(tourId)) return res.status(400).json({ error: 'Invalid tour ID' });
     const staffEmail = getSessionUser(req)?.email || req.body.staffEmail;
-    
+
+    const [existingTour] = await db.select({ status: tours.status }).from(tours).where(eq(tours.id, tourId));
+    if (!existingTour) {
+      return res.status(404).json({ error: 'Tour not found' });
+    }
+    if (existingTour.status !== 'scheduled') {
+      return res.status(400).json({ error: `Cannot check in a tour with status "${existingTour.status}". Only scheduled tours can be checked in.` });
+    }
+
     const [updated] = await db.update(tours)
       .set({
         status: 'checked_in',
@@ -249,8 +257,24 @@ router.patch('/api/tours/:id/status', isStaffOrAdmin, async (req, res) => {
     if (isNaN(tourId)) return res.status(400).json({ error: 'Invalid tour ID' });
     
     const [existingTour] = await db.select({ status: tours.status }).from(tours).where(eq(tours.id, tourId));
-    const previousStatus = existingTour?.status || 'unknown';
-    
+    if (!existingTour) {
+      return res.status(404).json({ error: 'Tour not found' });
+    }
+    const previousStatus = existingTour.status || 'unknown';
+
+    const allowedTransitions: Record<string, string[]> = {
+      'pending': ['scheduled', 'cancelled'],
+      'scheduled': ['checked_in', 'no-show', 'cancelled'],
+      'checked_in': ['completed', 'cancelled'],
+      'completed': [],
+      'no-show': [],
+      'cancelled': [],
+    };
+    const allowed = allowedTransitions[previousStatus];
+    if (!allowed || !allowed.includes(status)) {
+      return res.status(400).json({ error: `Cannot change tour status from "${previousStatus}" to "${status}".` });
+    }
+
     const updateData: Record<string, unknown> = {
       status,
       updatedAt: new Date(),

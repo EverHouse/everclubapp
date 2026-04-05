@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { isStaffOrAdmin } from '../../core/middleware';
 import { db } from '../../db';
 import { events, eventRsvps, availabilityBlocks } from '../../../shared/schema';
-import { eq, and, sql, gte } from 'drizzle-orm';
+import { eq, and, sql, gte, count } from 'drizzle-orm';
 import { getCalendarIdByName, createCalendarEventOnCalendar, deleteCalendarEvent, updateCalendarEvent, CALENDAR_CONFIG } from '../../core/calendar/index';
 import { createPacificDate, getTodayPacific, getPacificDateParts } from '../../utils/dateUtils';
 import { getSessionUser } from '../../types/session';
@@ -315,6 +315,19 @@ router.put('/api/events/:id', isStaffOrAdmin, async (req, res) => {
     const newBlockSimulators = block_simulators === true || block_simulators === 'true';
     const newBlockConferenceRoom = block_conference_room === true || block_conference_room === 'true';
     
+    if (max_attendees != null) {
+      const newCap = Number(max_attendees);
+      if (newCap > 0) {
+        const [rsvpRow] = await db.select({ count: count() })
+          .from(eventRsvps)
+          .where(and(eq(eventRsvps.eventId, eventId), eq(eventRsvps.status, 'confirmed')));
+        const confirmedCount = Number(rsvpRow?.count || 0);
+        if (newCap < confirmedCount) {
+          return res.status(400).json({ error: `Cannot reduce capacity to ${newCap} — there are already ${confirmedCount} confirmed RSVPs.` });
+        }
+      }
+    }
+
     const hasValidCategory = category && category.trim() !== '' && category !== 'General';
     const hasDescription = description && description.trim() !== '';
     const hasLocation = location && location.trim() !== '';

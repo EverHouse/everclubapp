@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.59] - 2026-04-05
+
+### Refund Over-Charge Prevention
+- **Added remaining-balance validation before processing refunds.** The `/api/payments/refund` endpoint compared the requested refund amount against the *original* payment total, not the remaining refundable balance after prior partial refunds. This meant multiple partial refunds could be issued that exceeded the original charge (Stripe would reject it with a cryptic error). Now retrieves the charge's `amount_refunded` from Stripe and validates the refund amount against what's actually left before proceeding.
+
+Files changed: `server/routes/stripe/payment-admin.ts`
+
+### Event Capacity Below RSVP Guard
+- **Prevented reducing event capacity below confirmed RSVP count.** The event update endpoint allowed setting `max_attendees` to any value, including below the number of people who had already confirmed their RSVP. This would silently leave the event over-capacity. Now queries confirmed RSVPs before the update and returns a clear error if the new capacity is too low.
+
+Files changed: `server/routes/events/crud.ts`
+
+### Tour Status Transition Validation
+- **Added state machine for tour status transitions.** The tour status update endpoint accepted any valid status value regardless of the current status. This allowed impossible transitions like moving a cancelled tour back to checked-in, or a completed tour back to scheduled. Now enforces a logical flow: pending → scheduled → checked_in → completed, with cancellation allowed from pending/scheduled/checked_in. Completed, no-show, and cancelled are terminal states.
+
+Files changed: `server/routes/tours.ts`
+
 ## [8.98.58] - 2026-04-05
 
 ### Expired Session Bypass in Auth Middleware
