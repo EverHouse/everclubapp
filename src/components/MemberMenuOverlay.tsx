@@ -55,6 +55,15 @@ const MemberMenuOverlay: React.FC<MemberMenuOverlayProps> = ({ isOpen, onClose }
   const menuBgColor = isDark ? '#141414' : '#F2F2EC';
 
   useEffect(() => {
+    return () => {
+      if (scrollCooldownRef.current) {
+        clearTimeout(scrollCooldownRef.current);
+        scrollCooldownRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       originalBodyBgRef.current = document.body.style.backgroundColor || '';
       originalHtmlBgRef.current = document.documentElement.style.backgroundColor || '';

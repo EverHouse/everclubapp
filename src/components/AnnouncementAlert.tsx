@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,22 +16,30 @@ const AnnouncementAlert: React.FC = () => {
   const { unseenHighPriority, markSingleAsSeen, markAllAsSeen } = useAnnouncementBadge();
   const { showToast } = useToast();
   const [isExiting, setIsExiting] = useState(false);
+  const pendingDismissIdRef = useRef<string | null>(null);
   const prefersReduced = useReducedMotion();
 
   const handleDismiss = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     haptic.light();
+    pendingDismissIdRef.current = unseenHighPriority[0]?.id ?? null;
     setIsExiting(true);
-  }, []);
+  }, [unseenHighPriority]);
 
   const handleExitComplete = useCallback(async () => {
+    const dismissId = pendingDismissIdRef.current;
+    pendingDismissIdRef.current = null;
+    if (dismissId == null) {
+      setIsExiting(false);
+      return;
+    }
     try {
-      await markSingleAsSeen(unseenHighPriority[0]?.id);
+      await markSingleAsSeen(dismissId);
     } catch {
       showToast('Failed to dismiss announcement', 'error');
     }
     setIsExiting(false);
-  }, [markSingleAsSeen, unseenHighPriority, showToast]);
+  }, [markSingleAsSeen, showToast]);
 
   const latestAnnouncement = unseenHighPriority[0];
   const isAlertVisible = unseenHighPriority.length > 0 && !isExiting;

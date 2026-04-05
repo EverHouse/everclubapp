@@ -397,7 +397,7 @@ const AnimatedRoutes: React.FC = () => {
     prevPathRef.current = location.pathname;
   }, [location.pathname]);
 
-  const routeKey = '/' + (location.pathname.split('/')[1] || '');
+  const routeKey = location.pathname;
 
   return (
     <TransitionContext.Provider value={transitionState}>

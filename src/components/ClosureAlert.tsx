@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
@@ -37,6 +37,7 @@ const ClosureAlert: React.FC = () => {
   const [dismissedIds, setDismissedIds] = useState<Set<number>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
+  const pendingDismissIdRef = useRef<number | null>(null);
   const getStorageKey = useCallback(() => `eh_dismissed_notices_${user?.email || 'guest'}`, [user?.email]);
 
   useEffect(() => {
@@ -124,17 +125,19 @@ const ClosureAlert: React.FC = () => {
     e.stopPropagation();
     const closure = activeClosures[0];
     if (!closure) return;
+    pendingDismissIdRef.current = closure.id;
     setIsExiting(true);
   }, [activeClosures]);
 
   const handleExitComplete = useCallback(() => {
-    const closure = activeClosures[0];
-    if (!closure) {
+    const dismissId = pendingDismissIdRef.current;
+    pendingDismissIdRef.current = null;
+    if (dismissId == null) {
       setIsExiting(false);
       return;
     }
     const newDismissed = new Set(dismissedIds);
-    newDismissed.add(closure.id);
+    newDismissed.add(dismissId);
     setDismissedIds(newDismissed);
     localStorage.setItem(getStorageKey(), JSON.stringify([...newDismissed]));
     setIsExiting(false);
@@ -143,7 +146,7 @@ const ClosureAlert: React.FC = () => {
       fetchWithCredentials('/api/notices/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noticeType: 'closure', noticeId: closure.id })
+        body: JSON.stringify({ noticeType: 'closure', noticeId: dismissId })
       }).catch((err) => {
         if (attempt < 3) {
           setTimeout(() => persistDismiss(attempt + 1), 1000 * attempt);
@@ -153,7 +156,7 @@ const ClosureAlert: React.FC = () => {
       });
     };
     persistDismiss();
-  }, [activeClosures, dismissedIds, getStorageKey]);
+  }, [dismissedIds, getStorageKey]);
 
   const handleViewDetails = () => {
     navigate('/updates?tab=notices');

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -27,6 +27,15 @@ const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => {
   const scrollCooldownRef = useRef<NodeJS.Timeout | null>(null);
 
   const menuBgColor = isDark ? '#141414' : '#F2F2EC';
+
+  useEffect(() => {
+    return () => {
+      if (scrollCooldownRef.current) {
+        clearTimeout(scrollCooldownRef.current);
+        scrollCooldownRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
