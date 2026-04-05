@@ -79,6 +79,8 @@ function useCard3DTilt() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
+  const gyroPermissionAttempted = useRef(false);
+
   const startGyroListener = useCallback(() => {
     if (gyroListenerRef.current) return;
 
@@ -91,6 +93,8 @@ function useCard3DTilt() {
     const DEAD_ZONE = 1.5;
 
     const handler = (e: DeviceOrientationEvent) => {
+      if (e.beta === null && e.gamma === null) return;
+
       const beta = e.beta ?? 0;
       const gamma = e.gamma ?? 0;
 
@@ -120,21 +124,6 @@ function useCard3DTilt() {
     gyroListenerRef.current = handler;
     window.addEventListener('deviceorientation', handler);
   }, [mouseX, mouseY]);
-
-  const requestGyroPermission = useCallback(() => {
-    if (prefersReducedMotion || gyroListenerRef.current) return;
-
-    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
-
-    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-    if (typeof DOE.requestPermission === 'function') {
-      DOE.requestPermission().then((state: string) => {
-        if (state === 'granted') startGyroListener();
-      }).catch(() => {});
-    } else {
-      startGyroListener();
-    }
-  }, [prefersReducedMotion, startGyroListener]);
 
   useEffect(() => {
     return () => {
@@ -168,18 +157,31 @@ function useCard3DTilt() {
     });
   }, [mouseX, mouseY]);
 
-  const handleTouchStart = useCallback(() => {
-    requestGyroPermission();
-  }, [requestGyroPermission]);
-
   useEffect(() => {
     if (prefersReducedMotion) return;
     if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return;
 
     const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+
     if (typeof DOE.requestPermission !== 'function') {
       startGyroListener();
+      return;
     }
+
+    const el = cardRef.current;
+    if (!el) return;
+
+    const onTouchStart = () => {
+      if (gyroListenerRef.current || gyroPermissionAttempted.current) return;
+      gyroPermissionAttempted.current = true;
+
+      DOE.requestPermission!().then((state: string) => {
+        if (state === 'granted') startGyroListener();
+      }).catch(() => {});
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    return () => el.removeEventListener('touchstart', onTouchStart);
   }, [prefersReducedMotion, startGyroListener]);
 
   return {
@@ -193,7 +195,6 @@ function useCard3DTilt() {
     edgeGlowYHalf: prefersReducedMotion ? undefined : edgeGlowYHalf,
     handlePointerMove,
     handlePointerLeave,
-    handleTouchStart,
     prefersReducedMotion,
   };
 }
@@ -215,7 +216,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const {
     cardRef, rotateX, rotateY, sheenBackground,
     edgeGlowX, edgeGlowY, edgeGlowXHalf, edgeGlowYHalf,
-    handlePointerMove, handlePointerLeave, handleTouchStart, prefersReducedMotion,
+    handlePointerMove, handlePointerLeave, prefersReducedMotion,
   } = useCard3DTilt();
 
   return (
@@ -254,7 +255,6 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             role="button"
             tabIndex={0}
             onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsCardOpen(true); } }}
-            onTouchStart={handleTouchStart}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
             className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group ${isExpired ? 'grayscale-[30%]' : ''}`}
