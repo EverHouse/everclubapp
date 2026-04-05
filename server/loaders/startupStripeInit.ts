@@ -54,6 +54,22 @@ export async function initStripe(startupHealth: StartupHealth): Promise<void> {
         logger.error('[Stripe Env] Validation failed', { extra: { error: getErrorMessage(err) } });
       }
 
+      try {
+        const { checkWebhookCoverage } = await import('../core/stripe/webhooks/coverageCheck');
+        const coverage = checkWebhookCoverage();
+        if (coverage.unhandledExpected.length > 0) {
+          logger.warn(`[Stripe Webhook Coverage] ${coverage.unhandledExpected.length} expected event type(s) missing handlers: ${coverage.unhandledExpected.join(', ')}`);
+          startupHealth.warnings.push(`Stripe webhook coverage: ${coverage.unhandledExpected.length} missing handler(s)`);
+        } else {
+          logger.info(`[Stripe Webhook Coverage] All ${coverage.expectedCount} expected event types have handlers`);
+        }
+        if (coverage.unexpectedHandled.length > 0) {
+          logger.info(`[Stripe Webhook Coverage] ${coverage.unexpectedHandled.length} handler(s) not in expected list: ${coverage.unexpectedHandled.join(', ')}`);
+        }
+      } catch (err: unknown) {
+        logger.warn('[Stripe Webhook Coverage] Coverage check failed (non-blocking)', { extra: { error: getErrorMessage(err) } });
+      }
+
       (stripeSync as unknown as { syncBackfill: () => Promise<void> }).syncBackfill()
         .then(() => logger.info('[Stripe] Data sync complete'))
         .catch((err: unknown) => {
