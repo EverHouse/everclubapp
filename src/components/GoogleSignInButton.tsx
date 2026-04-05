@@ -81,10 +81,8 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
       .catch(() => onErrorRef.current?.('Failed to load Google Sign-In'));
   }, [clientId]);
 
-  const initializedRef = useRef(false);
-
   useEffect(() => {
-    if (!loaded || !clientId || initializedRef.current) return;
+    if (!loaded || !clientId) return;
 
     const google = getGoogleApi();
     if (!google?.accounts?.id) return;
@@ -100,7 +98,6 @@ const GoogleSignInButton: React.FC<GoogleSignInButtonProps> = ({
         }
       },
     });
-    initializedRef.current = true;
   }, [loaded, clientId]);
 
   useEffect(() => {
