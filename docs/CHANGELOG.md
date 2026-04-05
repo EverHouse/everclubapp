@@ -2,6 +2,18 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.62] - 2026-04-05
+
+### XSS Escaping in Guest Pass and Payment Emails
+- **Added `escapeHtml` to unescaped user-controlled fields in `passEmails.ts` and `paymentEmails.ts`.** The guest pass check-in email rendered `guestName` directly into HTML without escaping (2 occurrences). The payment confirmation, outstanding balance, and fee waiver emails rendered `description`, `bookingDescription`, and `transactionId` without escaping. A malicious value in any of these fields could inject arbitrary HTML into the email body. Now all user-controlled text in these templates is escaped via `escapeHtml`.
+
+Files changed: `server/emails/passEmails.ts`, `server/emails/paymentEmails.ts`
+
+### POS Terminal Idempotency Key Fix
+- **Replaced 30-second time-window idempotency keys with unique transaction nonces.** The `process-payment` endpoint used `Math.floor(Date.now() / 30000)` as part of the Stripe idempotency key. This caused two problems: (1) two different transactions for the same customer and amount within the same 30-second window would collide and the second would silently return the first Payment Intent, and (2) after the window expired, a timed-out-but-succeeded request could be retried, creating a duplicate charge. Now generates a `crypto.randomUUID()` nonce per request (or accepts one from the client via `transactionNonce`), ensuring each transaction attempt gets a unique key. Also fixed the `terminal_existing_` key to use the original Payment Intent ID alone, since it is already globally unique.
+
+Files changed: `server/routes/stripe/terminal.ts`
+
 ## [8.98.61] - 2026-04-05
 
 ### Staff Wellness Enrollment Capacity Check

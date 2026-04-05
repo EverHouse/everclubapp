@@ -2,7 +2,7 @@ import { getResendClient } from '../utils/resend';
 import { logger } from '../core/logger';
 import { isEmailCategoryEnabled } from '../core/settingsHelper';
 import QRCode from 'qrcode';
-import { emailLayout, CLUB_COLORS, formatDate } from './emailLayout';
+import { emailLayout, CLUB_COLORS, formatDate, escapeHtml } from './emailLayout';
 import { getErrorMessage } from '../utils/errorUtils';
 
 async function generateQrDataUri(data: string): Promise<string> {
@@ -183,7 +183,7 @@ function getGolfPassContent(details: RedemptionDetails, formattedType: string, f
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${details.guestName}! Your ${formattedType} has been checked in at ${formattedTime}.
+                Hi ${escapeHtml(details.guestName)}! Your ${formattedType} has been checked in at ${formattedTime}.
                 ${details.remainingUses > 0 ? `You have ${details.remainingUses} ${details.remainingUses === 1 ? 'use' : 'uses'} remaining.` : ''}
               </p>
             </td>
@@ -275,7 +275,7 @@ function getWorkspacePassContent(details: RedemptionDetails, formattedType: stri
           <tr>
             <td style="text-align: center; padding-bottom: 32px;">
               <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textMuted}; line-height: 1.6;">
-                Hi ${details.guestName}! Your ${formattedType} has been checked in at ${formattedTime}.
+                Hi ${escapeHtml(details.guestName)}! Your ${formattedType} has been checked in at ${formattedTime}.
                 ${details.remainingUses > 0 ? `You have ${details.remainingUses} ${details.remainingUses === 1 ? 'use' : 'uses'} remaining.` : ''}
               </p>
             </td>

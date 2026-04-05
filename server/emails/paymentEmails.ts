@@ -50,7 +50,7 @@ export function getPaymentReceiptHtml(params: PaymentReceiptParams): string {
                       <tr>
                         <td style="padding-top: 16px; padding-bottom: 12px;">
                           <p style="margin: 0 0 4px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Description</p>
-                          <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textDark};">${description}</p>
+                          <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textDark};">${escapeHtml(description)}</p>
                         </td>
                       </tr>
                       <tr>
@@ -63,7 +63,7 @@ export function getPaymentReceiptHtml(params: PaymentReceiptParams): string {
                       <tr>
                         <td>
                           <p style="margin: 0 0 4px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Transaction ID</p>
-                          <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textMuted}; font-family: monospace;">${transactionId}</p>
+                          <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textMuted}; font-family: monospace;">${escapeHtml(transactionId)}</p>
                         </td>
                       </tr>
                       ` : ''}
@@ -210,7 +210,7 @@ export function getOutstandingBalanceHtml(params: OutstandingBalanceParams): str
                       <tr>
                         <td style="padding-top: 16px; padding-bottom: 12px;">
                           <p style="margin: 0 0 4px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Description</p>
-                          <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textDark};">${description}</p>
+                          <p style="margin: 0; font-size: 16px; color: ${CLUB_COLORS.textDark};">${escapeHtml(description)}</p>
                         </td>
                       </tr>
                       ${dueDate ? `
@@ -310,7 +310,7 @@ export function getFeeWaivedHtml(params: FeeWaivedParams): string {
           <tr>
             <td style="padding-bottom: 32px;">
               <p style="margin: 0 0 8px 0; font-size: 12px; color: ${CLUB_COLORS.textMuted}; text-transform: uppercase; letter-spacing: 0.5px;">Related Booking</p>
-              <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textDark}; line-height: 1.6;">${bookingDescription}</p>
+              <p style="margin: 0; font-size: 14px; color: ${CLUB_COLORS.textDark}; line-height: 1.6;">${escapeHtml(bookingDescription)}</p>
             </td>
           </tr>
           ` : ''}

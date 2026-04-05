@@ -168,7 +168,7 @@ router.post('/api/stripe/terminal/create-simulated-reader', isStaffOrAdmin, asyn
 
 router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
-    const { readerId, amount, currency = 'usd', description, metadata, cartItems } = req.body;
+    const { readerId, amount, currency = 'usd', description, metadata, cartItems, transactionNonce } = req.body;
     
     if (!readerId) {
       return res.status(400).json({ error: 'Reader ID is required' });
@@ -176,6 +176,9 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: 'Valid amount is required' });
     }
+
+    const crypto = await import('crypto');
+    const txnNonce = transactionNonce || crypto.randomUUID();
     
     const stripe = await getStripeClient();
     
@@ -328,7 +331,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
           ...(customerId ? { customer: customerId } : {}),
           ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
         }, {
-          idempotencyKey: `terminal_fallback_${customerId || 'anon'}_${amount}_${Math.floor(Date.now() / 30000)}`
+          idempotencyKey: `terminal_fallback_${txnNonce}`
         });
       }
     } else {
@@ -400,7 +403,7 @@ router.post('/api/stripe/terminal/process-payment', isStaffOrAdmin, async (req: 
         ...(customerId ? { customer: customerId } : {}),
         ...(metadata?.ownerEmail ? { receipt_email: metadata.ownerEmail } : {})
       }, {
-        idempotencyKey: `terminal_${customerId || 'anon'}_${amount}_${Math.floor(Date.now() / 30000)}`
+        idempotencyKey: `terminal_${txnNonce}`
       });
     }
     
@@ -1400,7 +1403,7 @@ router.post('/api/stripe/terminal/process-existing-payment', isStaffOrAdmin, asy
           originalPaymentIntentId: paymentIntentId,
         },
       }, {
-        idempotencyKey: `terminal_existing_${paymentIntentId}_${Math.floor(Date.now() / 30000)}`,
+        idempotencyKey: `terminal_existing_${paymentIntentId}`,
       });
       terminalPiId = newPi.id;
       logger.info('[Terminal] Created new card_present PI for terminal', { extra: { newPiId: newPi.id, originalPiId: paymentIntentId } });

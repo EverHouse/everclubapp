@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.62",
+    date: "2026-04-05",
+    title: "Email Security & Payment Idempotency",
+    changes: [
+      "Fixed: Guest name and payment descriptions in emails are now properly sanitized to prevent content injection.",
+      "Fixed: POS terminal payments now use unique transaction IDs instead of time-based windows, preventing both duplicate charges and blocked legitimate transactions.",
+    ]
+  },
+  {
     version: "8.98.61",
     date: "2026-04-05",
     title: "Wellness, Import & CRM Safety",
