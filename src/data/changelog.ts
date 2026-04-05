@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.65",
+    date: "2026-04-05",
+    title: "Day Pass Expiration, Tier Sync Safety & Financial Reports",
+    changes: [
+      "Fixed: Expired day passes can no longer be redeemed — the system now checks the expiration date before allowing use.",
+      "Fixed: Tier changes for Stripe members now update Stripe first, preventing the database from getting out of sync if the Stripe call fails.",
+      "Fixed: Daily financial summary now only includes USD transactions, preventing incorrect totals when non-USD payments exist.",
+    ]
+  },
+  {
     version: "8.98.64",
     date: "2026-04-05",
     title: "Settings Security & Feature Flag Safety",

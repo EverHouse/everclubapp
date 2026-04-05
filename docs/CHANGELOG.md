@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.65] - 2026-04-05
+
+### Day Pass Expiration Check on Redemption
+- **Added `expires_at` validation to day pass redemption queries.** Both `redeemDayPassForBooking` and `processBookingDayPassRedemptions` checked `status = 'active'` and `remaining_uses > 0` but never checked the `expires_at` column. An expired day pass with remaining uses could still be redeemed. Now the UPDATE WHERE clause includes `AND (expires_at IS NULL OR expires_at > NOW())`, rejecting expired passes.
+
+Files changed: `server/core/billing/dayPassRedemption.ts`
+
+### Tier Update Processor: Stripe-First to Prevent DB/Stripe Desync
+- **Reordered tier change operations to update Stripe before the local database.** Previously, the local DB was updated first and if the subsequent Stripe `changeSubscriptionTier` call failed, the error was caught and logged but the DB change was not rolled back — leaving the member on a different tier locally than in Stripe. Now Stripe is updated first; if it fails, the error propagates and the DB is never updated, keeping both systems in sync.
+
+Files changed: `server/core/memberTierUpdateProcessor.ts`
+
+### Daily Financial Summary: USD-Only Currency Filter
+- **Added currency filter to daily financial summary report.** The `GET /api/payments/daily-summary` endpoint iterated through all Stripe PaymentIntents and Charges, summing their amounts into a single breakdown. If any non-USD transaction existed (e.g., a test charge in EUR), it would be added to the USD total as if it were cents, producing an incorrect report. Now filters to only include `currency === 'usd'` transactions.
+
+Files changed: `server/routes/stripe/financial-reports.ts`
+
 ## [8.98.64] - 2026-04-05
 
 ### Settings Endpoint Access Control Hardening

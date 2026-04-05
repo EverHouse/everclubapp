@@ -47,6 +47,7 @@ export async function redeemDayPassForBooking(
           AND product_type = ${DAY_PASS_PRODUCT_TYPE}
           AND status = 'active'
           AND remaining_uses > 0
+          AND (expires_at IS NULL OR expires_at > NOW())
         RETURNING remaining_uses
       `);
 
@@ -222,6 +223,7 @@ export async function processBookingDayPassRedemptions(
             AND product_type = ${DAY_PASS_PRODUCT_TYPE}
             AND status = 'active'
             AND remaining_uses > 0
+            AND (expires_at IS NULL OR expires_at > NOW())
           RETURNING remaining_uses
         `);
         if (!updateResult.rows || updateResult.rows.length === 0) {

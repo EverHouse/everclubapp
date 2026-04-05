@@ -413,6 +413,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
 
     for (const pi of allPaymentIntents) {
       if (pi.status !== 'succeeded') continue;
+      if (pi.currency && pi.currency !== 'usd') continue;
       const charge = typeof pi.latest_charge === 'object' ? pi.latest_charge : null;
       if (charge && charge.refunded) continue;
       processedIds.add(pi.id);
@@ -429,6 +430,7 @@ router.get('/api/payments/daily-summary', isStaffOrAdmin, async (req: Request, r
     const invoiceIds = new Set<string>();
     for (const ch of allCharges) {
       if (!ch.paid || ch.refunded) continue;
+      if (ch.currency && ch.currency !== 'usd') continue;
       if (ch.payment_intent && processedIds.has(ch.payment_intent as string)) continue;
       
       processedIds.add(ch.id);
