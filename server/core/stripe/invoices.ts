@@ -817,7 +817,11 @@ export async function getCustomerPaymentHistory(customerId: string, limit = 50):
         object_type as type,
         amount_cents,
         currency,
-        status,
+        CASE status
+          WHEN 'payment_failed' THEN 'failed'
+          WHEN 'paid' THEN 'succeeded'
+          ELSE status
+        END as status,
         COALESCE(description, 'Payment') as description,
         created_at
       FROM stripe_transaction_cache
