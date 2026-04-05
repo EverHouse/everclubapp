@@ -8044,5 +8044,41 @@
     "method": "POST",
     "path": "/api/admin/consent/backfill",
     "reason": "no-body staff-only backfill — rate limited + isStaffOrAdmin, no request body to validate"
+  },
+  {
+    "file": "server/routes/financials.ts",
+    "method": "POST",
+    "path": "/api/financials/sync-stripe",
+    "reason": "staff-only with inline rate limit (60s cooldown) + isStaffOrAdmin, inline body validation"
+  },
+  {
+    "file": "server/routes/financials.ts",
+    "method": "POST",
+    "path": "/api/financials/invoices/:id/finalize",
+    "reason": "staff-only invoice action — isStaffOrAdmin + inline param validation (in_ prefix check)"
+  },
+  {
+    "file": "server/routes/financials.ts",
+    "method": "POST",
+    "path": "/api/financials/invoices/:id/void",
+    "reason": "staff-only invoice action — isStaffOrAdmin + inline param validation (in_ prefix check)"
+  },
+  {
+    "file": "server/routes/financials.ts",
+    "method": "POST",
+    "path": "/api/financials/invoices/:id/send",
+    "reason": "staff-only invoice action — isStaffOrAdmin + inline param validation (in_ prefix check)"
+  },
+  {
+    "file": "server/routes/financials.ts",
+    "method": "POST",
+    "path": "/api/financials/invoices/:id/mark-uncollectible",
+    "reason": "staff-only invoice action — isStaffOrAdmin + inline param validation (in_ prefix check)"
+  },
+  {
+    "file": "server/routes/financials.ts",
+    "method": "DELETE",
+    "path": "/api/financials/invoices/:id",
+    "reason": "staff-only invoice action — isStaffOrAdmin + inline param validation (in_ prefix check)"
   }
 ]
