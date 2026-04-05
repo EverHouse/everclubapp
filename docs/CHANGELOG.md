@@ -2,6 +2,13 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.44] - 2026-04-05
+
+### Membership Card Gyroscope Auto-Resume on Navigation
+- **Auto-start gyroscope listener on mount when permission already granted.** On iOS, `DeviceOrientationEvent.requestPermission()` was only called inside the card's `onClick` handler (`requestGyroPermission`). When navigating away from Dashboard and back, the component remounted but never re-attached the `deviceorientation` listener — the card appeared static until tapped. Added an `else` branch in the mount `useEffect` that calls `requestPermission()` on iOS; if permission was already granted for the session, it resolves immediately to `'granted'` and starts the listener without requiring a user gesture.
+
+Files changed: `src/pages/Member/Dashboard/MembershipCard.tsx`
+
 ## [8.98.43] - 2026-04-05
 
 ### Fix Deployment Cache Header Policy

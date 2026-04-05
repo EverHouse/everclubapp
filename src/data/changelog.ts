@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.44",
+    date: "2026-04-05",
+    title: "Membership Card Motion Fix",
+    changes: [
+      "Fixed: The membership card's gyroscope tilt effect now automatically resumes when you return to the Dashboard, without needing to tap the card again.",
+    ]
+  },
+  {
     version: "8.98.43",
     date: "2026-04-05",
     title: "Fix Deployment Cache Header Policy",

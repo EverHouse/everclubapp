@@ -218,6 +218,10 @@ function useCardLightEffects() {
     const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
     if (typeof DOE.requestPermission !== 'function') {
       startGyroListener();
+    } else {
+      DOE.requestPermission().then((state: string) => {
+        if (state === 'granted') startGyroListener();
+      }).catch(() => {});
     }
   }, [prefersReducedMotion, startGyroListener]);
 
