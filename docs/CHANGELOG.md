@@ -2,6 +2,23 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.61] - 2026-04-05
+
+### Staff Wellness Enrollment Capacity Check
+- **Added capacity validation to staff manual wellness enrollment endpoint.** The `POST /api/wellness-classes/:id/enrollments/manual` route inserted enrollments directly without checking whether the class was at capacity. Staff could enroll members beyond the class limit while waitlisted members remained stuck. Now queries the class capacity and current enrolled count before inserting, and returns a clear error if the class is full.
+
+Files changed: `server/routes/wellness/classes.ts`
+
+### Trackman CSV Import Row Limit
+- **Added a 10,000-row cap to Trackman CSV imports.** The `importTrackmanBookings` function read the entire CSV file into memory with `fs.readFileSync` and processed all rows without any limit. A very large CSV (e.g., years of historical data) could exhaust Node.js heap memory and crash the server. Now rejects files exceeding 10,000 data rows with a clear error message suggesting the user split the file.
+
+Files changed: `server/core/trackman/trackmanImport.ts`
+
+### HubSpot Duplicate Contact Prevention on Search Error
+- **Changed `findOrCreateHubSpotContact` to abort on unexpected search errors instead of falling through to creation.** Previously, if the HubSpot contact search failed with a non-network, non-404 error (e.g., a transient API glitch or malformed response), the function logged a warning and proceeded to create a new contact — potentially creating a duplicate if the contact actually existed. Now only falls through to creation on a genuine 404 (not found); all other errors are re-thrown so the caller can retry or queue the operation.
+
+Files changed: `server/core/hubspot/members.ts`
+
 ## [8.98.60] - 2026-04-05
 
 ### Availability Block Time Validation

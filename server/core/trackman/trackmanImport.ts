@@ -35,11 +35,22 @@ export async function importTrackmanBookings(csvPath: string, importedBy?: strin
   updatedRows: number;
   errors: string[];
 }> {
+  const MAX_IMPORT_ROWS = 10000;
+  const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+  const stats = fs.statSync(csvPath);
+  if (stats.size > MAX_FILE_SIZE_BYTES) {
+    const sizeMB = Math.round(stats.size / (1024 * 1024));
+    return { totalRows: 0, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: [`CSV file is ${sizeMB}MB, exceeding the maximum of 50MB. Please split into smaller files.`] };
+  }
   const content = fs.readFileSync(csvPath, 'utf-8');
   const parsedRows = parseCSVWithMultilineSupport(content);
   
   if (parsedRows.length < 2) {
     return { totalRows: 0, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: ['Empty or invalid CSV'] };
+  }
+
+  if (parsedRows.length - 1 > MAX_IMPORT_ROWS) {
+    return { totalRows: parsedRows.length - 1, matchedRows: 0, linkedRows: 0, unmatchedRows: 0, skippedRows: 0, removedFromUnmatched: 0, cancelledBookings: 0, updatedRows: 0, errors: [`CSV contains ${parsedRows.length - 1} data rows, exceeding the maximum of ${MAX_IMPORT_ROWS}. Please split into smaller files.`] };
   }
 
   const hubSpotMembers = await getAllHubSpotMembers();

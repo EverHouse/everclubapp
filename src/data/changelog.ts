@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.61",
+    date: "2026-04-05",
+    title: "Wellness, Import & CRM Safety",
+    changes: [
+      "Fixed: Staff manual wellness enrollment now checks class capacity — can no longer add members beyond the limit while others wait on the waitlist.",
+      "Fixed: Trackman CSV imports are now capped at 10,000 rows to prevent server memory issues from oversized files.",
+      "Fixed: HubSpot contact sync no longer creates duplicate contacts when a temporary search error occurs.",
+    ]
+  },
+  {
     version: "8.98.60",
     date: "2026-04-05",
     title: "Scheduling, Billing & Webhook Reliability",

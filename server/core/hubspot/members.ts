@@ -164,7 +164,12 @@ export async function findOrCreateHubSpotContact(
       throw error;
     }
     
-    logger.warn('[HubSpot] Error searching for contact, will create new one:', { extra: { error: getErrorMessage(error) } });
+    if (!isNotFoundError) {
+      logger.error('[HubSpot] Unexpected error during contact search — aborting to prevent duplicate creation:', { extra: { error: getErrorMessage(error) } });
+      throw error;
+    }
+    
+    logger.info('[HubSpot] Contact not found in search, will create new one for:', email.toLowerCase());
   }
   
   if (isHubSpotReadOnly()) {

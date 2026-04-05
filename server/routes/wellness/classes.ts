@@ -1311,16 +1311,27 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, vali
       return res.status(400).json({ error: 'This email is already enrolled in this class' });
     }
 
-    const classQuery = await db.execute(sql`SELECT id, title, instructor, date, time FROM wellness_classes WHERE id = ${classId}`);
+    const classQuery = await db.execute(sql`SELECT id, title, instructor, date, time, capacity, waitlist_enabled FROM wellness_classes WHERE id = ${classId}`);
     if (classQuery.rows.length === 0) {
       return res.status(404).json({ error: 'Wellness class not found' });
     }
-    const classDetails = classQuery.rows[0] as unknown as WellnessClassDetailRow & { date: string | Date; time: string };
+    const classDetails = classQuery.rows[0] as unknown as WellnessClassDetailRow & { date: string | Date; time: string; capacity: number | null; waitlist_enabled: boolean };
 
-    await db.insert(wellnessEnrollments).values({
-      classId,
-      userEmail: email,
-      status: 'confirmed',
+    await db.transaction(async (tx) => {
+      const lockedResult = await tx.execute(sql`SELECT capacity,
+        COALESCE((SELECT COUNT(*) FROM wellness_enrollments WHERE class_id = ${classId} AND status = 'confirmed' AND is_waitlisted = false), 0)::integer as enrolled_count
+        FROM wellness_classes WHERE id = ${classId} FOR UPDATE`);
+      const locked = lockedResult.rows[0] as { capacity: number | null; enrolled_count: number };
+      const isAtCapacity = locked.capacity !== null && locked.capacity !== undefined && locked.enrolled_count >= locked.capacity;
+      if (isAtCapacity) {
+        throw Object.assign(new Error(`Class is at capacity (${locked.enrolled_count}/${locked.capacity}). Remove an enrollment first or increase capacity.`), { statusCode: 400 });
+      }
+
+      await tx.insert(wellnessEnrollments).values({
+        classId,
+        userEmail: email,
+        status: 'confirmed',
+      });
     });
     
     const dateStr = formatDateFromDb(classDetails.date as Date | string);
@@ -1356,6 +1367,10 @@ router.post('/api/wellness-classes/:id/enrollments/manual', isStaffOrAdmin, vali
     
     res.json({ success: true });
   } catch (error: unknown) {
+    const err = error as { statusCode?: number };
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: getErrorMessage(error) });
+    }
     logger.error('Manual enrollment error', { extra: { error: getErrorMessage(error) } });
     res.status(500).json({ error: 'Failed to add enrollment' });
   }
