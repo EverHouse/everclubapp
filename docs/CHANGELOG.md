@@ -2,6 +2,14 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.37] - 2026-04-05
+
+### Bug Fix — Missing system_alerts Table
+- **Fixed: Created missing `system_alerts` table.** The `system_alerts` table was referenced by `server/core/monitoring.ts`, `server/core/dataAlerts.ts`, and `server/core/integrity/stripeChecks.ts` but was never defined in the Drizzle schema or created in the database. This caused a production ERROR every time the data integrity deferred action health check ran (`checkDeferredActionHealth` in `stripeChecks.ts`). Added the table definition to `shared/models/system.ts` with columns: `id`, `severity`, `category`, `message`, `details`, `user_email`, `created_at`, plus indexes on `category` and `created_at`.
+- **Fixed: Made deferred action health check resilient.** Added a `to_regclass` existence check in `stripeChecks.ts` before querying `system_alerts`, so the check degrades gracefully if the table is missing (e.g., during deployment before schema sync).
+
+Files changed: `shared/models/system.ts`, `server/core/integrity/stripeChecks.ts`, `src/data/changelog.ts`, `src/data/changelog-version.ts`
+
 ## [8.98.36] - 2026-04-04
 
 ### Security Hardening — Scheduler Leader Election & OTP Race Condition Fix

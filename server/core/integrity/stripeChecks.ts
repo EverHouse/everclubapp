@@ -1706,14 +1706,20 @@ export async function checkDeferredActionHealth(): Promise<IntegrityCheckResult>
     const { getDeferredActionMetrics } = await import('../dataAlerts');
     const metrics = getDeferredActionMetrics();
 
-    const recentFailures = await db.execute(sql`
-      SELECT id, severity, category, message, details, created_at
-      FROM system_alerts
-      WHERE category = 'deferred_action_failure'
-        AND created_at > NOW() - INTERVAL '7 days'
-      ORDER BY created_at DESC
-      LIMIT 50
-    `);
+    const tableCheck = await db.execute(sql`SELECT to_regclass('public.system_alerts')::text AS oid`);
+    const tableExists = (tableCheck.rows[0] as { oid: string | null })?.oid !== null;
+
+    let recentFailures: { rows: unknown[] } = { rows: [] };
+    if (tableExists) {
+      recentFailures = await db.execute(sql`
+        SELECT id, severity, category, message, details, created_at
+        FROM system_alerts
+        WHERE category = 'deferred_action_failure'
+          AND created_at > NOW() - INTERVAL '7 days'
+        ORDER BY created_at DESC
+        LIMIT 50
+      `);
+    }
 
     interface DeferredAlertRow {
       id: number;

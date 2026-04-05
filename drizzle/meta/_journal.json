@@ -330,6 +330,13 @@
       "when": 1775347200000,
       "tag": "0077_add_performance_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1775433600000,
+      "tag": "0078_create_system_alerts",
+      "breakpoints": true
     }
   ]
 }

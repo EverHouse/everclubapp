@@ -8,6 +8,14 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.37",
+    date: "2026-04-05",
+    title: "Bug Fix",
+    changes: [
+      "Fixed: Resolved an internal system monitoring error that could prevent certain health checks from running correctly.",
+    ]
+  },
+  {
     version: "8.98.36",
     date: "2026-04-04",
     title: "Security Hardening",

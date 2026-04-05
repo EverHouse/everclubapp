@@ -73,6 +73,21 @@ export const integrityIgnores = pgTable("integrity_ignores", {
 export type IntegrityIgnore = typeof integrityIgnores.$inferSelect;
 export type InsertIntegrityIgnore = typeof integrityIgnores.$inferInsert;
 
+export const systemAlerts = pgTable("system_alerts", {
+  id: serial("id").primaryKey(),
+  severity: varchar("severity", { length: 20 }).notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  message: text("message").notNull(),
+  details: text("details"),
+  userEmail: text("user_email"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  categoryIdx: index("system_alerts_category_idx").on(table.category),
+  createdAtIdx: index("system_alerts_created_at_idx").on(table.createdAt),
+}));
+
+export type SystemAlert = typeof systemAlerts.$inferSelect;
+export type InsertSystemAlert = typeof systemAlerts.$inferInsert;
 
 export const webhookProcessedEvents = pgTable("webhook_processed_events", {
   id: serial("id").primaryKey(),
