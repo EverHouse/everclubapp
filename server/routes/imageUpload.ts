@@ -29,7 +29,8 @@ router.post('/api/admin/upload-image', isStaffOrAdmin, upload.single('image'), a
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const originalName = req.file.originalname.replace(/\.[^/.]+$/, '');
+    const sanitized = req.file.originalname.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 100);
+    const originalName = sanitized || 'image';
     const timestamp = Date.now();
     const filename = `${originalName}-${timestamp}.webp`;
 

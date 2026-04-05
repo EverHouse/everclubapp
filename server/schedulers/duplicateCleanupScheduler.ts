@@ -28,6 +28,8 @@ async function cleanupDuplicateTrackmanBookings(): Promise<{ deletedCount: numbe
       SELECT id, trackman_booking_id
       FROM ranked
       WHERE rn > 1
+      ORDER BY id ASC
+      LIMIT 500
     `);
     
     const idsToDelete = duplicateResult.rows.map(r => r.id);

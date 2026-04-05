@@ -283,7 +283,9 @@ async function cleanupAbandonedPendingUsers(): Promise<void> {
       `SELECT id, email FROM users 
       WHERE membership_status = 'pending' 
         AND created_at < NOW() - INTERVAL '24 hours'
-        AND stripe_subscription_id IS NULL`,
+        AND stripe_subscription_id IS NULL
+      ORDER BY created_at ASC
+      LIMIT 200`,
       [],
       3
     );

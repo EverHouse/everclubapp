@@ -114,6 +114,16 @@ export function registerObjectStorageRoutes(app: Express): void {
         });
       }
 
+      const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+      if (size != null) {
+        const sizeNum = Number(size);
+        if (!Number.isFinite(sizeNum) || sizeNum < 0 || sizeNum > MAX_UPLOAD_SIZE) {
+          return res.status(400).json({
+            error: `File size must be between 0 and ${MAX_UPLOAD_SIZE / (1024 * 1024)}MB`,
+          });
+        }
+      }
+
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
 
       // Extract object path from the presigned URL for later reference

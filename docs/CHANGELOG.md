@@ -2,6 +2,24 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.52] - 2026-04-05
+
+### Scheduler Unbounded Query Safety
+- **Added LIMIT to duplicate cleanup scheduler query.** `duplicateCleanupScheduler.ts` queried all duplicate Trackman bookings from the past 7 days with no row limit. On a system with many duplicates, this could consume excessive memory. Added `LIMIT 500` — subsequent runs will pick up any remaining duplicates.
+- **Added LIMIT to abandoned pending user cleanup.** `integrityScheduler.ts` `cleanupAbandonedPendingUsers` queried all pending users older than 24 hours without a `LIMIT`. Added `LIMIT 200` to process in batches across scheduled runs.
+
+Files changed: `server/schedulers/duplicateCleanupScheduler.ts`, `server/schedulers/integrityScheduler.ts`
+
+### Image Upload Filename Sanitization
+- **Sanitized user-provided filenames in image upload.** `imageUpload.ts` used `req.file.originalname` directly (after stripping the extension) in the output filename. A crafted filename with path traversal characters (e.g., `../../etc/passwd`) could potentially be used in downstream operations. Now strips all non-alphanumeric characters (except hyphens and underscores) and truncates to 100 characters.
+
+Files changed: `server/routes/imageUpload.ts`
+
+### Presigned Upload URL Size Validation
+- **Added file size validation to presigned upload URL endpoint.** `/api/uploads/request-url` accepted a `size` parameter but never validated it against a maximum. A client could request a signed URL and upload arbitrarily large files to object storage. Now rejects requests where `size` exceeds 50MB with a 400 error.
+
+Files changed: `server/replit_integrations/object_storage/routes.ts`
+
 ## [8.98.51] - 2026-04-05
 
 ### Push Notification Audience Fix

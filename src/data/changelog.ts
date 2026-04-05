@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.52",
+    date: "2026-04-05",
+    title: "System Hardening",
+    changes: [
+      "Improved: Background maintenance tasks now process in smaller batches to prevent memory issues as data grows.",
+      "Improved: File uploads now enforce a 50MB size limit and sanitize filenames for added security.",
+    ]
+  },
+  {
     version: "8.98.51",
     date: "2026-04-05",
     title: "Notifications, Events & POS Safety",
