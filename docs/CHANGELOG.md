@@ -4,11 +4,13 @@ All notable changes to the Ever Club Members App are documented here.
 
 ## [8.98.37] - 2026-04-05
 
-### Bug Fix — Missing system_alerts Table
+### Bug Fixes — Missing Table, SQL Type Mismatch, CSP Header Race
 - **Fixed: Created missing `system_alerts` table.** The `system_alerts` table was referenced by `server/core/monitoring.ts`, `server/core/dataAlerts.ts`, and `server/core/integrity/stripeChecks.ts` but was never defined in the Drizzle schema or created in the database. This caused a production ERROR every time the data integrity deferred action health check ran (`checkDeferredActionHealth` in `stripeChecks.ts`). Added the table definition to `shared/models/system.ts` with columns: `id`, `severity`, `category`, `message`, `details`, `user_email`, `created_at`, plus indexes on `category` and `created_at`.
 - **Fixed: Made deferred action health check resilient.** Added a `to_regclass` existence check in `stripeChecks.ts` before querying `system_alerts`, so the check degrades gracefully if the table is missing (e.g., during deployment before schema sync).
+- **Fixed: Cleanup alert reconciliation SQL type mismatch.** `cleanupAlertReconciliationScheduler.ts` line 36 compared `br.end_time` (PostgreSQL `time` type) against `TO_CHAR(NOW() AT TIME ZONE 'America/Los_Angeles', 'HH24:MI')` (returns `text`). PostgreSQL rejects `time > text`. Changed to `(NOW() AT TIME ZONE 'America/Los_Angeles')::time` so both sides are `time` type. This was causing the startup reconciliation to fail silently every deploy, meaning cleanup alert jobs were never backfilled for future bookings.
+- **Fixed: CSP nonce injection `ERR_HTTP_HEADERS_SENT`.** In `server/middleware/security.ts`, the `res.end` override tried to `removeHeader('Content-Length')` even when `res.headersSent` was already true (e.g., when `res.send` had already been called). Added `!res.headersSent` guards to both `nonceInjectedSend` and `nonceInjectedEnd` to skip nonce injection when headers are already flushed.
 
-Files changed: `shared/models/system.ts`, `server/core/integrity/stripeChecks.ts`, `src/data/changelog.ts`, `src/data/changelog-version.ts`
+Files changed: `shared/models/system.ts`, `server/core/integrity/stripeChecks.ts`, `server/schedulers/cleanupAlertReconciliationScheduler.ts`, `server/middleware/security.ts`, `drizzle/0078_create_system_alerts.sql`, `drizzle/meta/_journal.json`, `src/data/changelog.ts`, `src/data/changelog-version.ts`
 
 ## [8.98.36] - 2026-04-04
 

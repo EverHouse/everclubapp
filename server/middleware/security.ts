@@ -159,7 +159,7 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     const originalSend = res.send.bind(res);
     res.send = function nonceInjectedSend(body?: unknown): Response {
       try {
-        if (typeof body === 'string' && body.length > 0 && shouldInjectNonce(body)) {
+        if (!res.headersSent && typeof body === 'string' && body.length > 0 && shouldInjectNonce(body)) {
           body = injectNonceIntoHtml(body, nonce);
           res.removeHeader('Content-Length');
         }
@@ -172,14 +172,16 @@ export function securityMiddleware(req: Request, res: Response, next: NextFuncti
     const originalEnd = res.end.bind(res);
     res.end = function nonceInjectedEnd(chunk?: unknown, ...args: unknown[]): Response {
       try {
-        if (typeof chunk === 'string' && chunk.length > 0 && shouldInjectNonce(chunk)) {
-          chunk = injectNonceIntoHtml(chunk, nonce);
-          res.removeHeader('Content-Length');
-        } else if (Buffer.isBuffer(chunk) && chunk.length > 0) {
-          const str = chunk.toString('utf8');
-          if (shouldInjectNonce(str)) {
-            chunk = Buffer.from(injectNonceIntoHtml(str, nonce), 'utf8');
+        if (!res.headersSent) {
+          if (typeof chunk === 'string' && chunk.length > 0 && shouldInjectNonce(chunk)) {
+            chunk = injectNonceIntoHtml(chunk, nonce);
             res.removeHeader('Content-Length');
+          } else if (Buffer.isBuffer(chunk) && chunk.length > 0) {
+            const str = chunk.toString('utf8');
+            if (shouldInjectNonce(str)) {
+              chunk = Buffer.from(injectNonceIntoHtml(str, nonce), 'utf8');
+              res.removeHeader('Content-Length');
+            }
           }
         }
       } catch (nonceErr) {

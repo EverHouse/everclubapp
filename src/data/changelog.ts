@@ -10,9 +10,11 @@ export const changelog: ChangelogEntry[] = [
   {
     version: "8.98.37",
     date: "2026-04-05",
-    title: "Bug Fix",
+    title: "Bug Fixes",
     changes: [
       "Fixed: Resolved an internal system monitoring error that could prevent certain health checks from running correctly.",
+      "Fixed: Booking cleanup notifications now schedule correctly on startup — previously a data type mismatch prevented them from running.",
+      "Fixed: Rare page-load error on initial HTML delivery has been resolved.",
     ]
   },
   {

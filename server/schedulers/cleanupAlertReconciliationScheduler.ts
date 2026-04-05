@@ -33,7 +33,7 @@ async function reconcileCleanupAlerts(options: { isStartup: boolean }): Promise<
       WHERE br.status IN ('approved', 'confirmed', 'checked_in')
         AND br.end_time IS NOT NULL
         AND br.cleanup_notified_at IS NULL
-        AND (br.request_date > CURRENT_DATE OR (br.request_date = CURRENT_DATE AND br.end_time > TO_CHAR(NOW() AT TIME ZONE 'America/Los_Angeles', 'HH24:MI')))
+        AND (br.request_date > CURRENT_DATE OR (br.request_date = CURRENT_DATE AND br.end_time > (NOW() AT TIME ZONE 'America/Los_Angeles')::time))
         AND ${lookaheadCondition}
         AND NOT EXISTS (
           SELECT 1 FROM job_queue jq
