@@ -235,18 +235,16 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const tierColors = isVisitor ? { bg: '#EFF6FF', text: '#2563EB', border: '#BFDBFE' } : getTierColor(user.tier || '');
   const cardBgColor = isExpired ? '#6B7280' : tierColors.bg;
   const isLightCard = !isExpired && isLightTierBackground(cardBgColor);
-  const cardTextColor = isExpired ? '#F9FAFB' : isLightCard ? '#2D2D2D' : tierColors.text;
+  const cardTextColor = isExpired ? '#F9FAFB' : 'rgba(0,0,0,0.6)';
+  const cardTextColorMuted = isExpired ? '#F9FAFB80' : 'rgba(0,0,0,0.4)';
   const etchedShadow = isExpired
     ? '0 1px 3px rgba(0,0,0,0.15)'
-    : isLightCard
-      ? '-1px -1px 0px rgba(0,0,0,0.12), 1px 1px 0px rgba(255,255,255,0.7)'
-      : '0 1px 2px rgba(0,0,0,0.4)';
+    : '-1px -1px 1px rgba(0,0,0,0.7), 1px 1px 1px rgba(255,255,255,0.4)';
   const etchedShadowMuted = isExpired
     ? 'none'
-    : isLightCard
-      ? '-1px -1px 0px rgba(0,0,0,0.08), 1px 1px 0px rgba(255,255,255,0.55)'
-      : '0 1px 2px rgba(0,0,0,0.3)';
-  const useDarkLogo = isExpired ? false : isLightCard;
+    : '-1px -1px 1px rgba(0,0,0,0.5), 1px 1px 1px rgba(255,255,255,0.3)';
+  const etchedBlend: React.CSSProperties['mixBlendMode'] = isExpired ? undefined : 'multiply';
+  const useDarkLogo = isExpired ? false : true;
 
   const {
     cardRef, iridescentBackground, clearCoatBackground, edgeGlimmerBackground,
@@ -299,9 +297,9 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
           )}
           <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
             <div className="flex justify-between items-start">
-              <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" width={100} height={40} style={isExpired ? undefined : isLightCard ? { filter: 'drop-shadow(1px 1px 0px rgba(255,255,255,0.4))' } : { filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.4))' }} />
+              <img src={useDarkLogo ? "/images/everclub-logo-dark.webp" : "/images/everclub-logo-light.webp"} className={`h-10 w-auto ${isExpired ? 'opacity-50' : 'opacity-90'}`} alt="" width={100} height={40} style={isExpired ? undefined : { filter: 'drop-shadow(-1px -1px 1px rgba(0,0,0,0.5)) drop-shadow(1px 1px 1px rgba(255,255,255,0.3))', mixBlendMode: 'multiply' }} />
               <div className="flex flex-col items-end gap-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: `${cardTextColor}99`, textShadow: etchedShadowMuted }}>Ever Club</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: cardTextColorMuted, textShadow: etchedShadowMuted, mixBlendMode: etchedBlend }}>Ever Club</span>
                 {isExpired && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white">
                     Expired
@@ -313,18 +311,18 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <TierBadge tier={user.tier} size="sm" role={user.role} membershipStatus={user.status} />
               </div>
-              <h3 className="text-xl font-display font-bold tracking-wide" style={{ color: cardTextColor, textShadow: etchedShadow }}>{user.name}</h3>
+              <h3 className="text-xl font-display font-bold tracking-wide" style={{ color: cardTextColor, textShadow: etchedShadow, mixBlendMode: etchedBlend }}>{user.name}</h3>
               {isExpired ? (
                 <p className="text-xs mt-2 text-red-200">Membership expired - Contact us to renew</p>
               ) : (
                 <>
                   {user.joinDate && (
-                    <p className="text-xs mt-2" style={{ color: `${cardTextColor}80`, textShadow: etchedShadowMuted }}>Joined {formatMemberSince(user.joinDate)}</p>
+                    <p className="text-xs mt-2" style={{ color: cardTextColorMuted, textShadow: etchedShadowMuted, mixBlendMode: etchedBlend }}>Joined {formatMemberSince(user.joinDate)}</p>
                   )}
                   {(() => {
                     const visitCount = statsData?.lifetimeVisitCount ?? user.lifetimeVisits;
                     return visitCount !== undefined ? (
-                      <p className="text-xs" style={{ color: `${cardTextColor}80`, textShadow: etchedShadowMuted }}>{visitCount} {visitCount === 1 ? 'lifetime visit' : 'lifetime visits'}</p>
+                      <p className="text-xs" style={{ color: cardTextColorMuted, textShadow: etchedShadowMuted, mixBlendMode: etchedBlend }}>{visitCount} {visitCount === 1 ? 'lifetime visit' : 'lifetime visits'}</p>
                     ) : null;
                   })()}
                 </>
