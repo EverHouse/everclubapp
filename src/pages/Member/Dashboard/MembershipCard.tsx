@@ -264,6 +264,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               rotateY: prefersReducedMotion ? 0 : rotateY,
               transformStyle: 'preserve-3d',
               willChange: prefersReducedMotion ? 'auto' : 'transform',
+              touchAction: 'none',
             }}
             whileHover={prefersReducedMotion ? undefined : { scale: 1.015, transition: SPRING_CONFIG }}
           >
