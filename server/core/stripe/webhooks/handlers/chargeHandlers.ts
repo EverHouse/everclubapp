@@ -17,6 +17,8 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
   
   const status = refunded ? 'refunded' : 'partially_refunded';
   const customerId = typeof customer === 'string' ? customer : customer?.id;
+  const customerEmail = charge.billing_details?.email || (typeof customer === 'object' ? (customer as Stripe.Customer)?.email : undefined);
+  const customerName = charge.billing_details?.name || (typeof customer === 'object' ? (customer as Stripe.Customer)?.name : undefined);
   const paymentIntentId = typeof payment_intent === 'string' ? payment_intent : payment_intent?.id;
   
   const refunds = charge.refunds?.data || [];
@@ -33,6 +35,8 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
             status: refund.status || 'succeeded',
             createdAt: new Date(refund.created ? refund.created * 1000 : Date.now()),
             customerId,
+            customerEmail,
+            customerName,
             paymentIntentId,
             chargeId: id,
             source: 'webhook',
@@ -54,6 +58,8 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
       status,
       createdAt: new Date(created * 1000),
       customerId,
+      customerEmail,
+      customerName,
       paymentIntentId,
       chargeId: id,
       source: 'webhook',
@@ -75,6 +81,8 @@ export async function handleChargeRefunded(client: PoolClient, charge: Stripe.Ch
         status,
         createdAt: new Date(created * 1000),
         customerId,
+        customerEmail,
+        customerName,
         paymentIntentId,
         chargeId: id,
         source: 'webhook',

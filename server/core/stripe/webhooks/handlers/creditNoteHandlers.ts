@@ -15,6 +15,8 @@ export async function handleCreditNoteCreated(client: PoolClient, creditNote: St
   logger.info(`[Stripe Webhook] Credit note created: ${id} (${number}), total: $${(total / 100).toFixed(2)}, reason: ${reason || 'none'}`);
   
   const customerId = typeof customer === 'string' ? customer : customer?.id;
+  const customerEmail = typeof customer === 'object' ? (customer as Stripe.Customer)?.email : undefined;
+  const customerName = typeof customer === 'object' ? (customer as Stripe.Customer)?.name : undefined;
   const invoiceId = typeof invoice === 'string' ? invoice : invoice?.id;
   
   deferredActions.push(async () => {
@@ -26,6 +28,8 @@ export async function handleCreditNoteCreated(client: PoolClient, creditNote: St
       status: status || 'issued',
       createdAt: new Date(created * 1000),
       customerId,
+      customerEmail,
+      customerName,
       invoiceId,
       description: memo ?? `Credit note ${number ?? id}`,
       metadata: { type: 'credit_note', reason: reason ?? '', number: number ?? '' },
