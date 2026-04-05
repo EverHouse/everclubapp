@@ -962,4 +962,796 @@ router.get('/api/financials/invoices', isStaffOrAdmin, async (req: Request, res:
   }
 });
 
+const activityRateLimits = new Map<string, number>();
+
+router.get('/api/financials/activity', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const {
+      cursor,
+      limit: limitParam,
+      startDate,
+      endDate,
+      search,
+      status: statusFilter,
+      type: typeFilter,
+      minAmount,
+      maxAmount,
+    } = req.query;
+
+    const limit = Math.min(Math.max(parseInt(String(limitParam), 10) || 50, 1), 200);
+
+    const conditions: ReturnType<typeof sql>[] = [];
+
+    if (startDate && typeof startDate === 'string') {
+      const startTs = getPacificMidnightUTC(startDate);
+      conditions.push(sql`created_at >= ${startTs}`);
+    }
+    if (endDate && typeof endDate === 'string') {
+      const nextDay = addDaysToPacificDate(endDate, 1);
+      const endTs = getPacificMidnightUTC(nextDay);
+      conditions.push(sql`created_at < ${endTs}`);
+    }
+    if (search && typeof search === 'string') {
+      const searchLower = `%${search.toLowerCase()}%`;
+      conditions.push(sql`(LOWER(member_name) LIKE ${searchLower} OR LOWER(member_email) LIKE ${searchLower})`);
+    }
+    if (statusFilter && typeof statusFilter === 'string' && statusFilter !== 'all') {
+      const statuses = statusFilter.split(',').map(s => s.trim().toLowerCase());
+      const statusList = statuses.map(s => sql`${s}`);
+      conditions.push(sql`status IN (${sql.join(statusList, sql`, `)})`);
+    }
+    if (typeFilter && typeof typeFilter === 'string' && typeFilter !== 'all') {
+      const types = typeFilter.split(',').map(t => t.trim().toLowerCase());
+      const typeList = types.map(t => sql`${t}`);
+      conditions.push(sql`type IN (${sql.join(typeList, sql`, `)})`);
+    }
+    if (minAmount && typeof minAmount === 'string') {
+      const minCents = Math.round(parseFloat(minAmount) * 100);
+      if (!isNaN(minCents)) {
+        conditions.push(sql`amount_cents >= ${minCents}`);
+      }
+    }
+    if (maxAmount && typeof maxAmount === 'string') {
+      const maxCents = Math.round(parseFloat(maxAmount) * 100);
+      if (!isNaN(maxCents)) {
+        conditions.push(sql`amount_cents <= ${maxCents}`);
+      }
+    }
+    if (cursor && typeof cursor === 'string') {
+      const cursorDate = new Date(cursor);
+      if (!isNaN(cursorDate.getTime())) {
+        conditions.push(sql`created_at < ${cursorDate}`);
+      }
+    }
+
+    const whereClause = conditions.length > 0
+      ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+      : sql``;
+
+    const limitPlusOne = limit + 1;
+
+    const result = await db.execute(sql`
+      WITH unified AS (
+        SELECT
+          spi.stripe_payment_intent_id AS id,
+          spi.amount_cents,
+          spi.status,
+          spi.description,
+          COALESCE(u.email, spi.user_id) AS member_email,
+          COALESCE(
+            NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+            u.email,
+            spi.user_id
+          ) AS member_name,
+          spi.created_at,
+          COALESCE(spi.purpose, 'payment') AS type,
+          spi.booking_id
+        FROM stripe_payment_intents spi
+        LEFT JOIN users u ON (u.id::text = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id)
+          OR (u.stripe_customer_id IS NOT NULL AND u.stripe_customer_id = spi.stripe_customer_id))
+
+        UNION ALL
+
+        SELECT
+          stc.stripe_id AS id,
+          stc.amount_cents,
+          stc.status,
+          COALESCE(stc.description, 'Stripe payment') AS description,
+          COALESCE(stc.customer_email, 'Unknown') AS member_email,
+          COALESCE(
+            stc.customer_name,
+            NULLIF(TRIM(COALESCE(u2.first_name, '') || ' ' || COALESCE(u2.last_name, '')), ''),
+            stc.customer_email,
+            'Unknown'
+          ) AS member_name,
+          stc.created_at,
+          CASE stc.object_type
+            WHEN 'invoice' THEN 'invoice'
+            WHEN 'charge' THEN 'payment'
+            ELSE 'payment'
+          END AS type,
+          NULL::int AS booking_id
+        FROM stripe_transaction_cache stc
+        LEFT JOIN users u2 ON LOWER(u2.email) = LOWER(stc.customer_email)
+        WHERE NOT EXISTS (
+          SELECT 1 FROM stripe_payment_intents spi2
+          WHERE spi2.stripe_payment_intent_id = stc.stripe_id
+             OR spi2.stripe_payment_intent_id = stc.payment_intent_id
+        )
+      )
+      SELECT * FROM unified
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ${limitPlusOne}
+    `);
+
+    const hasMore = result.rows.length > limit;
+    const rows = result.rows.slice(0, limit) as Array<{
+      id: string;
+      amount_cents: number;
+      status: string;
+      description: string;
+      member_email: string;
+      member_name: string;
+      created_at: string;
+      type: string;
+      booking_id: number | null;
+    }>;
+
+    const seen = new Set<string>();
+    const items = rows
+      .filter(row => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      })
+      .map(row => ({
+        id: row.id,
+        amountCents: Number(row.amount_cents) || 0,
+        status: row.status,
+        description: row.description,
+        memberEmail: row.member_email,
+        memberName: row.member_name,
+        createdAt: new Date(row.created_at).toISOString(),
+        type: row.type,
+        bookingId: row.booking_id,
+      }));
+
+    const nextCursor = hasMore && items.length > 0
+      ? items[items.length - 1].createdAt
+      : null;
+
+    res.json({
+      success: true,
+      count: items.length,
+      items,
+      hasMore,
+      nextCursor,
+    });
+  } catch (error: unknown) {
+    logger.error('[Activity] Error fetching activity feed', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, error: 'Failed to fetch activity feed' });
+  }
+});
+
+router.get('/api/financials/activity/export', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const {
+      startDate,
+      endDate,
+      search,
+      status: statusFilter,
+      type: typeFilter,
+      minAmount,
+      maxAmount,
+    } = req.query;
+
+    const conditions: ReturnType<typeof sql>[] = [];
+
+    if (startDate && typeof startDate === 'string') {
+      const startTs = getPacificMidnightUTC(startDate);
+      conditions.push(sql`created_at >= ${startTs}`);
+    }
+    if (endDate && typeof endDate === 'string') {
+      const nextDay = addDaysToPacificDate(endDate, 1);
+      const endTs = getPacificMidnightUTC(nextDay);
+      conditions.push(sql`created_at < ${endTs}`);
+    }
+    if (search && typeof search === 'string') {
+      const searchLower = `%${search.toLowerCase()}%`;
+      conditions.push(sql`(LOWER(member_name) LIKE ${searchLower} OR LOWER(member_email) LIKE ${searchLower})`);
+    }
+    if (statusFilter && typeof statusFilter === 'string' && statusFilter !== 'all') {
+      const statuses = statusFilter.split(',').map(s => s.trim().toLowerCase());
+      const statusList = statuses.map(s => sql`${s}`);
+      conditions.push(sql`status IN (${sql.join(statusList, sql`, `)})`);
+    }
+    if (typeFilter && typeof typeFilter === 'string' && typeFilter !== 'all') {
+      const types = typeFilter.split(',').map(t => t.trim().toLowerCase());
+      const typeList = types.map(t => sql`${t}`);
+      conditions.push(sql`type IN (${sql.join(typeList, sql`, `)})`);
+    }
+    if (minAmount && typeof minAmount === 'string') {
+      const minCents = Math.round(parseFloat(minAmount) * 100);
+      if (!isNaN(minCents)) {
+        conditions.push(sql`amount_cents >= ${minCents}`);
+      }
+    }
+    if (maxAmount && typeof maxAmount === 'string') {
+      const maxCents = Math.round(parseFloat(maxAmount) * 100);
+      if (!isNaN(maxCents)) {
+        conditions.push(sql`amount_cents <= ${maxCents}`);
+      }
+    }
+
+    const whereClause = conditions.length > 0
+      ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+      : sql``;
+
+    const result = await db.execute(sql`
+      WITH unified AS (
+        SELECT
+          spi.stripe_payment_intent_id AS id,
+          spi.amount_cents,
+          spi.status,
+          spi.description,
+          COALESCE(u.email, spi.user_id) AS member_email,
+          COALESCE(
+            NULLIF(TRIM(COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '')), ''),
+            u.email,
+            spi.user_id
+          ) AS member_name,
+          spi.created_at,
+          COALESCE(spi.purpose, 'payment') AS type,
+          COALESCE(
+            stc_pm.metadata->>'paymentMethodType',
+            stc_pm.metadata->>'payment_method_type',
+            'Stripe'
+          ) AS payment_method
+        FROM stripe_payment_intents spi
+        LEFT JOIN users u ON (u.id::text = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id)
+          OR (u.stripe_customer_id IS NOT NULL AND u.stripe_customer_id = spi.stripe_customer_id))
+        LEFT JOIN stripe_transaction_cache stc_pm ON stc_pm.stripe_id = spi.stripe_payment_intent_id
+          OR stc_pm.payment_intent_id = spi.stripe_payment_intent_id
+
+        UNION ALL
+
+        SELECT
+          stc.stripe_id AS id,
+          stc.amount_cents,
+          stc.status,
+          COALESCE(stc.description, 'Stripe payment') AS description,
+          COALESCE(stc.customer_email, 'Unknown') AS member_email,
+          COALESCE(
+            stc.customer_name,
+            NULLIF(TRIM(COALESCE(u2.first_name, '') || ' ' || COALESCE(u2.last_name, '')), ''),
+            stc.customer_email,
+            'Unknown'
+          ) AS member_name,
+          stc.created_at,
+          CASE stc.object_type
+            WHEN 'invoice' THEN 'invoice'
+            WHEN 'charge' THEN 'payment'
+            ELSE 'payment'
+          END AS type,
+          COALESCE(
+            stc.metadata->>'paymentMethodType',
+            stc.metadata->>'payment_method_type',
+            'Stripe'
+          ) AS payment_method
+        FROM stripe_transaction_cache stc
+        LEFT JOIN users u2 ON LOWER(u2.email) = LOWER(stc.customer_email)
+        WHERE NOT EXISTS (
+          SELECT 1 FROM stripe_payment_intents spi2
+          WHERE spi2.stripe_payment_intent_id = stc.stripe_id
+             OR spi2.stripe_payment_intent_id = stc.payment_intent_id
+        )
+      )
+      SELECT * FROM unified
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT 10000
+    `);
+
+    const rows = result.rows as Array<{
+      id: string;
+      amount_cents: number;
+      status: string;
+      description: string;
+      member_email: string;
+      member_name: string;
+      created_at: string;
+      type: string;
+      payment_method: string;
+    }>;
+
+    const seen = new Set<string>();
+    const deduped = rows.filter(row => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    });
+
+    const sanitizeCsvCell = (val: string): string => {
+      let sanitized = val;
+      if (/^[=+\-@\t\r]/.test(sanitized)) {
+        sanitized = "'" + sanitized;
+      }
+      if (sanitized.includes(',') || sanitized.includes('"') || sanitized.includes('\n')) {
+        return `"${sanitized.replace(/"/g, '""')}"`;
+      }
+      return sanitized;
+    };
+
+    const csvHeader = 'Date,Member Name,Member Email,Amount,Status,Type,Description,Payment Method\n';
+    const csvRows = deduped.map(row => {
+      const date = new Date(row.created_at).toISOString().split('T')[0];
+      const amount = (Number(row.amount_cents) / 100).toFixed(2);
+      return [
+        date,
+        sanitizeCsvCell(row.member_name || ''),
+        sanitizeCsvCell(row.member_email || ''),
+        amount,
+        sanitizeCsvCell(row.status),
+        sanitizeCsvCell(row.type),
+        sanitizeCsvCell(row.description || ''),
+        sanitizeCsvCell(row.payment_method || 'Stripe'),
+      ].join(',');
+    }).join('\n');
+
+    const csv = csvHeader + csvRows;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="activity-export-${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send(csv);
+  } catch (error: unknown) {
+    logger.error('[Activity] Error exporting activity', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, error: 'Failed to export activity' });
+  }
+});
+
+router.get('/api/financials/activity/:id', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Transaction ID is required' });
+    }
+
+    const localResult = await db.execute(sql`
+      SELECT
+        spi.id AS local_id,
+        spi.stripe_payment_intent_id,
+        spi.user_id,
+        spi.stripe_customer_id,
+        spi.amount_cents,
+        spi.purpose,
+        spi.booking_id,
+        spi.session_id,
+        spi.description,
+        spi.status,
+        spi.created_at,
+        u.email AS member_email,
+        u.first_name,
+        u.last_name
+      FROM stripe_payment_intents spi
+      LEFT JOIN users u ON (u.id::text = spi.user_id OR LOWER(u.email) = LOWER(spi.user_id)
+        OR (u.stripe_customer_id IS NOT NULL AND u.stripe_customer_id = spi.stripe_customer_id))
+      WHERE spi.stripe_payment_intent_id = ${id}
+      LIMIT 1
+    `);
+
+    const cacheResult = await db.execute(sql`
+      SELECT * FROM stripe_transaction_cache WHERE stripe_id = ${id} OR payment_intent_id = ${id} LIMIT 1
+    `);
+
+    const localRow = localResult.rows[0] as Record<string, unknown> | undefined;
+    const cacheRow = cacheResult.rows[0] as Record<string, unknown> | undefined;
+
+    if (!localRow && !cacheRow) {
+      return res.status(404).json({ success: false, error: 'Transaction not found' });
+    }
+
+    const detail: Record<string, unknown> = {
+      id,
+      amountCents: Number(localRow?.amount_cents ?? cacheRow?.amount_cents ?? 0),
+      status: (localRow?.status ?? cacheRow?.status ?? 'unknown') as string,
+      description: (localRow?.description ?? cacheRow?.description ?? '') as string,
+      memberEmail: (localRow?.member_email ?? cacheRow?.customer_email ?? '') as string,
+      memberName: '',
+      createdAt: localRow?.created_at ?? cacheRow?.created_at ?? null,
+      type: (localRow?.purpose ?? cacheRow?.object_type ?? 'payment') as string,
+      bookingId: localRow?.booking_id ?? null,
+      sessionId: localRow?.session_id ?? null,
+    };
+
+    const firstName = localRow?.first_name as string | null;
+    const lastName = localRow?.last_name as string | null;
+    const nameFromCache = cacheRow?.customer_name as string | null;
+    detail.memberName = [firstName, lastName].filter(Boolean).join(' ').trim()
+      || nameFromCache
+      || (detail.memberEmail as string)
+      || 'Unknown';
+
+    let stripePaymentMethod: Record<string, unknown> | null = null;
+    let receiptUrl: string | null = null;
+    let refunds: Array<Record<string, unknown>> = [];
+    const timeline: Array<Record<string, unknown>> = [];
+
+    const extractPaymentMethodDetails = (pmd: Stripe.Charge.PaymentMethodDetails): Record<string, unknown> => {
+      if (pmd.card) {
+        return {
+          type: 'card',
+          brand: pmd.card.brand,
+          last4: pmd.card.last4,
+          expMonth: pmd.card.exp_month,
+          expYear: pmd.card.exp_year,
+        };
+      } else if (pmd.us_bank_account) {
+        return {
+          type: 'us_bank_account',
+          bankName: pmd.us_bank_account.bank_name,
+          last4: pmd.us_bank_account.last4,
+        };
+      }
+      return { type: pmd.type || 'unknown' };
+    };
+
+    if (id.startsWith('pi_')) {
+      try {
+        const stripe = await getStripeClient();
+        const pi = await stripe.paymentIntents.retrieve(id, {
+          expand: ['latest_charge', 'latest_charge.refunds'],
+        });
+
+        timeline.push({
+          event: 'payment_intent_created',
+          timestamp: new Date(pi.created * 1000).toISOString(),
+          detail: { amount: pi.amount, currency: pi.currency, status: pi.status },
+        });
+
+        const charge = typeof pi.latest_charge === 'object' ? pi.latest_charge as Stripe.Charge : null;
+
+        if (charge) {
+          receiptUrl = charge.receipt_url || null;
+
+          timeline.push({
+            event: charge.paid ? 'charge_succeeded' : 'charge_failed',
+            timestamp: new Date(charge.created * 1000).toISOString(),
+            detail: { chargeId: charge.id, amount: charge.amount, paid: charge.paid },
+          });
+
+          if (charge.payment_method_details) {
+            stripePaymentMethod = extractPaymentMethodDetails(charge.payment_method_details);
+          }
+
+          if (charge.refunds?.data) {
+            refunds = charge.refunds.data.map(r => ({
+              id: r.id,
+              amount: r.amount,
+              currency: r.currency,
+              status: r.status,
+              reason: r.reason,
+              createdAt: new Date((r.created || 0) * 1000).toISOString(),
+            }));
+
+            for (const r of charge.refunds.data) {
+              timeline.push({
+                event: 'refund',
+                timestamp: new Date((r.created || 0) * 1000).toISOString(),
+                detail: { refundId: r.id, amount: r.amount, reason: r.reason, status: r.status },
+              });
+            }
+          }
+
+          if (charge.disputed) {
+            timeline.push({
+              event: 'dispute',
+              timestamp: new Date(charge.created * 1000).toISOString(),
+              detail: { disputed: true },
+            });
+          }
+        }
+
+        detail.chargeSource = pi.metadata?.source || pi.metadata?.purpose || 'unknown';
+        detail.stripeMetadata = pi.metadata || {};
+      } catch (stripeErr: unknown) {
+        logger.warn('[Activity] Could not enrich from Stripe API (pi)', { extra: { id, error: getErrorMessage(stripeErr) } });
+      }
+    } else if (id.startsWith('in_')) {
+      try {
+        const stripe = await getStripeClient();
+        const invoice = await stripe.invoices.retrieve(id, {
+          expand: ['charge', 'payment_intent'],
+        });
+
+        timeline.push({
+          event: 'invoice_created',
+          timestamp: new Date(invoice.created * 1000).toISOString(),
+          detail: { invoiceNumber: invoice.number, status: invoice.status },
+        });
+
+        if (invoice.status === 'paid' && invoice.status_transitions?.paid_at) {
+          timeline.push({
+            event: 'invoice_paid',
+            timestamp: new Date(invoice.status_transitions.paid_at * 1000).toISOString(),
+            detail: { amountPaid: invoice.amount_paid },
+          });
+        }
+        if (invoice.status === 'void' && invoice.status_transitions?.voided_at) {
+          timeline.push({
+            event: 'invoice_voided',
+            timestamp: new Date(invoice.status_transitions.voided_at * 1000).toISOString(),
+            detail: {},
+          });
+        }
+
+        detail.amountCents = invoice.amount_paid || invoice.amount_due || 0;
+        detail.status = invoice.status || 'unknown';
+        detail.description = invoice.lines?.data?.[0]?.description || detail.description;
+        detail.invoiceNumber = invoice.number;
+        detail.invoicePdf = invoice.invoice_pdf;
+        detail.hostedInvoiceUrl = invoice.hosted_invoice_url;
+        receiptUrl = invoice.hosted_invoice_url || null;
+
+        const customer = typeof invoice.customer === 'object' && invoice.customer && !('deleted' in invoice.customer)
+          ? invoice.customer as Stripe.Customer : null;
+        if (customer) {
+          detail.memberEmail = customer.email || detail.memberEmail;
+          detail.memberName = customer.name || detail.memberName;
+        }
+
+        const charge = typeof invoice.charge === 'object' ? invoice.charge as Stripe.Charge : null;
+        if (charge?.payment_method_details) {
+          stripePaymentMethod = extractPaymentMethodDetails(charge.payment_method_details);
+        }
+
+        detail.stripeMetadata = invoice.metadata || {};
+      } catch (stripeErr: unknown) {
+        logger.warn('[Activity] Could not enrich from Stripe API (invoice)', { extra: { id, error: getErrorMessage(stripeErr) } });
+      }
+    } else if (id.startsWith('ch_')) {
+      try {
+        const stripe = await getStripeClient();
+        const charge = await stripe.charges.retrieve(id, {
+          expand: ['refunds'],
+        });
+
+        timeline.push({
+          event: charge.paid ? 'charge_succeeded' : 'charge_failed',
+          timestamp: new Date(charge.created * 1000).toISOString(),
+          detail: { chargeId: charge.id, amount: charge.amount, paid: charge.paid },
+        });
+
+        receiptUrl = charge.receipt_url || null;
+        if (charge.payment_method_details) {
+          stripePaymentMethod = extractPaymentMethodDetails(charge.payment_method_details);
+        }
+
+        if (charge.refunds?.data) {
+          refunds = charge.refunds.data.map(r => ({
+            id: r.id,
+            amount: r.amount,
+            currency: r.currency,
+            status: r.status,
+            reason: r.reason,
+            createdAt: new Date((r.created || 0) * 1000).toISOString(),
+          }));
+
+          for (const r of charge.refunds.data) {
+            timeline.push({
+              event: 'refund',
+              timestamp: new Date((r.created || 0) * 1000).toISOString(),
+              detail: { refundId: r.id, amount: r.amount, reason: r.reason, status: r.status },
+            });
+          }
+        }
+
+        detail.stripeMetadata = charge.metadata || {};
+      } catch (stripeErr: unknown) {
+        logger.warn('[Activity] Could not enrich from Stripe API (charge)', { extra: { id, error: getErrorMessage(stripeErr) } });
+      }
+    }
+
+    if (refunds.length > 0) {
+      const refundAuditResult = await db.execute(sql`
+        SELECT action, staff_email, details, created_at
+        FROM admin_audit_log
+        WHERE resource_type = 'billing'
+          AND action IN ('refund_payment', 'partial_refund_payment')
+          AND (resource_id = ${id} OR details::text LIKE ${'%' + id + '%'})
+        ORDER BY created_at DESC
+      `);
+      const auditRows = refundAuditResult.rows as Array<{
+        action: string; staff_email: string; details: Record<string, unknown>; created_at: string;
+      }>;
+
+      const usedAuditIndices = new Set<number>();
+      for (const refund of refunds) {
+        let bestMatch: { idx: number; delta: number } | null = null;
+        for (let i = 0; i < auditRows.length; i++) {
+          if (usedAuditIndices.has(i)) continue;
+          const delta = Math.abs(
+            new Date(auditRows[i].created_at).getTime() - new Date(refund.createdAt as string).getTime()
+          );
+          if (delta < 120000 && (!bestMatch || delta < bestMatch.delta)) {
+            bestMatch = { idx: i, delta };
+          }
+        }
+        if (bestMatch) {
+          refund.processedBy = auditRows[bestMatch.idx].staff_email;
+          usedAuditIndices.add(bestMatch.idx);
+        }
+      }
+    }
+
+    timeline.sort((a, b) =>
+      new Date(a.timestamp as string).getTime() - new Date(b.timestamp as string).getTime()
+    );
+
+    detail.paymentMethod = stripePaymentMethod;
+    detail.receiptUrl = receiptUrl;
+    detail.refunds = refunds;
+    detail.timeline = timeline;
+
+    logFromRequest(req, {
+      action: 'view_activity_detail',
+      resourceType: 'billing',
+      resourceId: id,
+      resourceName: detail.description as string,
+      details: { transactionId: id }
+    });
+
+    res.json({ success: true, transaction: detail });
+  } catch (error: unknown) {
+    logger.error('[Activity] Error fetching activity detail', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, error: 'Failed to fetch transaction detail' });
+  }
+});
+
+router.post('/api/financials/sync-stripe', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const staffEmail = req.session?.user?.email || 'staff';
+    const now = Date.now();
+    const lastSync = activityRateLimits.get(staffEmail) || 0;
+    if (now - lastSync < 60_000) {
+      return res.status(429).json({
+        success: false,
+        error: 'Rate limited. Please wait at least 60 seconds between sync requests.',
+      });
+    }
+    activityRateLimits.set(staffEmail, now);
+
+    const { daysBack = 7 } = req.body;
+    const safeDaysBack = Math.min(Math.max(parseInt(String(daysBack), 10) || 7, 1), 90);
+
+    const stripe = await getStripeClient();
+    const startDate = Math.floor((Date.now() - (safeDaysBack * 24 * 60 * 60 * 1000)) / 1000);
+
+    let paymentIntentsProcessed = 0;
+    let invoicesProcessed = 0;
+    const errors: string[] = [];
+
+    try {
+      let hasMore = true;
+      let startingAfter: string | undefined;
+
+      while (hasMore && paymentIntentsProcessed < 500) {
+        const params: Stripe.PaymentIntentListParams = {
+          limit: 100,
+          created: { gte: startDate },
+          expand: ['data.customer'],
+        };
+        if (startingAfter) params.starting_after = startingAfter;
+
+        const page = await stripe.paymentIntents.list(params);
+
+        for (const pi of page.data) {
+          const customer = pi.customer as Stripe.Customer | null;
+          await upsertTransactionCache({
+            stripeId: pi.id,
+            objectType: 'payment_intent',
+            amountCents: pi.amount,
+            currency: pi.currency || 'usd',
+            status: pi.status,
+            createdAt: new Date(pi.created * 1000),
+            customerId: typeof pi.customer === 'string' ? pi.customer : customer?.id,
+            customerEmail: customer?.email || pi.receipt_email || pi.metadata?.email,
+            customerName: customer?.name || pi.metadata?.memberName,
+            description: pi.description || pi.metadata?.productName || 'Stripe payment',
+            metadata: pi.metadata,
+            source: 'sync',
+            paymentIntentId: pi.id,
+          });
+          paymentIntentsProcessed++;
+        }
+
+        hasMore = page.has_more;
+        if (page.data.length > 0) {
+          startingAfter = page.data[page.data.length - 1].id;
+        }
+        if (hasMore) await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (err: unknown) {
+      errors.push(`PaymentIntents: ${getErrorMessage(err)}`);
+    }
+
+    try {
+      let hasMore = true;
+      let startingAfter: string | undefined;
+
+      while (hasMore && invoicesProcessed < 500) {
+        const params: Stripe.InvoiceListParams = {
+          limit: 100,
+          created: { gte: startDate },
+          expand: ['data.customer'],
+        };
+        if (startingAfter) params.starting_after = startingAfter;
+
+        const page = await stripe.invoices.list(params);
+
+        for (const inv of page.data) {
+          const customer = inv.customer as Stripe.Customer | null;
+          await upsertTransactionCache({
+            stripeId: inv.id,
+            objectType: 'invoice',
+            amountCents: inv.amount_paid || inv.amount_due || 0,
+            currency: inv.currency || 'usd',
+            status: inv.status || 'unknown',
+            createdAt: new Date(inv.created * 1000),
+            customerId: typeof inv.customer === 'string' ? inv.customer : customer?.id,
+            customerEmail: customer?.email || inv.customer_email,
+            customerName: customer?.name,
+            description: inv.lines?.data?.[0]?.description || 'Invoice',
+            metadata: inv.metadata,
+            source: 'sync',
+            invoiceId: inv.id,
+          });
+          invoicesProcessed++;
+        }
+
+        hasMore = page.has_more;
+        if (page.data.length > 0) {
+          startingAfter = page.data[page.data.length - 1].id;
+        }
+        if (hasMore) await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (err: unknown) {
+      errors.push(`Invoices: ${getErrorMessage(err)}`);
+    }
+
+    logFromRequest(req, {
+      action: 'sync_stripe_activity',
+      resourceType: 'billing',
+      resourceId: 'sync',
+      details: { daysBack: safeDaysBack, paymentIntentsProcessed, invoicesProcessed, errorCount: errors.length },
+    });
+
+    logger.info('[Activity] Stripe sync complete', { extra: { paymentIntentsProcessed, invoicesProcessed, errors: errors.length } });
+
+    const totalSynced = paymentIntentsProcessed + invoicesProcessed;
+    const allFailed = errors.length > 0 && totalSynced === 0;
+
+    if (allFailed) {
+      return res.status(502).json({
+        success: false,
+        error: 'All sync phases failed',
+        errors,
+      });
+    }
+
+    res.json({
+      success: true,
+      synced: {
+        paymentIntents: paymentIntentsProcessed,
+        invoices: invoicesProcessed,
+        total: totalSynced,
+      },
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: unknown) {
+    logger.error('[Activity] Error syncing from Stripe', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, error: 'Failed to sync from Stripe' });
+  }
+});
+
 export default router;

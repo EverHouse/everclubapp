@@ -1,6 +1,6 @@
 import { db } from '../../db';
 import { stripePaymentIntents, users } from '../../../shared/schema';
-import { eq, and, gte, inArray, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, inArray, desc, sql } from 'drizzle-orm';
 import type { StripePaymentIntentStatus } from '../../../shared/constants/statuses';
 
 export interface PaymentWithMember {
@@ -28,9 +28,15 @@ export interface PendingAuthorization extends PaymentWithMember {
   expiresAt: string;
 }
 
-export async function getRefundablePayments(): Promise<RefundablePayment[]> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+export async function getRefundablePayments(options?: { startDate?: Date; endDate?: Date }): Promise<RefundablePayment[]> {
+  const conditions = [eq(stripePaymentIntents.status, 'succeeded')];
+
+  if (options?.startDate) {
+    conditions.push(gte(stripePaymentIntents.createdAt, options.startDate));
+  }
+  if (options?.endDate) {
+    conditions.push(lte(stripePaymentIntents.createdAt, options.endDate));
+  }
 
   const results = await db
     .select({
@@ -48,12 +54,7 @@ export async function getRefundablePayments(): Promise<RefundablePayment[]> {
     })
     .from(stripePaymentIntents)
     .leftJoin(users, sql`(${users.id} = ${stripePaymentIntents.userId} OR LOWER(${users.email}) = LOWER(${stripePaymentIntents.userId}) OR (${users.stripeCustomerId} IS NOT NULL AND ${users.stripeCustomerId} = ${stripePaymentIntents.stripeCustomerId}))`)
-    .where(
-      and(
-        eq(stripePaymentIntents.status, 'succeeded'),
-        gte(stripePaymentIntents.createdAt, thirtyDaysAgo)
-      )
-    )
+    .where(and(...conditions))
     .orderBy(desc(stripePaymentIntents.createdAt));
 
   return results.map(row => ({
