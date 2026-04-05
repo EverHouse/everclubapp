@@ -41,12 +41,11 @@ interface MembershipCardProps {
   showToast: (msg: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
 }
 
-const TILT_MAX_DEG = 8;
 const SPRING_CONFIG = springPresets.tilt;
 const REST_X = 0.5;
 const REST_Y = 0.5;
 
-function useCard3DTilt() {
+function useCardLightEffects() {
   const cardRef = useRef<HTMLDivElement>(null);
   const gyroListenerRef = useRef<((e: DeviceOrientationEvent) => void) | null>(null);
   const gyroPermissionAttempted = useRef(false);
@@ -54,21 +53,36 @@ function useCard3DTilt() {
   const mouseX = useMotionValue(REST_X);
   const mouseY = useMotionValue(REST_Y);
 
-  const rotateX = useSpring(useTransform(mouseY, [0, 1], [TILT_MAX_DEG, -TILT_MAX_DEG]), SPRING_CONFIG);
-  const rotateY = useSpring(useTransform(mouseX, [0, 1], [-TILT_MAX_DEG, TILT_MAX_DEG]), SPRING_CONFIG);
-
-  const sheenX = useTransform(mouseX, [0, 1], [0, 100]);
-  const sheenY = useTransform(mouseY, [0, 1], [0, 100]);
-  const sheenBackground = useTransform(
+  const sheenX = useSpring(useTransform(mouseX, [0, 1], [0, 100]), SPRING_CONFIG);
+  const sheenY = useSpring(useTransform(mouseY, [0, 1], [0, 100]), SPRING_CONFIG);
+  const iridescentBackground = useTransform(
     [sheenX, sheenY],
     ([x, y]: number[]) =>
-      `radial-gradient(circle at ${x}% ${y}%, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 40%, transparent 70%)`
+      `radial-gradient(ellipse 80% 60% at ${x}% ${y}%, rgba(255,180,230,0.22) 0%, rgba(160,210,255,0.18) 20%, rgba(180,255,200,0.12) 40%, rgba(255,220,150,0.08) 55%, transparent 75%)`
   );
 
-  const edgeGlowX = useSpring(useTransform(mouseX, [0, 1], [6, -6]), SPRING_CONFIG);
-  const edgeGlowY = useSpring(useTransform(mouseY, [0, 1], [6, -6]), SPRING_CONFIG);
-  const edgeGlowXHalf = useTransform(edgeGlowX, (v: number) => v * 0.5);
-  const edgeGlowYHalf = useTransform(edgeGlowY, (v: number) => v * 0.5);
+  const edgeAngle = useSpring(
+    useTransform([mouseX, mouseY], ([mx, my]: number[]) => {
+      const angle = Math.atan2(my - 0.5, mx - 0.5) * (180 / Math.PI) + 180;
+      return angle;
+    }),
+    SPRING_CONFIG
+  );
+  const edgeGlimmerBackground = useTransform(
+    edgeAngle,
+    (a: number) =>
+      `conic-gradient(from ${a}deg, transparent 0deg, rgba(255,200,240,0.5) 30deg, rgba(180,220,255,0.6) 60deg, rgba(200,255,220,0.5) 90deg, transparent 120deg, transparent 180deg, rgba(255,220,180,0.4) 210deg, rgba(200,180,255,0.5) 240deg, transparent 270deg, transparent 360deg)`
+  );
+
+  const shimmerPosition = useSpring(
+    useTransform(mouseX, [0, 1], [-100, 200]),
+    SPRING_CONFIG
+  );
+  const shimmerBackground = useTransform(
+    shimmerPosition,
+    (pos: number) =>
+      `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) ${pos - 20}%, rgba(255,255,255,0.18) ${pos}%, rgba(255,255,255,0.04) ${pos + 20}%, transparent 100%)`
+  );
 
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
@@ -182,13 +196,9 @@ function useCard3DTilt() {
 
   return {
     cardRef,
-    rotateX: prefersReducedMotion ? undefined : rotateX,
-    rotateY: prefersReducedMotion ? undefined : rotateY,
-    sheenBackground: prefersReducedMotion ? undefined : sheenBackground,
-    edgeGlowX: prefersReducedMotion ? undefined : edgeGlowX,
-    edgeGlowY: prefersReducedMotion ? undefined : edgeGlowY,
-    edgeGlowXHalf: prefersReducedMotion ? undefined : edgeGlowXHalf,
-    edgeGlowYHalf: prefersReducedMotion ? undefined : edgeGlowYHalf,
+    iridescentBackground: prefersReducedMotion ? undefined : iridescentBackground,
+    edgeGlimmerBackground: prefersReducedMotion ? undefined : edgeGlimmerBackground,
+    shimmerBackground: prefersReducedMotion ? undefined : shimmerBackground,
     handlePointerMove,
     handlePointerLeave,
     requestGyroPermission,
@@ -211,42 +221,26 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   const useDarkLogo = isExpired || isLightTierBackground(cardBgColor);
 
   const {
-    cardRef, rotateX, rotateY, sheenBackground,
-    edgeGlowX, edgeGlowY, edgeGlowXHalf, edgeGlowYHalf,
+    cardRef, iridescentBackground, edgeGlimmerBackground, shimmerBackground,
     handlePointerMove, handlePointerLeave, requestGyroPermission, prefersReducedMotion,
-  } = useCard3DTilt();
+  } = useCardLightEffects();
 
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-6">
-        <div className="relative h-56 lg:h-full lg:min-h-56" style={{ perspective: 800 }}>
+        <div className="relative h-56 lg:h-full lg:min-h-56">
           {!prefersReducedMotion && (
-            <>
-              <motion.div
-                className="absolute -inset-[2px] rounded-xl pointer-events-none"
-                style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  filter: 'blur(16px)',
-                  x: edgeGlowX,
-                  y: edgeGlowY,
-                  willChange: 'transform',
-                }}
-                aria-hidden="true"
-              />
-              <motion.div
-                className="absolute -inset-[1px] rounded-xl pointer-events-none"
-                style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  filter: 'blur(6px)',
-                  x: edgeGlowXHalf,
-                  y: edgeGlowYHalf,
-                  willChange: 'transform',
-                }}
-                aria-hidden="true"
-              />
-            </>
+            <motion.div
+              className="absolute -inset-[1.5px] rounded-xl pointer-events-none"
+              style={{
+                background: edgeGlimmerBackground,
+                filter: 'blur(2px)',
+                willChange: 'background',
+              }}
+              aria-hidden="true"
+            />
           )}
-          <motion.div
+          <div
             ref={cardRef}
             onClick={() => { requestGyroPermission(); setIsCardOpen(true); }}
             role="button"
@@ -255,27 +249,23 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
             className={`relative h-full w-full rounded-xl overflow-hidden cursor-pointer group ${isExpired ? 'grayscale-[30%]' : ''}`}
-            whileTap={prefersReducedMotion ? undefined : { scale: 0.98, transition: SPRING_CONFIG }}
-            style={{
-              rotateX: prefersReducedMotion ? 0 : rotateX,
-              rotateY: prefersReducedMotion ? 0 : rotateY,
-              transformStyle: 'preserve-3d',
-              willChange: prefersReducedMotion ? 'auto' : 'transform',
-              touchAction: 'none',
-            }}
-            whileHover={prefersReducedMotion ? undefined : { scale: 1.015, transition: SPRING_CONFIG }}
+            style={{ touchAction: 'none' }}
           >
           <div className="absolute inset-0" style={{ backgroundColor: cardBgColor }}></div>
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%)' }}></div>
           <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")` }}></div>
-          <div className="absolute inset-0 border border-white/30 rounded-xl backdrop-blur-xl" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.2)' }}></div>
-          <div className="absolute inset-0 overflow-hidden rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-normal pointer-events-none">
-            <div className="holographic-shimmer absolute -inset-full"></div>
-          </div>
+          <div className="absolute inset-0 border border-white/20 rounded-xl" style={{ boxShadow: 'inset 0 1px 0 0 rgba(255,255,255,0.2)' }}></div>
+          {!prefersReducedMotion && (
+            <motion.div
+              className="absolute inset-0 rounded-xl pointer-events-none z-[3]"
+              style={{ background: shimmerBackground, willChange: 'background' }}
+              aria-hidden="true"
+            />
+          )}
           {!prefersReducedMotion && (
             <motion.div
               className="absolute inset-0 rounded-xl pointer-events-none z-[5]"
-              style={{ background: sheenBackground }}
+              style={{ background: iridescentBackground, willChange: 'background' }}
             />
           )}
           <div className="absolute inset-0 p-6 flex flex-col justify-between z-10">
@@ -317,7 +307,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
               <span className="font-bold text-sm text-white/90">{isExpired ? 'Renew Membership' : 'View Membership Details'}</span>
             </div>
           </div>
-        </motion.div>
+        </div>
         </div>
 
         <div className="h-full">

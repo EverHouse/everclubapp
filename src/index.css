@@ -1658,31 +1658,6 @@ html.dark .border-accessible {
     0 32px 64px rgba(0, 0, 0, 0.24);
 }
 
-.holographic-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.08) 25%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.08) 75%,
-    transparent 100%
-  );
-  background-size: 300% 100%;
-  background-position: -100% 0;
-}
-
-.group:hover .holographic-shimmer {
-  animation: holographic-shimmer 1.2s ease-in-out;
-}
-
-@keyframes holographic-shimmer {
-  0% {
-    background-position: -100% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
 
 /* (accordionExpand removed — superseded by grid-based .accordion-content) */
 
@@ -2599,7 +2574,6 @@ html.dark .border-accessible {
   .animate-tab-exit,
   .page-fade-out,
   .animate-skeleton-out,
-  .holographic-shimmer,
   .scroll-reveal,
   .scroll-reveal.is-visible {
     opacity: 1 !important;
