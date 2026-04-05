@@ -88,6 +88,20 @@ export const authRateLimiterByIp = rateLimit({
   }
 });
 
+export const wsTokenRateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `ws-token:${getClientKey(req)}`,
+  validate: false,
+  store: new PgRateLimitStore('ws-token'),
+  handler: (req: Request, res: Response) => {
+    logger.warn(`[RateLimit] WS token limit exceeded for ${getClientKey(req)}`);
+    res.status(429).json({ error: 'Too many WebSocket token requests. Please wait a moment.' });
+  }
+});
+
 export const authRateLimiterByEmail = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,

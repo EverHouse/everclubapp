@@ -13,7 +13,7 @@ import { sendWelcomeEmail } from '../../emails/welcomeEmail';
 import { normalizeEmail, getAlternateDomainEmail } from '../../core/utils/emailNormalization';
 import { FilterOperatorEnum } from '@hubspot/api-client/lib/codegen/crm/contacts';
 import { getErrorMessage } from '../../utils/errorUtils';
-import { authRateLimiterByIp } from '../../middleware/rateLimiting';
+import { authRateLimiterByIp, wsTokenRateLimiter } from '../../middleware/rateLimiting';
 import {
   getStaffUserByEmail,
   getUserRole,
@@ -137,7 +137,7 @@ sessionRouter.get('/api/auth/session', async (req, res) => {
   }
 });
 
-sessionRouter.post('/api/auth/ws-token', authRateLimiterByIp, async (req, res) => {
+sessionRouter.post('/api/auth/ws-token', wsTokenRateLimiter, async (req, res) => {
   const sessionUser = getSessionUser(req);
   if (!sessionUser?.email) {
     return logAndRespond(req, res, 401, 'Not authenticated');
