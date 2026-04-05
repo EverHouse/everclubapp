@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "8.98.40",
+    date: "2026-04-05",
+    title: "Rate Limiting & JWT Security",
+    changes: [
+      "Improved: Authenticated members now get proper rate limits regardless of login method — previously Supabase-authenticated users were treated as anonymous.",
+      "Improved: Registration and social login endpoints are now rate-limited to prevent automated abuse.",
+      "Improved: JWT token validation now enforces audience claim for tighter authentication security.",
+    ]
+  },
+  {
     version: "8.98.39",
     date: "2026-04-05",
     title: "Auth & Security Hardening",

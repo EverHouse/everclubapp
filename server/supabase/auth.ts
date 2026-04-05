@@ -5,6 +5,7 @@ import { authStorage } from '../replit_integrations/auth/storage';
 import { logger } from '../core/logger';
 import { getSupabaseAnon } from '../core/supabase/client';
 import { getErrorMessage } from '../utils/errorUtils';
+import { authRateLimiterByIp } from '../middleware/rateLimiting';
 
 const SUPABASE_ROUTE_TIMEOUT = 10000;
 const VALID_OAUTH_PROVIDERS = new Set(['google', 'apple', 'facebook', 'github', 'azure', 'twitter']);
@@ -106,7 +107,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
 
   logger.info('Supabase auth routes enabled');
 
-  app.post('/api/supabase/signup', async (req, res) => {
+  app.post('/api/supabase/signup', authRateLimiterByIp, async (req, res) => {
     const client = createPerRequestClient();
     if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
 
@@ -355,7 +356,7 @@ export function setupSupabaseAuthRoutes(app: Express) {
     }
   });
 
-  app.post('/api/supabase/oauth', async (req, res) => {
+  app.post('/api/supabase/oauth', authRateLimiterByIp, async (req, res) => {
     const client = createPerRequestClient();
     if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured' });
 
@@ -420,6 +421,7 @@ export const isSupabaseAuthenticated: RequestHandler = async (req, res, next) =>
       try {
         const { payload } = await jwtVerify(token, secret, {
           issuer: process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL}/auth/v1` : undefined,
+          audience: 'authenticated',
         });
 
         if (!payload.sub) {

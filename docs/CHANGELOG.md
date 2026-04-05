@@ -2,6 +2,15 @@
 
 All notable changes to the Ever Club Members App are documented here.
 
+## [8.98.40] - 2026-04-05
+
+### Rate Limiting & JWT Security — Supabase User Recognition, Registration Protection, Audience Validation
+- **Fixed: Rate limiters now recognize Supabase-authenticated users.** `getClientKey` in `server/middleware/rateLimiting.ts` previously only checked `req.session?.user?.id` for user identity. Supabase-authenticated users (via `req.supabaseUser?.id`) were treated as anonymous — subjected to the stricter 600 req/min limit and grouped by IP. Users on shared networks (corporate offices, club WiFi) could hit the IP-based limit and get locked out. Now checks both session and Supabase user IDs.
+- **Fixed: Supabase signup and OAuth endpoints rate-limited.** `/api/supabase/signup` and `/api/supabase/oauth` were only covered by the global rate limiter (600 req/min). Applied `authRateLimiterByIp` (20 req per 15 min per IP) to prevent automated mass-registration attacks that could flood Supabase with ghost accounts and bloat the local database.
+- **Fixed: JWT audience validation enforced.** `jwtVerify` in `server/supabase/auth.ts` validated issuer but not audience. Added `audience: 'authenticated'` to reject non-user tokens (anonymous keys, service role tokens) that happen to share the same signing secret.
+
+Files changed: `server/middleware/rateLimiting.ts`, `server/supabase/auth.ts`
+
 ## [8.98.39] - 2026-04-05
 
 ### Auth & Security Hardening — Cache Headers, OAuth Sync, Log Noise

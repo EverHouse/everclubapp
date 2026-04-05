@@ -7,7 +7,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 import { PgRateLimitStore } from './pgRateLimitStore';
 
 const getClientKey = (req: Request): string => {
-  const userId = req.session?.user?.id;
+  const userId = req.session?.user?.id || req.supabaseUser?.id;
   if (userId) {
     return `user:${String(userId)}`;
   }
@@ -17,7 +17,7 @@ const getClientKey = (req: Request): string => {
 export const globalRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: (req: Request) => {
-    if (req.session?.user?.id) {
+    if (req.session?.user?.id || req.supabaseUser?.id) {
       return 2000;
     }
     return 600;
