@@ -1134,6 +1134,61 @@ router.get('/api/financials/activity', isStaffOrAdmin, async (req: Request, res:
   }
 });
 
+router.get('/api/financials/activity/counts', isStaffOrAdmin, async (req: Request, res: Response) => {
+  try {
+    const result = await db.execute(sql`
+      WITH unified AS (
+        SELECT
+          spi.stripe_payment_intent_id AS id,
+          spi.status,
+          spi.created_at
+        FROM stripe_payment_intents spi
+
+        UNION ALL
+
+        SELECT
+          stc.stripe_id AS id,
+          stc.status,
+          stc.created_at
+        FROM stripe_transaction_cache stc
+        WHERE NOT EXISTS (
+          SELECT 1 FROM stripe_payment_intents spi2
+          WHERE spi2.stripe_payment_intent_id = stc.stripe_id
+             OR spi2.stripe_payment_intent_id = stc.payment_intent_id
+        )
+      ),
+      deduped AS (
+        SELECT DISTINCT ON (id) id, status FROM unified ORDER BY id, created_at DESC
+      )
+      SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'succeeded') AS succeeded,
+        COUNT(*) FILTER (WHERE status IN ('refunded', 'partially_refunded')) AS refunded,
+        COUNT(*) FILTER (WHERE status = 'failed') AS failed,
+        COUNT(*) FILTER (WHERE status = 'disputed') AS disputed,
+        COUNT(*) FILTER (WHERE status = 'draft') AS draft
+      FROM deduped
+    `);
+
+    const row = result.rows[0] as Record<string, string> | undefined;
+
+    res.json({
+      success: true,
+      counts: {
+        all: parseInt(row?.total ?? '0', 10),
+        succeeded: parseInt(row?.succeeded ?? '0', 10),
+        refunded: parseInt(row?.refunded ?? '0', 10),
+        failed: parseInt(row?.failed ?? '0', 10),
+        disputed: parseInt(row?.disputed ?? '0', 10),
+        draft: parseInt(row?.draft ?? '0', 10),
+      },
+    });
+  } catch (error: unknown) {
+    logger.error('[Activity] Error fetching activity counts', { extra: { error: getErrorMessage(error) } });
+    res.status(500).json({ success: false, error: 'Failed to fetch activity counts' });
+  }
+});
+
 router.get('/api/financials/activity/export', isStaffOrAdmin, async (req: Request, res: Response) => {
   try {
     const {

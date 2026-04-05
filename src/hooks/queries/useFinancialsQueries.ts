@@ -204,6 +204,107 @@ export function useInvoices(statusFilter: string = 'all', startDate?: string, en
   });
 }
 
+export interface ActivityItem {
+  id: string;
+  amountCents: number;
+  status: string;
+  description: string;
+  memberEmail: string;
+  memberName: string;
+  createdAt: string;
+  type: string;
+  bookingId: number | null;
+}
+
+interface ActivityFeedResponse {
+  success: boolean;
+  count: number;
+  items: ActivityItem[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+export interface ActivityFeedParams {
+  search?: string;
+  status?: string;
+  type?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useActivityFeed(params: ActivityFeedParams = {}) {
+  return useInfiniteQuery({
+    queryKey: financialsKeys.activityFeed(params),
+    queryFn: async ({ pageParam }) => {
+      const searchParams = new URLSearchParams();
+      if (params.search) searchParams.append('search', params.search);
+      if (params.status && params.status !== 'all') searchParams.append('status', params.status);
+      if (params.type && params.type !== 'all') searchParams.append('type', params.type);
+      if (params.startDate) searchParams.append('startDate', params.startDate);
+      if (params.endDate) searchParams.append('endDate', params.endDate);
+      searchParams.append('limit', '50');
+      if (pageParam) searchParams.append('cursor', pageParam);
+      const url = `/api/financials/activity${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+      const data = await fetchWithCredentials<ActivityFeedResponse>(url);
+      return data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextCursor : undefined,
+  });
+}
+
+interface ActivityCountsResponse {
+  success: boolean;
+  counts: Record<string, number>;
+}
+
+export function useActivityCounts() {
+  return useQuery({
+    queryKey: [...financialsKeys.all, 'activity-counts'],
+    queryFn: async () => {
+      const data = await fetchWithCredentials<ActivityCountsResponse>('/api/financials/activity/counts');
+      return data.counts;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useSyncStripe() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      postWithCredentials<{ success: boolean; synced: { paymentIntents: number; invoices: number; total: number }; errors?: string[] }>('/api/financials/sync-stripe', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: financialsKeys.all });
+    },
+  });
+}
+
+export function useExportActivity() {
+  return useMutation({
+    mutationFn: async (params: ActivityFeedParams) => {
+      const searchParams = new URLSearchParams();
+      if (params.search) searchParams.append('search', params.search);
+      if (params.status && params.status !== 'all') searchParams.append('status', params.status);
+      if (params.type && params.type !== 'all') searchParams.append('type', params.type);
+      if (params.startDate) searchParams.append('startDate', params.startDate);
+      if (params.endDate) searchParams.append('endDate', params.endDate);
+      const url = `/api/financials/activity/export${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+      const response = await fetch(url, { credentials: 'include' });
+      if (!response.ok) throw new Error('Failed to export activity');
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `activity-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(downloadUrl);
+    },
+  });
+}
+
 export function useRetryPayment() {
   const queryClient = useQueryClient();
   return useMutation({

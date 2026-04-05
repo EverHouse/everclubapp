@@ -48,6 +48,8 @@ export const adminKeys = {
     subscriptions: (status?: string) => [...adminKeys.financials.all, 'subscriptions', { status }] as const,
     invoices: (params?: { status?: string; startDate?: string; endDate?: string }) =>
       [...adminKeys.financials.all, 'invoices', params] as const,
+    activityFeed: (params?: { search?: string; status?: string; type?: string; startDate?: string; endDate?: string }) =>
+      [...adminKeys.financials.all, 'activity-feed', params] as const,
   },
 
   cafe: {

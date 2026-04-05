@@ -8,7 +8,9 @@ import {
   useSubscriptions,
   useInvoices,
   useOverduePayments,
+  useActivityCounts,
 } from '../../../hooks/queries/useFinancialsQueries';
+import ActivitySubTab from '../../../components/admin/payments/ActivitySubTab';
 import { getSubscriptionStatusBadge, getInvoiceStatusBadge } from '../../../utils/statusColors';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import WalkingGolferSpinner from '../../../components/WalkingGolferSpinner';
@@ -49,11 +51,23 @@ interface _InvoiceListItem {
 const FinancialsTab: React.FC = () => {
   const { data: overduePayments } = useOverduePayments();
   const overdueCount = overduePayments?.length || 0;
+  const { data: activityCounts } = useActivityCounts();
+  const attentionCount = (activityCounts?.failed || 0) + (activityCounts?.disputed || 0);
   const [searchParams, setSearchParams] = useSearchParams();
   const subtabParam = searchParams.get('subtab');
-  const activeTab: 'POS' | 'Transactions' | 'Subscriptions' | 'Invoices' = subtabParam === 'transactions' ? 'Transactions' : subtabParam === 'subscriptions' ? 'Subscriptions' : subtabParam === 'invoices' ? 'Invoices' : 'POS';
+  const activeTab: 'POS' | 'Transactions' | 'Subscriptions' | 'Activity' = subtabParam === 'transactions' ? 'Transactions' : subtabParam === 'subscriptions' ? 'Subscriptions' : (subtabParam === 'activity' || subtabParam === 'invoices') ? 'Activity' : 'POS';
+
+  useEffect(() => {
+    if (subtabParam === 'invoices') {
+      setSearchParams(params => {
+        const newParams = new URLSearchParams(params);
+        newParams.set('subtab', 'activity');
+        return newParams;
+      }, { replace: true });
+    }
+  }, [subtabParam, setSearchParams]);
   
-  const setActiveTab = (tab: 'POS' | 'Transactions' | 'Subscriptions' | 'Invoices') => {
+  const setActiveTab = (tab: 'POS' | 'Transactions' | 'Subscriptions' | 'Activity') => {
     setSearchParams(params => {
       const newParams = new URLSearchParams(params);
       if (tab === 'POS') {
@@ -107,14 +121,21 @@ const FinancialsTab: React.FC = () => {
           Subscriptions
         </button>
         <button
-          onClick={() => setActiveTab('Invoices')}
+          onClick={() => setActiveTab('Activity')}
           className={`shrink-0 px-4 py-2 rounded-full font-medium transition-colors tactile-btn ${
-            activeTab === 'Invoices'
+            activeTab === 'Activity'
               ? 'bg-primary dark:bg-accent text-white dark:text-primary'
               : 'bg-white/60 dark:bg-white/10 text-primary/60 dark:text-white/60'
           }`}
         >
-          Invoices
+          <span className="flex items-center gap-1.5">
+            Activity
+            {attentionCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full bg-red-500 text-white">
+                {attentionCount}
+              </span>
+            )}
+          </span>
         </button>
       </div>
 
@@ -124,7 +145,7 @@ const FinancialsTab: React.FC = () => {
         {activeTab === 'POS' && <POSRegister />}
         {activeTab === 'Transactions' && <TransactionsSubTab />}
         {activeTab === 'Subscriptions' && <SubscriptionsSubTab />}
-        {activeTab === 'Invoices' && <InvoicesSubTab />}
+        {activeTab === 'Activity' && <ActivitySubTab />}
       </div>
       </TabTransition>
     </AnimatedPage>
