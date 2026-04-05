@@ -10,6 +10,7 @@ import { sendPaymentReceiptEmail, sendPaymentFailedEmail } from '../emails/payme
 import { sendMembershipRenewalEmail, sendMembershipFailedEmail } from '../emails/membershipEmails';
 import { sendPassWithQrEmail } from '../emails/passEmails';
 import { syncCompanyToHubSpot } from './hubspot';
+import type { CacheTransactionParams } from './stripe/webhooks/types';
 
 import { logger } from './logger';
 
@@ -273,8 +274,8 @@ async function executeJob(job: { id: number; jobType: string; payload: Record<st
         await syncCompanyToHubSpot(payload as unknown as Parameters<typeof syncCompanyToHubSpot>[0]);
         break;
       case 'upsert_transaction_cache': {
-        const { upsertTransactionCache } = await import('./stripe/transactionCache');
-        await upsertTransactionCache(payload as Record<string, string>);
+        const { upsertTransactionCache } = await import('./stripe/webhooks/framework');
+        await upsertTransactionCache(payload as unknown as CacheTransactionParams);
         break;
           }
       case 'stripe_credit_refund': {
